@@ -499,7 +499,7 @@ async def carte(cid: str, n: int, request: Request):
                 else:
                     await ST.regler_porte(cid, "porte1_validee")
             return await ST.lire(cid)
-        extra, faits = {}, []
+        extra, faits, recherche = {}, [], None
         if acceptee and genre == "espace":
             eid = _espace_valide(corps.get("espace_id"))
             if l.get("espace_id") is not None:
@@ -517,9 +517,10 @@ async def carte(cid: str, n: int, request: Request):
             elif job_id:                                  # vidéo : le fait viendra au GET, job fini
                 extra["job_id"] = job_id
         elif acceptee and genre == "recherche":
-            # t354 tâche 5d : plafond AVANT tout appel (402 : rien), sans clé 503, puis UNE recherche ; ses sites publics
-            # sont déposés (url*.txt) pour prospects_chercher ; le coût réel est noté
-            extra.update(await _rechercher_carte(cid, l, orig))
+            # t354 tâche 5d : plafond AVANT tout appel (402 : rien), sans clé 503 ; relecture I5 : la décision s'écrit
+            # sous le verrou, la recherche part APRÈS (jamais le verrou global pendant un appel payant, jamais rejouée)
+            recherche = await _reserver_recherche(cid, l, orig)
+            extra["statut"] = "en_cours"
         with _traduire():
             await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n, decision, extra)],
                                                        **_trace(appareil))] + faits)
@@ -528,26 +529,45 @@ async def carte(cid: str, n: int, request: Request):
                     raise HTTPException(409, "La conversation a déjà son espace : il ne change pas.")
             elif acceptee and genre == "porte":
                 await ST.regler_porte(cid, "porte1_validee")
+    if acceptee and genre == "recherche":
+        await _executer_recherche(cid, n, orig, recherche, appareil)
     return await ST.lire(cid)
 
 
-async def _rechercher_carte(cid: str, l: dict, orig: dict) -> dict:
-    from app.services import agent_outils as AO, plafonds, recherche_web as RW
+async def _reserver_recherche(cid: str, l: dict, orig: dict) -> dict:
+    """Sous le verrou : la clé (503), puis le plafond (402) — un refus n'écrit rien. Rend ce que la recherche emporte."""
+    from app.services import plafonds, recherche_web as RW
     a = orig.get("arguments") or {}
     f = a.get("fournisseur") if a.get("fournisseur") in RW.FOURNISSEURS else RW.fournisseur_actif()
     q, n = str(a.get("requete") or "")[:300], a.get("max") if isinstance(a.get("max"), int) else 5
     if not RW.configure(f):
         raise HTTPException(503, f"aucune clé pour la recherche {f} : posez-la dans l'onglet Prospects")
     garde = await plafonds.verifier(RW.op(f, n), "campagnes", ref=cid, espace_id=l.get("espace_id"))
+    return {"f": f, "q": q, "n": n, "lignes": (garde or {}).get("lignes") or []}
+
+
+async def _executer_recherche(cid: str, n_carte: int, orig: dict, r0: dict, appareil) -> None:
+    """Hors du verrou, la décision déjà écrite : UNE recherche, le coût réel noté (même en échec), les sites publics
+    déposés, un fait « terminee » (résultats, ou l'échec) ; un échec rend 502 — la carte n'est plus rejouable."""
+    from app.services import plafonds, recherche_web as RW
     try:
-        r = await RW.rechercher(q, n, f)
-    except RW.SansCle as e:
-        await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], 0.0)
-        raise HTTPException(503, str(e)) from None
-    except (RW.RechercheEchouee, ValueError) as e:
-        await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], 0.0)
-        raise HTTPException(502, str(e)) from None
-    await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], float(r["cout_usd"]))
+        r = await RW.rechercher(r0["q"], r0["n"], r0["f"])
+    except Exception as e:  # noqa: BLE001 — toute panne : coût réconcilié, échec dit, jamais une trace
+        await plafonds.noter_reel_lignes(r0["lignes"], float(getattr(e, "cout_usd", 0.0) or 0.0))
+        msg = str(e) if isinstance(e, (RW.SansCle, RW.RechercheEchouee, ValueError)) else f"recherche en échec ({type(e).__name__})"
+        with _traduire():
+            await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n_carte, "terminee", {
+                "fournisseur": r0["f"], "statut": "failed", "erreur": msg[:300]})], **_trace(appareil))])
+        raise HTTPException(502, msg) from None
+    await plafonds.noter_reel_lignes(r0["lignes"], float(r["cout_usd"]))
+    extra = await _deposer_resultats(cid, r)
+    with _traduire():
+        await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n_carte, "terminee", dict(
+            extra, fournisseur=r0["f"], cout_usd=r["cout_usd"], statut="done"))], **_trace(appareil))])
+
+
+async def _deposer_resultats(cid: str, r: dict) -> dict:
+    from app.services import agent_outils as AO
     gardes = []
     for x in r["resultats"]:
         u = AO._url_normale(x.get("url") or "")
@@ -559,7 +579,7 @@ async def _rechercher_carte(cid: str, l: dict, orig: dict) -> dict:
             continue
         await AO.enregistrer_depot(cid, "url", u)
         gardes.append({"titre": x.get("titre") or "", "url": u})
-    return {"fournisseur": f, "cout_usd": r["cout_usd"], "resultats": gardes}
+    return {"resultats": gardes}
 
 
 async def _formulaire_borne(request: Request):
@@ -604,7 +624,13 @@ async def depot(cid: str, request: Request):
         from app.services import marketing
         nom = f.filename or "document"
         try:
-            texte = await asyncio.to_thread(marketing.extract_document_text, nom, data)
+            if nom.lower().endswith(".csv"):         # t354 (relecture I1) : un export de liste d'attente ou de formulaire
+                try:
+                    texte = data.decode("utf-8-sig")
+                except UnicodeDecodeError:          # l'export Excel français : cp1252
+                    texte = data.decode("cp1252", errors="replace")
+            else:
+                texte = await asyncio.to_thread(marketing.extract_document_text, nom, data)
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
         except Exception:  # noqa: BLE001 — un document corrompu : un refus lisible, jamais une trace

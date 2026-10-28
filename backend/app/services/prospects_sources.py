@@ -107,6 +107,20 @@ def _cle(nom: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", s).strip("_")
 
 
+def _colonne(nom: str) -> str | None:
+    """t354 (relecture I1) : le champ d'une colonne, nom exact d'abord, puis les en-têtes usuels d'un export
+    (« Adresse e-mail », « Date d'inscription », « Consentement RGPD », « Téléphone portable »…)."""
+    k = _cle(nom)
+    if k in _COLONNES:
+        return _COLONNES[k]
+    for motif, champ in ((r"mail|courriel", "email"), (r"^consent|opt_?in|rgpd", "consentement"), (r"^date", "date"),
+                         (r"whatsapp", "whatsapp"), (r"^(tel|telephone|portable|mobile)", "telephone"), (r"^prenom", "prenom"),
+                         (r"^(entreprise|societe|raison_sociale|organisation)", "entreprise"), (r"^(site|url)", "url")):
+        if re.search(motif, k):
+            return champ
+    return None
+
+
 def _cellule(v) -> str:
     s = str(v or "").strip()
     # formule de tableur : jamais exécutable une fois réexportée (un numéro « +33 6… » reste un numéro)
@@ -125,10 +139,11 @@ def lire_csv(texte: str, origine: str) -> dict:
     sep = ";" if tete.count(";") > tete.count(",") else ","
     lecteur = csv.reader(io.StringIO(texte), delimiter=sep)
     try:
-        entete = [_COLONNES.get(_cle(c)) for c in next(lecteur)]
+        entete = [_colonne(c) for c in next(lecteur)]
     except StopIteration:
         return {"lignes": [], "refus": []}
     lignes, refus = [], []
+    rangs = []
     moyen = "inscription" if origine == "liste_attente" else "formulaire"
     jour = _aujourdhui().isoformat()
     for n, brut in enumerate(lecteur, start=2):
@@ -145,8 +160,12 @@ def lire_csv(texte: str, origine: str) -> dict:
         if v.get("consentement", "").lower() not in _OUI:
             refus.append({"ligne": n, "raison": "sans consentement explicite"})
             continue
-        if not _DATE.match(d):
-            refus.append({"ligne": n, "raison": "sans date d'inscription (AAAA-MM-JJ)"})
+        try:                              # t354 (relecture C1) : une vraie date du calendrier
+            d = date.fromisoformat(d).isoformat() if _DATE.match(d) else ""
+        except ValueError:
+            d = ""
+        if not d:
+            refus.append({"ligne": n, "raison": "sans date d'inscription valide (AAAA-MM-JJ)"})
             continue
         if d > jour:
             refus.append({"ligne": n, "raison": "date d'inscription dans le futur"})
@@ -158,12 +177,13 @@ def lire_csv(texte: str, origine: str) -> dict:
         nom = " ".join(x for x in (v.get("prenom", ""), v.get("nom", "")) if x)
         if not nom and not v.get("entreprise"):
             nom = canaux[0]["valeur"].split("@")[0]
+        rangs.append(n)
         lignes.append({"nom": nom, "entreprise": v.get("entreprise", ""), "role": v.get("role", ""), "canaux": canaux,
                        "source": {"type": origine, "date": d, "url": v.get("url", "") if re.match(r"^https?://", v.get("url", ""), re.I) else ""},
                        "base_legale": "consentement",
                        "consentements": [{"canal": c["type"], "base_legale": "consentement", "moyen": moyen, "date": d}
                                          for c in canaux[:1]]})
-    return {"lignes": lignes, "refus": refus}
+    return {"lignes": lignes, "refus": refus, "rangs": rangs}
 
 
 # ---- signaux de la veille --------------------------------------------------------------------------------------------

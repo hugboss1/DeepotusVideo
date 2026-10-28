@@ -898,6 +898,7 @@ async def veille_lire(ctx: Ctx, partie: str = "resume") -> dict:
 # collée ou déposée ; l'e-mail retenu doit y figurer tel quel.
 
 SOURCES_PROSPECTS = ("whatsapp", "depot", "veille", "entreprise")
+_EMAIL_PAGE = re.compile(r"(?<![\w.+-])[\w.+-]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}(?![\w-])")
 MAX_CHERCHER = 50
 MAX_REFUS_RENDUS = 50
 REGLE_SIGNAUX = ("réponse publique utile, à la main, une fois par fil, depuis le compte de l'utilisateur ; jamais de "
@@ -918,14 +919,15 @@ def _texte_depot(l: dict, cid: str, depot) -> str:
 
 
 def _creer_propose(eid: str, champs: dict, consentements: list) -> str:
-    """Crée la fiche (« proposé », par l'agent) puis date ses consentements ; rend « cree », « doublon » ou « oppose »."""
+    """Crée la fiche (« proposé », par l'agent) puis date ses consentements ; rend « cree », « doublon », « oppose »
+    ou le message d'un autre refus (relecture C1 : une ligne fautive ne coupe jamais le lot)."""
     from app.services import prospects as P
     try:
         f = P.creer(eid, champs, qui="agent")
     except P.RefusProspect as e:
         if e.code in ("doublon", "opposition"):
             return "doublon" if e.code == "doublon" else "oppose"
-        raise _Refus(e.message) from None
+        return "refus:" + e.message
     for c in consentements:
         try:
             P.ajouter_consentement(eid, f["id"], c["canal"], c["base_legale"], c["moyen"], c["date"])
@@ -1007,17 +1009,21 @@ async def prospects_chercher(ctx: Ctx, source: str, depot: str | None = None, or
         return _res(True, f"{len(sig)} signal(aux) public(s) de besoin dans la dernière veille : aucune fiche écrite",
                     {"signaux": sig, "regle": REGLE_SIGNAUX})
     if source == "whatsapp":
-        compte = {"cree": 0, "doublon": 0, "oppose": 0}
-        for c in PS.whatsapp_entrants(eid)[:n]:
-            genre, _, v = c["identite"].partition(":")
-            date_ = c["dernier_entrant"] or c["accord"]["date"]
-            if not date_:
-                continue
-            canal = {"type": "whatsapp", "valeur": ("+" + v) if genre == "tel" else c["identite"]}
-            compte[_creer_propose(eid, {"nom": c["numero_masque"], "source": {"type": "whatsapp", "date": date_},
-                                        "base_legale": "consentement", "canaux": [canal]},
-                                  [{"canal": "whatsapp", "base_legale": "consentement", "moyen": "whatsapp",
-                                    "date": c["accord"]["date"] or date_}])] += 1
+        def lot():
+            compte = {"cree": 0, "doublon": 0, "oppose": 0, "refus": 0}
+            for c in PS.whatsapp_entrants(eid)[:n]:
+                genre, _, v = c["identite"].partition(":")
+                date_ = c["dernier_entrant"] or c["accord"]["date"]
+                if not date_:
+                    continue
+                canal = {"type": "whatsapp", "valeur": ("+" + v) if genre == "tel" else c["identite"]}
+                e = _creer_propose(eid, {"nom": c["numero_masque"], "source": {"type": "whatsapp", "date": date_},
+                                         "base_legale": "consentement", "canaux": [canal]},
+                                   [{"canal": "whatsapp", "base_legale": "consentement", "moyen": "whatsapp",
+                                     "date": c["accord"]["date"] or date_}])
+                compte["refus" if e.startswith("refus:") else e] += 1
+            return compte
+        compte = await asyncio.to_thread(lot)          # relecture I6 : jamais des centaines d'écritures sur la boucle
         return _res(True, f"WhatsApp : {compte['cree']} prospect(s) proposé(s), {compte['doublon']} déjà en fiche, "
                           f"{compte['oppose']} opposé(s)",
                     {"crees": compte["cree"], "doublons": compte["doublon"], "opposes": compte["oppose"]})
@@ -1026,10 +1032,18 @@ async def prospects_chercher(ctx: Ctx, source: str, depot: str | None = None, or
         if origine not in PS.ORIGINES_CSV:
             raise _Refus("origine du fichier exigée : liste_attente ou formulaire")
         lu = PS.lire_csv(_texte_depot(l, ctx.cid, depot), origine)
-        compte = {"cree": 0, "doublon": 0, "oppose": 0}
-        for x in lu["lignes"][:MAX_CHERCHER * 10]:
-            cons = x.pop("consentements")
-            compte[_creer_propose(eid, x, cons)] += 1
+        def lot():
+            compte, refus = {"cree": 0, "doublon": 0, "oppose": 0}, []
+            for x, rang in list(zip(lu["lignes"], lu["rangs"]))[:MAX_CHERCHER * 10]:
+                cons = x.pop("consentements")
+                e = _creer_propose(eid, x, cons)
+                if e.startswith("refus:"):
+                    refus.append({"ligne": rang, "raison": e[6:]})
+                else:
+                    compte[e] += 1
+            return compte, refus
+        compte, refus_service = await asyncio.to_thread(lot)
+        lu["refus"] = sorted(lu["refus"] + refus_service, key=lambda x: x["ligne"])
         return _res(True, f"fichier : {compte['cree']} prospect(s) proposé(s), {len(lu['refus'])} ligne(s) refusée(s), "
                           f"{compte['doublon']} déjà en fiche, {compte['oppose']} opposé(s)",
                     {"crees": compte["cree"], "doublons": compte["doublon"], "opposes": compte["oppose"],
@@ -1049,7 +1063,8 @@ async def prospects_chercher(ctx: Ctx, source: str, depot: str | None = None, or
                      "tronque": len(texte) > MAX_DOC})
     fi = fiche if isinstance(fiche, dict) else {}
     email = str(fi.get("email") or "").strip().lower()
-    if not email or email not in texte.lower():
+    trouvees = {m.lower() for m in _EMAIL_PAGE.findall(texte)}   # relecture I2 : une adresse ENTIÈRE de la page
+    if not email or email not in trouvees:
         raise _Refus("l'adresse e-mail doit figurer telle quelle sur les pages lues du site")
     champs = {"nom": fi.get("nom") or "", "entreprise": fi.get("entreprise") or "", "role": fi.get("role") or "",
               "signal": fi.get("signal") or "", "base_legale": "interet_legitime_b2b",

@@ -19,7 +19,7 @@ FOURNISSEURS = ("anthropic", "tavily", "exa", "serper")
 CLES = {"anthropic": "ANTHROPIC_API_KEY", "tavily": "TAVILY_API_KEY", "exa": "EXA_API_KEY", "serper": "SERPER_API_KEY"}
 PRIX = {"anthropic": 0.01, "tavily": 0.008, "exa": 0.007, "serper": 0.001}      # $ par requête, relevés le 28/10/2026
 MAX_USAGES_ANTHROPIC = 2
-JETONS_ANTHROPIC = (6000, 800)        # estimation haute d'un tour de recherche (entrée, sortie)
+JETONS_ANTHROPIC = (40000, 1500)      # estimation haute d'un tour : les résultats des recherches comptent en entrée
 DELAI = 30.0
 MAX_RESULTATS = 10
 
@@ -29,7 +29,11 @@ class SansCle(RuntimeError):
 
 
 class RechercheEchouee(RuntimeError):
-    """Le fournisseur a répondu par une erreur (statut HTTP, erreur de recherche)."""
+    """Le fournisseur a répondu par une erreur (statut HTTP, erreur de recherche). `cout_usd` : ce qui a pu être
+    facturé quand même (relecture I4 : les jetons d'un tour Anthropic en erreur)."""
+    def __init__(self, message: str, cout_usd: float = 0.0):
+        super().__init__(message)
+        self.cout_usd = float(cout_usd or 0.0)
 
 
 def _fichier():
@@ -159,10 +163,12 @@ async def rechercher(requete: str, max_resultats: int = 5, fournisseur: str | No
         for x in contenu or []:
             if isinstance(x, dict) and x.get("type") == "web_search_result":
                 res.append(_forme(x.get("title"), x.get("url")))
-    if erreur and not res:
-        raise RechercheEchouee(f"anthropic : recherche en erreur ({erreur})")
     u = j.get("usage") if isinstance(j.get("usage"), dict) else {}
-    nb = int(((u.get("server_tool_use") or {}).get("web_search_requests")) or 0)
+    stu = u.get("server_tool_use") if isinstance(u.get("server_tool_use"), dict) else {}
+    nb = int(stu.get("web_search_requests") or 0) if isinstance(stu.get("web_search_requests"), int) else 0
     from app.services import moteurs_texte as MT, pricing
-    jetons = float(pricing.estimate(MT.op_tour(modele, int(u.get("input_tokens") or 0), int(u.get("output_tokens") or 0)))["total_usd"])
+    jetons = float(pricing.estimate(MT.op_tour(modele, int(u.get("input_tokens") or 0) if isinstance(u.get("input_tokens"), int) else 0,
+                                               int(u.get("output_tokens") or 0) if isinstance(u.get("output_tokens"), int) else 0))["total_usd"])
+    if erreur and not res:
+        raise RechercheEchouee(f"anthropic : recherche en erreur ({erreur})", round(nb * PRIX[f] + jetons, 6))
     return {"resultats": res[:n], "cout_usd": round(nb * PRIX[f] + jetons, 6), "fournisseur": f}
