@@ -92,7 +92,8 @@ i_masque, i_scene = CAP.index("    ecouter();\n") if "    ecouter();\n" in CAP e
 check("F3 masque (attribut + feuille, page et cadres) posé AVANT que la scène ne démarre",
       "doc.documentElement.setAttribute(ATTR_CAPTURE" in CAP and "st.textContent = CSS_MASQUE" in CAP and i_masque < i_scene)
 check("F4 la mesure des secrets passe par SELECTEURS_SECRETS, page et cadres", "doc.querySelectorAll(SELECTEURS_SECRETS)" in CAP
-      and "scene.avantImage = () => { scene.etat.secrets = mesurerSecrets(); };" in CAP)
+      and "creerScene({ largeur: W * k, hauteur: H * k, fps: 30, secrets: () => mesurerSecrets() })" in CAP
+      and "try { const m = mesure(s); etat.secrets = Array.isArray(m) ? m : null; }" in SCN)
 check("F5 le caviardage est posé par creerScene (aucun appelant ne peut l'oublier)",
       "scene.ajouterCalque(calqueCaviardage());\r\n  return scene;" in SCN or "scene.ajouterCalque(calqueCaviardage());\n  return scene;" in SCN)
 check("F6 le masque est retiré à l'arrêt (page et cadres)", "nePlusEcouter();" in CAP and "removeAttribute(ATTR_CAPTURE)" in CAP)

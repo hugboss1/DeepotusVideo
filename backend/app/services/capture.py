@@ -235,16 +235,38 @@ def identifier(evts: list[dict]) -> list[dict]:
     return evts
 
 
+def reserver(cid: str) -> dict:
+    """Revue finale t315 (I1) : réserve la clôture SOUS VERROU (état « cloture ») avant toute copie ; une seconde clôture
+    concurrente reçoit 409 sans rien toucher. Aucun morceau n'est plus accepté."""
+    with _VERROU:
+        s = _lire_session(cid)
+        if s["etat"] != "en_cours":
+            raise RefusCapture("Cette capture est close.", 409)
+        s["etat"] = "cloture"
+        _ecrire_session(s)
+    return s
+
+
+def liberer(cid: str) -> None:
+    """Rend une clôture réservée qui a échoué avant d'écrire (scène vide…) : retour à en_cours."""
+    with _VERROU:
+        s = _lire_session(cid)
+        if s["etat"] == "cloture":
+            s["etat"] = "en_cours"
+            _ecrire_session(s)
+
+
 def clore(cid: str, clics, duree_ms, cadre=None, generations=()) -> dict:
     """Clôt la session : piste des clics nettoyée, identifiée, complétée des générations, écrite dans
-    `<id>.dzclics.json` ; état `terminee`. Rend {session, clics}. Une session déjà close est refusée (409)."""
+    `<id>.dzclics.json` ; état `terminee`. Rend {session, clics}. Une session déjà close est refusée (409) ; une session
+    réservée (`reserver`) est acceptée."""
     duree = int(_nombre(duree_ms, 0, 24 * 3600 * 1000) or 0)
     evts = identifier(nettoyer_clics(clics, duree))
     evts = sorted(evts + [g for g in generations if isinstance(g, dict)], key=lambda x: x["t"])
     cadre = cadre if isinstance(cadre, dict) else {}
     with _VERROU:
         s = _lire_session(cid)
-        if s["etat"] != "en_cours":
+        if s["etat"] not in ("en_cours", "cloture"):
             raise RefusCapture("Cette capture est close.", 409)
         doc = {"version": 1, "id": cid, "debut_utc": s["cree_utc"], "duree_ms": duree,
                "cadre": {"largeur": int(_nombre(cadre.get("largeur"), 0, 16384) or 0),

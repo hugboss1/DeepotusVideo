@@ -9,8 +9,10 @@
 //   scene.ajouterCalque({id, z, dessiner(ctx, s)})           s = {t, largeur, hauteur, sources, etat, vue}
 //   scene.retirerCalque(id) ; scene.calques()                 triés par z croissant
 //   scene.etat                                                 {encart, zoom, clics, secrets, textes, …} partagé
-//   scene.avantImage = (s) => …                                appelé avant chaque image (l'enregistreur y mesure
-//                                                              les rectangles secrets : etat.secrets toujours frais)
+//   creerScene({…, secrets: () => [{x, y, l, h, ecran}]})    la MESURE des rectangles secrets (px de scène), donnée
+//                                                              à la création, appelée à chaque image APRÈS les
+//                                                              crochets : rien ne peut la remplacer ni la figer
+//   scene.surImage(fn) -> retirer                              un crochet (skin, live) appelé avant chaque image
 //   scene.dessiner(t) ; scene.demarrer() ; scene.arreter() ; scene.flux(fps) -> MediaStream (une fois)
 // Le calque « caviardage » est posé par creerScene lui-même et ne se retire pas.
 // Ordre des calques : fond / cadre < 100 ; écran 100 ; effets de clic 500 ; encart caméra 600 ; skin 700-800 ;
@@ -28,7 +30,7 @@ const horlogeParDefaut = {
   arreter: (id) => clearInterval(id),
 };
 
-export function creerScene({ largeur, hauteur, fps = 30, doc, horloge = horlogeParDefaut, maintenant } = {}) {
+export function creerScene({ largeur, hauteur, fps = 30, doc, horloge = horlogeParDefaut, maintenant, secrets } = {}) {
   const d = doc || document;
   const ici = maintenant || (() => (typeof performance !== "undefined" ? performance.now() : Date.now()));
   const canvas = d.createElement("canvas");
@@ -37,6 +39,8 @@ export function creerScene({ largeur, hauteur, fps = 30, doc, horloge = horlogeP
   const ctx = canvas.getContext("2d");
   const sources = {};
   let calques = [];
+  const crochets = [];
+  const mesure = typeof secrets === "function" ? secrets : () => [];
   let minuterie = null, flux = null;
   const etat = { encart: null, forme: "cercle", zoom: null, clics: [], secrets: [], textes: {}, debut: 0 };
 
@@ -58,16 +62,20 @@ export function creerScene({ largeur, hauteur, fps = 30, doc, horloge = horlogeP
       return scene;
     },
     retirerCalque(id) { if (id !== "caviardage") calques = calques.filter((x) => x.id !== id); return scene; },
-    avantImage: null,
+    surImage(fn) {
+      if (typeof fn !== "function") throw new Error("crochet invalide");
+      crochets.push(fn);
+      return () => { const i = crochets.indexOf(fn); if (i >= 0) crochets.splice(i, 1); };
+    },
     calques: () => calques.map((c) => ({ id: c.id, z: c.z })),
     dessiner(t) {
       const tt = t == null ? ici() : t;
       const vue = vueZoom(etat.zoom, tt, canvas.width, canvas.height);
       const s = { t: tt, largeur: canvas.width, hauteur: canvas.height, sources, etat, vue };
-      if (typeof scene.avantImage === "function") {
-        try { scene.avantImage(s); }
-        catch (e) { etat.secrets = null; }        // mesure en panne : le caviardage noircit toute l'image
-      }
+      for (const f of crochets.slice()) { try { f(s); } catch (e) { /* un crochet en panne est sauté */ } }
+      // la mesure passe APRÈS les crochets : un skin ne peut ni la remplacer ni figer etat.secrets
+      try { const m = mesure(s); etat.secrets = Array.isArray(m) ? m : null; }
+      catch (e) { etat.secrets = null; }          // mesure en panne : le caviardage noircit toute l'image
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);

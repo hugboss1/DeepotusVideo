@@ -113,11 +113,14 @@ export function choisirMime(estSupporte, genre) {
 }
 
 // ── la surface partagée : l'onglet de l'app, rien d'autre (spec §2 : jamais le bureau) ──
-// settings = track.getSettings() ; poignee = track.getCaptureHandle() (ou null) ; jeton = celui que la page a posé
-export function verifierSurface(settings, poignee, jeton) {
+// settings = track.getSettings() ; poignee = track.getCaptureHandle() (ou null) ; jeton = celui que la page a posé ;
+// lisible = la page a posé sa poignée ET le navigateur sait la relire : alors un onglet SANS poignée est un autre onglet
+// (Gmail, un gestionnaire de mots de passe… n'en posent pas). « inconnu » : seul Element Capture peut encore prouver
+// l'auto-capture, sinon l'enregistreur refuse (revue finale t315, C1).
+export function verifierSurface(settings, poignee, jeton, lisible = false) {
   if (!settings || settings.displaySurface !== "browser") return "pas_onglet";
   if (poignee && typeof poignee.handle === "string") return poignee.handle === jeton ? "ok" : "autre_onglet";
-  return "inconnu";            // Capture Handle absent : l'auto-capture se vérifie par Element Capture, sinon on prévient
+  return lisible ? "autre_onglet" : "inconnu";
 }
 
 // ── la piste des clics (format du plan, version 1) : t = ms depuis le début ──

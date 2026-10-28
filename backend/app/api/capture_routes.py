@@ -113,17 +113,23 @@ async def terminer(cid: str, request: Request):
     from app.config import settings
     from app.services import library_index as LI
     try:
-        s = (await asyncio.to_thread(C.lire, cid))["session"]
-        if s["etat"] != "en_cours":
-            raise C.RefusCapture("Cette capture est close.", 409)
+        # revue finale t315 (I1) : la clôture est RÉSERVÉE sous verrou avant toute copie ; une seconde clôture concurrente
+        # reçoit 409 sans toucher au fichier de la première
+        s = await asyncio.to_thread(C.reserver, cid)
+    except C.RefusCapture as e:
+        raise _refus(e) from None
+    try:
         gens = await _generations(s["debut_ms"], C._maintenant_ms())
         dest = await asyncio.to_thread(C.copier_scene, cid, settings.outputs_path / "captures")
-        try:
-            r = await asyncio.to_thread(C.clore, cid, d.get("clics"), d.get("duree_ms"), d.get("cadre"), gens)
-        except C.RefusCapture:
-            dest.unlink(missing_ok=True)
-            raise
+    except BaseException as e:
+        await asyncio.to_thread(C.liberer, cid)
+        if isinstance(e, C.RefusCapture):
+            raise _refus(e) from None
+        raise
+    try:
+        r = await asyncio.to_thread(C.clore, cid, d.get("clics"), d.get("duree_ms"), d.get("cadre"), gens)
     except C.RefusCapture as e:
+        dest.unlink(missing_ok=True)
         raise _refus(e) from None
     titre = C._texte(d.get("titre"), 120) or f"Capture {datetime.now().strftime('%d/%m %H:%M')}"
     job_id = await R._sfx_video_job(dest, titre, provider="capture", etape="Capture")

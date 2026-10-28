@@ -37,7 +37,8 @@
   "capture.note.sans_ec": {"fr": "tout l'onglet", "en": "whole tab"},
   "capture.note.sans_voix": {"fr": "sans voix", "en": "no voice"},
   "capture.note.sans_camera": {"fr": "sans caméra", "en": "no camera"},
-  "capture.note.verif": {"fr": "onglet non vérifié", "en": "tab not verified"},
+  "capture.note.piste_perdue": {"fr": "piste {piste} perdue", "en": "{piste} track lost"},
+  "capture.erreur.verif": {"fr": "L'onglet partagé n'a pas pu être vérifié comme celui de l'app : rien n'est enregistré.", "en": "The shared tab could not be verified as the app's: nothing is recorded."},
   "capture.erreur.refus": {"fr": "Partage refusé : rien n'est enregistré.", "en": "Sharing refused: nothing is recorded."},
   "capture.erreur.surface": {"fr": "Choisis l'onglet de l'app : ni l'écran entier, ni une fenêtre. Rien n'est enregistré.", "en": "Pick the app's tab: not the whole screen, not a window. Nothing is recorded."},
   "capture.erreur.autre_onglet": {"fr": "Cet onglet n'est pas celui de l'app : rien n'est enregistré.", "en": "That tab is not the app's: nothing is recorded."},
@@ -46,6 +47,7 @@
   "capture.fin.titre": {"fr": "Enregistrement rangé", "en": "Recording saved"},
   "capture.fin.titre_erreur": {"fr": "Enregistrement perdu", "en": "Recording lost"},
   "capture.fin.texte": {"fr": "Dans la Bibliothèque : {fichier}. {clics} clics, dont {reconnus} reconnus par l'assistant.", "en": "In the Library: {fichier}. {clics} clicks, {reconnus} of them recognised by the assistant."},
+  "capture.fin.pistes_perdues": {"fr": "Pistes brutes incomplètes (envoi échoué) : {pistes}.", "en": "Incomplete raw tracks (upload failed): {pistes}."},
   "capture.fin.erreur": {"fr": "L'enregistrement n'a pas pu être rangé : {msg}", "en": "The recording could not be saved: {msg}"},
   "capture.fin.biblio": {"fr": "Ouvrir la Bibliothèque", "en": "Open the Library"},
   "capture.fin.fermer": {"fr": "Fermer", "en": "Close"}

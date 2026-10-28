@@ -6,7 +6,7 @@ Plan docs/superpowers/plans/2026-10-28-t315-capture.md, spec boîte à outils §
     null) ; encart borné ; MIME (MP4 d'abord, WebM ensuite, audio) ; surface (onglet, cet onglet) ; piste des clics
     (écran dédoublonné, secret sans libellé, t croissant) ; zoom en direct (1 hors fenêtre, borné au cadre) ;
 [S] dz-capture-scene.js (faux canvas) : calques triés par z, CAVIARDAGE posé d'office, dernier, indélébile (z ≥ 900
-    refusé, retrait ignoré, second caviardage refusé) ; avantImage appelé avant chaque image ; caches peints APRÈS
+    refusé, retrait ignoré, second caviardage refusé) ; mesure des secrets donnée à la création, après les crochets ; caches peints APRÈS
     l'écran ; mesure en panne -> image noire ; calque en panne sauté ; horloge démarrée/arrêtée ; flux unique ;
 [U] dz-capture.js sous faux DOM : bouton « Enregistrer » dans la barre (avant « Demander »), grisé sans
     getDisplayMedia ; boîte de départ (caméra JAMAIS cochée d'office, même gardée cochée) ; refus du partage, surface
@@ -100,7 +100,8 @@ out.m3 = L.choisirMime(m => m.startsWith("audio/webm"), "audio");
 out.m4 = L.choisirMime(m => { throw new Error("x"); }, "scene");
 out.vs = [L.verifierSurface({displaySurface: "monitor"}, null, "j"), L.verifierSurface({displaySurface: "window"}, null, "j"),
   L.verifierSurface({displaySurface: "browser"}, {handle: "j"}, "j"), L.verifierSurface({displaySurface: "browser"}, {handle: "z"}, "j"),
-  L.verifierSurface({displaySurface: "browser"}, null, "j"), L.verifierSurface(null, null, "j")];
+  L.verifierSurface({displaySurface: "browser"}, null, "j"), L.verifierSurface(null, null, "j"),
+  L.verifierSurface({displaySurface: "browser"}, null, "j", true)];
 let h = 1000; const P = L.creerPiste(() => h);
 P.debut(); h = 1100; P.ecran("quick"); h = 1200; P.ecran("quick"); h = 1300; P.ecran("settings");
 h = 1450; P.clic({x: .1, y: .2, bouton: 9, ecran: "settings", secret: true, cible: {balise: "input", role: "", t: "Clé", i: "sk-ant"}});
@@ -129,8 +130,9 @@ check("L9 forme inconnue -> cercle", L["f"] == ["vif", "cercle"])
 check("L10 MIME : MP4/H.264 d'abord, WebM ensuite, audio Opus ; navigateur muet -> vide",
       L["m1"].startswith("video/mp4;codecs=avc1") and L["m2"] == "video/webm;codecs=vp9" and L["m3"] == "audio/webm;codecs=opus"
       and L["m4"] == "")
-check("L11 surface : écran entier et fenêtre refusés, cet onglet ok, autre onglet refusé, sans poignée inconnu",
-      L["vs"] == ["pas_onglet", "pas_onglet", "ok", "autre_onglet", "inconnu", "pas_onglet"], L["vs"])
+check("L11 surface : écran entier et fenêtre refusés, cet onglet ok, autre onglet refusé ; sans poignée : inconnu si "
+      "le navigateur ne sait pas la lire, AUTRE ONGLET s'il le sait (revue finale C1)",
+      L["vs"] == ["pas_onglet", "pas_onglet", "ok", "autre_onglet", "inconnu", "pas_onglet", "autre_onglet"], L["vs"])
 ev = L["p"]["evenements"]
 check("L12 piste : écran dédoublonné, t depuis le début", [e.get("ecran") for e in ev if e["type"] == "ecran"] == ["quick", "settings"]
       and [e["t"] for e in ev] == [100, 300, 450, 500], ev)
@@ -155,7 +157,8 @@ function Ctx(){ return new Proxy({}, {get(t,k){ if (k in t) return t[k]; return 
 const doc = { createElement(){ return { width: 0, height: 0, getContext(){ return Ctx(); }, captureStream(f){ ops.push(["captureStream", f]); return {id: "flux"}; } }; } };
 let tic = null, arrets = 0;
 const horloge = { demarrer(f, ms){ tic = f; ops.push(["horloge", ms]); return 7; }, arreter(id){ arrets++; } };
-const sc = M.creerScene({largeur: 400, hauteur: 200, fps: 25, doc, horloge, maintenant: () => 1000});
+let MESURE = () => [];
+const sc = M.creerScene({largeur: 400, hauteur: 200, fps: 25, doc, horloge, maintenant: () => 1000, secrets: (s) => MESURE(s)});
 const out = {};
 out.c0 = sc.calques();
 sc.ajouterCalque(M.calqueEcran()); sc.ajouterCalque({id: "skin", z: 700, dessiner(){ ops.push(["skin"]); }});
@@ -169,19 +172,21 @@ sc.retirerCalque("caviardage"); out.c2 = sc.calques().map(c => c.id);
 let mesures = 0;
 const video = {readyState: 4, videoWidth: 800, videoHeight: 400};
 sc.source("ecran", video);
-sc.avantImage = (s) => { mesures++; s.etat.secrets = [{x: 10, y: 20, l: 30, h: 40, ecran: false}, {x: 200, y: 50, l: 150, h: 100, ecran: true}]; };
+MESURE = (s) => { mesures++; return [{x: 10, y: 20, l: 30, h: 40, ecran: false}, {x: 200, y: 50, l: 150, h: 100, ecran: true}]; };
+// un skin qui tente de figer les secrets (revue finale I3) : la mesure passe après lui
+const retirer = sc.surImage((s) => { s.etat.secrets = []; });
 sc.etat.textes.masque = "Masqué";
 ops.length = 0; sc.dessiner(1000);
 out.ops = ops.map(o => o[0]);
 const iEcran = ops.findIndex(o => o[0] === "drawImage"), iSkin = ops.findIndex(o => o[0] === "skin");
 const caches = ops.map((o, i) => [o, i]).filter(([o]) => o[0] === "fillRect" && o[3] !== 400);
 out.ordre = {iEcran, iSkin, caches: caches.map(([o, i]) => i), texte: ops.filter(o => o[0] === "fillText").map(o => o[1])};
-out.mesures = mesures;
-sc.avantImage = () => { throw new Error("mesure en panne"); };
+out.mesures = mesures; retirer(); out.surImage = typeof sc.avantImage;
+MESURE = () => { throw new Error("mesure en panne"); };
 ops.length = 0; sc.dessiner(1000);
 const fr = ops.filter(o => o[0] === "fillRect");
 out.noir = fr.length ? fr[fr.length - 1] : null;
-sc.avantImage = null; sc.etat.secrets = [];
+MESURE = () => [];
 sc.ajouterCalque({id: "panne", z: 300, dessiner(){ throw new Error("x"); }});
 ops.length = 0; sc.dessiner(1000); out.apresPanne = ops.some(o => o[0] === "skin");
 sc.demarrer(); sc.demarrer(); out.actif = sc.actif(); out.horloge = ops.filter(o => o[0] === "horloge");
@@ -193,7 +198,8 @@ check("S1 creerScene pose d'office le caviardage", S["c0"] == [{"id": "caviardag
 check("S2 calques triés par z, caviardage dernier", S["c1"] == ["fond", "ecran", "clics", "encart", "skin", "caviardage"], S["c1"])
 check("S3 z ≥ 900 refusé, second caviardage refusé, calque sans dessin refusé", S["r"] == ["refus", "refus", "refus", "refus"], S["r"])
 check("S4 retirer le caviardage est sans effet", S["c2"][-1] == "caviardage")
-check("S5 avantImage appelé avant l'image (mesure fraîche)", S["mesures"] == 1)
+check("S5 la mesure des secrets (donnée à la création) passe à chaque image, APRÈS les crochets : un skin ne la fige pas ; "
+      "plus d'avantImage remplaçable", S["mesures"] == 1 and S["surImage"] == "undefined")
 o = S["ordre"]
 check("S6 caches peints APRÈS l'écran et le skin (deux secrets -> deux caches), texte sur l'écran secret",
       o["iEcran"] >= 0 and len(o["caches"]) == 2 and all(i > o["iEcran"] and i > o["iSkin"] for i in o["caches"])
@@ -209,6 +215,7 @@ print("[U] dz-capture.js")
 FAUX = r"""
 const dico = %s, LANG = "%s";
 globalThis.window = globalThis;
+globalThis.location = {origin: "http://127.0.0.1:8797", href: "http://127.0.0.1:8797/"};
 function Noeud(tag){ this.tagName = String(tag).toUpperCase(); this.enfants = []; this.attrs = {}; this.ecoutes = {}; this._t = ""; this.parent = null;
   this.style = {cssText: ""}; this.checked = false; this.disabled = false; this.value = ""; this.title = ""; this.innerHTML = ""; this.className = ""; }
 Object.defineProperty(Noeud.prototype, "textContent", {get(){ return this._t + this.enfants.map(e => e.textContent).join(""); },
@@ -295,6 +302,8 @@ SURFACE = ["monitor"]; out.r2 = await C.demarrer({camera: true, voix: true});
 out.a2 = {gum: appels.gum, fetch: appels.fetch, arrets: appels.arrets};
 SURFACE = ["browser", "autre"]; out.r3 = await C.demarrer({camera: true, voix: true});
 out.a3 = {gum: appels.gum, fetch: appels.fetch, arrets: appels.arrets};
+SURFACE = ["browser", null]; out.r4 = await C.demarrer({camera: true, voix: true});   // onglet tiers SANS poignée
+out.a4 = {gum: appels.gum, fetch: appels.fetch, arrets: appels.arrets};
 out.session = C.session();
 console.log(JSON.stringify(out));
 """))
@@ -311,6 +320,52 @@ check("U6 écran entier : refus, piste coupée, ni micro ni caméra, aucune sess
 check("U7 autre onglet (Capture Handle) : refus, piste coupée, ni micro ni caméra",
       U["r3"]["message"] == DICO["capture.erreur.autre_onglet"]["fr"] and U["a3"] == {"gum": 0, "fetch": 0, "arrets": 2}, U["a3"])
 check("U8 aucune session ouverte après les refus", U["session"] is None)
+check("U7b revue finale C1 : un onglet tiers SANS poignée (la page en a posé une) est refusé comme autre onglet",
+      U["r4"]["message"] == DICO["capture.erreur.autre_onglet"]["fr"] and U["a4"] == {"gum": 0, "fetch": 0, "arrets": 3}, U)
+
+# ── revue finale t315 : C1 (navigateur sans Capture Handle ni Element Capture), C2 (panne après la session), I4 ──
+MD_SANS = r"""{
+  async getDisplayMedia(o){ const p = piste("browser"); delete p.getCaptureHandle;
+    return { getVideoTracks: () => [p], getAudioTracks: () => [], getTracks: () => [p] }; },
+  async getUserMedia(){ appels.gum++; return { getTracks: () => [{ stop(){ appels.arrets++; } }], getVideoTracks: () => [], getAudioTracks: () => [] }; } }"""
+U3 = node(harnais("fr", MD_SANS, r"""
+const r = await window.__dzCapture.demarrer({mode: "onglet", camera: true, voix: true});
+console.log(JSON.stringify({r, gum: appels.gum, fetch: appels.fetch, arrets: appels.arrets, s: window.__dzCapture.session()}));
+"""))
+check("U10 C1 : onglet invérifiable (ni Capture Handle ni Element Capture) -> refus, piste coupée, ni micro ni caméra",
+      U3["r"]["message"] == DICO["capture.erreur.verif"]["fr"] and U3["gum"] == 0 and U3["fetch"] == 0 and U3["arrets"] == 1
+      and U3["s"] is None, U3)
+MD_PANNE = r"""{
+  setCaptureHandleConfig(c){ appels.handle = c.handle; },
+  async getDisplayMedia(o){ const p = piste("browser", "MOI"); p.readyState = "live";
+    return { getVideoTracks: () => [p], getAudioTracks: () => [], getTracks: () => [p] }; },
+  async getUserMedia(o){ appels.gum++; return { getTracks: () => [{ stop(){ appels.arrets++; } }], getVideoTracks: () => [], getAudioTracks: () => [] }; } }"""
+U4 = node(harnais("fr", MD_PANNE, r"""
+// une session s'ouvre, puis l'enregistreur tombe en panne (MediaRecorder lève) : tout doit être coupé et abandonné
+const req = [];
+globalThis.fetch = async (u, o) => { req.push([(o && o.method) || "GET", u]); appels.fetch++;
+  return {ok: true, json: async () => (u === "/api/capture/sessions" ? {id: "0123456789abcdef"} : {})}; };
+globalThis.MediaStream = function(l){ this.l = l || []; this.getTracks = () => this.l; this.getVideoTracks = () => this.l; this.getAudioTracks = () => []; };
+const Ctx = () => new Proxy({}, {get: (t, k) => (k in t ? t[k] : () => {}), set: (t, k, v) => { t[k] = v; return true; }});
+const creer = document.createElement;
+document.createElement = (t) => { const n = creer(t); if (t === "canvas") { n.getContext = Ctx; n.captureStream = () => new MediaStream([]); }
+  if (t === "video") n.play = () => Promise.resolve(); return n; };
+globalThis.MediaRecorder = function(){ throw new Error("enregistreur en panne"); }; MediaRecorder.isTypeSupported = () => true;
+globalThis.setInterval = () => 1; globalThis.clearInterval = () => {};
+const C = window.__dzCapture;
+const [r1, r2] = await Promise.all([C.demarrer({camera: true, voix: true}), C.demarrer({camera: true, voix: true})]);
+console.log(JSON.stringify({r1, r2, gum: appels.gum, arrets: appels.arrets, req, s: C.session(),
+  attr: document.documentElement.getAttribute("data-dz-capture"), pastille: !!document.querySelector("[data-dz-capture-pastille]"),
+  encart: !!document.querySelector("[data-dz-capture-encart]"), bouton: document.querySelector("[data-dz-capture-ouvrir]").textContent}));
+"""))
+check("U11 I4 : un second démarrer concurrent est refusé d'emblée (aucun second partage demandé)",
+      U4["r2"] == {"ok": False, "message": ""} and U4["gum"] == 2, U4)
+check("U12 C2 : panne après l'ouverture de la session -> message, session serveur abandonnée (DELETE)",
+      U4["r1"]["ok"] is False and DICO["capture.erreur.session"]["fr"].split("{")[0] in U4["r1"]["message"]
+      and ["DELETE", "/api/capture/sessions/0123456789abcdef"] in U4["req"], U4)
+check("U13 C2 : écran, micro et caméra coupés, ni pastille ni encart ni masque, enregistreur libre",
+      U4["arrets"] == 3 and U4["s"] is None and U4["attr"] is None and not U4["pastille"] and not U4["encart"]
+      and U4["bouton"] == DICO["capture.barre.bouton"]["fr"], U4)
 
 U2 = node(harnais("en", "{}", r"""
 const b = document.querySelector("[data-dz-capture-ouvrir]");

@@ -143,6 +143,18 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     vide = c.post("/api/capture/sessions", json={}).json()["id"]
     r = c.post(f"/api/capture/sessions/{vide}/terminer", json={"duree_ms": 10})
     check("3.9 sans image -> 409, la session reste ouverte", r.status_code == 409 and C.lire(vide)["session"]["etat"] == "en_cours")
+    # revue finale t315 (I1) : une clôture déjà réservée (autre /terminer en cours) -> 409 sans toucher aux fichiers
+    s4 = c.post("/api/capture/sessions", json={}).json()["id"]
+    c.put(f"/api/capture/sessions/{s4}/pistes/scene/0", content=b"Z0", headers={"Content-Type": "video/webm"})
+    C.reserver(s4)
+    avant = sorted(x.name for x in (settings.outputs_path / "captures").iterdir())
+    r = c.post(f"/api/capture/sessions/{s4}/terminer", json={"duree_ms": 10})
+    check("3.12 /terminer concurrent -> 409, aucun fichier copié ni effacé, le fichier de la 1re capture intact",
+          r.status_code == 409 and sorted(x.name for x in (settings.outputs_path / "captures").iterdir()) == avant
+          and dest.is_file())
+    C.liberer(s4)
+    check("3.13 la clôture libérée aboutit ensuite", c.post(f"/api/capture/sessions/{s4}/terminer", json={"duree_ms": 10}).status_code == 200)
+    check("3.14 sans image : la réservation est rendue (en_cours)", C.lire(vide)["session"]["etat"] == "en_cours")
     check("3.10 un job `capture` n'engage aucune dépense (liste blanche des jobs gratuits)", "capture" in R._JOBS_SANS_DEPENSE)
     check("3.11 journaux : aucun libellé cliqué ni clé", not any("Poser le coffre" in m or "sk-ant" in m for m in _JOURNAL))
 

@@ -19,7 +19,7 @@
 // - Fin (« Arrêter », arrêt du partage par le navigateur) : pistes vidées, caméra et micro coupés, POST …/terminer, la
 //   scène entre dans la Bibliothèque.
 // Drapeau de PREUVE (localStorage dz_capture_preuve = "1", jamais posé par le code) : écran, caméra et voix factices.
-// API (contrat t316-t319) : window.__dzCapture = {ouvrir, demarrer(options), arreter, session, disponible}.
+// API (contrat t316-t319) : window.__dzCapture = {ouvrir(), demarrer(options), arreter(), session(), disponible()}.
 import { SELECTEURS_SECRETS, ATTR_CAPTURE, CSS_MASQUE, estSecret, cibleClic, normaliser, versScene, bornerEncart,
   formeLue, choisirMime, verifierSurface, creerPiste, duree } from "./dz-capture-logique.js";
 import { creerScene, calqueEcran, calqueClics, calqueEncart } from "./dz-capture-scene.js";
@@ -344,22 +344,32 @@ if (!window.__dzCapture) {
     ecouteurs.clear();
   }
 
-  // un envoi DANS L'ORDRE par piste ; le premier échec arrête la file
-  function fileEnvoi(id, nom, mime) {
+  // un envoi DANS L'ORDRE par piste ; un PUT raté est retenté deux fois (0,5 s puis 1,5 s), puis la file s'arrête :
+  // revue finale t315 (I2) : seule la piste « scene » est vitale, une piste brute perdue ne perd pas l'enregistrement
+  const attendreMs = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  function fileEnvoi(id, nom, mime, surEchec) {
     let n = 0, chaine = Promise.resolve(), echec = null;
+    async function envoyer(k, blob) {
+      let derniere = null;
+      for (const pause of [0, 500, 1500]) {
+        if (pause) await attendreMs(pause);
+        try {
+          const r = await fetch(`/api/capture/sessions/${id}/pistes/${nom}/${k}`, { method: "PUT",
+            headers: { "Content-Type": mime }, body: blob });
+          if (r.ok) return;
+          const j = await r.json().catch(() => ({}));
+          derniere = new Error(typeof j.detail === "string" ? j.detail : String(r.status));
+          if (r.status !== 408 && r.status !== 429 && r.status < 500) break;       // refus net : inutile de retenter
+        } catch (e) { derniere = e; }
+      }
+      throw derniere || new Error("—");
+    }
     return {
       pousser(blob) {
         if (!blob || !blob.size) return;
         const k = n++;
-        chaine = chaine.then(async () => {
-          if (echec) return;
-          const r = await fetch(`/api/capture/sessions/${id}/pistes/${nom}/${k}`, { method: "PUT",
-            headers: { "Content-Type": mime }, body: blob });
-          if (!r.ok) {
-            const j = await r.json().catch(() => ({}));
-            throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
-          }
-        }).catch((e) => { echec = echec || e; });
+        chaine = chaine.then(() => (echec ? null : envoyer(k, blob)))
+          .catch((e) => { if (!echec) { echec = e; if (surEchec) surEchec(nom, e); } });
       },
       fin: () => chaine,
       echec: () => echec,
@@ -368,7 +378,8 @@ if (!window.__dzCapture) {
   function enregistreur(id, nom, flux, genre) {
     const mime = choisirMime((m) => window.MediaRecorder.isTypeSupported(m), genre);
     const rec = new window.MediaRecorder(flux, mime ? { mimeType: mime } : undefined);
-    const file = fileEnvoi(id, nom, (rec.mimeType || mime || (genre === "audio" ? "audio/webm" : "video/webm")));
+    const file = fileEnvoi(id, nom, (rec.mimeType || mime || (genre === "audio" ? "audio/webm" : "video/webm")),
+      nom === "scene" ? null : pistePerdue);
     rec.addEventListener("dataavailable", (ev) => file.pousser(ev.data));
     const arrete = new Promise((ok) => rec.addEventListener("stop", ok, { once: true }));
     rec.start(1000);
@@ -416,7 +427,7 @@ if (!window.__dzCapture) {
       e = ajuster(e);
       Object.assign(boiteE.style, { left: c.x + e.x * c.l + "px", top: c.y + e.y * c.h + "px", width: e.l * c.l + "px",
         height: e.h * c.h + "px", borderRadius: forme === "cercle" ? "50%" : forme === "carre" ? "12%" : "0" });
-      if (session) session.scene.etat.encart = e;
+      if (session) session.scene.etat.encart = Object.assign({}, session.scene.etat.encart, e);   // champs d'un skin gardés
     };
     let appui = null;
     boiteE.addEventListener("pointerdown", (ev) => {
@@ -448,22 +459,33 @@ if (!window.__dzCapture) {
   }
   const couper = (f) => { if (!f) return; f.getTracks().forEach((t) => t.stop()); if (f._dzArret) f._dzArret(); };
 
-  // ── démarrer : rend {ok, message?} ; rien ne reste allumé après un échec ──
+  // ── démarrer : rend {ok, message?} ; rien ne reste allumé après un échec, à quelque étape que ce soit ──
+  // revue finale t315 : un seul démarrage à la fois (I4) ; un onglet sans poignée alors que la page en a posé une est un
+  // AUTRE onglet, et un onglet qu'on n'a pu vérifier ni restreindre est refusé (C1) ; toute panne après l'ouverture des
+  // pistes coupe tout, abandonne la session serveur et libère l'enregistreur (C2).
+  let demarrage = false;
   async function demarrer(options) {
-    if (session) return { ok: false, message: "" };
+    if (session || demarrage) return { ok: false, message: "" };
+    demarrage = true;
+    try { return await demarrer0(options); }
+    finally { demarrage = false; }
+  }
+  async function demarrer0(options) {
     const o = Object.assign({ mode: "app", voix: true, son_onglet: false, camera: false, forme: "cercle", clics: true,
       halo: true, zoom: false }, options || {});
     o.forme = formeLue(o.forme);
     const p = preuve(), notes = [], flux = { ecran: null, voix: null, camera: null, onglet: null };
     const jeton = "dzcap-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    let ac = null;
-    const toutCouper = () => { Object.values(flux).forEach(couper); if (ac) ac.close().catch(() => {}); };
+    const root = document.getElementById("root");
+    let ac = null, poignee = false;
+    const libererRoot = () => { if (root) { root.style.isolation = ""; root.style.transformStyle = ""; } };
+    const toutCouper = () => { Object.values(flux).forEach(couper); if (ac) ac.close().catch(() => {}); libererRoot(); };
     // 1. l'écran, EN PREMIER (le geste de l'utilisateur est encore frais)
     try {
       if (p) flux.ecran = fauxEcran();
       else {
-        try { md.setCaptureHandleConfig({ handle: jeton, exposeOrigin: false, permittedOrigins: [location.origin] }); }
-        catch (e) { /* Capture Handle absent : vérifié plus bas autrement */ }
+        try { md.setCaptureHandleConfig({ handle: jeton, exposeOrigin: false, permittedOrigins: [location.origin] }); poignee = true; }
+        catch (e) { /* Capture Handle absent : seul Element Capture pourra prouver l'auto-capture */ }
         flux.ecran = await md.getDisplayMedia({ video: { frameRate: 30 }, audio: !!o.son_onglet, preferCurrentTab: true,
           selfBrowserSurface: "include", surfaceSwitching: "exclude", monitorTypeSurfaces: "exclude", systemAudio: "exclude" });
       }
@@ -473,59 +495,82 @@ if (!window.__dzCapture) {
     const piste0 = flux.ecran.getVideoTracks()[0];
     let elementCapture = false;
     if (!p) {
+      const lisible = poignee && typeof piste0.getCaptureHandle === "function";
       const verdict = verifierSurface(piste0.getSettings ? piste0.getSettings() : null,
-        typeof piste0.getCaptureHandle === "function" ? piste0.getCaptureHandle() : null, jeton);
+        lisible ? piste0.getCaptureHandle() : null, jeton, lisible);
       if (verdict === "pas_onglet" || verdict === "autre_onglet") {
         toutCouper();
         return { ok: false, message: T(verdict === "pas_onglet" ? "capture.erreur.surface" : "capture.erreur.autre_onglet") };
       }
-      // 2. Element Capture : l'app seule (#root) ; repli = tout l'onglet, dit dans la pastille
-      if (o.mode === "app") {
-        const root = document.getElementById("root");
-        if (avecElementCapture() && typeof piste0.restrictTo === "function" && root) {
-          try {
-            root.style.isolation = "isolate";
-            root.style.transformStyle = "flat";
-            await piste0.restrictTo(await window.RestrictionTarget.fromElement(root));
-            elementCapture = true;
-          } catch (e) { notes.push(T("capture.note.sans_ec")); }
-        } else notes.push(T("capture.note.sans_ec"));
+      // 2. Element Capture : l'app seule (#root) ; repli = tout l'onglet, dit dans la pastille. Element Capture ne marche
+      // que sur l'onglet lui-même : quand l'onglet n'a pas pu être vérifié autrement, on l'essaie toujours et son échec
+      // est un REFUS (jamais un autre onglet filmé en silence).
+      if ((o.mode === "app" || verdict === "inconnu") && avecElementCapture() && typeof piste0.restrictTo === "function" && root) {
+        try {
+          root.style.isolation = "isolate";
+          root.style.transformStyle = "flat";
+          await piste0.restrictTo(await window.RestrictionTarget.fromElement(root));
+          elementCapture = true;
+        } catch (e) { libererRoot(); }
       }
-      if (verdict === "inconnu" && !elementCapture) notes.push(T("capture.note.verif"));
+      if (verdict === "inconnu" && !elementCapture) {
+        toutCouper();
+        return { ok: false, message: T("capture.erreur.verif") };
+      }
+      if (o.mode === "app" && !elementCapture) notes.push(T("capture.note.sans_ec"));
     }
-    if (flux.ecran.getAudioTracks().length) flux.onglet = new MediaStream(flux.ecran.getAudioTracks());
-    // 3. la voix, puis la caméra (accord donné par la case de la boîte)
-    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; }
-    if (o.voix) {
-      try {
-        flux.voix = p && ac ? fausseVoix(ac) : await md.getUserMedia({ audio: { noiseSuppression: true, echoCancellation: true,
-          autoGainControl: true } });
-      } catch (e) { notes.push(T("capture.note.sans_voix")); }
-    }
-    if (o.camera) {
-      try { flux.camera = p ? fausseCamera() : await md.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } } }); }
-      catch (e) { notes.push(T("capture.note.sans_camera")); }
-    }
-    // 4. la session côté serveur
     let id = null;
     try {
+      if (flux.ecran.getAudioTracks().length) flux.onglet = new MediaStream(flux.ecran.getAudioTracks());
+      // 3. la voix, puis la caméra (accord donné par la case de la boîte)
+      try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; }
+      if (o.voix) {
+        try {
+          flux.voix = p && ac ? fausseVoix(ac) : await md.getUserMedia({ audio: { noiseSuppression: true, echoCancellation: true,
+            autoGainControl: true } });
+        } catch (e) { notes.push(T("capture.note.sans_voix")); }
+      }
+      if (o.camera) {
+        try { flux.camera = p ? fausseCamera() : await md.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } } }); }
+        catch (e) { notes.push(T("capture.note.sans_camera")); }
+      }
+      if (piste0.readyState === "ended") throw new Error(T("capture.erreur.refus"));   // partage arrêté pendant l'attente
+      // 4. la session côté serveur
       const r = await fetch("/api/capture/sessions", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ options: Object.assign({}, o, { camera: !!flux.camera, voix: !!flux.voix,
           element_capture: elementCapture, preuve: p, mode: elementCapture || p ? o.mode : "onglet" }) }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.id) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
       id = j.id;
+      return await lancer(id, o, p, flux, notes, ac, piste0, elementCapture);
     } catch (e) {
+      // C2 : rien ne reste allumé, la session serveur est abandonnée, l'enregistreur est libre
+      const s = session;
+      session = null;
+      if (s) {
+        s.enregistreurs.forEach((x) => { try { if (x.rec.state !== "inactive") x.rec.stop(); } catch (z) { /* arrêté */ } });
+        s.scene.arreter();
+        s.minuteries.forEach(clearInterval);
+        if (s.audio) couper(s.audio);
+        if (s.encart) s.encart.retirer();
+        if (s.ui) s.ui.p.remove();
+      }
+      nePlusEcouter();
       toutCouper();
-      if (elementCapture) { const root = document.getElementById("root"); root.style.isolation = ""; root.style.transformStyle = ""; }
+      if (id) await fetch(`/api/capture/sessions/${id}`, { method: "DELETE" }).catch(() => {});
+      peindreBouton();
       return { ok: false, message: T("capture.erreur.session", { msg: (e && e.message) || "—" }) };
     }
-    // 5. la scène : proportions de la piste écran, 1920 px au plus sur le grand côté
+  }
+
+  async function lancer(id, o, p, flux, notes, ac, piste0, elementCapture) {
+    // 5. la scène : proportions de la piste écran, 1920 px au plus sur le grand côté ; la mesure des secrets est donnée
+    // À LA CRÉATION (revue finale I3 : aucun skin ne peut la remplacer)
     const reglages = piste0.getSettings ? piste0.getSettings() : {};
     let W = reglages.width || window.innerWidth, H = reglages.height || window.innerHeight;
     if (elementCapture) { const r = document.getElementById("root").getBoundingClientRect(); W = r.width * (window.devicePixelRatio || 1); H = r.height * (window.devicePixelRatio || 1); }
     const k = Math.min(1, 1920 / Math.max(W, H));
-    const scene = creerScene({ largeur: W * k, hauteur: H * k, fps: 30 });
+    const scene = creerScene({ largeur: W * k, hauteur: H * k, fps: 30, secrets: () => mesurerSecrets() });
     scene.source("ecran", video(flux.ecran));
     if (flux.camera) scene.source("camera", video(flux.camera));
     scene.ajouterCalque(calqueEcran());
@@ -548,12 +593,11 @@ if (!window.__dzCapture) {
     }
     const audio = pistesAudio.length ? new MediaStream(pistesAudio) : null;
     session = { id, scene, options: o, flux, notes, preuve: p, elementCapture, audio, debut: 0, enregistreurs: [],
-      ac, analyseur, minuteries: [], ui: null, encart: null, clics: piste };
-    scene.avantImage = () => { scene.etat.secrets = mesurerSecrets(); };
+      ac, analyseur, minuteries: [], ui: null, encart: null, clics: piste, perdues: [] };
     // 7. le masque AVANT la première image, puis la scène et les enregistreurs
     ecouter();
     session.minuteries.push(setInterval(ecouter, 1000));            // un lab ouvert pendant la capture
-    scene.etat.secrets = mesurerSecrets();
+    scene.dessiner();
     scene.demarrer();
     const fluxScene = new MediaStream([...scene.flux(30).getVideoTracks(), ...(audio ? audio.getAudioTracks() : [])]);
     session.debut = piste.debut();
@@ -571,6 +615,7 @@ if (!window.__dzCapture) {
     if (flux.camera) session.encart = encartDom(flux.camera);
     const tampon = new Uint8Array(128);
     session.minuteries.push(setInterval(() => {
+      if (!session || !session.ui) return;
       session.ui.temps.textContent = duree(performance.now() - session.debut);
       if (analyseur) {
         analyseur.getByteTimeDomainData(tampon);
@@ -579,40 +624,48 @@ if (!window.__dzCapture) {
       }
     }, 100));
     piste0.addEventListener("ended", () => arreter());              // « Arrêter le partage » du navigateur
+    if (piste0.readyState === "ended") throw new Error(T("capture.erreur.refus"));
     peindreBouton();
     window.dispatchEvent(new CustomEvent("dz-capture:debut", { detail: { id } }));
     return { ok: true, id };
   }
 
-  // ── arrêter : vider les pistes, tout couper, ranger dans la Bibliothèque ──
+  // une piste brute perdue en route : dit dans la pastille, l'enregistrement continue (la scène seule est vitale)
+  function pistePerdue(nom) {
+    if (!session) return;
+    session.perdues.push(nom);
+    if (session.ui) session.ui.p.appendChild(el("span", { texte: T("capture.note.piste_perdue", { piste: nom }),
+      style: "font-size:11px;color:#e5484d", "data-dz-capture-perdue": nom }));
+  }
+
+  // ── arrêter : vider les pistes, tout couper, ranger dans la Bibliothèque ; la session est TOUJOURS libérée ──
   let arret = null;
   function arreter() {
     if (!session) return Promise.resolve(null);
     if (arret) return arret;
     arret = (async () => {
       const s = session;
-      s.ui.arret.disabled = true;
-      s.ui.temps.textContent = T("capture.pastille.envoi");
-      const dureeMs = Math.round(performance.now() - s.debut);
-      s.enregistreurs.forEach((x) => { try { if (x.rec.state !== "inactive") x.rec.stop(); } catch (e) { /* déjà arrêté */ } });
-      await Promise.all(s.enregistreurs.map((x) => x.arrete));
-      s.scene.arreter();
-      s.minuteries.forEach(clearInterval);
-      Object.values(s.flux).forEach(couper);                      // caméra et micro éteints : le témoin peut partir
-      if (s.audio) couper(s.audio);
-      if (s.ac) s.ac.close().catch(() => {});
-      if (s.encart) s.encart.retirer();
-      nePlusEcouter();
-      if (s.elementCapture) { const root = document.getElementById("root"); root.style.isolation = ""; root.style.transformStyle = ""; }
-      await Promise.all(s.enregistreurs.map((x) => x.file.fin()));
-      s.ui.p.remove();
-      const echec = s.enregistreurs.map((x) => x.file.echec()).find((e) => e);
       let resultat = null, message = "";
-      if (echec) {
-        await fetch(`/api/capture/sessions/${s.id}`, { method: "DELETE" }).catch(() => {});
-        message = T("capture.erreur.envoi", { msg: echec.message || "—" });
-      } else {
-        try {
+      try {
+        if (s.ui) { s.ui.arret.disabled = true; s.ui.temps.textContent = T("capture.pastille.envoi"); }
+        const dureeMs = Math.round(performance.now() - s.debut);
+        s.enregistreurs.forEach((x) => { try { if (x.rec.state !== "inactive") x.rec.stop(); } catch (e) { /* déjà arrêté */ } });
+        await Promise.all(s.enregistreurs.map((x) => Promise.race([x.arrete, attendreMs(5000)])));
+        s.scene.arreter();
+        s.minuteries.forEach(clearInterval);
+        Object.values(s.flux).forEach(couper);                    // caméra et micro éteints : le témoin peut partir
+        if (s.audio) couper(s.audio);
+        if (s.ac) s.ac.close().catch(() => {});
+        if (s.encart) s.encart.retirer();
+        nePlusEcouter();
+        if (s.elementCapture) { const root = document.getElementById("root"); root.style.isolation = ""; root.style.transformStyle = ""; }
+        await Promise.all(s.enregistreurs.map((x) => x.file.fin()));
+        const scene = s.enregistreurs.find((x) => x.nom === "scene");
+        const echec = scene && scene.file.echec();
+        if (echec) {
+          await fetch(`/api/capture/sessions/${s.id}`, { method: "DELETE" }).catch(() => {});
+          message = T("capture.erreur.envoi", { msg: echec.message || "—" });
+        } else {
           const r = await fetch(`/api/capture/sessions/${s.id}/terminer`, { method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ clics: s.options.clics ? piste.json() : { version: 1, evenements: [] }, duree_ms: dureeMs,
@@ -620,23 +673,32 @@ if (!window.__dzCapture) {
           const j = await r.json().catch(() => ({}));
           if (!r.ok) throw new Error(typeof j.detail === "string" ? j.detail : String(r.status));
           resultat = j;
-        } catch (e) { message = T("capture.fin.erreur", { msg: (e && e.message) || "—" }); }
+        }
+      } catch (e) {
+        message = T("capture.fin.erreur", { msg: (e && e.message) || "—" });
+        Object.values(s.flux).forEach(couper);                    // jamais une caméra laissée allumée
+        if (s.encart) s.encart.retirer();
+        nePlusEcouter();
+      } finally {
+        if (s.ui) s.ui.p.remove();
+        session = null;
+        arret = null;
+        peindreBouton();
       }
-      session = null;
-      arret = null;
-      peindreBouton();
       window.dispatchEvent(new CustomEvent("dz-capture:fin", { detail: { id: s.id, capture: resultat, job_id: resultat && resultat.job_id } }));
-      finir(resultat, message);
+      finir(resultat, message, s.perdues);
       return resultat;
     })();
     return arret;
   }
 
-  function finir(r, message) {
+  function finir(r, message, perdues) {
     const fermer = () => voile.remove();
     const texte = r ? T("capture.fin.texte", { fichier: r.fichier, clics: r.clics.clics, reconnus: r.clics.reconnus }) : message;
     const corps = el("div", { style: S.corps }, [el("div", { texte: texte, "data-dz-brut": true, "data-dz-capture-resultat": r ? "ok" : "erreur",
       style: r ? "" : S.erreur })]);
+    if (r && perdues && perdues.length) corps.appendChild(el("div", { style: S.erreur, "data-dz-capture-perdues": true,
+      texte: T("capture.fin.pistes_perdues", { pistes: perdues.join(", ") }) }));
     const pied = el("div", { style: S.pied });
     if (r) pied.appendChild(el("button", { type: "button", style: S.bouton, texte: T("capture.fin.biblio"), on: { click: () => {
       fermer(); window.dispatchEvent(new CustomEvent("deepotus:navigate", { detail: { view: "library" } })); } } }));
