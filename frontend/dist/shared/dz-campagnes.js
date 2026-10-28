@@ -217,6 +217,7 @@
       case "continuer": return T("campagnes.carte.continuer", { usd: usd(montantContinuer(b), true) });
       case "brouillons": return T("campagnes.carte.brouillons", { n: (a.ids || []).length });
       case "recherche": return T("campagnes.carte.recherche");     // t354
+      case "collecte": return T("campagnes.carte.collecte", { acteur: String(a.acteur || "") });     // t364
       case "sequence": return T("campagnes.carte.sequence", { canal: String(a.canal || "") });     // t355
       default: return String(b.libelle || "");   // secours : un genre que cet écran ne connaît pas
     }
@@ -350,6 +351,21 @@
             ulr.appendChild(li);
           });
           c.appendChild(ulr);
+        }
+      } else if (b.genre === "collecte") {       // t364 : un run Apify payant (plafonné chez Apify), lancé seulement si l'utilisateur accepte
+        c.appendChild(etat(T("campagnes.collecte.detail", { acteur: String(a.acteur || ""), max: Number(a.max) || 0,
+          usd: usd(a.devis_usd || 0) })));
+        if (propose) {
+          actions.appendChild(bouton(T("campagnes.action.collecter", { usd: usd(a.devis_usd || 0) }), function () { decider(n, "acceptee"); }, true, occupe));
+          actions.appendChild(bouton(T("campagnes.action.refuser"), function () { decider(n, "refusee"); }, false, occupe));
+        } else if (e === "refusee") c.appendChild(etat(T("campagnes.etat.refusee")));
+        else {
+          var fc = dernier.arguments || {};
+          if (fc.statut === "failed") c.appendChild(etat(T("campagnes.collecte.echec", { erreur: String(fc.erreur || "") })));
+          else if (fc.statut === "done") {
+            c.appendChild(etat(T("campagnes.collecte.faite", { n: Number(fc.resultats) || 0, usd: usd(fc.cout_usd || 0) }), "ok"));
+            if (fc.partiel) c.appendChild(etat(T("campagnes.collecte.partielle")));
+          }
         }
       } else if (b.genre === "sequence") {       // t355 : la porte 2 d'une séquence de prospection ; rien ne part ici
         var ul = el("ul", { class: "dzCampLignes", "data-dz-camp": "sequence" });
