@@ -11442,5 +11442,17 @@
  "Une page est illisible : image invalide.": {
   "fr": "Une page est illisible : image invalide.",
   "en": "A page is unreadable: invalid image."
+ },
+ "Le moteur Anthropic n'est pas configuré (Réglages › Clés d'API).": {
+  "fr": "Le moteur Anthropic n'est pas configuré (Réglages › Clés d'API).",
+  "en": "The Anthropic engine is not configured (Settings › API keys)."
+ },
+ "Le modèle Anthropic réglé ne lit pas les images : choisis-en un qui les voit (Réglages › Modèles).": {
+  "fr": "Le modèle Anthropic réglé ne lit pas les images : choisis-en un qui les voit (Réglages › Modèles).",
+  "en": "The configured Anthropic model cannot read images: choose one that can (Settings › Models)."
+ },
+ "Le coût a changé : il dépasse le montant accepté.": {
+  "fr": "Le coût a changé : il dépasse le montant accepté.",
+  "en": "The cost changed: it exceeds the accepted amount."
  }
 }

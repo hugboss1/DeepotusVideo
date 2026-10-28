@@ -47,22 +47,27 @@ _LANGUES = {
 }
 RAISON_SANS_CLE = "Le moteur Anthropic n'est pas configuré (Réglages › Clés d'API)."
 RAISON_SANS_VISION = "Le modèle Anthropic réglé ne lit pas les images : choisis-en un qui les voit (Réglages › Modèles)."
+RAISONS = {"cle": RAISON_SANS_CLE, "vision": RAISON_SANS_VISION}    # le champ `raison` du devis (la route le traduit)
+SEUIL_TRONQUE = 0.9               # une sortie qui remplit 90 % du plafond (à 3 caractères par jeton) est tenue pour coupée
+CAR_PAR_JETON = 3
 
 
 class CoutChange(ValueError):
-    """Le coût réel dépasse le montant accepté : rien n'est envoyé (409 sur la route). Porte `usd` (le coût réel)."""
-    def __init__(self, usd: float):
-        super().__init__("Le coût a changé : il dépasse le montant accepté.")
+    """Le coût réel dépasse le montant accepté : rien n'est envoyé (409 sur la route). Porte `usd` (le coût réel).
+    Levée avec un message littéral (couvert par L10) : CoutChange("…", usd)."""
+    def __init__(self, message: str, usd: float):
+        super().__init__(message)
         self.usd = usd
 
 
-def _etat() -> tuple[bool, str]:
+def _etat(modele: str | None = None) -> str:
+    """"" si le secours est possible, sinon "cle" (moteur non configuré) ou "vision" (modèle sans vision)."""
     from app.services import moteurs_texte as MT
     if not MT.configure(MOTEUR):
-        return False, RAISON_SANS_CLE
-    if not MT.vision(MOTEUR):
-        return False, RAISON_SANS_VISION
-    return True, ""
+        return "cle"
+    if not MT.vision(MOTEUR, modele):
+        return "vision"
+    return ""
 
 
 def _lots(n: int) -> list[int]:
@@ -74,16 +79,21 @@ def _prompt(k: int, langue: str) -> str:
     return f"Transcris les {k} page(s) jointes, dans l'ordre. {_LANGUES.get(langue, _LANGUES['auto'])}"
 
 
-def _cout(n: int, langue: str) -> float:
-    """Le coût estimé (USD, 4 décimales) de TOUS les lots de n pages : le texte, le système et les jetons d'image du pire
+def _delai(k: int) -> float:
+    """Le délai d'un lot de k images : 60 s + 30 s par image, 240 s au plus."""
+    return float(min(240, 60 + 30 * k))
+
+
+def _couts(n: int, langue: str, modele: str) -> list[float]:
+    """Le coût estimé (USD, 4 décimales) de CHAQUE lot de n pages : le texte, le système et les jetons d'image du pire
     cas sont les mêmes au devis et à l'envoi, sans qu'aucune image soit lue."""
     from app.services import moteurs_texte as MT
     from app.services import pricing as PR
-    total = 0.0
+    out = []
     for k in _lots(n):
-        op = MT.estimer(MOTEUR, _prompt(k, langue), SYSTEME, MAX_TOKENS_PAGE * k, None, images=k)
-        total += round(float(PR.estimate(op).get("total_usd") or 0.0), 4)
-    return round(total, 4)
+        op = MT.estimer(MOTEUR, _prompt(k, langue), SYSTEME, MAX_TOKENS_PAGE * k, None, modele=modele, images=k)
+        out.append(round(float(PR.estimate(op).get("total_usd") or 0.0), 4))
+    return out
 
 
 def devis(n_pages: int) -> dict:
@@ -91,21 +101,21 @@ def devis(n_pages: int) -> dict:
     from app.services import moteurs_texte as MT
     if isinstance(n_pages, bool) or not isinstance(n_pages, int) or not 1 <= n_pages <= MAX_PAGES:
         raise ValueError(f"Nombre de pages invalide (1 à {MAX_PAGES}).")
-    dispo, raison = _etat()
-    return {"usd": _cout(n_pages, "auto") if dispo else 0.0, "moteur": MOTEUR, "nom": MT.nom(MOTEUR),
-            "disponible": dispo, "raison": raison}
+    modele = MT.modele_sain(MOTEUR)
+    code = _etat(modele)
+    return {"usd": round(sum(_couts(n_pages, "auto", modele)), 4) if not code else 0.0, "moteur": MOTEUR,
+            "nom": MT.nom(MOTEUR), "disponible": not code, "raison": RAISONS.get(code, "")}
 
 
 def _accord(max_usd) -> float:
-    err = ValueError("Montant accepté (max_usd) manquant ou invalide.")
     if isinstance(max_usd, bool) or not isinstance(max_usd, (int, float)):
-        raise err
+        raise ValueError("Montant accepté (max_usd) manquant ou invalide.")
     try:
         mx = float(max_usd)             # un entier géant (10**400) lève OverflowError
     except (OverflowError, ValueError):
-        raise err from None
+        raise ValueError("Montant accepté (max_usd) manquant ou invalide.") from None
     if not math.isfinite(mx) or mx < 0:
-        raise err
+        raise ValueError("Montant accepté (max_usd) manquant ou invalide.")
     return mx
 
 
@@ -132,31 +142,59 @@ def _reduire(octets: bytes) -> dict:
 async def lire(images: list[bytes], *, max_usd: float, langue: str = "fr") -> dict:
     """Les pages (octets d'image) -> {texte, incertains, stats, langue, moteur:"claude", usd}.
     ValueError : accord, pages ou image invalides. CoutChange : le coût réel dépasse `max_usd` (aucun appel).
-    RuntimeError : moteur non configuré, modèle sans vision, ou appel échoué. HTTPException 402 : plafond « atelier »."""
+    RuntimeError : moteur non configuré, modèle sans vision, ou PREMIER appel échoué. HTTPException 402 : plafond
+    « atelier » au premier lot.
+    Le modèle est figé UNE fois au début (coût et appels). Si un lot suivant échoue (402, erreur HTTP, délai), les lots
+    déjà payés ne sont pas perdus : rendu partiel {partiel: True, pages_lues: k, erreur: "plafond"|"appel", usd: payé}.
+    Troncature : `tirer` ne rend pas le motif d'arrêt ; un lot dont la sortie remplit ≥ 90 % du plafond (3 car./jeton)
+    est tenu pour coupé : stats.tronque True et stats.lots_tronques [[première, dernière page]] (1-indexées)."""
+    from fastapi import HTTPException
     from app.services import moteurs_texte as MT
     from app.services import scan_nettoyage as N
     mx = _accord(max_usd)
     if not isinstance(images, list) or not 1 <= len(images) <= MAX_PAGES:
         raise ValueError(f"Il faut de 1 à {MAX_PAGES} pages.")
     langue = langue if langue in _LANGUES else "auto"
-    dispo, raison = await asyncio.to_thread(_etat)
-    if not dispo:
-        raise RuntimeError(raison)
-    pages = [await asyncio.to_thread(_reduire, o) for o in images]
-    cout = await asyncio.to_thread(_cout, len(pages), langue)       # le coût RÉEL, recalculé juste avant l'appel
+    modele = MT.modele_sain(MOTEUR)
+    code = await asyncio.to_thread(_etat, modele)
+    if code == "cle":
+        raise RuntimeError("Le moteur Anthropic n'est pas configuré (Réglages › Clés d'API).")
+    if code == "vision":
+        raise RuntimeError("Le modèle Anthropic réglé ne lit pas les images : choisis-en un qui les voit (Réglages › Modèles).")
+    couts = await asyncio.to_thread(_couts, len(images), langue, modele)    # le coût RÉEL, avant toute lecture d'image
+    cout = round(sum(couts), 4)
     if cout > mx + EPS_USD:
-        raise CoutChange(cout)
-    morceaux, i = [], 0
-    for k in _lots(len(pages)):
+        raise CoutChange("Le coût a changé : il dépasse le montant accepté.", cout)
+    pages = [await asyncio.to_thread(_reduire, o) for o in images]
+    morceaux, tronques, payes, i = [], [], 0.0, 0
+    erreur = ""
+    lots = _lots(len(pages))
+    for n, k in enumerate(lots):
         lot = pages[i:i + k]
+        try:
+            sortie = await MT.tirer_garde(MOTEUR, modele, _prompt(k, langue), SYSTEME, MAX_TOKENS_PAGE * k,
+                                          categorie=CATEGORIE, timeout=_delai(k), images=lot)
+        except Exception as e:  # noqa: BLE001
+            if n == 0:
+                raise
+            erreur = "plafond" if isinstance(e, HTTPException) and e.status_code == 402 else "appel"
+            logger.warning(f"scan_vision : lot {n + 1}/{len(lots)} échoué ({erreur}), {i} page(s) lues, "
+                           f"{payes:.4f} USD payés")
+            break
+        sortie = (sortie or "").strip()
+        morceaux.append(sortie)
+        payes = round(payes + couts[n], 4)
+        if len(sortie) >= SEUIL_TRONQUE * MAX_TOKENS_PAGE * k * CAR_PAR_JETON:
+            tronques.append([i + 1, i + k])
         i += k
-        sortie = await MT.tirer_garde(MOTEUR, "", _prompt(k, langue), SYSTEME, MAX_TOKENS_PAGE * k,
-                                      categorie=CATEGORIE, images=lot)
-        morceaux.append((sortie or "").strip())
     texte, incertains = N.depuis_marques("\n\n".join(m for m in morceaux if m))
     mots = len(texte.split())
-    logger.info(f"scan_vision : {len(pages)} page(s), {len(_lots(len(pages)))} appel(s), {mots} mot(s), "
-                f"{len(incertains)} incertain(s), {cout:.4f} USD")
-    return {"texte": texte, "incertains": incertains,
-            "stats": {"pages": len(pages), "mots": mots, "incertains": len(incertains)},
-            "langue": "en" if langue == "en" else "fr", "moteur": "claude", "usd": cout}
+    logger.info(f"scan_vision : {i}/{len(pages)} page(s), {len(morceaux)} appel(s), {mots} mot(s), "
+                f"{len(incertains)} incertain(s), {len(tronques)} lot(s) tronqué(s), {payes:.4f} USD")
+    r = {"texte": texte, "incertains": incertains,
+         "stats": {"pages": len(pages), "mots": mots, "incertains": len(incertains),
+                   "tronque": bool(tronques), "lots_tronques": tronques},
+         "langue": "en" if langue == "en" else "fr", "moteur": "claude", "usd": payes}
+    if erreur:
+        r.update(partiel=True, pages_lues=i, erreur=erreur)
+    return r
