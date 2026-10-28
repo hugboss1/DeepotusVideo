@@ -89,14 +89,30 @@ export const formeLue = (v) => (FORMES.includes(v) ? v : "cercle");
 
 // ── zoom en direct (désactivable) : 1 → K_ZOOM → 1 autour du clic, en DUREE_ZOOM ms ; vue = {k, ox, oy} ──
 export const K_ZOOM = 1.5, DUREE_ZOOM = 1800;
+// t316 : le STYLE du zoom vient du skin — zoom.k (1,1..2,5) et zoom.duree (800..4 000 ms), sinon les valeurs ci-dessus
 export function vueZoom(zoom, t, largeur, hauteur) {
-  if (!zoom || !(t >= zoom.debut) || t > zoom.debut + DUREE_ZOOM) return { k: 1, ox: 0, oy: 0 };
-  const p = (t - zoom.debut) / DUREE_ZOOM;
+  const K = zoom && Number.isFinite(zoom.k) ? borne(zoom.k, 1.1, 2.5) : K_ZOOM;
+  const D = zoom && Number.isFinite(zoom.duree) ? borne(zoom.duree, 800, 4000) : DUREE_ZOOM;
+  if (!zoom || !(t >= zoom.debut) || t > zoom.debut + D) return { k: 1, ox: 0, oy: 0 };
+  const p = (t - zoom.debut) / D;
   const montee = Math.min(1, p / 0.25), descente = Math.min(1, (1 - p) / 0.25);
   const e = Math.min(montee, descente), lisse = e * e * (3 - 2 * e);
-  const k = 1 + (K_ZOOM - 1) * lisse;
+  const k = 1 + (K - 1) * lisse;
   const ox = borne(zoom.cx - k * zoom.cx, largeur - k * largeur, 0), oy = borne(zoom.cy - k * zoom.cy, hauteur - k * hauteur, 0);
   return { k, ox, oy };
+}
+
+// t316 : le CADRE d'un skin — l'écran réduit d'une marge (0..0,12 de chaque côté) et centré, le fond du skin autour.
+// rectCadre -> {x, y, l, h, k} en px de scène ; composerCadre(vue, cadre) = cadre ∘ zoom, la transformation que
+// suivent l'écran, les clics ET le caviardage (contrat t315 : « étendre le caviardage d'abord »).
+export const MARGE_MAX = 0.12;
+export function rectCadre(cadre, largeur, hauteur) {
+  const m = borne(Number(cadre && cadre.marge) || 0, 0, MARGE_MAX), k = 1 - 2 * m;
+  return { x: m * largeur, y: m * hauteur, l: k * largeur, h: k * hauteur, k };
+}
+export function composerCadre(vue, cadre, largeur, hauteur) {
+  const r = rectCadre(cadre, largeur, hauteur);
+  return { k: vue.k * r.k, ox: vue.ox * r.k + r.x, oy: vue.oy * r.k + r.y };
 }
 
 // ── format d'enregistrement : MP4 (H.264) si le navigateur le donne, sinon WebM ; genre scene | video | audio ──

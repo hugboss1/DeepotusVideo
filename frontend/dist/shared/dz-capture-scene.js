@@ -19,7 +19,9 @@
 // CAVIARDAGE 900, toujours au-dessus : aucun autre calque ne peut prendre z ≥ 900 (le secret n'est jamais recouvert
 // par un dessin qui le laisserait voir, ni découvert par un calque posé après).
 // `vue` = {k, ox, oy} : le zoom en direct ; les calques écran, clics et caviardage l'appliquent, l'encart et le skin non.
-import { vueZoom } from "./dz-capture-logique.js";
+// t316 : `etat.cadre` {marge} (posé par un skin) réduit l'écran ; `vue` = cadre ∘ zoom, `s.cadre` = le rectangle de
+// l'écran (px de scène) : l'écran et les clics y sont rognés, le CAVIARDAGE suit la même `vue` et n'est jamais rogné.
+import { vueZoom, composerCadre, rectCadre } from "./dz-capture-logique.js";
 
 export const Z_ECRAN = 100, Z_CLICS = 500, Z_ENCART = 600, Z_CAVIARDAGE = 900;
 export const DUREE_HALO = 650;
@@ -42,7 +44,7 @@ export function creerScene({ largeur, hauteur, fps = 30, doc, horloge = horlogeP
   const crochets = [];
   const mesure = typeof secrets === "function" ? secrets : () => [];
   let minuterie = null, flux = null;
-  const etat = { encart: null, forme: "cercle", zoom: null, clics: [], secrets: [], textes: {}, debut: 0 };
+  const etat = { encart: null, forme: "cercle", zoom: null, clics: [], secrets: [], textes: {}, debut: 0, cadre: null };
 
   function trier() { calques.sort((a, b) => a.z - b.z || (a.ordre - b.ordre)); }
   let ordre = 0;
@@ -70,8 +72,9 @@ export function creerScene({ largeur, hauteur, fps = 30, doc, horloge = horlogeP
     calques: () => calques.map((c) => ({ id: c.id, z: c.z })),
     dessiner(t) {
       const tt = t == null ? ici() : t;
-      const vue = vueZoom(etat.zoom, tt, canvas.width, canvas.height);
-      const s = { t: tt, largeur: canvas.width, hauteur: canvas.height, sources, etat, vue };
+      const vue = composerCadre(vueZoom(etat.zoom, tt, canvas.width, canvas.height), etat.cadre, canvas.width, canvas.height);
+      const cadre = rectCadre(etat.cadre, canvas.width, canvas.height);
+      const s = { t: tt, largeur: canvas.width, hauteur: canvas.height, sources, etat, vue, cadre };
       for (const f of crochets.slice()) { try { f(s); } catch (e) { /* un crochet en panne est sauté */ } }
       // la mesure passe APRÈS les crochets : un skin ne peut ni la remplacer ni figer etat.secrets
       try { const m = mesure(s); etat.secrets = Array.isArray(m) ? m : null; }
@@ -112,6 +115,17 @@ export function creerScene({ largeur, hauteur, fps = 30, doc, horloge = horlogeP
 
 // ── calques de départ ──
 
+// t316 : l'écran et les clics restent dans le rectangle du cadre (rien ne déborde sur le fond du skin) ; le caviardage,
+// lui, n'est jamais rogné
+export function rogner(ctx, s) {
+  const c = s.cadre;
+  if (!c || (c.x <= 0 && c.y <= 0)) return;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.beginPath();
+  ctx.rect(c.x, c.y, c.l, c.h);
+  ctx.clip();
+}
+
 // la capture de l'app, plein cadre (la scène a les proportions de la piste écran), zoom en direct appliqué
 export function calqueEcran() {
   return {
@@ -119,6 +133,7 @@ export function calqueEcran() {
     dessiner(ctx, s) {
       const v = s.sources.ecran;
       if (!v || !(v.readyState >= 2)) return;
+      rogner(ctx, s);
       ctx.setTransform(s.vue.k, 0, 0, s.vue.k, s.vue.ox, s.vue.oy);
       ctx.drawImage(v, 0, 0, s.largeur, s.hauteur);
     },
@@ -131,6 +146,7 @@ export function calqueClics(couleur = "rgba(240,180,41,") {
     id: "clics", z: Z_CLICS,
     dessiner(ctx, s) {
       s.etat.clics = s.etat.clics.filter((c) => s.t - c.debut <= DUREE_HALO);
+      rogner(ctx, s);
       ctx.setTransform(s.vue.k, 0, 0, s.vue.k, s.vue.ox, s.vue.oy);
       const base = Math.max(14, s.largeur / 70);
       for (const c of s.etat.clics) {
