@@ -11398,5 +11398,9 @@
  "origine du fichier inconnue (liste_attente ou formulaire)": {
   "fr": "origine du fichier inconnue (liste_attente ou formulaire)",
   "en": "unknown file origin (liste_attente or formulaire)"
+ },
+ "ajustement du score invalide : un entier de -20 à 20 est attendu": {
+  "fr": "ajustement du score invalide : un entier de -20 à 20 est attendu",
+  "en": "invalid score adjustment: a whole number from -20 to 20 is expected"
  }
 }

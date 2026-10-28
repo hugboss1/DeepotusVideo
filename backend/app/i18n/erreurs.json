@@ -2519,6 +2519,7 @@
   "erreur.de8bacee6e": {"fr": "easing inconnu ({e}).", "en": "unknown easing ({e}).", "src": "fr"},
   "erreur.de91977448": {"fr": "Gemini n'a rien rendu", "en": "Gemini returned nothing", "src": "fr"},
   "erreur.dea47aacb0": {"fr": "source.filenames doit être une liste non vide (1-64)", "en": "source.filenames must be a non-empty list (1-64)", "src": "en"},
+  "erreur.deb69be476": {"fr": "ajustement du score invalide : un entier de -20 à 20 est attendu", "en": "invalid score adjustment: a whole number from -20 to 20 is expected", "src": "fr"},
   "erreur.ded4896725": {"fr": "Plan introuvable.", "en": "Shot not found.", "src": "fr"},
   "erreur.dee0bd311f": {"fr": "canal invalide (type connu et valeur exigés)", "en": "invalid channel (a known type and a value are required)", "src": "fr"},
   "erreur.def30aeb7a": {"fr": "Aucun média à transcrire : posez un plan ou une voix off sur la timeline, ou écrivez la narration (le calage d'un texte connu est gratuit et plus exact).", "en": "No media to transcribe: place a shot or a voice-over on the timeline, or write the narration (aligning a known text is free and more accurate).", "src": "fr"},
