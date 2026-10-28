@@ -11394,5 +11394,37 @@
  "espace démonstration : importé comme marque (il est lié à un prospect de l'autre installation)": {
   "fr": "espace démonstration : importé comme marque (il est lié à un prospect de l'autre installation)",
   "en": "demo space: imported as a brand (it is tied to a prospect of the other installation)"
+ },
+ "Image illisible : formats acceptés PNG, JPEG, WEBP, BMP, TIFF.": {
+  "fr": "Image illisible : formats acceptés PNG, JPEG, WEBP, BMP, TIFF.",
+  "en": "Unreadable image: accepted formats are PNG, JPEG, WEBP, BMP, TIFF."
+ },
+ "Langue de lecture inconnue : fr ou en.": {
+  "fr": "Langue de lecture inconnue : fr ou en.",
+  "en": "Unknown reading language: fr or en."
+ },
+ "La lecture de texte locale n'existe que sous Windows.": {
+  "fr": "La lecture de texte locale n'existe que sous Windows.",
+  "en": "Local text reading is only available on Windows."
+ },
+ "Cette langue de lecture n'est pas installée dans Windows.": {
+  "fr": "Cette langue de lecture n'est pas installée dans Windows.",
+  "en": "This reading language is not installed in Windows."
+ },
+ "La lecture de texte de Windows a échoué.": {
+  "fr": "La lecture de texte de Windows a échoué.",
+  "en": "Windows text reading failed."
+ },
+ "La lecture de texte de Windows a rendu une réponse illisible.": {
+  "fr": "La lecture de texte de Windows a rendu une réponse illisible.",
+  "en": "Windows text reading returned an unreadable response."
+ },
+ "La lecture de texte de Windows a dépassé le délai d'une minute.": {
+  "fr": "La lecture de texte de Windows a dépassé le délai d'une minute.",
+  "en": "Windows text reading exceeded the one-minute time limit."
+ },
+ "La lecture de texte de Windows ne répond pas (PowerShell absent ou bloqué).": {
+  "fr": "La lecture de texte de Windows ne répond pas (PowerShell absent ou bloqué).",
+  "en": "Windows text reading is not responding (PowerShell missing or blocked)."
  }
 }
