@@ -13128,7 +13128,7 @@ async def _previs_calc(s, body: dict | None, http=None) -> dict:
     out = {"modele": mid, "label": None, "endpoint": None, "tache": None, "resolution": None, "clip": None,
            "clip_chemin": None, "style_frames": [], "prompt": "", "prompt_defaut": "", "notes": [], "usd": None,
            "op": None, "secondes_entree": None, "secondes_sortie": None, "cle_absente": None, "refus": None,
-           "refus_code": None, "refus_etape": None}
+           "refus_code": None, "refus_etape": None, "conform": None, "clip_infos_previs": None}
 
     def _refus(code, msg, etape="champs"):
         if out["refus"] is None:
@@ -13154,14 +13154,24 @@ async def _previs_calc(s, body: dict | None, http=None) -> dict:
             except HTTPException as e:
                 _refus(e.status_code, e.detail)
             else:
-                infos = await asyncio.to_thread(PV.infos_clip, chemin)
-                chemin, infos, notes_c = PV.conformer_clip(chemin, infos, mid, float(s.duration_s or 4.0))
+                infos_previs = await asyncio.to_thread(PV.infos_clip, chemin)
+                # t336 (A6) : le conform PRÉVU (rien n'est écrit au devis) — durée mini du modèle, cadence, format ;
+                # `conform` = « etirer » | « noir » choisi dans la boîte, sinon automatique
+                choix = body.get("conform")
+                if choix is not None and choix not in PV.MODES_CONFORM:
+                    _refus(400, _msg_g("previs.conform_refuse", http, choix=str(choix)[:20],
+                                       liste=", ".join(PV.MODES_CONFORM)))
+                    choix = None
+                chemin, infos, notes_c = PV.conformer_clip(chemin, infos_previs, mid, float(s.duration_s or 4.0),
+                                                           choix=choix)
                 out["notes"] += notes_c
                 out["clip_chemin"] = chemin
+                out["conform"] = infos.get("conform")
+                out["clip_infos_previs"] = infos_previs
                 clip_infos = infos
                 out["clip"] = {"nom": chemin.name, "job_id": str(body.get("clip_id") or body.get("job_id") or "") or None,
-                               **{k: infos.get(k) for k in ("secondes", "largeur", "hauteur", "fps")}}
-                raison = VR.clip_refuse(mid, nom=chemin.name, secondes=infos.get("secondes"),
+                               **{k: infos_previs.get(k) for k in ("secondes", "largeur", "hauteur", "fps", "images")}}
+                raison = VR.clip_refuse(mid, nom=infos.get("nom_envoye") or chemin.name, secondes=infos.get("secondes"),
                                         largeur=infos.get("largeur"), hauteur=infos.get("hauteur"),
                                         fps=infos.get("fps"), octets=infos.get("octets"))
                 if raison:
@@ -13224,7 +13234,7 @@ async def _previs_calc(s, body: dict | None, http=None) -> dict:
 def _previs_public(calc: dict) -> dict:
     return {k: calc[k] for k in ("modele", "label", "endpoint", "tache", "resolution", "clip", "style_frames", "prompt",
                                  "prompt_defaut", "notes", "usd", "secondes_entree", "secondes_sortie", "cle_absente",
-                                 "refus")}
+                                 "refus", "conform")}
 
 
 @router.get("/shots/{shot_id}/previs/sources")
@@ -13243,6 +13253,16 @@ async def shot_previs_sources(shot_id: str):
                                       .where(JobRecord.final_video_path.is_not(None))
                                       .order_by(JobRecord.created_at.desc()).limit(_PREVIS_CLIPS_MAX * 2))).scalars().all()
         style = await _atelier_setting(session, "global_style")
+        jv = await session.get(JobRecord, s.video) if getattr(s, "video", None) else None
+    # t336 : le RECALAGE du dernier rendu « previs » du plan (dérive mesurée en images), que la boîte affiche
+    dernier = None
+    if jv is not None and jv.provider == "previs":
+        try:
+            meta = json.loads(jv.cost_meta or "{}")
+        except (TypeError, ValueError):
+            meta = {}
+        dernier = {"job_id": jv.id, "status": jv.status, "recalage": meta.get("recalage"),
+                   "conform": meta.get("conform")}
     clips, vus = [], set()
     for j in sorted(jobs, key=lambda j: j.id != getattr(s, "video", None)):
         p = Path(str(j.final_video_path or ""))
@@ -13269,7 +13289,7 @@ async def shot_previs_sources(shot_id: str):
                         "cle": None if settings.FAL_KEY else "FAL_KEY",
                         "prompt_defaut": PV.prompt_defaut(mid, action, 1, style)})
     return {"defaut": VR.DEFAUT_PREVIS, "modeles": modeles, "clips": clips, "images": images,
-            "duree_plan": s.duration_s}
+            "duree_plan": s.duration_s, "dernier_rendu": dernier}
 
 
 @router.post("/shots/{shot_id}/previs/devis")
@@ -13311,9 +13331,23 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
     if body.get("confirme_cout") is not True:
         raise HTTPException(409, {"message": _msg_g("previs.confirmer", http), "usd": calc["usd"],
                                   "devis": _previs_public(calc)})
-    await _plafond(calc["op"], "chapitres", shot_id)    # avant la dépense
-    job_id = str(uuid4())
     clip, frames = calc["clip_chemin"], list(calc["frames_chemins"])
+    conf, envoi = calc["conform"], clip
+    if clip is not None and conf:      # t336 : le conform FABRIQUÉ avant toute dépense (un échec ffmpeg = rien payé)
+        import subprocess as _sp
+        try:
+            envoi, _inf, _n = await asyncio.to_thread(
+                PV.conformer_clip, clip, calc["clip_infos_previs"], mid, float(s.duration_s or 4.0),
+                conf["mode"] if conf["mode"] in PV.MODES_CONFORM else None, True)
+        except (RuntimeError, OSError, _sp.TimeoutExpired) as e:
+            raise HTTPException(500, _msg_g("previs.conform_echec", http, msg=str(e)[:300]))
+    try:
+        await _plafond(calc["op"], "chapitres", shot_id)    # avant la dépense
+    except BaseException:
+        if envoi is not clip:
+            Path(envoi).unlink(missing_ok=True)
+        raise
+    job_id = str(uuid4())
     titre = f"Previs → plan · {(s.action or '').strip()[:60] or shot_id[:8]}"
     async with async_session_factory() as session:     # le job et shot.video, d'UN seul commit
         s = await session.get(Shot, shot_id)
@@ -13323,7 +13357,8 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
                               image_filename=frames[0].name, final_prompt=calc["prompt"], video_model=mid,
                               aspect_ratio="9:16", duration_s=int(round(calc["secondes_sortie"] or 0)) or None,
                               provider="previs", current_step="Previs → plan",
-                              cost_meta=json.dumps({"usd": calc["usd"], "kind": "video_refs", "modele": mid})))
+                              cost_meta=json.dumps({"usd": calc["usd"], "kind": "video_refs", "modele": mid,
+                                                    "conform": conf})))
         s.video = job_id
         s.updated_at = datetime.utcnow()
         await session.commit()
@@ -13332,10 +13367,25 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
 
     async def _run():
         try:
-            res = await PV.tirer_previs(mid, clip=clip, frames=frames, prompt=calc["prompt"], tache=calc["tache"],
-                                        resolution=calc["resolution"],
-                                        duree=int(round(calc["secondes_sortie"] or 4)))
+            try:
+                res = await PV.tirer_previs(mid, clip=envoi, frames=frames, prompt=calc["prompt"],
+                                            tache=calc["tache"], resolution=calc["resolution"],
+                                            duree=int(round(calc["secondes_sortie"] or 4)))
+            finally:
+                if envoi is not clip and envoi is not None:   # le clip conformé n'a servi qu'à l'envoi
+                    Path(envoi).unlink(missing_ok=True)
             v = res["video"]
+            # t336 : le RECALAGE — conform défait, dérive mesurée en images contre la previs, nombre d'images exact.
+            # Un échec ici ne perd pas le rendu payé : la vidéo brute reste, la raison est rangée dans la recette.
+            recalage = None
+            if clip is not None:
+                try:
+                    rc = await asyncio.to_thread(PV.recaler, v, clip, calc["clip_infos_previs"], conf)
+                    Path(rc["video"]).replace(v)
+                    recalage = {k: rc[k] for k in ("derive_images", "fiable", "images", "fps", "score", "phrase")}
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"previs → plan {shot_id} : recalage impossible ({e})")
+                    recalage = {"erreur": str(e)[:300]}
             dur = await asyncio.to_thread(_probe_seconds, str(v))
             async with async_session_factory() as session:
                 jr = await session.get(JobRecord, job_id)
@@ -13344,6 +13394,11 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
                 jr.seed = res.get("seed")
                 jr.duration_s = int(round(dur)) if dur else jr.duration_s
                 jr.completed_at = datetime.utcnow()
+                try:
+                    meta = json.loads(jr.cost_meta or "{}")
+                except (TypeError, ValueError):
+                    meta = {}
+                jr.cost_meta = json.dumps(meta | {"recalage": recalage})
                 await session.commit()
             await LI.noter([v.name], "atelier", kind="video", job_id=job_id,
                            parent=clip.name if clip is not None else frames[0].name, relation="previs",
@@ -13352,7 +13407,8 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
                                     "clip": clip.name if clip is not None else None,
                                     "style_frames": [f.name for f in frames], "plan": shot_id,
                                     "arguments": res["arguments"], "notes": calc["notes"] + res["notes"],
-                                    "usd": calc["usd"], "seed": res.get("seed")})
+                                    "usd": calc["usd"], "seed": res.get("seed"), "conform": conf,
+                                    "recalage": recalage})
         except Exception as e:  # noqa: BLE001 — l'échec reste lisible dans le job, jamais de job fantôme
             logger.error(f"previs → plan {shot_id} ({job_id}) : {e}")
             async with async_session_factory() as session:

@@ -136,9 +136,11 @@ def ffmpeg_clip(dest, secondes, w=360, h=640, fps=24):
     return dest
 
 
-CLIP = ffmpeg_clip(UP / "previs_clay.mp4", 2.5)
-COURT = ffmpeg_clip(UP / "trop_court.mp4", 1.0)
-RENDU = ffmpeg_clip(W / "rendu_fal.mp4", 2.5)
+# t336 : le clip de previs fait 5 s (au-dessus du plancher de 4 s de Seedance) : il part TEL QUEL ; le clip hors
+# bornes est TROP ÉTROIT (un clip trop court est désormais conformé : test_previs_conform_recalage)
+CLIP = ffmpeg_clip(UP / "previs_clay.mp4", 5)
+COURT = ffmpeg_clip(UP / "trop_court.mp4", 5, w=200, h=356)
+RENDU = ffmpeg_clip(W / "rendu_fal.mp4", 5)
 
 TELEVERSES, SOUMIS, TELECHARGES = [], [], []
 
@@ -246,11 +248,11 @@ check("P2 Veo références : 8 s × 0,20 $ = 1,60 $",
 check("P3 modèle inconnu : ligne à 0 qui le DIT",
       P.estimate({"kind": "video_refs", "modele": "x"})["total_usd"] == 0
       and "inconnu" in P.estimate({"kind": "video_refs", "modele": "x"})["breakdown"][0]["label"])
-check("P4 le point d'accroche de t336 (conform) existe et rend le clip tel quel aujourd'hui",
-      PV.conformer_clip(CLIP, {"secondes": 2.5}, "seedance-2.5-v2v", 4)[0] == CLIP)
+check("P4 le conform (t336) rend tel quel un clip dans les bornes (5 s, 24 i/s, MP4)",
+      PV.conformer_clip(CLIP, {"secondes": 5, "fps": 24, "images": 120}, "seedance-2.5-v2v", 4)[:3:2] == (CLIP, []))
 inf = PV.infos_clip(CLIP)
-check("P5 la sonde du clip (ffprobe) : 2,5 s, 360×640, 24 i/s",
-      abs((inf["secondes"] or 0) - 2.5) < 0.05 and (inf["largeur"], inf["hauteur"]) == (360, 640)
+check("P5 la sonde du clip (ffprobe) : 5 s, 360×640, 24 i/s, 120 images",
+      abs((inf["secondes"] or 0) - 5) < 0.05 and inf["images"] == 120 and (inf["largeur"], inf["hauteur"]) == (360, 640)
       and abs((inf["fps"] or 0) - 24) < 0.01, inf)
 
 # ── le décor : un chapitre, deux plans, un clip de la Bibliothèque ─────────
@@ -292,12 +294,12 @@ attendu = VR.cout_estime("seedance-2.5-v2v", d.get("secondes_sortie") or 0, entr
 check("D1 devis : clip du plan, style frame par défaut = l'image de PRODUCTION (pas la capture grise), editing, "
       "usd = (entrée + sortie) × 0,473 × 0,6", r.status_code == 200 and d.get("refus") is None
       and d.get("style_frames") == ["prod0.png"] and d.get("tache") == "editing"
-      and abs((d.get("secondes_entree") or 0) - 2.5) < 0.05 and d.get("secondes_sortie") == d.get("secondes_entree")
+      and abs((d.get("secondes_entree") or 0) - 5) < 0.05 and d.get("conform") is None and d.get("secondes_sortie") == d.get("secondes_entree")
       and d.get("usd") == attendu and attendu > 0, r.text[:500])
 check("D2 le devis n'écrit rien et n'envoie rien", depenses() == [] and not TELEVERSES and not SOUMIS)
 r = call("POST", f"/shots/{s0}/previs/devis", {"video_filename": "trop_court.mp4"})
-check("D3 clip de 1 s : refus DIT dans le devis (pas d'exception)", r.status_code == 200
-      and "durée" in (js(r).get("refus") or ""), r.text[:300])
+check("D3 clip trop étroit (200 px) : refus DIT dans le devis (pas d'exception)", r.status_code == 200
+      and "côtés" in (js(r).get("refus") or ""), r.text[:300])
 r = call("POST", f"/shots/{s0}/previs/devis", {"modele": "veo-3.1-ref", "style_frames": ["prod0.png", "look2.png"]})
 check("D4 Veo références : sans clip, 8 s, 1,60 $", r.status_code == 200 and js(r).get("refus") is None
       and js(r).get("usd") == 1.6 and js(r).get("clip") is None, r.text[:300])
@@ -320,7 +322,7 @@ check("T4 modèle inconnu : 400", r.status_code == 400, r.text[:300])
 r = call("POST", f"/shots/{s0}/previs", {"confirme_cout": True})
 check("T5 Seedance sans clip : 400 qui le dit", r.status_code == 400 and "clip" in r.text.lower(), r.text[:300])
 r = call("POST", f"/shots/{s0}/previs", {"video_filename": "trop_court.mp4", "confirme_cout": True})
-check("T6 clip hors bornes : 400", r.status_code == 400 and "durée" in r.text, r.text[:300])
+check("T6 clip hors bornes : 400", r.status_code == 400 and "côtés" in r.text, r.text[:300])
 r = call("POST", f"/shots/{s1}/previs", {"clip_id": "job-previs", "confirme_cout": True})
 check("T7 plan sans image de production et sans style frame choisie : 400", r.status_code == 400
       and "style frame" in r.text, r.text[:300])

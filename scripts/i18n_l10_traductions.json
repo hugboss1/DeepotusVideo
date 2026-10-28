@@ -4639,6 +4639,10 @@
   "fr": "confirm:true exige max_usd : le coût annoncé que vous avez accepté (nombre ≥ 0) — rien n'est lancé.",
   "en": "confirm:true requires max_usd: the quoted cost you accepted (number ≥ 0) — nothing was started."
  },
+ "conform « {choix} » inconnu ({v}).": {
+  "fr": "conform « {choix} » inconnu ({v}).",
+  "en": "conform \"{choix}\" unknown ({v})."
+ },
  "connecteur : `a` et `b` attendent les index de nœud des DEUX moitiés, distincts": {
   "fr": "connecteur : `a` et `b` attendent les index de nœud des DEUX moitiés, distincts",
   "en": "connector: `a` and `b` expect the node indices of the TWO halves, distinct"
@@ -5006,6 +5010,14 @@
  "fav doit être un booléen": {
   "fr": "fav doit être un booléen",
   "en": "fav must be a boolean"
+ },
+ "ffmpeg (mesure) : {v}": {
+  "fr": "ffmpeg (mesure) : {v}",
+  "en": "ffmpeg (measure): {v}"
+ },
+ "ffmpeg ({quoi}) : {v}": {
+  "fr": "ffmpeg ({quoi}) : {v}",
+  "en": "ffmpeg ({quoi}): {v}"
  },
  "ffmpeg a dépassé {v} min — rendu interrompu.": {
   "fr": "ffmpeg a dépassé {v} min — rendu interrompu.",
@@ -7022,6 +7034,10 @@
  "rayon d'orbite hors bornes.": {
   "fr": "rayon d'orbite hors bornes.",
   "en": "orbit radius out of range."
+ },
+ "recalage : {images} images au lieu de {n}": {
+  "fr": "recalage : {images} images au lieu de {n}",
+  "en": "realignment: {images} frames instead of {n}"
  },
  "redressement : chaque coin est une paire de nombres [x, y]": {
   "fr": "redressement : chaque coin est une paire de nombres [x, y]",
