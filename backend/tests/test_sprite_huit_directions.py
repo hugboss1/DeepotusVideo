@@ -259,7 +259,7 @@ def test_quatre_directions_inchangees(planche):
 
 def test_le_devis_compte_au_tarif_du_modele_REELLEMENT_appele(planche, monkeypatch):
     """Le tir FLUX passe par fal-ai/flux-kontext/dev, pas par FLUX schnell : le devis, l'affichage et la garde des
-    plafonds comptent au tarif de CE modèle (0,025 $ par vue, relevé sur fal.ai le 29/10/2026)."""
+    plafonds comptent au tarif de CE modèle (0,025 $ / Mpx relevé sur fal.ai le 29/10/2026 ; 2 Mpx par vue 9:16 comptés prudemment = 0,05 $)."""
     from app.api import routes as R
     from app.config import settings
     from app.services import pricing as P
@@ -276,13 +276,15 @@ def test_le_devis_compte_au_tarif_du_modele_REELLEMENT_appele(planche, monkeypat
     assert appels == [endpoint] == ["fal-ai/flux-kontext/dev"], "le modèle appelé est celui que le devis chiffre"
     assert R._sprite_op_directions("flux", 2) == {"kind": id_prix, "n": 2}
     ligne = P.estimate(R._sprite_op_directions("flux", 1))["breakdown"][0]
-    assert ligne["provider"] == "fal" and "Kontext" in ligne["label"] and ligne["usd"] == P.DEFAULTS["flux_kontext_usd"] == 0.025
+    assert ligne["provider"] == "fal" and "Kontext" in ligne["label"] and ligne["usd"] == 0.05
+    assert P.KONTEXT_9_16 == (752, 1392) and P.kontext_mpx(752, 1392) == 2, "10⁶ px arrondi au supérieur (prudent)"
+    assert P.kontext_mpx(1000, 1000) == 1 and P.DEFAULTS["flux_kontext_usd_mpx"] == 0.025
     assert P.estimate(R._sprite_op_directions("flux", 2))["total_usd"] > P.estimate({"kind": "image", "n": 2})["total_usd"]
     r, _ = _appel("/api/assets/sprite/from-board/devis", {"board": planche, "directions": 8})
-    assert r.json()["usd"] == round(2 * P.DEFAULTS["flux_kontext_usd"], 4), r.json()
+    assert r.json()["usd"] == 0.1, r.json()
     r, _ = _appel("/api/assets/sprite/from-board/devis",
                   {"board": planche, "directions": 8, "miroirs": [], "objet_asymetrique": True})
-    assert r.json()["usd"] == round(5 * P.DEFAULTS["flux_kontext_usd"], 4)
+    assert r.json()["usd"] == 0.25
 
 
 if __name__ == "__main__":
