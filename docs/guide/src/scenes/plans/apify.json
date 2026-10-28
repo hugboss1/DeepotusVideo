@@ -1,0 +1,65 @@
+{
+ "base": "http://127.0.0.1:8819",
+ "preparation": "Backend de preuve scripts/guide/serve_guide_apify.py (port 8819) : code du worktree, données jetables, clé Apify FACTICE, devis et run Apify SIMULÉS (studios de démonstration), espace « Marque Démo », deux conversations Campagnes à id fixe (FR …365, EN …366) avec leur carte « collecte » Google Maps, une veille et le volet Concurrents de démonstration. Aucun appel payant. Chapitre « prospection ».",
+ "scenes": [
+  {"scene": "prospection/apify-cle", "taille": [1440, 900],
+   "titre": {"fr": "La clé Apify, puis l'état dans Prospects", "en": "The Apify key, then its status in Prospects"},
+   "legende": {"fr": "Réglages › Clés d'API : collez la clé Apify sur sa ligne, puis Enregistrer. Prospects › Recherche web dit ensuite « Apify : prêt ».", "en": "Settings › API keys: paste the Apify key on its line, then Save. Prospects › Web search then says “Apify: ready”."},
+   "avant": [
+    {"clic": {"fr": "texte:Réglages", "en": "texte:Settings"}, "apres": 1500},
+    {"clic": {"fr": "texte:Clés d'API", "en": "texte:API keys"}, "apres": 2000}
+   ],
+   "captures": [
+    {"nom": "cle", "etapes": [
+      {"js": "const t=[...document.querySelectorAll('*')].find(x=>x.children.length===0&&x.textContent.includes('APIFY_TOKEN'));let r=t;for(let i=0;i<6&&r;i++){if(r.querySelector&&r.querySelector('input'))break;r=r.parentElement}if(r){r.setAttribute('data-guide','apify');r.scrollIntoView({block:'center'})}"},
+      {"attente": 800}]},
+    {"nom": "pret", "etapes": [
+      {"touche": "F1"}, {"attente": 900},
+      {"clic": "css:[data-dz-agent=onglet-prospects]"}, {"attente": 1200},
+      {"js": "const s=document.querySelector('[data-dz-agent=espace-prospects]');const o=[...s.options].find(x=>x.text.trim()==='Marque Démo');s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}))"},
+      {"attente": 1500},
+      {"clic": "css:[data-dz-prospects=recherche]"}, {"attente": 1500}]}
+   ],
+   "temps": [
+    {"capture": 0, "duree": 3.0, "surligne": "css:[data-guide=apify]", "bulle": {"fr": "Collez la clé Apify ici, puis Enregistrer", "en": "Paste the Apify key here, then Save"}, "ancre": "css:[data-guide=apify]"},
+    {"capture": 1, "duree": 1.6, "curseur": "css:[data-dz-prospects=recherche]", "clic": true},
+    {"capture": 1, "duree": 3.0, "surligne": "css:[data-dz-prospects=recherche-apify]", "bulle": {"fr": "Apify : prêt, avec ses plafonds", "en": "Apify: ready, with its caps"}, "ancre": "css:[data-dz-prospects=recherche-apify]"}
+   ]},
+  {"scene": "prospection/apify-collecte", "taille": [1100, 700],
+   "titre": {"fr": "Une collecte Google Maps : la carte, puis les entreprises", "en": "A Google Maps collection: the card, then the companies"},
+   "legende": {"fr": "Demandez à l'agent ; la carte dit la source, le nombre et le coût estimé. Collecter lance le run, plafonné chez Apify : les entreprises arrivent, sans fiche.", "en": "Ask the agent; the card shows the source, the number and the estimated cost. Collect starts the run, capped at Apify: the companies arrive, without records."},
+   "avant": [
+    {"js": "const en=localStorage.getItem('dz_lang')==='en';fetch('/api/espaces').then(r=>r.json()).then(j=>{const m=(j.espaces||j).find(x=>x.nom==='Marque Démo');sessionStorage.setItem('dz_agent_camp',JSON.stringify({cid:en?'a0a0a0a0-0000-4000-8000-000000000366':'a0a0a0a0-0000-4000-8000-000000000365',role:'campagnes',espace:m.id}));setTimeout(()=>location.reload(),50)})"},
+    {"attente": 5000}, {"touche": "F1"}, {"attente": 900},
+    {"clic": "css:[data-dz-agent=onglet-campagnes]"}, {"attente": 2000}
+   ],
+   "captures": [
+    {"nom": "carte", "etapes": []},
+    {"nom": "resultat", "etapes": [
+      {"clic": {"fr": "contient:Collecter (", "en": "contient:Collect ("}}, {"attente": 3500},
+      {"js": "const f=document.querySelector('[data-dz-camp=fil]');if(f)f.scrollTop=f.scrollHeight"}, {"attente": 600}]}
+   ],
+   "temps": [
+    {"capture": 0, "duree": 3.0, "surligne": "css:.dzCampCarte[data-genre=collecte]", "bulle": {"fr": "Source, nombre, coût estimé", "en": "Source, number, estimated cost"}, "ancre": "css:.dzCampCarte[data-genre=collecte] .dzCampCarteT"},
+    {"capture": 0, "duree": 1.8, "curseur": {"fr": "contient:Collecter (", "en": "contient:Collect ("}, "clic": true, "surligne": {"fr": "contient:Collecter (", "en": "contient:Collect ("}, "bulle": {"fr": "Rien ne part avant ce clic", "en": "Nothing runs before this click"}, "ancre": {"fr": "contient:Collecter (", "en": "contient:Collect ("}},
+    {"capture": 1, "duree": 3.4, "surligne": "css:[data-dz-camp=cibles]", "bulle": {"fr": "Les entreprises trouvées, sans fiche", "en": "The companies found, no records"}, "ancre": "css:[data-dz-camp=cibles]"}
+   ]},
+  {"scene": "prospection/apify-concurrents", "taille": [1100, 760],
+   "titre": {"fr": "Veille › Ce que font les concurrents", "en": "Watch › What competitors are doing"},
+   "legende": {"fr": "Leurs pubs actives, la page prix qui a changé (relecture gratuite) et leur rang sur les recherches que vous suivez.", "en": "Their active ads, the pricing page that changed (free re-read) and their rank on the searches you follow."},
+   "avant": [
+    {"touche": "F1"}, {"attente": 900},
+    {"clic": "css:[data-dz-agent=onglet-veille]"}, {"attente": 1200},
+    {"js": "const s=document.querySelector('[data-dz-agent=espace-veille]');const o=[...s.options].find(x=>x.text.trim()==='Marque Démo');s.value=o.value;s.dispatchEvent(new Event('change',{bubbles:true}))"},
+    {"attente": 2500}
+   ],
+   "captures": [
+    {"nom": "volet", "etapes": [{"defiler": "css:[data-dz-veille=concurrents]"}, {"attente": 800}]}
+   ],
+   "temps": [
+    {"capture": 0, "duree": 2.8, "surligne": "css:[data-dz-veille=pubs-runway]", "bulle": {"fr": "Pubs actives relevées", "en": "Active ads recorded"}, "ancre": "css:[data-dz-veille=pubs-runway]"},
+    {"capture": 0, "duree": 2.8, "surligne": "css:.dzVeilleDiff", "bulle": {"fr": "Ce qui a changé sur leur page prix", "en": "What changed on their pricing page"}, "ancre": "css:.dzVeilleDiff"},
+    {"capture": 0, "duree": 2.8, "surligne": "css:[data-dz-veille=serp]", "bulle": {"fr": "Leur rang sur vos recherches", "en": "Their rank on your searches"}, "ancre": "css:[data-dz-veille=serp]"}
+   ]}
+ ]
+}

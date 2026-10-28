@@ -1,0 +1,136 @@
+{
+  "titre": {
+    "fr": "Veille › Ce que font les concurrents",
+    "en": "Watch › What competitors are doing"
+  },
+  "legende": {
+    "fr": "Leurs pubs actives, la page prix qui a changé (relecture gratuite) et leur rang sur les recherches que vous suivez.",
+    "en": "Their active ads, the pricing page that changed (free re-read) and their rank on the searches you follow."
+  },
+  "captures": [
+    {
+      "fr": "volet.fr.webp",
+      "en": "volet.en.webp"
+    }
+  ],
+  "taille": [
+    1100,
+    760
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        707,
+        488,
+        387,
+        32
+      ],
+      "bulle": {
+        "fr": "Pubs actives relevées",
+        "en": "Active ads recorded"
+      },
+      "ancre": [
+        901,
+        513
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        707,
+        615,
+        387,
+        95
+      ],
+      "bulle": {
+        "fr": "Ce qui a changé sur leur page prix",
+        "en": "What changed on their pricing page"
+      },
+      "ancre": [
+        901,
+        703
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        707,
+        705,
+        387,
+        32
+      ],
+      "bulle": {
+        "fr": "Leur rang sur vos recherches",
+        "en": "Their rank on your searches"
+      },
+      "ancre": [
+        901,
+        731
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        707,
+        488,
+        387,
+        32
+      ],
+      "bulle": {
+        "fr": "Pubs actives relevées",
+        "en": "Active ads recorded"
+      },
+      "ancre": [
+        901,
+        514
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        707,
+        615,
+        387,
+        95
+      ],
+      "bulle": {
+        "fr": "Ce qui a changé sur leur page prix",
+        "en": "What changed on their pricing page"
+      },
+      "ancre": [
+        901,
+        704
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        707,
+        706,
+        387,
+        32
+      ],
+      "bulle": {
+        "fr": "Leur rang sur vos recherches",
+        "en": "Their rank on your searches"
+      },
+      "ancre": [
+        901,
+        731
+      ]
+    }
+  ],
+  "taille_en": [
+    1100,
+    760
+  ]
+}
