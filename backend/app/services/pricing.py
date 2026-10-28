@@ -998,6 +998,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         f = str(op.get("fournisseur") or "")
         n = max(1, int(op.get("requetes") or 1))
         lines.append(_line(f, f"Recherche web ({f})", n, "requete", round(n * float(_prix_rw.get(f, max(_prix_rw.values()))), 6)))
+    elif kind == "apify":
+        # t364 (28/10/2026) : un run d'Actor Apify, au devis lu dans ses prix (apify.devis) ; plafonné chez Apify
+        usd = max(0.0, float(op.get("usd") or 0.0))
+        lines.append(_line("apify", f"Collecte Apify ({str(op.get('acteur') or '')[:60]})", 1, "run", round(usd, 6)))
     elif kind == "whatsapp":
         lines.append(_ligne_whatsapp(op, p))   # t310 : un message livré par Meta (grille saisie, ValueError si inconnu)
     elif kind == "llm":
