@@ -204,6 +204,12 @@
     sc.appendChild(E.aideRecalage);
     E.dernier = el("div", { style: S.note, hidden: "", "data-dz-previs": "recalage-dernier" });
     sc.appendChild(E.dernier);
+    // t337 (C4) : le dernier rendu contre sa previs, dans le comparateur commun (/shared/dz-comparateur.js)
+    E.comparer = bouton("comparer", T("previs.recalage.comparer"), S.mini);
+    E.comparer.setAttribute("hidden", "");
+    E.comparer.setAttribute("title", T("previs.recalage.comparer_t"));
+    E.comparer.addEventListener("click", function () { comparerDernier(E); });
+    sc.appendChild(E.comparer);
 
     var sf = section(E, T("previs.frames.titre", { max: FRAMES_MAX }), T("previs.frames.aide"));
     E.grilleFrames = el("div", { style: S.grille, "data-dz-previs": "frames" });
@@ -426,8 +432,25 @@
     E.factureConform.textContent = T("previs.conform.facture", { envoi: sec(d.secondes_entree), sortie: sec(d.secondes_sortie) });
   }
 
+  /* t337 (C4) : le dernier rendu à droite, sa previs à gauche, sous le rideau du comparateur commun */
+  async function comparerDernier(E) {
+    try {
+      var R = await fetch("/api/shots/" + encodeURIComponent(E.shot.id) + "/revue");
+      var j = await lireJson(R);
+      if (!R.ok) throw new Error(detail(j, R.status));
+      if (!j.previs || !window.__dzComparateur) throw new Error(T("previs.recalage.comparer_absent"));
+      var f = String(j.fps || "24").split("/");
+      window.__dzComparateur.ouvrir({ a: { src: j.previs.url, type: "video", libelle: T("previs.recalage.cote_previs") },
+                                      b: { src: j.rendu.url, type: "video", libelle: T("previs.recalage.cote_rendu") },
+                                      titre: T("previs.recalage.comparer"), fps: Number(f[0]) / Number(f[1] || 1) || 24 });
+    } catch (e) {
+      if (E.opts.toast) E.opts.toast(T("previs.recalage.comparer_ko", { msg: e.message }), true);
+    }
+  }
+
   /* t336 : le recalage du dernier rendu « previs » du plan (dérive mesurée contre la previs) */
   function rendreDernier(E, dr) {
+    montrer(E.comparer, !!(dr && dr.job_id && dr.status === "done"));
     var r = dr && dr.recalage;
     montrer(E.dernier, !!r);
     if (!r) return;

@@ -12474,5 +12474,13 @@
  "concurrent illisible": {
   "fr": "concurrent illisible",
   "en": "unreadable competitor"
+ },
+ "ffmpeg (image) : {v}": {
+  "fr": "ffmpeg (image) : {v}",
+  "en": "ffmpeg (image): {v}"
+ },
+ "L'avis du directeur artistique a échoué (réseau) : il a peut-être été facturé. Vérifie tes dépenses avant de relancer.": {
+  "fr": "L'avis du directeur artistique a échoué (réseau) : il a peut-être été facturé. Vérifie tes dépenses avant de relancer.",
+  "en": "The art director's review failed (network): it may have been charged. Check your spending before running it again."
  }
 }

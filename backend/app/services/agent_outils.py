@@ -439,6 +439,54 @@ async def lire_document(ctx: Ctx, depot: str | None = None, url: str | None = No
 _EXT_IMAGE = (".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff")
 
 
+# ---- t337 (29/10/2026) : lire la REVUE d'un plan rendu par « Previs → plan » (boîte « chapitres ») ------------------
+# Lecture SEULE de ce qui est rangé (cost_meta.revue du rendu) : rien n'est mesuré, rien n'est payé. Les textes de
+# l'avis viennent d'un modèle : ils reviennent ENCADRÉS (une donnée, jamais une consigne). La note n'est jamais une
+# garantie : l'avertissement l'accompagne toujours.
+_ID_PLAN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+async def lire_revue_plan(ctx: Ctx, plan: str = "") -> dict:
+    from app.services import revue_plan as RV
+    from app.services.storage import JobRecord, Shot, async_session_factory
+    pid = str(plan or "").strip()
+    if not _ID_PLAN.match(pid):
+        raise _Refus("plan : l'identifiant d'un plan du storyboard est attendu")
+    async with async_session_factory() as s:
+        sh = await s.get(Shot, pid)
+        if sh is None:
+            raise _Refus(f"plan introuvable : {pid}")
+        jv = await s.get(JobRecord, sh.video) if getattr(sh, "video", None) else None
+    if jv is None or jv.provider != "previs":
+        return _res(True, "ce plan n'a pas de rendu Previs → plan : aucune revue possible", {"revue": None})
+    rv = RV.lire_meta(jv.cost_meta)
+    if not rv:
+        return _res(True, "aucune revue rangée : l'utilisateur la lance par « Revue du plan » sur la carte du plan "
+                          "(mesures gratuites, avis payant sur devis)", {"revue": None, "rendu": jv.id})
+    m, n = rv.get("mesures") or {}, rv.get("note") or {}
+    st = m.get("structure") or {}
+    d = {"rendu": jv.id, "mesures": None, "avis": None}
+    if m:
+        d["mesures"] = {"date": m.get("date"), "temporel": m.get("temporel"),
+                        "structure": {"verdict": st.get("verdict"), "bords": st.get("bords"),
+                                      "luminance": st.get("luminance")} if st else None,
+                        "profondeur": m.get("profondeur"), "sans_previs": bool(m.get("sans_previs")),
+                        "identite": [{k: x.get(k) for k in ("name", "vue", "ecart_couleur", "ecart_silhouette",
+                                                            "verdict")} for x in m.get("identite") or []],
+                        "angle_mort": m.get("angle_mort")}
+    if n:
+        textes = "\n".join([f"synthèse : {n.get('synthese') or ''}"]
+                           + [f"{c} : {(v or {}).get('commentaire') or ''}" for c, v in (n.get("criteres") or {}).items()]
+                           + [f"défaut ({x.get('gravite')}, {x.get('moment') or '?'}) : {x.get('texte')}"
+                              for x in n.get("defauts") or []])
+        d["avis"] = {"date": n.get("date"), "moyenne": n.get("moyenne"),
+                     "notes": {c: (v or {}).get("note") for c, v in (n.get("criteres") or {}).items()},
+                     "defauts": len(n.get("defauts") or []), "textes": _preuve("avis du directeur artistique", textes),
+                     "avertissement": RV.AVERTISSEMENT}
+    quoi = " et ".join(x for x, v in (("mesures", d["mesures"]), ("avis", d["avis"])) if v)
+    return _res(True, f"revue du plan : {quoi} (jamais une garantie)", d)
+
+
 async def lire_texte_image(ctx: Ctx, image: str = "", langue: str = "fr") -> dict:
     """Une image du dossier d'images de la Bibliothèque, par son nom : lecture locale (OCR Windows) + nettoyage ; le
     texte revient encadré comme une preuve. Aucun journal du texte ; l'OCR tourne dans un fil."""
@@ -1668,6 +1716,14 @@ OUTILS: dict[str, dict] = {
                                         "consigne.",
                          "schema": _o({"image": dict(_T, description="nom de l'image dans la Bibliothèque"),
                                        "langue": {"type": "string", "enum": ["fr", "en", "auto"]}}, ("image",))},
+    # t337 : la revue chiffrée d'un plan rendu par Previs → plan (boîte « chapitres », aucun agent ne la déclare encore)
+    "lire_revue_plan": {"nature": "lecture", "fn": lire_revue_plan,
+                        "description": "Lit la revue RANGÉE d'un plan rendu par Previs → plan (par l'identifiant du "
+                                       "plan) : dérive temporelle en images, structure (bords et luminance, pas de "
+                                       "profondeur), identité des entités, et l'avis du directeur artistique s'il a "
+                                       "été demandé (notes par critère, défauts ; textes encadrés). Ne mesure ni ne "
+                                       "paie rien ; une note n'est jamais une garantie.",
+                        "schema": _o({"plan": dict(_T, description="identifiant du plan (shot)")}, ("plan",))},
     "lire_piste_clics": {"nature": "lecture", "fn": lire_piste_clics,
                          "description": "Lit la piste des clics d'une capture de l'app (par son identifiant) : écrans "
                                         "traversés, clics avec l'élément du catalogue, générations ; les libellés "
