@@ -9,6 +9,7 @@ textes FR/EN (frontend/shared/i18n/previs.json) et son contrat avec les routes /
   [T] chaque clé previs.* employée existe en FR et en EN (variables identiques), aucune clé orpheline ;
   [R] le contrat : sources / devis / tir, `confirme_cout: true` seulement après __dzDialogue.confirmer, 409 = nouveau
       devis montré, aucune option de modèle désactivée (un modèle sans clé reste choisissable), devis périmé ignoré.
+  [A6] t336 : la boîte du conform (phrase, choix étirer / noir, durée facturée), le dernier rendu et sa dérive.
 Run (depuis backend/) : & $PY tests/test_previs_plan_ecran.py"""
 import json
 import pathlib
@@ -114,5 +115,27 @@ check("R6 le devis et le tir envoient le MÊME corps (corpsDe)", js.count("JSON.
 check("R7 « Lancer » reste inactif tant qu'un refus tient", "griser(E.lancer, !!d.refus);" in js)
 check("R8 aucun arrondi (charte Deepotus) : border-radius toujours à 0",
       set(re.findall(r"border-radius:([^;\"]+)", js)) <= {"0"}, set(re.findall(r"border-radius:([^;\"]+)", js)))
+
+print("\n[A6] t336 : durée minimale du modèle et recalage")
+check("A1 la boîte du conform : phrase, deux choix (étirer / noir), durée FACTURÉE qui en découle",
+      'data-dz-previs": "conform"' in js and '"conform-" + mode' in js and "previs.conform.facture" in js
+      and "T(CONFORM[c.mode] || CONFORM.transcoder, v)" in js and "previs.conform.auto" in js)
+check("A2 un changement de clip rend le choix au serveur (automatique)",
+      "E.choix.clip = c.job_id; E.choix.conform = null;" in js)
+check("A3 le dernier rendu du plan montre sa dérive (« dérive : +2 images, recalée »)",
+      "rendreDernier(E, E.sources.dernier_rendu)" in js and "previs.recalage.derive_n" in js
+      and d.get("previs.recalage.derive_n", {}).get("fr") == "dérive : {d} images, recalée"
+      and '(d > 0 ? "+" : "") + d' in js)
+if noeud:
+    r = subprocess.run([noeud, "-e", "global.window={};global.document={};require(process.argv[1]);"
+                        "var E={sources:{modeles:[{id:'s',clip:true},{id:'v',clip:false}]},champ:{value:'p'},"
+                        "choix:{modele:'s',clip:'j',tache:'editing',frames:['a'],resolution:'720p',conform:'noir'}};"
+                        "var a=window.__dzPrevisPlan._corpsDe(E);E.choix.conform=null;"
+                        "var b=window.__dzPrevisPlan._corpsDe(E);E.choix.modele='v';E.choix.conform='noir';"
+                        "var c=window.__dzPrevisPlan._corpsDe(E);"
+                        "process.stdout.write(JSON.stringify([a.conform,'conform' in b,'conform' in c]))", str(SRC)],
+                       capture_output=True, text=True)
+    check("A4 corpsDe : « conform » envoyé seulement s'il est choisi, et seulement pour un modèle à clip",
+          r.stdout == '["noir",false,false]', r.stdout + r.stderr)
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)

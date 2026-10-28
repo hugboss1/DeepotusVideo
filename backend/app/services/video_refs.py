@@ -64,6 +64,7 @@ REGISTRE_REFS: dict[str, dict] = {
         "refs": (1, 4),                       # style frames ; fal en accepte 30 : 4 est notre prudence
         "taches": ("editing", "reference"),   # editing = garde le mouvement et la caméra du clip (défaut)
         "clip_s": (1.8, 30.2),                # durée d'un clip d'entrée (et du total), schéma fal
+        "duree_min_s": 4.0,                   # t336 : durée MINIMALE rendue (4 s) — le conform s'y cale
         "clip_cotes": (300, 6000), "clip_rapport": (0.4, 2.5), "clip_fps": (24, 60),
         "clip_octets": 200 * 1024 * 1024, "clip_ext": (".mp4", ".mov"),
         "durees": tuple(range(4, 31)), "ratios": None, "resolutions": ("480p", "720p"),
@@ -72,6 +73,24 @@ REGISTRE_REFS: dict[str, dict] = {
         "mult_video": 0.6,
     },
 }
+
+# t336 (A6) — durée MINIMALE rendue par famille de modèle vidéo : un clip de previs plus court est conformé AVANT
+# l'envoi (étiré puis ré-accéléré, ou complété au noir puis coupé : previs_plan.plan_conform). Seedance 4 s, MiniMax
+# (Hailuo) 5 s. Le champ `duree_min_s` d'une entrée du registre prime ; sinon la famille, lue en tête de l'id.
+PLANCHERS_S = {"seedance": 4.0, "minimax": 5.0, "hailuo": 5.0}
+
+
+def plancher_s(model_id: str) -> float:
+    """t336 — la durée minimale (s) que le modèle rend ; 0 si aucune n'est connue (pas de conform de durée)."""
+    m = REGISTRE_REFS.get(model_id) or {}
+    if m.get("duree_min_s"):
+        return float(m["duree_min_s"])
+    mid = str(model_id or "").lower()
+    for famille, s in PLANCHERS_S.items():
+        if mid.startswith(famille):
+            return s
+    return 0.0
+
 
 # t335 — les modèles que les routes « previs → plan » savent chiffrer et tirer (Kling : prix non publié, refusé)
 MODELES_PREVIS = ("seedance-2.5-v2v", "veo-3.1-ref")

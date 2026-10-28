@@ -11,6 +11,11 @@
    - CLIP DE PREVIS (@Video1, Seedance seulement) : la vidéo du plan d'abord, puis les rendus vidéo de la Bibliothèque
      (GET /api/shots/{id}/previs/sources) ; et la TÂCHE : garder le mouvement et la caméra (editing, défaut) ou s'en
      inspirer à la durée du plan (reference).
+   - DURÉE MINIMALE (t336, A6) : un clip plus court que ce que le modèle rend (Seedance 4 s) est conformé avant
+     l'envoi — « Étirer puis ré-accélérer » ou « Compléter au noir puis couper » (choix automatique montré, l'autre
+     à un clic) ; une phrase dit ce qui sera fait et la durée FACTURÉE qui en découle. Après le rendu, la dérive en
+     images est mesurée contre la previs et le rendu recalé à son nombre d'images exact : le dernier rendu du plan
+     l'affiche (« dérive : +2 images, recalée »).
    - STYLE FRAMES (@Image1…, 4 au plus) : les images du plan (production, croquis, bornes du Plateau), puis « Plus
      d'images de la Bibliothèque » (GET /api/images) ; l'ordre du clic donne @Image1, @Image2…
    - RÉSOLUTION et PROMPT (proposé par le serveur, modifiable, « Rétablir »).
@@ -56,6 +61,9 @@
   var ORIGINES = { production: "previs.image.production", croquis: "previs.image.croquis",
                    plateau_debut: "previs.image.plateau_debut", plateau_fin: "previs.image.plateau_fin",
                    bibliotheque: "previs.image.bibliotheque" };
+  // t336 : les phrases du conform et ses deux choix (clés écrites en entier : le banc d'écran les relit)
+  var CONFORM = { etirer: "previs.conform.etirer", noir: "previs.conform.noir", transcoder: "previs.conform.transcoder" };
+  var CHOIX_CONFORM = { etirer: "previs.conform.choix_etirer", noir: "previs.conform.choix_noir" };
   var courant = null;
 
   function T(cle, v) { return typeof window.dzT === "function" ? window.dzT(cle, v) : cle; }
@@ -108,6 +116,7 @@
     if (m && m.clip) {
       c.tache = E.choix.tache;
       if (E.choix.clip) c.clip_id = E.choix.clip;
+      if (E.choix.conform) c.conform = E.choix.conform;   // t336 : absent = choix automatique du serveur
     }
     return c;
   }
@@ -132,7 +141,7 @@
     return new Promise(function (resoudre) {
       var E = { opts: opts, shot: s, jeton: 0, ferme: false, envoi: false, resoudre: resoudre, devis: null,
                 sources: null, biblio: [], promptTouche: false, minuterie: null,
-                choix: { modele: null, clip: null, tache: "editing", frames: [], resolution: "720p" } };
+                choix: { modele: null, clip: null, tache: "editing", frames: [], resolution: "720p", conform: null } };
       courant = E;
       construire(E);
       charger(E);
@@ -172,6 +181,29 @@
       lt.appendChild(l);
     });
     sc.appendChild(lt);
+    // t336 : la durée minimale du modèle — ce que le conform fera, au choix, et la durée facturée qui en découle
+    var cf = E.boxConform = el("div", { style: S.devis, hidden: "", "data-dz-previs": "conform" });
+    cf.appendChild(el("div", { style: S.titre }, T("previs.conform.titre")));
+    E.phraseConform = el("div", { "data-dz-previs": "conform-phrase" });
+    cf.appendChild(E.phraseConform);
+    E.choixConform = el("div", { style: S.ligne, "data-dz-previs": "conform-choix" });
+    E.radiosConform = {};
+    ["etirer", "noir"].forEach(function (mode) {
+      var l = el("label", { style: S.note });
+      var r = el("input", { type: "radio", name: "dz-previs-conform", value: mode, "data-dz-previs": "conform-" + mode });
+      r.addEventListener("change", function () { if (r.checked) { E.choix.conform = mode; relancer(E); } });
+      E.radiosConform[mode] = { radio: r, texte: l };
+      l.appendChild(r); l.appendChild(el("span", {}, " " + T(CHOIX_CONFORM[mode])));
+      E.choixConform.appendChild(l);
+    });
+    cf.appendChild(E.choixConform);
+    E.factureConform = el("div", { style: S.note, "data-dz-previs": "conform-facture" });
+    cf.appendChild(E.factureConform);
+    sc.appendChild(cf);
+    E.aideRecalage = el("div", { style: S.note, "data-dz-previs": "recalage-aide" }, T("previs.recalage.aide"));
+    sc.appendChild(E.aideRecalage);
+    E.dernier = el("div", { style: S.note, hidden: "", "data-dz-previs": "recalage-dernier" });
+    sc.appendChild(E.dernier);
 
     var sf = section(E, T("previs.frames.titre", { max: FRAMES_MAX }), T("previs.frames.aide"));
     E.grilleFrames = el("div", { style: S.grille, "data-dz-previs": "frames" });
@@ -245,6 +277,7 @@
     if (plan) E.choix.clip = plan.job_id;
     var prod = (E.sources.images || []).find(function (i) { return i.origine === "production"; });
     if (prod) E.choix.frames = [prod.nom];
+    rendreDernier(E, E.sources.dernier_rendu);
     majModele(E);
     relancer(E);
   }
@@ -275,7 +308,7 @@
       b.appendChild(el("b", {}, c.titre || c.nom));
       b.appendChild(el("span", { style: S.note }, (c.origine === "plan" ? T("previs.clip.du_plan") + " · " : "")
         + (c.secondes != null ? T("previs.clip.secondes", { s: sec(c.secondes) }) : c.nom)));
-      b.addEventListener("click", function () { E.choix.clip = c.job_id; poserClips(E); relancer(E); });
+      b.addEventListener("click", function () { E.choix.clip = c.job_id; E.choix.conform = null; poserClips(E); relancer(E); });
       g.appendChild(b);
     });
   }
@@ -366,6 +399,7 @@
       : d.secondes_entree
         ? T("previs.devis.detail_v2v", { entree: sec(d.secondes_entree), sortie: sec(d.secondes_sortie), res: d.resolution || "" })
         : T("previs.devis.detail_refs", { sortie: sec(d.secondes_sortie), res: d.resolution || "" });
+    rendreConform(E, d);
     E.notes.textContent = (d.notes || []).length ? T("previs.devis.notes", { notes: d.notes.join(" · ") }) : "";
     montrer(E.mention, !!d.cle_absente);
     E.mention.textContent = d.cle_absente ? T("previs.devis.cle_absente", { cle: d.cle_absente }) : "";
@@ -373,6 +407,35 @@
     E.erreur.textContent = d.refus || "";
     E.lancer.textContent = d.usd == null || d.refus ? T("previs.lancer.libelle") : T("previs.lancer.prix", { usd: usd(d.usd) });
     griser(E.lancer, !!d.refus);
+  }
+
+  /* t336 : ce que le conform fera du clip, en clair, et ce qui sera facturé */
+  function rendreConform(E, d) {
+    var c = d && !d.refus ? d.conform : null;
+    montrer(E.boxConform, !!c);
+    if (!c) return;
+    var v = { clip: sec(c.secondes_clip), plancher: sec(c.plancher_s), k: String(c.facteur).replace(".", langue() === "en" ? "." : ","),
+              envoi: sec(c.secondes_envoyees), n: c.images_previs, fps: sec(c.fps_envoye) };
+    E.phraseConform.textContent = T(CONFORM[c.mode] || CONFORM.transcoder, v) + (c.auto && c.choix_possibles && c.choix_possibles.length
+      ? " " + T("previs.conform.auto") : "");
+    var choix = c.choix_possibles || [];
+    montrer(E.choixConform, choix.length > 0);
+    Object.keys(E.radiosConform).forEach(function (mode) {
+      E.radiosConform[mode].radio.checked = mode === c.mode;
+    });
+    E.factureConform.textContent = T("previs.conform.facture", { envoi: sec(d.secondes_entree), sortie: sec(d.secondes_sortie) });
+  }
+
+  /* t336 : le recalage du dernier rendu « previs » du plan (dérive mesurée contre la previs) */
+  function rendreDernier(E, dr) {
+    var r = dr && dr.recalage;
+    montrer(E.dernier, !!r);
+    if (!r) return;
+    var d = Number(r.derive_images) || 0;
+    E.dernier.textContent = r.erreur ? T("previs.recalage.echec", { msg: r.erreur })
+      : T("previs.recalage.dernier", { derive: r.fiable === false ? T("previs.recalage.non_mesurable")
+          : T(Math.abs(d) > 1 ? "previs.recalage.derive_n" : "previs.recalage.derive_1", { d: (d > 0 ? "+" : "") + d }),
+          n: r.images });
   }
 
   async function lancer(E) {

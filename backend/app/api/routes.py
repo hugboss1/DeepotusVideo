@@ -13397,7 +13397,7 @@ async def _previs_calc(s, body: dict | None, http=None) -> dict:
     out = {"modele": mid, "label": None, "endpoint": None, "tache": None, "resolution": None, "clip": None,
            "clip_chemin": None, "style_frames": [], "prompt": "", "prompt_defaut": "", "notes": [], "usd": None,
            "op": None, "secondes_entree": None, "secondes_sortie": None, "cle_absente": None, "refus": None,
-           "refus_code": None, "refus_etape": None}
+           "refus_code": None, "refus_etape": None, "conform": None, "clip_infos_previs": None}
 
     def _refus(code, msg, etape="champs"):
         if out["refus"] is None:
@@ -13423,14 +13423,24 @@ async def _previs_calc(s, body: dict | None, http=None) -> dict:
             except HTTPException as e:
                 _refus(e.status_code, e.detail)
             else:
-                infos = await asyncio.to_thread(PV.infos_clip, chemin)
-                chemin, infos, notes_c = PV.conformer_clip(chemin, infos, mid, float(s.duration_s or 4.0))
-                out["notes"] += notes_c
+                infos_previs = await asyncio.to_thread(PV.infos_clip, chemin)
+                # t336 (A6) : le conform PRÉVU (rien n'est écrit au devis) — durée mini du modèle, cadence, format ;
+                # `conform` = « etirer » | « noir » choisi dans la boîte, sinon automatique
+                choix = body.get("conform")
+                if choix is not None and choix not in PV.MODES_CONFORM:
+                    _refus(400, _msg_g("previs.conform_refuse", http, choix=str(choix)[:20],
+                                       liste=", ".join(PV.MODES_CONFORM)))
+                    choix = None
+                chemin, infos, notes_c = PV.conformer_clip(chemin, infos_previs, mid, float(s.duration_s or 4.0),
+                                                           choix=choix)
+                out["notes_conform"] = notes_c      # FR, pour la recette : la boîte dit le conform en FR/EN
                 out["clip_chemin"] = chemin
+                out["conform"] = infos.get("conform")
+                out["clip_infos_previs"] = infos_previs
                 clip_infos = infos
                 out["clip"] = {"nom": chemin.name, "job_id": str(body.get("clip_id") or body.get("job_id") or "") or None,
-                               **{k: infos.get(k) for k in ("secondes", "largeur", "hauteur", "fps")}}
-                raison = VR.clip_refuse(mid, nom=chemin.name, secondes=infos.get("secondes"),
+                               **{k: infos_previs.get(k) for k in ("secondes", "largeur", "hauteur", "fps", "images")}}
+                raison = VR.clip_refuse(mid, nom=infos.get("nom_envoye") or chemin.name, secondes=infos.get("secondes"),
                                         largeur=infos.get("largeur"), hauteur=infos.get("hauteur"),
                                         fps=infos.get("fps"), octets=infos.get("octets"))
                 if raison:
@@ -13493,7 +13503,7 @@ async def _previs_calc(s, body: dict | None, http=None) -> dict:
 def _previs_public(calc: dict) -> dict:
     return {k: calc[k] for k in ("modele", "label", "endpoint", "tache", "resolution", "clip", "style_frames", "prompt",
                                  "prompt_defaut", "notes", "usd", "secondes_entree", "secondes_sortie", "cle_absente",
-                                 "refus")}
+                                 "refus", "conform")}
 
 
 @router.get("/shots/{shot_id}/previs/sources")
@@ -13512,6 +13522,16 @@ async def shot_previs_sources(shot_id: str):
                                       .where(JobRecord.final_video_path.is_not(None))
                                       .order_by(JobRecord.created_at.desc()).limit(_PREVIS_CLIPS_MAX * 2))).scalars().all()
         style = await _atelier_setting(session, "global_style")
+        jv = await session.get(JobRecord, s.video) if getattr(s, "video", None) else None
+    # t336 : le RECALAGE du dernier rendu « previs » du plan (dérive mesurée en images), que la boîte affiche
+    dernier = None
+    if jv is not None and jv.provider == "previs":
+        try:
+            meta = json.loads(jv.cost_meta or "{}")
+        except (TypeError, ValueError):
+            meta = {}
+        dernier = {"job_id": jv.id, "status": jv.status, "recalage": meta.get("recalage"),
+                   "conform": meta.get("conform")}
     clips, vus = [], set()
     for j in sorted(jobs, key=lambda j: j.id != getattr(s, "video", None)):
         p = Path(str(j.final_video_path or ""))
@@ -13538,7 +13558,7 @@ async def shot_previs_sources(shot_id: str):
                         "cle": None if settings.FAL_KEY else "FAL_KEY",
                         "prompt_defaut": PV.prompt_defaut(mid, action, 1, style)})
     return {"defaut": VR.DEFAUT_PREVIS, "modeles": modeles, "clips": clips, "images": images,
-            "duree_plan": s.duration_s}
+            "duree_plan": s.duration_s, "dernier_rendu": dernier}
 
 
 @router.post("/shots/{shot_id}/previs/devis")
@@ -13580,9 +13600,23 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
     if body.get("confirme_cout") is not True:
         raise HTTPException(409, {"message": _msg_g("previs.confirmer", http), "usd": calc["usd"],
                                   "devis": _previs_public(calc)})
-    await _plafond(calc["op"], "chapitres", shot_id)    # avant la dépense
-    job_id = str(uuid4())
     clip, frames = calc["clip_chemin"], list(calc["frames_chemins"])
+    conf, envoi = calc["conform"], clip
+    if clip is not None and conf:      # t336 : le conform FABRIQUÉ avant toute dépense (un échec ffmpeg = rien payé)
+        import subprocess as _sp
+        try:
+            envoi, _inf, _n = await asyncio.to_thread(
+                PV.conformer_clip, clip, calc["clip_infos_previs"], mid, float(s.duration_s or 4.0),
+                conf["mode"] if conf["mode"] in PV.MODES_CONFORM else None, True)
+        except (RuntimeError, OSError, _sp.TimeoutExpired) as e:
+            raise HTTPException(500, _msg_g("previs.conform_echec", http, msg=str(e)[:300]))
+    try:
+        await _plafond(calc["op"], "chapitres", shot_id)    # avant la dépense
+    except BaseException:
+        if envoi is not clip:
+            Path(envoi).unlink(missing_ok=True)
+        raise
+    job_id = str(uuid4())
     titre = f"Previs → plan · {(s.action or '').strip()[:60] or shot_id[:8]}"
     async with async_session_factory() as session:     # le job et shot.video, d'UN seul commit
         s = await session.get(Shot, shot_id)
@@ -13592,7 +13626,8 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
                               image_filename=frames[0].name, final_prompt=calc["prompt"], video_model=mid,
                               aspect_ratio="9:16", duration_s=int(round(calc["secondes_sortie"] or 0)) or None,
                               provider="previs", current_step="Previs → plan",
-                              cost_meta=json.dumps({"usd": calc["usd"], "kind": "video_refs", "modele": mid})))
+                              cost_meta=json.dumps({"usd": calc["usd"], "kind": "video_refs", "modele": mid,
+                                                    "conform": conf})))
         s.video = job_id
         s.updated_at = datetime.utcnow()
         await session.commit()
@@ -13601,10 +13636,25 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
 
     async def _run():
         try:
-            res = await PV.tirer_previs(mid, clip=clip, frames=frames, prompt=calc["prompt"], tache=calc["tache"],
-                                        resolution=calc["resolution"],
-                                        duree=int(round(calc["secondes_sortie"] or 4)))
+            try:
+                res = await PV.tirer_previs(mid, clip=envoi, frames=frames, prompt=calc["prompt"],
+                                            tache=calc["tache"], resolution=calc["resolution"],
+                                            duree=int(round(calc["secondes_sortie"] or 4)))
+            finally:
+                if envoi is not clip and envoi is not None:   # le clip conformé n'a servi qu'à l'envoi
+                    Path(envoi).unlink(missing_ok=True)
             v = res["video"]
+            # t336 : le RECALAGE — conform défait, dérive mesurée en images contre la previs, nombre d'images exact.
+            # Un échec ici ne perd pas le rendu payé : la vidéo brute reste, la raison est rangée dans la recette.
+            recalage = None
+            if clip is not None:
+                try:
+                    rc = await asyncio.to_thread(PV.recaler, v, clip, calc["clip_infos_previs"], conf)
+                    Path(rc["video"]).replace(v)
+                    recalage = {k: rc[k] for k in ("derive_images", "fiable", "images", "fps", "score", "phrase")}
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"previs → plan {shot_id} : recalage impossible ({e})")
+                    recalage = {"erreur": str(e)[:300]}
             dur = await asyncio.to_thread(_probe_seconds, str(v))
             async with async_session_factory() as session:
                 jr = await session.get(JobRecord, job_id)
@@ -13613,6 +13663,11 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
                 jr.seed = res.get("seed")
                 jr.duration_s = int(round(dur)) if dur else jr.duration_s
                 jr.completed_at = datetime.utcnow()
+                try:
+                    meta = json.loads(jr.cost_meta or "{}")
+                except (TypeError, ValueError):
+                    meta = {}
+                jr.cost_meta = json.dumps(meta | {"recalage": recalage})
                 await session.commit()
             await LI.noter([v.name], "atelier", kind="video", job_id=job_id,
                            parent=clip.name if clip is not None else frames[0].name, relation="previs",
@@ -13620,8 +13675,10 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
                                     "tache": calc["tache"], "resolution": calc["resolution"],
                                     "clip": clip.name if clip is not None else None,
                                     "style_frames": [f.name for f in frames], "plan": shot_id,
-                                    "arguments": res["arguments"], "notes": calc["notes"] + res["notes"],
-                                    "usd": calc["usd"], "seed": res.get("seed")})
+                                    "arguments": res["arguments"],
+                                    "notes": calc["notes"] + calc.get("notes_conform", []) + res["notes"],
+                                    "usd": calc["usd"], "seed": res.get("seed"), "conform": conf,
+                                    "recalage": recalage})
         except Exception as e:  # noqa: BLE001 — l'échec reste lisible dans le job, jamais de job fantôme
             logger.error(f"previs → plan {shot_id} ({job_id}) : {e}")
             async with async_session_factory() as session:
@@ -19239,6 +19296,131 @@ async def etabli_decimer(body: dict):
     except RuntimeError as e:
         raise HTTPException(502, str(e))
     return _etabli_ecrire(job, octets, "decimer", {"depuis": depuis, **info})
+
+
+# ── t342 (lot Scenario B6 + B7, 29/10/2026) : pièces mobiles et budgets de triangles ────────────────────────────
+# Pièces : la voie LOCALE (îlots du maillage, gratuite) lit puis écrit une version ; la voie IA (Tripo sur fal) est
+# payante : clé fal → devis + `confirme_cout` (409 sinon) → garde des plafonds → appel. Densités : trois fichiers par
+# rôle (mesh_lod.ROLES), locaux et gratuits, dossier `densites/` du job.
+
+def _pieces_langue(v) -> str:
+    return "en" if str(v or "").lower().startswith("en") else "fr"
+
+
+@router.get("/etabli/pieces")
+async def etabli_pieces_analyser(job: str, version: int = 1, langue: str = "fr", min_triangles: int = 8):
+    """LECTURE : les îlots d'une version et les noms proposés. Rien n'est écrit."""
+    from app.services import mesh_pieces
+    job_n, data, depuis = _etabli_glb_cible(job, int(version), "pièces")
+    try:
+        r = await asyncio.to_thread(mesh_pieces.analyser, data, langue=_pieces_langue(langue),
+                                    min_triangles=min_triangles)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"job": job_n, "depuis": depuis, **r, "ia": mesh_pieces.devis_ia(),
+            "cle_fal": bool((settings.FAL_KEY or "").strip())}
+
+
+@router.post("/etabli/pieces")
+async def etabli_pieces_separer(body: dict):
+    """La voie LOCALE et gratuite : chaque îlot devient un nœud nommé, origine au centre de la pièce ; une version de
+    plus. `noms` (liste dans l'ordre de l'analyse) renomme avant d'écrire."""
+    from app.services import mesh_pieces
+    body = body or {}
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "pièces")
+    try:
+        sortie, rapport = await asyncio.to_thread(
+            mesh_pieces.separer, data, par="composantes", noms=body.get("noms"),
+            langue=_pieces_langue(body.get("langue")), min_triangles=body.get("min_triangles", 8))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "pieces", {"depuis": depuis, **rapport})
+
+
+@router.post("/etabli/pieces/ia")
+async def etabli_pieces_ia(body: dict):
+    """La voie IA, PAYANTE : Tripo Segmentation (fal) pour les pièces soudées que les îlots ne séparent pas. Ordre
+    des refus, tous AVANT la dépense : cible (400/404) → clé fal (503) → `confirme_cout` absent (409, avec le devis)
+    → taille (400) → plafonds (402). Le GLB rendu repasse par la découpe « par nœud » : pivots recentrés, noms de
+    Tripo. Une version de plus, dont la fiche porte le modèle et le devis."""
+    from app.services import mesh_pieces
+    body = body or {}
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "pièces IA")
+    if not (settings.FAL_KEY or "").strip():
+        raise HTTPException(503, "Clé fal absente — ajoute-la dans les Réglages : la segmentation IA passe par fal.")
+    devis = mesh_pieces.devis_ia()
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": "Segmentation IA payante : confirme le coût avant de lancer.",
+                                  "devis": devis})
+    if len(data) > mesh_pieces.MAX_OCTETS_IA:
+        raise HTTPException(400, "Maillage trop lourd pour la segmentation IA : 150 Mo au plus.")
+    await _plafond({"kind": "asset3d_segment"}, "moteurs3d")
+    try:
+        r = await mesh_pieces.segmenter_par_ia(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    try:
+        sortie, rapport = await asyncio.to_thread(
+            mesh_pieces.separer, r["glb"], par="noeuds", noms=r["part_names"] or None,
+            langue=_pieces_langue(body.get("langue")))
+    except ValueError as e:
+        raise HTTPException(502, f"GLB segmenté illisible : {e}")
+    return _etabli_ecrire(job, sortie, "pieces_ia", {
+        "depuis": depuis, **rapport, "modele": mesh_pieces.ENDPOINT_IA, "devis_usd": devis["usd"],
+        "part_names": r["part_names"], "apercu": r.get("apercu")})
+
+
+@router.get("/etabli/densites")
+async def etabli_densites_lire(job: str):
+    """Les rôles (budgets motivés) et, s'il existe, le dernier tableau des trois densités du job."""
+    from app.services import mesh_lod
+    try:
+        info = mesh_lod.lire_densites(Path(str(job)).name)
+    except FileNotFoundError:
+        info = None
+    return {"roles": mesh_lod.roles(), "resultat": info}
+
+
+@router.post("/etabli/densites")
+async def etabli_densites(body: dict):
+    """Trois densités (haute / moyenne / basse) d'une version, au budget d'un rôle. Local et gratuit (gltfpack)."""
+    from app.services import mesh_lod
+    body = body or {}
+    job, _data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "densités")
+    try:
+        return await asyncio.to_thread(mesh_lod.densites, job, role=str(body.get("role") or "heros"),
+                                       version=depuis["version"])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+
+
+@router.get("/etabli/densites/fichier")
+async def etabli_densites_fichier(job: str, densite: str):
+    from app.services import mesh_lod
+    try:
+        p = mesh_lod.fichier_densite(Path(str(job)).name, densite)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    return FileResponse(p, media_type="model/gltf-binary", filename=f"{Path(str(job)).name}_{p.name}")
+
+
+@router.get("/etabli/densites/zip")
+async def etabli_densites_zip(job: str):
+    from app.services import mesh_lod
+    try:
+        nom, octets = await asyncio.to_thread(mesh_lod.archive_densites, Path(str(job)).name)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    return Response(content=octets, media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"'})
 
 
 @router.post("/etabli/ranger")
