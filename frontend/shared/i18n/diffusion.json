@@ -1,6 +1,6 @@
 {
   "diffusion.panneau.titre": {"fr": "Diffusion WhatsApp", "en": "WhatsApp broadcast", "contexte": true},
-  "diffusion.panneau.intro": {"fr": "Ce post part en diffusion, avec un modèle approuvé, vers les contacts de l'espace dont l'accord a été saisi.", "en": "This post goes out as a broadcast, with an approved template, to the workspace contacts whose consent was recorded.", "contexte": true},
+  "diffusion.panneau.intro": {"fr": "Ce post part en diffusion, avec un modèle approuvé, vers les contacts de l'espace dont l'accord a été saisi.", "en": "This post goes out as a broadcast, with an approved template, to the space contacts whose consent was recorded.", "contexte": true},
   "diffusion.panneau.un_seul_compte": {"fr": "Une diffusion vise un seul compte WhatsApp : décochez les autres.", "en": "A broadcast targets a single WhatsApp account: untick the others.", "contexte": true},
   "diffusion.routage.kapso": {"fr": "Diffusion WhatsApp par Kapso (automatique)", "en": "WhatsApp broadcast via Kapso (automatic)", "contexte": true},
   "diffusion.etat.chargement": {"fr": "Lecture de la diffusion…", "en": "Reading the broadcast…", "contexte": true},
@@ -11,7 +11,7 @@
   "diffusion.modele.categorie": {"fr": "Catégorie : {categorie}", "en": "Category: {categorie}", "contexte": true},
   "diffusion.modele.aucun": {"fr": "Aucun modèle approuvé utilisable en diffusion (sans en-tête média) sur ce numéro. Créez-en un dans la page WhatsApp, onglet Modèles.", "en": "No approved template usable for a broadcast (without a media header) on this number. Create one in the WhatsApp page, Templates tab.", "contexte": true},
   "diffusion.modele.illisible": {"fr": "Les modèles n'ont pas pu être lus : {detail}", "en": "The templates could not be read: {detail}", "contexte": true},
-  "diffusion.modele.sans_compte": {"fr": "Cochez le compte WhatsApp de l'espace pour configurer la diffusion.", "en": "Tick the workspace WhatsApp account to set up the broadcast.", "contexte": true},
+  "diffusion.modele.sans_compte": {"fr": "Cochez le compte WhatsApp de l'espace pour configurer la diffusion.", "en": "Tick the space's WhatsApp account to set up the broadcast.", "contexte": true},
   "diffusion.modele.plus_approuve": {"fr": "Le modèle rangé ({nom}, {langue}) n'est plus approuvé : choisissez-en un autre.", "en": "The saved template ({nom}, {langue}) is no longer approved: choose another one.", "contexte": true},
   "diffusion.categorie.marketing": {"fr": "marketing", "en": "marketing", "contexte": true},
   "diffusion.categorie.utility": {"fr": "utilitaire", "en": "utility", "contexte": true},
@@ -39,7 +39,7 @@
   "diffusion.devis.montant": {"fr": "Devis : {montant} $", "en": "Quote: ${montant}", "contexte": true},
   "diffusion.action.enregistrer": {"fr": "Enregistrer la diffusion", "en": "Save the broadcast", "contexte": true},
   "diffusion.etat.enregistree": {"fr": "Diffusion enregistrée. Elle partira avec la publication du post.", "en": "Broadcast saved. It will go out when the post is published.", "contexte": true},
-  "diffusion.liste.texte": {"fr": "Une liste de {n} contacts choisis est rangée. L'enregistrer depuis cet écran l'élargit à toute l'audience de l'espace. Continuer ?", "en": "A list of {n} chosen contacts is saved. Saving from this screen widens it to the whole workspace audience. Continue?", "contexte": true},
+  "diffusion.liste.texte": {"fr": "Une liste de {n} contacts choisis est rangée. L'enregistrer depuis cet écran l'élargit à toute l'audience de l'espace. Continuer ?", "en": "A list of {n} chosen contacts is saved. Saving from this screen widens it to the whole space audience. Continue?", "contexte": true},
   "diffusion.liste.titre": {"fr": "Élargir l'audience", "en": "Widen the audience", "contexte": true},
   "diffusion.liste.ok": {"fr": "Élargir et enregistrer", "en": "Widen and save", "contexte": true},
 
@@ -63,7 +63,7 @@
   "diffusion.compteur.lus": {"fr": "Lus : {n}", "en": "Read: {n}", "contexte": true},
   "diffusion.compteur.echecs": {"fr": "Échecs : {n}", "en": "Failures: {n}", "contexte": true},
   "diffusion.compteur.retires": {"fr": "Retirés du marketing : {n}", "en": "Removed from marketing: {n}", "contexte": true},
-  "diffusion.action.relire": {"fr": "Relire", "en": "Refresh", "contexte": true},
+  "diffusion.action.relire": {"fr": "Relire", "en": "Read again", "contexte": true},
 
   "diffusion.incertain.texte": {"fr": "L'issue de l'envoi est incertaine : Kapso n'a pas répondu clairement. Relisez d'abord ; si la relecture ne tranche pas, vous pouvez confirmer l'envoi.", "en": "The outcome of the send is uncertain: Kapso did not answer clearly. Refresh first; if the refresh does not settle it, you can confirm the send.", "contexte": true},
   "diffusion.incertain.attente": {"fr": "Kapso montre la diffusion encore en brouillon : rien n'est parti. Confirmez l'envoi pour la relancer.", "en": "Kapso still shows the broadcast as a draft: nothing was sent. Confirm the send to relaunch it.", "contexte": true},
