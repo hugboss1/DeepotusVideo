@@ -18,7 +18,8 @@ TYPES_BLOC = ("texte", "carte", "resultat_outil", "porte")
 GENRES_CARTE = ("porte", "devis", "continuer", "espace", "brouillons", "ouvrir",
                 "reponse_whatsapp", "modele_whatsapp", "humain",
                 "recherche",                       # t354 : recherche web d'entreprises (devis)
-                "sequence")                        # t355 : porte 2 d'une séquence de prospection
+                "sequence",                        # t355 : porte 2 d'une séquence de prospection
+                "collecte")                        # t364 : un run Apify de la liste blanche (devis, plafond dur)
 ETATS_CARTE = ("proposee", "acceptee", "refusee", "terminee")
 ORIGINES = ("pc", "telephone")
 ETATS_PORTE = ("proposee", "validee", "refusee")

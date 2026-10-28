@@ -646,6 +646,7 @@
   "erreur.387a1f92be": {"fr": "anim.tags : chaque tag est un objet {name, from, to, direction, repeat}", "en": "anim.tags: each tag is an object {name, from, to, direction, repeat}", "src": "en"},
   "erreur.387fc290bd": {"fr": "Prise vide : aucun son reçu.", "en": "Empty take: no sound received.", "src": "fr"},
   "erreur.388b965f91": {"fr": "« Remplacer un élément » demande une consigne ou un préréglage (ce qui doit changer).", "en": "\"Replace an element\" requires an instruction or a preset (what should change).", "src": "fr"},
+  "erreur.38907430f5": {"fr": "aucune clé Apify : posez-la dans Réglages › Clés d'API", "en": "no Apify key: set it in Settings › API keys", "src": "fr"},
   "erreur.38f204ebfe": {"fr": "Format de carte inconnu: {fmt}", "en": "Unknown card format: {fmt}", "src": "fr"},
   "erreur.38f7123362": {"fr": "motif : identifiant mal formé : {cle}", "en": "pattern: malformed identifier: {cle}", "src": "fr"},
   "erreur.38f7156407": {"fr": "filename refusé : un nom d'image nu de la Library est attendu, reçu {fname}", "en": "filename rejected: a bare Library image name is expected, got {fname}", "src": "fr"},

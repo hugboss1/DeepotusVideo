@@ -192,6 +192,8 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: str = ""
     EXA_API_KEY: str = ""
     SERPER_API_KEY: str = ""
+    # t364 (28/10/2026) : Apify (collectes de la veille et des leads), réglée dans Réglages › Clés d'API
+    APIFY_TOKEN: str = ""
 
     # v1.11: local LLM via Ollama (optional). When OLLAMA_MODEL is set, the
     # marketing plan generator uses your local model — plans never leave the

@@ -7458,6 +7458,8 @@ _ALLOWED_ENV_KEYS = {
     "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
     # t310 (27/10/2026) : WhatsApp par Kapso — la clé plate partagée par tous les espaces
     "KAPSO_API_KEY",
+    # t364 (28/10/2026) : Apify (collectes de la veille et des leads), ligne de Clés d'API posée par le maillon dzapify
+    "APIFY_TOKEN",
     "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
     "YOUTUBE_REFRESH_TOKEN", "YOUTUBE_CHANNEL_ID",
     "IG_ACCESS_TOKEN", "IG_BUSINESS_ID",

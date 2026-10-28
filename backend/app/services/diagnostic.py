@@ -205,6 +205,13 @@ async def tester_cle(nom: str, valeur: str) -> dict:
             if code == 200 and isinstance(corps, dict) and corps.get("ok"):
                 return _res(True, "jeton accepté", bot=(corps.get("result") or {}).get("username"))
             return _res(False if code in (401, 404) else None, _sans(f"refusé ({code}) : {_msg(corps)}", v))
+        if nom == "APIFY_TOKEN":
+            _c, corps, r = await _simple("https://api.apify.com/v2/users/me", {"Authorization": f"Bearer {v}"})
+            if r["ok"] and isinstance(corps, dict):
+                d = corps.get("data") if isinstance(corps.get("data"), dict) else {}
+                r["details"] = {"compte": d.get("username"), "offre": (d.get("plan") or {}).get("id") if isinstance(d.get("plan"), dict) else None}
+            r["message"] = _sans(r.get("message") or "", v)
+            return r
         if nom == "OLLAMA_URL":
             code, corps = await _get(f"{v.rstrip('/')}/api/tags", timeout=5.0)
             if code == 200 and isinstance(corps, dict):
@@ -244,6 +251,7 @@ TESTABLES = {
     "FAL_KEY", "HEYGEN_API_KEY", "ELEVENLABS_API_KEY", "MESHY_API_KEY",
     "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "FIGMA_TOKEN",
     "TELEGRAM_BOT_TOKEN", "OLLAMA_URL",
+    "APIFY_TOKEN",                                  # t364 (28/10/2026) : GET /v2/users/me, gratuit
     "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET",
 }
 
