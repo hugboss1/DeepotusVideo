@@ -316,7 +316,7 @@ const b = document.querySelector("[data-dz-capture-ouvrir]");
 console.log(JSON.stringify({libelle: b.textContent, grise: b.disabled, titre: b.title}));
 """))
 check("U9 anglais ; sans getDisplayMedia : grisé, la raison au survol",
-      U2 == {"libelle": "Record", "grise": True, "titre": DICO["capture.barre.indisponible"]["en"]}, U2)
+      U2 == {"libelle": DICO["capture.barre.bouton"]["en"], "grise": True, "titre": DICO["capture.barre.indisponible"]["en"]}, U2)
 
 # ── [P] livraison ──
 print("[P] livraison")

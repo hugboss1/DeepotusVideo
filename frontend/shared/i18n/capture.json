@@ -1,11 +1,11 @@
 {
-  "capture.barre.bouton": {"fr": "Enregistrer", "en": "Record"},
+  "capture.barre.bouton": {"fr": "Filmer l'app", "en": "Record the app"},
   "capture.barre.titre": {"fr": "Enregistrer l'app : écran, voix, caméra et clics", "en": "Record the app: screen, voice, camera and clicks"},
   "capture.barre.arreter": {"fr": "Arrêter", "en": "Stop"},
   "capture.barre.indisponible": {"fr": "Ce navigateur ne sait pas filmer son onglet.", "en": "This browser cannot record its own tab."},
   "capture.boite.titre": {"fr": "Enregistrer l'app", "en": "Record the app"},
   "capture.boite.annuler": {"fr": "Annuler", "en": "Cancel"},
-  "capture.boite.demarrer": {"fr": "Démarrer", "en": "Start"},
+  "capture.boite.demarrer": {"fr": "Lancer l'enregistrement", "en": "Start recording"},
   "capture.boite.securite": {"fr": "Clés, coffre, appairage, appareils et mots de passe sont masqués dans l'image. L'enregistrement reste sur ce PC, dans la Bibliothèque.", "en": "Keys, vault, pairing, devices and passwords are masked in the picture. The recording stays on this PC, in the Library."},
   "capture.preuve.note": {"fr": "Mode preuve : écran, caméra et voix sont des flux factices.", "en": "Proof mode: screen, camera and voice are fake streams."},
   "capture.cadre.titre": {"fr": "Ce qu'on filme", "en": "What is filmed"},
