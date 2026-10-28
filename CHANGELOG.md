@@ -4,6 +4,29 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — à venir : "Scanner un schéma" (t314)
+
+**Une photo de schéma ou d'illustration devient un document du Vectorlab aux
+calques nommés, puis une base d'animation dans le Studio.**
+
+### Vectorlab › Fichier › Scanner un schéma…
+- **Détourage** : fond uni ou image transparente en local, gratuit ; un modèle
+  IA (fal) sur devis confirmé, catégorie « vectorlab ».
+- **Calques nommés** : chaque forme, flèche et étiquette séparée ; les formes et
+  flèches vectorisées par le moteur du Vectorlab, les étiquettes lues sur le PC
+  deviennent des textes ; les flèches relient les formes (« Flèche 1 : Client →
+  Serveur ») et l'ordre de révélation SUIT les flèches.
+- **Envoyer vers › Animation** (tout document) : chaque calque visible devient
+  un élément du nœud Animation, révélé dans cet ordre, prêt pour
+  « Chorégraphier » ; un nœud « Rendu motion code » porte une page locale
+  (flèches qui se dessinent de la queue vers la pointe). Le graphe est aussi
+  rangé dans « Ouvrir un graphe ».
+- Limites : un trait sans pointe ou à deux pointes n'oriente rien ; un texte
+  collé à une forme peut rester dans la forme ; les petits éléments au-delà de
+  40 sont regroupés en « Détails ».
+
+---
+
 # 🐙 Deepotus Video Gen — à venir : "Depuis une inspiration" (t313)
 
 **Un post vous inspire ? L'application en refabrique un contenu NEUF, dans la

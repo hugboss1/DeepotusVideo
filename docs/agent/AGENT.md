@@ -136,6 +136,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Mettre à jour l'application** : Réglages › Diagnostic, bouton Vérifier. → [POINT:reglages.diagnostic] [GUIDE:installer]
 - **Utiliser le téléphone** : Réglages › Appareils. → [POINT:reglages.appareils] [GUIDE:mobile]
 - **Dessiner en vectoriel** : ouvrir le Vectorlab, nommer le document puis Créer. → [POINT:vectorlab.creer] [GUIDE:vectorlab]
+- **Animer un schéma ou une illustration photographiés** : Vectorlab › Fichier › « Scanner un schéma… » (calques nommés,
+  ordre qui suit les flèches ; détourage IA payant après devis), puis « Envoyer vers › Animation » (Studio). → [GUIDE:vectorlab]
 - **Retoucher au pixel dans le Vectorlab** : basculer en mode Pixel. → [POINT:vectorlab.mode_pixel] [GUIDE:vectorlab-pixel]
 - **Raccourcis du Vectorlab** : bouton Raccourcis clavier de sa barre. → [POINT:vectorlab.raccourcis] [GUIDE:raccourcis]
 - **Retoucher une photo** : Photolab, outil Pinceau ; Recadrage pour couper ; menu Filtre pour les effets.
