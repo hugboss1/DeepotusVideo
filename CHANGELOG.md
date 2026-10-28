@@ -4,6 +4,121 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — à venir : clôture de la « boîte à outils » (t320)
+
+**Le guide, la traduction et l'assistant « Demander » rattrapent les lots t305 à t319 et t328.**
+
+### Guide (FR/EN)
+- Quatre chapitres neufs : **Travailler pour des clients** (espaces client, projets et canaux, sécurités),
+  **WhatsApp** (liaison Kapso, page, agent, diffusions), **Scanner** (page → texte, inspiration → contenu neuf,
+  schéma → calques → animation) et **Filmer, habiller, diffuser** (enregistreur, skins, montage des captures,
+  direct, tutoriels et parcours partagés), avec scènes tirées des vraies captures.
+
+### Traduction
+- En anglais, l'« espace » de marque se dit partout « space » (WhatsApp, diffusion) ; une phrase française n'a
+  plus qu'une traduction (« Relire », « Aucun espace », « refusé », « désactivé »…).
+
+### Assistant « Demander »
+- Il connaît les boîtes « Scanner une page » et « Depuis une inspiration » et les ~100 entrées de la barre de
+  menus du Vectorlab ; ses réponses renvoient aux chapitres neufs ; AGENT.md condensé sous 24 000 caractères.
+
+---
+
+# 🐙 Deepotus Video Gen — à venir : "Scanner un schéma" (t314)
+
+**Une photo de schéma ou d'illustration devient un document du Vectorlab aux
+calques nommés, puis une base d'animation dans le Studio.**
+
+### Vectorlab › Fichier › Scanner un schéma…
+- **Détourage** : fond uni ou image transparente en local, gratuit ; un modèle
+  IA (fal) sur devis confirmé, catégorie « vectorlab ».
+- **Calques nommés** : chaque forme, flèche et étiquette séparée ; les formes et
+  flèches vectorisées par le moteur du Vectorlab, les étiquettes lues sur le PC
+  deviennent des textes ; les flèches relient les formes (« Flèche 1 : Client →
+  Serveur ») et l'ordre de révélation SUIT les flèches.
+- **Envoyer vers › Animation** (tout document) : chaque calque visible devient
+  un élément du nœud Animation, révélé dans cet ordre, prêt pour
+  « Chorégraphier » ; un nœud « Rendu motion code » porte une page locale
+  (flèches qui se dessinent de la queue vers la pointe). Le graphe est aussi
+  rangé dans « Ouvrir un graphe ».
+- Limites : un trait sans pointe ou à deux pointes n'oriente rien ; un texte
+  collé à une forme peut rester dans la forme ; les petits éléments au-delà de
+  40 sont regroupés en « Détails ».
+
+---
+
+# 🐙 Deepotus Video Gen — à venir : "Depuis une inspiration" (t313)
+
+**Un post vous inspire ? L'application en refabrique un contenu NEUF, dans la
+voix de votre espace — elle ne republie jamais l'original.**
+
+### Planificateur › Depuis une inspiration
+- **La capture** : glisser, coller ou choisir une image, ou coller le texte du
+  post ; dire d'où elle vient (gardé dans la fiche, jamais publié). Lecture du
+  texte sur le PC, gratuite ; palette relevée.
+- **Matière et trois angles** (Claude, sur devis confirmé, catégorie
+  « scheduler ») : le texte capté n'entre dans la demande qu'encadré comme une
+  preuve ; un angle qui reprend la capture ou un mot interdit est grisé.
+- **Devis puis génération** : texte rédigé sans l'original, visuel fal neuf ;
+  l'image captée n'est jamais envoyée comme visuel.
+- **Brouillon** dans le projet actif de l'espace, sur ses canaux, « À valider »
+  chez un client qui valide. Refusé si 12 mots de suite reprennent la capture,
+  si un mot interdit ou la source (lien, @compte) s'y trouvent, ou si le visuel
+  est l'image captée. La source est notée dans la recette du visuel.
+- Limites : la garde ne joue qu'à la création du brouillon (une modification
+  ultérieure au Planificateur n'est pas rejugée) ; l'animation passe par
+  « Produire » sur le brouillon.
+
+---
+
+# 🐙 Deepotus Video Gen — à venir : "Scanner une page" (t312)
+
+**Une page de livre, un manuscrit tapé à la machine, un PDF scanné : son
+texte arrive dans l'Atelier sans rien retaper.** La lecture se fait sur le PC,
+gratuitement ; Claude ne relit les pages qu'à la demande, après un devis.
+
+### Scanner une page (Atelier / Chapitres)
+- **Deux boutons « Scanner une page »** : à côté de l'import de fichier (le
+  texte va au curseur du chapitre) et à côté du découpage de manuscrit.
+- **La boîte de scan** (`frontend/shared/dz-scan.js`, partagée, prête pour le
+  Vectorlab et Quick) : glisser, coller (Ctrl+V) ou choisir de une à dix
+  images ou PDF ; langue Français, English ou Auto (la langue se devine aux
+  mots courants) ; aperçu modifiable, mots étranges surlignés et parcourus
+  (Précédent / Suivant), statistiques.
+- **Lecture locale gratuite** par la reconnaissance de texte de Windows
+  (`scan_ocr.py`, sans Tesseract ni téléchargement) ; un PDF qui a déjà du
+  texte est repris tel quel, sans lecture d'image.
+- **Le nettoyage** (`scan_nettoyage.py`) : deux ou trois colonnes lues dans
+  l'ordre, césures recollées (composés français gardés), folios et titres
+  courants retirés, paragraphes refaits.
+- **Claude en secours, jamais automatique** : « Essayer avec Claude (≈ …) »
+  montre le devis, demande confirmation et respecte les plafonds (catégorie
+  « atelier », montant de toute la demande) ; un coût qui change entre le
+  devis et la lecture est refusé. Une lecture payée n'est jamais payée deux
+  fois par mégarde : elle est gardée, « Relire » la reprend sans frais, une
+  seconde lecture du même scan attend la première, et une nouvelle lecture
+  payante demande une confirmation à part.
+- **Trois envois** : insérer dans le chapitre, créer les chapitres (découpage
+  montré avant), importer comme manuscrit pour l'agent Manuscrit.
+- **Boîte d'agent `scan`** avec l'outil `lire_texte_image` (une image de la
+  Bibliothèque lue localement, texte encadré comme preuve).
+
+### Mesuré
+- Sur 10 pages test fabriquées (5 FR, 5 EN : colonnes, césures, folios,
+  faible contraste, 9 pt, rotation de 1°, justifié, dialogues, chiffres) :
+  **0,35 % d'erreurs de caractères en français, 0,32 % en anglais, environ
+  1,1 s par page** (`scripts/scan_mesure.py`, rapport
+  `docs/superpowers/specs/2026-10-28-scan-mesure.md`).
+- Correctif issu de la mesure : une colonne de droite courte dont les lignes
+  sont décalées d'une demi-ligne n'est plus lue en travers de la gauche.
+- **Limite à connaître : relisez le texte.** Les mots surlignés sont ceux qui
+  ont l'air étranges (chiffres mêlés aux lettres, signes bizarres) ; un mot mal
+  lu mais plausible (« mam » pour « main ») n'est PAS surligné — sur la mesure,
+  aucune des 16 erreurs réelles ne l'était. L'écran le dit : « Aucun mot étrange
+  repéré — relis quand même ».
+
+---
+
 # 🐙 Deepotus Video Gen v2.8.0 — "Le transfert entre machines"
 
 **Tout ce qu'une installation a créé peut désormais changer de machine — et
@@ -36,6 +151,23 @@ avancement, fichier par fichier.
   quoi la bibliothèque pointerait dans le vide.
 - **Un paquet illisible se refuse en le disant** : manifeste absent, format
   inconnu, base manquante — chaque refus nomme sa cause.
+
+### Diffusions WhatsApp depuis le Planificateur
+- **Un post peut viser le WhatsApp de l'espace** — le compte se coche dans
+  l'inspecteur du post comme un réseau (un seul compte WhatsApp par post) ; il
+  n'est jamais précoché dans les canaux par défaut d'un projet.
+- **Le panneau « Diffusion WhatsApp »** : modèle approuvé, paramètres (le même
+  texte pour tous), audience (les contacts dont l'accord a été saisi, hors STOP
+  et désinscrits du marketing) et devis en dollars avant tout envoi.
+  « Enregistrer la diffusion » ne dépense rien.
+- **Elle part avec le post**, par Kapso, après le plafond mensuel ; la validation
+  du client est respectée. Un envoi jamais renvoyé sans relecture : au moindre
+  doute le panneau dit « incertain » et demande « Confirmer l'envoi ».
+- **Le suivi** : statut, envoyés, livrés, lus, échecs, coût réel, « Relire ».
+- **Relance sans doublon** : avant de relancer une diffusion incertaine, l'ancien
+  brouillon est vidé chez Kapso ; s'il était déjà parti, rien n'est relancé. La
+  demande de validation envoyée au client montre le modèle et son texte rempli,
+  et un client « publié en son nom » se confirme depuis le panneau.
 
 ### Sous le capot
 - Cinq routes locales (`/api/transfer/destinations`, `export`, `inspect`,

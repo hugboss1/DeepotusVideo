@@ -36,6 +36,7 @@ MAX_ESSAIS = 5                    # essais au total pour un 429 (relevé §6 : �
 ATTENTE_MAX = 120.0               # un Retry-After démesuré ne bloque pas l'application
 _RE_TOKEN_URL = re.compile(r"token=[^&\s]+", re.I)
 _RE_TOKEN_JSON = re.compile(r'"token"\s*:\s*"[^"]+"', re.I)
+_RE_CHIFFRES = re.compile(r"\d{6,}")      # un numéro de téléphone ne sort jamais d'une erreur (t328, revue finale M2)
 
 
 class KapsoErreur(RuntimeError):
@@ -102,7 +103,8 @@ def _lire_erreur(statut: int, corps, cle: str) -> tuple[str, str]:
             message = err or corps.get("message") or ""
             code = corps.get("code") or ""
     code = _propre(code, cle, 64).strip() or str(statut)
-    message = _propre(message, cle).strip() or f"Réponse Kapso inattendue (HTTP {statut})"
+    # t328 revue finale M2 : une suite de 6 chiffres ou plus (un numéro cité par le fournisseur) est masquée
+    message = _RE_CHIFFRES.sub("…", _propre(message, cle)).strip() or f"Réponse Kapso inattendue (HTTP {statut})"
     return code, message
 
 
@@ -397,3 +399,111 @@ async def media_et_type(media_id: str, phone_number_id: str) -> tuple[bytes, str
         raise KapsoErreur("Réponse Kapso invalide", code="reponse_invalide")
     ct = next((v for k, v in (entetes or {}).items() if str(k).lower() == "content-type"), None)
     return bytes(octets), _type_mime(corps.get("mime_type")) or _type_mime(ct)
+
+
+# ---- diffusions en masse (Broadcasts) — t328 ------------------------------------------------------------------------------
+
+MAX_DESTINATAIRES = 1000          # par appel d'ajout (relevé Broadcasts §2.2)
+
+
+def _id_bc(broadcast_id) -> str:
+    return quote(str(broadcast_id), safe="")
+
+
+def _entier(d: dict, cle: str) -> int:
+    v = d.get(cle)
+    return v if isinstance(v, int) and not isinstance(v, bool) else 0
+
+
+async def creer_broadcast(nom: str, phone_number_id: str, template_id: str) -> dict:
+    """POST /whatsapp/broadcasts : crée un brouillon lié à un numéro et à UN modèle (id Meta, langue portée par le modèle).
+    Rend {"id", "statut"}."""
+    _s, corps, _e = await _appel("POST", f"{PLATFORM}/whatsapp/broadcasts", json={"whatsapp_broadcast": {
+        "name": str(nom), "phone_number_id": str(phone_number_id), "whatsapp_template_id": str(template_id)}})
+    d = _data(corps, dict)
+    if not d.get("id"):
+        raise KapsoErreur("Réponse Kapso invalide", code="reponse_invalide")
+    return {"id": str(d["id"]), "statut": str(d.get("status") or "draft")}
+
+
+async def ajouter_destinataires(broadcast_id: str, destinataires: list[dict]) -> dict:
+    """POST .../recipients : `destinataires` = [{"phone_number": "+<chiffres>", "components": [...]}], 1 000 au plus par appel
+    (ValueError sinon, sans appel). Un 201 peut porter des `errors` (chaînes) : rendues telles quelles.
+    Rend {"ajoutes", "doublons", "erreurs"}."""
+    if len(destinataires) > MAX_DESTINATAIRES:
+        raise ValueError("Une diffusion Kapso accepte au plus 1 000 destinataires par lot")
+    if not destinataires:
+        return {"ajoutes": 0, "doublons": 0, "erreurs": []}
+    _s, corps, _e = await _appel("POST", f"{PLATFORM}/whatsapp/broadcasts/{_id_bc(broadcast_id)}/recipients",
+                                 json={"whatsapp_broadcast": {"recipients": destinataires}})
+    d = _data(corps, dict)
+    erreurs = d.get("errors")
+    return {"ajoutes": _entier(d, "added"), "doublons": _entier(d, "duplicates"),
+            "erreurs": [_RE_CHIFFRES.sub("…", _propre(x, comptes.cle_kapso() or "")) for x in erreurs]
+            if isinstance(erreurs, list) else []}
+
+
+async def envoyer_broadcast(broadcast_id: str) -> dict:
+    """POST .../send : envoi immédiat (asynchrone, 202). UN SEUL essai, même sur 429 : Kapso n'a pas de clé d'idempotence, un
+    rejeu à l'aveugle risque de doubler la diffusion. Après une panne, relire `broadcast()` avant tout nouvel essai.
+    Rend {"statut"}."""
+    _s, corps, _e = await _appel("POST", f"{PLATFORM}/whatsapp/broadcasts/{_id_bc(broadcast_id)}/send", reessai_ok=False)
+    d = corps.get("data") if isinstance(corps, dict) else None     # un 2xx = accepté, même sans corps lisible
+    return {"statut": str(d.get("status") or "") if isinstance(d, dict) else ""}
+
+
+async def broadcast(broadcast_id: str) -> dict:
+    """GET .../broadcasts/{id} : {"id", "statut", "compteurs": {total, pending, sent, failed, suppressed, delivered, read}}
+    (un compteur absent vaut 0)."""
+    _s, corps, _e = await _appel("GET", f"{PLATFORM}/whatsapp/broadcasts/{_id_bc(broadcast_id)}")
+    d = _data(corps, dict)
+    return {"id": str(d.get("id") or broadcast_id), "statut": str(d.get("status") or ""),
+            "compteurs": {"total": _entier(d, "total_recipients"), "pending": _entier(d, "pending_count"),
+                          "sent": _entier(d, "sent_count"), "failed": _entier(d, "failed_count"),
+                          "suppressed": _entier(d, "suppressed_count"), "delivered": _entier(d, "delivered_count"),
+                          "read": _entier(d, "read_count")}}
+
+
+def _numero_e164(v) -> str:
+    """`+<chiffres>` : la sortie de Kapso n'a pas de `+`, l'entrée en avait un."""
+    chiffres = re.sub(r"\D", "", str(v or ""))
+    return f"+{chiffres}" if chiffres else ""
+
+
+async def destinataires_broadcast(broadcast_id: str, *, page: int = 1, par_page: int = 100) -> dict:
+    """GET .../recipients?page&per_page : {"lignes": [{phone_number, statut, code_erreur, livre, lu}], "pages"}. Pas de statut
+    `delivered`/`read` chez Kapso : `livre` et `lu` viennent de `delivered_at` et `read_at`. Aucun texte d'erreur n'est rendu."""
+    page, par_page = max(1, int(page)), min(100, max(1, int(par_page)))
+    _s, corps, _e = await _appel("GET", f"{PLATFORM}/whatsapp/broadcasts/{_id_bc(broadcast_id)}/recipients",
+                                 params={"page": page, "per_page": par_page})
+    lignes = []
+    for x in _data(corps, list):
+        if not isinstance(x, dict):
+            continue
+        det = x.get("error_details")
+        code = det.get("code") if isinstance(det, dict) else None
+        lignes.append({"phone_number": _numero_e164(x.get("phone_number")), "statut": str(x.get("status") or ""),
+                       "code_erreur": _propre(code, comptes.cle_kapso() or "", 64) if code not in (None, "") else "",
+                       "livre": bool(x.get("delivered_at")), "lu": bool(x.get("read_at"))})
+    meta = corps.get("meta") if isinstance(corps, dict) else None
+    pages = meta.get("total_pages") if isinstance(meta, dict) else None
+    return {"lignes": lignes, "pages": pages if isinstance(pages, int) and pages >= 1 else 1}
+
+
+async def arreter_broadcast(broadcast_id: str) -> dict:
+    """PATCH .../broadcasts/{id} {"status": "stopped"} (seulement `sending`) : les `pending` restent en attente.
+    Rend {"id", "statut"}."""
+    _s, corps, _e = await _appel("PATCH", f"{PLATFORM}/whatsapp/broadcasts/{_id_bc(broadcast_id)}",
+                                 json={"whatsapp_broadcast": {"status": "stopped"}})
+    d = _data(corps, dict)
+    return {"id": str(d.get("id") or broadcast_id), "statut": str(d.get("status") or "")}
+
+
+async def vider_destinataires(broadcast_id: str) -> dict:
+    """DELETE .../recipients (t328 revue finale I1) : vide TOUS les destinataires d'un brouillon (`draft`, ou `scheduled`
+    qui repasse `draft`). Un brouillon vidé ne peut plus rien envoyer. 422 si la diffusion n'est plus un brouillon (elle
+    est partie) : la `KapsoErreur` remonte, à l'appelant de relire. Rend {"id", "statut"}."""
+    _s, corps, _e = await _appel("DELETE", f"{PLATFORM}/whatsapp/broadcasts/{_id_bc(broadcast_id)}/recipients")
+    d = corps.get("data") if isinstance(corps, dict) else None     # un 2xx = vidé, même sans corps lisible
+    return {"id": str(d.get("id") or broadcast_id) if isinstance(d, dict) else str(broadcast_id),
+            "statut": str(d.get("status") or "") if isinstance(d, dict) else ""}

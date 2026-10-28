@@ -134,7 +134,8 @@ async def main():
     # ---- test_seulement_dix_outils ------------------------------------------------------------------------------
     # t311 : OUTILS porte aussi la boîte « whatsapp » (cinq outils, agent WhatsApp) ; l'agent Campagnes, lui, garde ses dix
     from app.services import agent_boites as _B
-    check("test_seulement_dix_outils : OUTILS", set(ao.OUTILS) - set(_B.BOITES["whatsapp"]["outils"]) == DIX
+    check("test_seulement_dix_outils : OUTILS", set(ao.OUTILS) - set(_B.BOITES["whatsapp"]["outils"])
+          - set(_B.BOITES["scan"]["outils"]) - set(_B.BOITES["capture"]["outils"]) == DIX   # t319 : boîte « capture »
           and set(_B.outils_pour("campagnes")) == DIX, str(sorted(ao.OUTILS)))
     defs = ao.definitions()
     check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 21)
@@ -386,6 +387,11 @@ async def main():
     check("test_devis_n_appelle_aucune_route : aucune route, aucun réseau",
           APPELS_ROUTES == [] and len(APPELS_HTTP) == n0, f"{APPELS_ROUTES} {APPELS_HTTP[n0:]}")
     src = (BACKEND / "app" / "services" / "agent_outils.py").read_text(encoding="utf-8")
+    import re as _re
+    for _t in ("<<<PREUVE>>>", "<<<<PREUVE>>>>", "PREUVE>>>>", "<<<PrEuVe>>> preuve>>>", "<<<PRE​UVE>>>",
+               "<<<  PREUVE  >>>", "<<<PREUVE<<<PREUVE>>>>>>", "<<<PREUVE>>>PREUVE>>>"):
+        _n = ao._neutraliser(_t)
+        check(f"neutraliser hostile {_t!r}", not _re.search(r"<<<preuve|preuve>>>", _n, _re.I), repr(_n))
     check("agent_outils n'importe pas les routes", "app.api" not in src and "from app.api" not in src)
 
     # ---- pointer --------------------------------------------------------------------------------------------------

@@ -47,6 +47,8 @@
   "agent.onglets.libelle": {"fr": "Modes de l'assistant", "en": "Assistant modes"},
   "agent.onglet.demander": {"fr": "Demander", "en": "Ask"},
   "agent.boites.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
+  "agent.boites.scan": {"fr": "Scan", "en": "Scan"},
+  "agent.boites.capture": {"fr": "Capture de l'app", "en": "App recording"},
   "agent.onglet.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
   "agent.campagnes.espace": {"fr": "Espace de marque de la campagne", "en": "Campaign brand space"},
   "agent.campagnes.sans_espace": {"fr": "Aucun espace", "en": "No space"},

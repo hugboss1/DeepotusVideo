@@ -1,0 +1,42 @@
+{
+  "titre": {
+    "fr": "Répondre avec l'agent",
+    "en": "Reply with the agent"
+  },
+  "legende": {
+    "fr": "Page WhatsApp : la réponse proposée par l'agent attend votre envoi ; ses réglages vivent dans Réglages › Espaces de marque.",
+    "en": "WhatsApp page: the agent's proposed reply waits for you to send it; its settings live in Settings › Brand spaces."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    }
+  ],
+  "taille": [
+    800,
+    500
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "L'agent propose, vous envoyez ou rejetez",
+        "en": "The agent proposes, you send or reject"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "Agent WhatsApp : mode, rôles, horaires et limites",
+        "en": "WhatsApp agent: mode, roles, hours and limits"
+      }
+    }
+  ]
+}

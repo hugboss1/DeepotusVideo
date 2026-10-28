@@ -1,0 +1,50 @@
+{
+  "titre": {
+    "fr": "Relier le numéro WhatsApp d'un espace",
+    "en": "Link a space's WhatsApp number"
+  },
+  "legende": {
+    "fr": "Assistant d'espace, étape Canaux : consentement, facturation Meta, lien d'installation Kapso, puis Vérifier.",
+    "en": "Space wizard, Channels step: consent, Meta billing, Kapso setup link, then Verify."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    }
+  ],
+  "taille": [
+    800,
+    600
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3.0,
+      "bulle": {
+        "fr": "Étape Canaux : cochez WhatsApp",
+        "en": "Channels step: tick WhatsApp"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.0,
+      "bulle": {
+        "fr": "Copiez le lien et envoyez-le au client",
+        "en": "Copy the link and send it to the client"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "bulle": {
+        "fr": "Vérifier relit la liaison, sans rien envoyer",
+        "en": "Verify reads the link again, sending nothing"
+      }
+    }
+  ]
+}

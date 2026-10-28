@@ -1,0 +1,65 @@
+{
+ "livre-deepotus": {
+  "nom": "Deepotus",
+  "couleurs": {"principale": null, "accent": null, "texte": "#ffffff", "fond": "#0b0f14"},
+  "cadre": {"marge": 0.03, "bord": 0.003, "couleur": "principale", "fond": {"type": "degrade", "c1": "fond", "c2": "principale"}},
+  "logo": {"actif": true, "source": "espace", "x": 0.045, "y": 0.06, "l": 0.07, "opacite": 0.92},
+  "bandeau": {"actif": true, "style": "bande", "x": 0.045, "y": 0.8, "l": 0.46, "debut_s": 2, "duree_s": 8},
+  "intro": {"actif": true, "duree_s": 3},
+  "outro": {"actif": true, "duree_s": 3},
+  "encart": {"forme": "cercle", "bord": 0.004, "couleur": "principale", "ombre": true, "x": 0.76, "y": 0.6, "l": 0.18, "h": 0.3},
+  "curseur": {"style": "anneau", "couleur": "accent", "taille": 1},
+  "signature": {"actif": true, "coin": "bas-droite", "opacite": 0.75}
+ },
+ "livre-sobre": {
+  "nom": "Sobre",
+  "couleurs": {"principale": "#d0d5dc", "accent": "#8a94a3", "texte": "#ffffff", "fond": "#111418"},
+  "cadre": {"marge": 0, "bord": 0, "couleur": "accent", "fond": {"type": "uni", "c1": "fond", "c2": "fond"}},
+  "logo": {"actif": true, "source": "espace", "x": 0.92, "y": 0.04, "l": 0.05, "opacite": 0.7},
+  "bandeau": {"actif": true, "style": "souligne", "x": 0.04, "y": 0.84, "l": 0.4, "debut_s": 1, "duree_s": 6},
+  "intro": {"actif": true, "duree_s": 2},
+  "outro": {"actif": true, "duree_s": 2},
+  "encart": {"forme": "carre", "bord": 0.002, "couleur": "principale", "ombre": false, "x": 0.78, "y": 0.66, "l": 0.18, "h": 0.28},
+  "curseur": {"style": "point", "couleur": "principale", "taille": 0.8}
+ },
+ "livre-neon": {
+  "nom": "Néon",
+  "couleurs": {"principale": "#ff2bd6", "accent": "#00f0ff", "texte": "#ffffff", "fond": "#07020f"},
+  "polices": {"titre": "Arial Black", "texte": null},
+  "cadre": {"marge": 0.04, "bord": 0.006, "couleur": "accent", "fond": {"type": "degrade", "c1": "fond", "c2": "principale"}},
+  "logo": {"actif": true, "source": "espace", "x": 0.05, "y": 0.065, "l": 0.07, "opacite": 1},
+  "bandeau": {"actif": true, "style": "bloc", "x": 0.05, "y": 0.78, "l": 0.5, "debut_s": 2, "duree_s": 8},
+  "intro": {"actif": true, "duree_s": 3},
+  "outro": {"actif": true, "duree_s": 3},
+  "encart": {"forme": "cercle", "bord": 0.008, "couleur": "accent", "ombre": true, "x": 0.74, "y": 0.58, "l": 0.2, "h": 0.33},
+  "alertes": {"actif": true, "x": 0.33, "y": 0.07, "l": 0.34, "duree_s": 5},
+  "zoom": {"niveau": 1.7, "duree_ms": 1800},
+  "curseur": {"style": "anneau", "couleur": "accent", "taille": 1.4}
+ },
+ "livre-presse": {
+  "nom": "Presse",
+  "couleurs": {"principale": "#c8102e", "accent": "#111111", "texte": "#ffffff", "fond": "#f4f1ea"},
+  "polices": {"titre": "Georgia", "texte": "Georgia"},
+  "cadre": {"marge": 0.02, "bord": 0.002, "couleur": "accent", "fond": {"type": "uni", "c1": "fond", "c2": "fond"}},
+  "logo": {"actif": true, "source": "espace", "x": 0.035, "y": 0.04, "l": 0.06, "opacite": 1},
+  "bandeau": {"actif": true, "style": "bande", "x": 0.035, "y": 0.82, "l": 0.55, "debut_s": 1, "duree_s": 10},
+  "intro": {"actif": true, "duree_s": 3},
+  "outro": {"actif": true, "duree_s": 3},
+  "encart": {"forme": "vif", "bord": 0.003, "couleur": "principale", "ombre": false, "x": 0.77, "y": 0.62, "l": 0.19, "h": 0.3},
+  "curseur": {"style": "point", "couleur": "principale", "taille": 1}
+ },
+ "livre-jeu": {
+  "nom": "Jeu",
+  "couleurs": {"principale": "#7c3aed", "accent": "#facc15", "texte": "#ffffff", "fond": "#0f0a1f"},
+  "polices": {"titre": "Impact", "texte": null},
+  "cadre": {"marge": 0.03, "bord": 0.005, "couleur": "principale", "fond": {"type": "degrade", "c1": "principale", "c2": "fond"}},
+  "logo": {"actif": true, "source": "espace", "x": 0.88, "y": 0.06, "l": 0.08, "opacite": 1},
+  "bandeau": {"actif": true, "style": "bloc", "x": 0.045, "y": 0.79, "l": 0.48, "debut_s": 2, "duree_s": 8},
+  "intro": {"actif": true, "duree_s": 4},
+  "outro": {"actif": true, "duree_s": 4},
+  "encart": {"forme": "vif", "bord": 0.008, "couleur": "accent", "ombre": true, "x": 0.76, "y": 0.6, "l": 0.19, "h": 0.32},
+  "alertes": {"actif": true, "x": 0.3, "y": 0.06, "l": 0.4, "duree_s": 6},
+  "zoom": {"niveau": 1.8, "duree_ms": 1400},
+  "curseur": {"style": "point", "couleur": "accent", "taille": 1.6}
+ }
+}

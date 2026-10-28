@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "Habiller une capture",
+    "en": "Dress up a recording"
+  },
+  "legende": {
+    "fr": "Habillage (skin) : choisir dans la boîte, régler dans l'éditeur, voir le bandeau, le logo et le curseur dans la vidéo.",
+    "en": "Look (skin): pick it in the box, tune it in the editor, see the lower third, logo and cursor in the video."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    },
+    {
+      "fr": "c3.fr.webp",
+      "en": "c3.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    755
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "bulle": {
+        "fr": "Habillage : un skin par capture",
+        "en": "Look: one skin per recording"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "L'éditeur : aperçu en direct, éléments à glisser",
+        "en": "The editor: live preview, elements to drag"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 2.8,
+      "bulle": {
+        "fr": "Dans la vidéo : bandeau, logo, curseur",
+        "en": "In the video: lower third, logo, cursor"
+      }
+    }
+  ]
+}

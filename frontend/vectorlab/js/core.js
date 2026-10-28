@@ -42,6 +42,7 @@ import { dansPanneau } from "./mod-flottant.js";
 import { initCalques } from "./mod-layers.js";
 import { initStyle } from "./mod-style.js";
 import { initExport } from "./mod-export.js";
+import { initSchema } from "./mod-schema.js";
 import { initVitrail } from "./mod-vitrail.js";
 import { initBiblio } from "./mod-biblio.js";
 import { initIA } from "./mod-ia.js";
@@ -810,6 +811,7 @@ initCarte(VL);      // panneau Carte réelle : GPX, fond, relief, courbes, tuile
 initOutils(VL);
 initNoeudApercu(VL); // R12 : l'aperçu des gestes de nœud (un cadre rAF, sans clone) — après initOutils, avant Outils2 / NoeudUI
 initExport(VL);
+initSchema(VL);    // t314 : Scanner un schéma…, Envoyer vers › Animation — après initExport (VL.svgCourant)
 initVitrail(VL);
 initDialogue(VL);   // finitions UI : VL.dialogue AVANT tout appelant (biblio, calques, brouillon…)
 initControles(VL);  // finitions UI : <vl-curseur> / <vl-bascule> / <vl-curseur-couleur> définis AVANT tout rendu de panneau

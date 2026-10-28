@@ -4,7 +4,7 @@ Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
 - 1126 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 53 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 44 chapitres dans le sommaire v3, en 6 familles.
+- 48 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -333,6 +333,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Voix témoin de l'animatique** **payant** : Ajoute sur demande la voix du Narrateur de la bible (ElevenLabs), devis affiché, voix en cache pour ne pas repayer. — *Modale de l'animatique → case « voix témoin » + devis* (PR #112 · commit eda09ff3 · tâche #63)
 - [x] **Vues de référence d'une entité** : Les vues d'une planche de personnage sont retrouvées gratuitement (recette v3 ou découpe vérifiée) et servent ensuite de références. (PR #108 · commit 05b18967 · tâche #62)
 
+### Scanner une page, une inspiration, un schéma (`scan`, lot t320, reprend : nouveau) — 0 manques
+
+
 ### Sons, voix et effets visuels (`son-vfx`, lot t173, reprend : nouveau) — 20 manques
 
 **Son & VFX** — accès : Barre latérale → Son & VFX (écran 06) ; tiroir Sons aussi dans le Montage et dans Bibliothèque → puce Audio ; voix des personnages dans l'Atelier des Chapitres
@@ -504,6 +507,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Rendu synchrone avec le lecteur** : Le rendu n'a plus une image d'avance sur la timeline et sa durée est exactement celle de la timeline, coupes franches comprises. (PR #33 · commit 3e01fbe9)
 - [x] **Vraies poignées de plan** : Un fondu entre deux plans est centré sur la jonction avec les images réelles de la source : il ne décale plus l'image par rapport au son, et la première image après un trou ne fond plus dans le noir. (P1 #7 · PR #44 · commit c172f054)
 
+### Filmer l'app et passer en direct (`capture-live`, lot t320, reprend : nouveau) — 0 manques
+
+
 ## Publier
 
 ### Planifier et publier sa semaine (`planificateur`, lot t175, reprend : c10) — 19 manques
@@ -571,6 +577,12 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] « YouTube et Instagram restent en mode assisté » (dépassé : Scheduler YouTube #25 / Instagram #26 ; TikTok #27 absent)
 - [x] « Connected accounts », « Send test message », « Verify credentials » (anglais)
 - [x] Réglages + OAuth (#28) non décrits ; redémarrage après Save
+
+
+### Travailler pour des clients (`clients-canaux`, lot t320, reprend : nouveau) — 0 manques
+
+
+### Parler à ses clients sur WhatsApp (`whatsapp`, lot t320, reprend : nouveau) — 0 manques
 
 
 ### Suivre l'actualité et en faire des posts (`news`, lot t175, reprend : nouveau) — 13 manques
@@ -1529,4 +1541,5 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t211 | 0 | 0 |
 | t259 | 6 | 6 |
 | t287 | 6 | 6 |
+| t320 | 0 | 0 |
 | t360 | 9 | 9 |

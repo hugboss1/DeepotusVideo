@@ -336,9 +336,43 @@ def _bloc_tag(s, tag, f):
 
 def avant_dzapify(bundle: str) -> str:
     """Le bundle d'avant la clé Apify (maillon de queue patch_bundle_dzapify, t364 tâche 2, 28/10/2026, posé APRÈS
-    whatsapppage : la ligne APIFY_TOKEN de Réglages › Clés d'API) : ses paires défaites, lues dans le maillon lui-même.
+    whatsapppage, rejoué APRÈS dzdiffusion à la fusion #473 : c'est la queue de la chaîne : la ligne APIFY_TOKEN de Réglages › Clés d'API) : ses paires défaites, lues dans le maillon lui-même.
     Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzapify as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
+def avant_dzdiffusion(bundle: str) -> str:
+    """Le bundle d'avant la diffusion WhatsApp au Planificateur (maillon de queue patch_bundle_dzdiffusion, t328 tâche 5,
+    27/10/2026 ; écrit APRÈS whatsapppage, rejoué APRÈS dzinspiration à la fusion t320, suivi de dzapify (fusion #473) :
+    DzPostComptes range les comptes whatsapp et monte le panneau de diffusion, la table des canaux _t connaît whatsapp) :
+    ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzdiffusion as _m
+    bundle = avant_dzapify(bundle)               # 28/10 (t364, fusion #473) : le maillon rejoué APRÈS dzdiffusion, défait d'abord
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
+def avant_dzinspiration(bundle: str) -> str:
+    """Le bundle d'avant le bouton « Depuis une inspiration » du Planificateur (maillon de queue
+    patch_bundle_dzinspiration, t313, 28/10/2026 ; écrit APRÈS whatsapppage, rejoué APRÈS dzcapture à la fusion t320) :
+    sa paire défaite, lue dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzinspiration as _m
+    bundle = avant_dzdiffusion(bundle)           # 27/10 (t328, fusion t320) : le maillon posé APRÈS dzinspiration, défait d'abord
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
+def avant_dzcapture(bundle: str) -> str:
+    """Le bundle d'avant le marquage des écrans secrets de Réglages (maillon de queue patch_bundle_dzcapture, t315,
+    28/10/2026, posé APRÈS whatsapppage : `data-dz-secret="ecran"` sur le panneau des sections coffre, appareils, keys,
+    accounts, transfert) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzcapture as _m
+    bundle = avant_dzinspiration(bundle)         # 28/10 (t313, fusion t320) : le maillon posé APRÈS dzcapture, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)
@@ -350,7 +384,7 @@ def avant_whatsapppage(bundle: str) -> str:
     « Agent WhatsApp » de Réglages › Espaces) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur :
     rendu tel quel."""
     import patch_bundle_whatsapppage as _m
-    bundle = avant_dzapify(bundle)               # 28/10 (t364) : le maillon posé APRÈS whatsapppage, défait d'abord
+    bundle = avant_dzcapture(bundle)             # 28/10 (t315) : le maillon posé APRÈS whatsapppage, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

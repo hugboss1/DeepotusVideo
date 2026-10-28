@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "Lire une page de livre",
+    "en": "Read a book page"
+  },
+  "legende": {
+    "fr": "Atelier de Chapitres › Scanner une page : lecture locale gratuite, mots étranges surlignés, puis découpage en chapitres.",
+    "en": "Chapter Workshop › Scan a page: free local reading, odd words highlighted, then a split into chapters."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    },
+    {
+      "fr": "c3.fr.webp",
+      "en": "c3.en.webp"
+    }
+  ],
+  "taille": [
+    800,
+    500
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "bulle": {
+        "fr": "1 à 10 pages, la langue, puis Lire",
+        "en": "1 to 10 pages, the language, then Read"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "Texte lu sur le PC : relisez les mots surlignés",
+        "en": "Text read on the PC: check the highlighted words"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3.0,
+      "bulle": {
+        "fr": "Le découpage proposé devient des chapitres",
+        "en": "The proposed split becomes chapters"
+      }
+    }
+  ]
+}

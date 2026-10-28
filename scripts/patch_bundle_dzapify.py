@@ -12,7 +12,7 @@ Clés dzT : frontend/shared/i18n/menus.json (FR/EN, à côté de reglages.cles.k
 
 Maillon de QUEUE, APRÈS whatsapppage (t311, dont il sonde le marqueur) ; il garde un .js.bak_dzapify le temps de
 l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzapify` dans
-backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `avant_whatsapppage`. Lecture et écriture
+backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `avant_dzdiffusion` depuis la fusion #473 (rejoué APRÈS dzdiffusion). Lecture et écriture
 en OCTETS (le bundle est en CRLF) ; aucune paire ne contient de fin de ligne. DÉFAIRE le maillon AVANT de changer ses
 paires (`defaire` relit les paires d'ici).
 Banc : backend/tests/test_apify_ecran.py.

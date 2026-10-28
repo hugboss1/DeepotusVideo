@@ -15,6 +15,7 @@ const echecs = []; const ok = (n, c, d = "") => { if (!c) echecs.push(n + (d ? "
   ok("raccourci : Ctrl+Maj+Z, sans raccourci → chaîne vide", raccourci_de({ raccourci: "ctrl+shift+z" }) === "Ctrl+Maj+Z" && raccourci_de({}) === "" && raccourci_de(null) === "");
   ok("trouver : menu inconnu → null", menu_trouver(MENUS_BARRE, "zz") === null && menu_trouver(undefined, "Aide") === null);
   ok("Calque : Nouveau calque, Grouper, Verrouiller ; Vecteur : Convertir en courbes, Traçage d'image, Union ; Pixel : Inverser, Nouveau calque", (() => { const ids = (t) => menu_trouver(MENUS_BARRE, t).entrees.filter((e) => e !== "-").map((e) => e.id); return ids("Calque").includes("calqueNouveau") && ids("Calque").includes("grouperC") && ids("Calque").includes("verrouiller") && ids("Vecteur").includes("vectoriserTexte") && ids("Vecteur").includes("tracerImage") && ids("Vecteur").includes("boolUnion") && ids("Pixel").includes("pxInverser") && ids("Pixel").includes("pxCalque"); })());
+  ok("t314 : Fichier porte Scanner un schéma… et Envoyer vers › Animation", (() => { const ids = menu_trouver(MENUS_BARRE, "Fichier").entrees.filter((e) => e !== "-").map((e) => e.id); return ids.includes("schema") && ids.includes("schemaAnimation") && ids.indexOf("schema") === ids.indexOf("generer") + 1 && ids.indexOf("schemaAnimation") === ids.indexOf("bible") + 1; })());
 }
 if (echecs.length) { console.error("ECHECS menus :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA menus : PASS (9 controles)");
+console.log("QA menus : PASS (10 controles)");

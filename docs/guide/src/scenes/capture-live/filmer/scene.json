@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "Filmer l'app",
+    "en": "Record the app"
+  },
+  "legende": {
+    "fr": "Barre du haut › Filmer l'app : cadre, voix, caméra sur accord, clics ; les secrets sont masqués ; Arrêter range la vidéo.",
+    "en": "Top bar › Record the app: frame, voice, camera with consent, clicks; secrets are hidden; Stop saves the video."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    },
+    {
+      "fr": "c3.fr.webp",
+      "en": "c3.en.webp"
+    }
+  ],
+  "taille": [
+    800,
+    500
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3.0,
+      "bulle": {
+        "fr": "Ce qu'on filme, le son, la caméra, les clics",
+        "en": "What is filmed, sound, camera, clicks"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.0,
+      "bulle": {
+        "fr": "Pastille REC ; les écrans secrets sont masqués",
+        "en": "REC badge; secret screens are hidden"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 2.6,
+      "bulle": {
+        "fr": "Arrêter : la vidéo est dans la Bibliothèque",
+        "en": "Stop: the video is in the Library"
+      }
+    }
+  ]
+}

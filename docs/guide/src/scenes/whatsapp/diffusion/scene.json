@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "Diffuser un post sur WhatsApp",
+    "en": "Broadcast a post on WhatsApp"
+  },
+  "legende": {
+    "fr": "Inspecteur d'un post : le compte WhatsApp coché, un modèle approuvé, l'audience et le devis, puis le suivi.",
+    "en": "Post inspector: the WhatsApp account ticked, an approved template, audience and quote, then tracking."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    },
+    {
+      "fr": "c3.fr.webp",
+      "en": "c3.en.webp"
+    }
+  ],
+  "taille": [
+    800,
+    801
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "bulle": {
+        "fr": "Cochez le compte WhatsApp de l'espace",
+        "en": "Tick the space's WhatsApp account"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.0,
+      "bulle": {
+        "fr": "Modèle, paramètres, audience et devis",
+        "en": "Template, parameters, audience and quote"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3.0,
+      "bulle": {
+        "fr": "Après l'envoi : livrés, lus, échecs, coût réel",
+        "en": "After sending: delivered, read, failures, actual cost"
+      }
+    }
+  ]
+}

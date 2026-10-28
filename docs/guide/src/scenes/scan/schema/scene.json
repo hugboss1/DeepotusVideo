@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "D'un schéma photographié à l'animation",
+    "en": "From a photographed diagram to animation"
+  },
+  "legende": {
+    "fr": "Vectorlab › Fichier › Scanner un schéma… : calques nommés dans l'ordre des flèches, puis le Studio prêt à animer.",
+    "en": "Vectorlab › File › Scan a diagram…: named layers in arrow order, then the Studio ready to animate."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    },
+    {
+      "fr": "c3.fr.webp",
+      "en": "c3.en.webp"
+    }
+  ],
+  "taille": [
+    800,
+    500
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "bulle": {
+        "fr": "Fichier › Scanner un schéma…",
+        "en": "File › Scan a diagram…"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "Formes, flèches, étiquettes : l'ordre suit les flèches",
+        "en": "Shapes, arrows, labels: the order follows the arrows"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3.0,
+      "bulle": {
+        "fr": "Le nœud Animation reçoit un élément par calque",
+        "en": "The Animation node gets one element per layer"
+      }
+    }
+  ]
+}

@@ -2,8 +2,9 @@
 """t310 tâche 7 (27/10/2026) — WhatsApp à l'écran : panneau de liaison, filtres de cibles et clé Kapso dans Réglages.
 
 Plan docs/superpowers/plans/2026-10-27-t310-whatsapp-kapso.md (tâche 7), spec 2026-10-25-boite-a-outils-design.md §5.3
-et §6.1 « Liaison d'un numéro dans l'assistant ». WhatsApp est un canal de conversation d'espace, JAMAIS une cible de
-publication.
+et §6.1 « Liaison d'un numéro dans l'assistant ». WhatsApp était un canal de conversation d'espace, jamais une cible de
+publication (jusqu'à t328 : les diffusions WhatsApp depuis le Planificateur, voir patch_bundle_dzdiffusion et
+test_diffusion_ecran ; ce banc juge la vue d'avant dzdiffusion).
 [1] le maillon      scripts/patch_bundle_dzwhatsapp.py : marqueur x1, aucun .bak_dzwhatsapp, octets, --check « déjà
                     appliqué », ancres uniques (vue d'avant), hors couche, aller-retour exact, base rendue à l'octet,
                     épingles intouchées, node --check ;
@@ -165,7 +166,7 @@ PC = tranche(B, "function DzPostComptes(", "return r.jsxs(")
 check("3.3 P2 : DzPostComptes écarte plateforme==='whatsapp' de la liste rangée",
       'filter(function(c){return c.plateforme!=="whatsapp"})' in PC, PC[:400])
 TABLE = tranche(B, "const _t={", "Bu=")
-check("3.4 whatsapp n'est PAS une cible du Planificateur (table des canaux _t)", bool(TABLE) and "whatsapp" not in TABLE)
+check("3.4 vue d'avant dzdiffusion (t328) : whatsapp absent de la table des canaux _t", bool(TABLE) and "whatsapp" not in TABLE)
 
 ECRANS = tranche(B, "function dzEspEnvoyer(", "function dzEspSignal(") + "\n" + tranche(B, "function DzComptesEspace(", "var DZ_ONB_ETAPES=")
 SONDE_POST = r"""

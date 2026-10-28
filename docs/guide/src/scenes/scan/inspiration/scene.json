@@ -1,0 +1,54 @@
+{
+  "titre": {
+    "fr": "Refabriquer une inspiration",
+    "en": "Remake an inspiration"
+  },
+  "legende": {
+    "fr": "Planificateur › Depuis une inspiration : la capture, trois angles neufs, le devis, puis un brouillon gardé contre la copie.",
+    "en": "Scheduler › From an inspiration: the capture, three new angles, the quote, then a draft guarded against copying."
+  },
+  "captures": [
+    {
+      "fr": "c1.fr.webp",
+      "en": "c1.en.webp"
+    },
+    {
+      "fr": "c2.fr.webp",
+      "en": "c2.en.webp"
+    },
+    {
+      "fr": "c3.fr.webp",
+      "en": "c3.en.webp"
+    }
+  ],
+  "taille": [
+    800,
+    500
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "bulle": {
+        "fr": "La capture et sa source, jamais publiée",
+        "en": "The capture and its source, never published"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "Trois angles neufs ; celui qui recopie est bloqué",
+        "en": "Three new angles; the one that copies is blocked"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3.2,
+      "bulle": {
+        "fr": "La proximité avec la capture est mesurée",
+        "en": "Closeness to the capture is measured"
+      }
+    }
+  ]
+}

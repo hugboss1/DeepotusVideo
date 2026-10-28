@@ -40,6 +40,23 @@ BOITES: dict[str, dict] = {
         "agents": ["whatsapp"],
         "mobile": False,
     },
+    # t312 : lire le texte d'une image de la Bibliothèque ; aucun agent ne la déclare encore (§11 bis)
+    # t313 : + l'inspiration vers un contenu neuf (angles_inspiration en lecture, deviser_contenu_neuf en carte)
+    # t314 : + calques_illustration (carte : schéma -> calques nommés du Vectorlab, devis du détourage)
+    "scan": {
+        "libelle": "agent.boites.scan",
+        "outils": ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf", "calques_illustration"],
+        "agents": [],
+        "mobile": False,
+    },
+    # t317 : lire la piste des clics d'une capture ; aucun agent ne la déclare encore (§11 bis : le Tutoriel est « Demander ») ;
+    # t319 : + les cartes proposer_decoupe et proposer_chapitres_tuto (spec §4)
+    "capture": {
+        "libelle": "agent.boites.capture",
+        "outils": ["lire_piste_clics", "proposer_decoupe", "proposer_chapitres_tuto"],
+        "agents": [],
+        "mobile": False,
+    },
 }
 
 

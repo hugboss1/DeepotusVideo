@@ -11,8 +11,8 @@ export const MENUS_BARRE = [
     e("accueil", T("vectorlab.menus.accueil"), "biblio", "ctrl+alt+h"), "-",
     e("nouveau", T("vectorlab.menus.nouveau"), "nouveau", "ctrl+n"), e("ouvrir", T("vectorlab.menus.ouvrir"), "biblio", "ctrl+o"), "-",
     e("sauver", T("vectorlab.menus.sauver"), "sauver", "ctrl+s"), e("brouillon", T("vectorlab.menus.brouillon"), "brouillon"), "-",
-    e("inserer", T("vectorlab.menus.inserer"), "imageFichier", "ctrl+shift+m"), e("insererBiblio", T("vectorlab.menus.inserer_biblio"), "imageBiblio"), e("coller", T("vectorlab.menus.coller_nouveau"), "imageColler"), e("generer", T("vectorlab.menus.generer"), "imageGenerer"), e("gpx", T("vectorlab.menus.gpx"), "gpx", "", { ouvre: "carte" }), "-",
-    e("exporter", T("vectorlab.menus.exporter"), "exporter", "ctrl+alt+shift+s", { ouvre: "exporter" }), e("exporterSvg", T("vectorlab.menus.exporter_svg"), "expSvg"), e("exporterPng", T("vectorlab.menus.exporter_png"), "expPng2"), e("print3d", T("vectorlab.menus.print3d"), "expPrint3d"), e("bible", T("vectorlab.menus.bible"), "expBible"), "-",
+    e("inserer", T("vectorlab.menus.inserer"), "imageFichier", "ctrl+shift+m"), e("insererBiblio", T("vectorlab.menus.inserer_biblio"), "imageBiblio"), e("coller", T("vectorlab.menus.coller_nouveau"), "imageColler"), e("generer", T("vectorlab.menus.generer"), "imageGenerer"), e("schema", T("vectorlab.menus.schema"), "schemaScanner"), e("gpx", T("vectorlab.menus.gpx"), "gpx", "", { ouvre: "carte" }), "-",
+    e("exporter", T("vectorlab.menus.exporter"), "exporter", "ctrl+alt+shift+s", { ouvre: "exporter" }), e("exporterSvg", T("vectorlab.menus.exporter_svg"), "expSvg"), e("exporterPng", T("vectorlab.menus.exporter_png"), "expPng2"), e("print3d", T("vectorlab.menus.print3d"), "expPrint3d"), e("bible", T("vectorlab.menus.bible"), "expBible"), e("schemaAnimation", T("vectorlab.menus.schema_animation"), "schemaAnimation"), "-",
     e("metadonnees", T("vectorlab.menus.metadonnees"), "configDoc"),
   ] },
   { titre: T("vectorlab.menus.t_edition"), entrees: [

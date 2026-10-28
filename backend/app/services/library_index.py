@@ -41,6 +41,7 @@ SOURCES: dict[str, str] = {
     "mobile": "Compagnon mobile",   # plan mobile T12 (tâche #58) : images déposées par le téléphone
     "plateau": "Plateau 3D",        # t127 (07/10/2026) : les cadres de début et de fin capturés au Plateau
     "photolab": "Photolab",         # t137 (07/10/2026) : « Enregistrer dans la Bibliothèque » du Photolab (photolab_*)
+    "capture": "Capture",           # t315 (28/10/2026) : les enregistrements de l'app (capture_<date>_<id>.webm|mp4)
     "inconnu": "Inconnu",
 }
 
@@ -69,7 +70,7 @@ _PREFIXES: list[tuple[str, str]] = [
 # n'est JAMAIS écrasée : seules les lignes à NULL reçoivent ce défaut.
 SOURCES_PROPRES = {"generation", "retouche", "matieres", "atelier", "cardforge",
                    "vectorlab", "sprites", "assets3d", "templates", "tuiles", "plateau",
-                   "photolab"}
+                   "photolab", "capture"}
 LICENCE_PROPRE, LICENCE_INCONNUE = "propriétaire", "inconnue"
 
 
