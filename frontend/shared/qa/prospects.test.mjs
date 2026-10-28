@@ -283,6 +283,54 @@ const LISTE = { prospects: [FICHE(), FICHE({ id: "pr_00000002", nom: "Tom", entr
     && !m.hote.textContent.includes("tvly-abc"));
 }
 
+// ---- t355 : séquences de la fiche (porte 2, planifier, copier et ouvrir, marquer envoyé, arrêt) --------------------------
+{
+  const SEQS = [
+    { id: "sq_00000001", pid: "pr_00000001", canal: "email", statut: "proposee", motif: null, ouvrir: null,
+      etapes: [{ rang: 0, objet: "Vos vidéos", texte: "Bonjour Léa", delai_jours: 0, statut: "brouillon", quand: null, due: false }] },
+    { id: "sq_00000002", pid: "pr_00000001", canal: "x", statut: "planifiee", motif: null, ouvrir: "https://x.com/studiolune",
+      etapes: [{ rang: 0, objet: "", texte: "Salut", delai_jours: 0, statut: "planifiee", quand: "2026-11-02T09:00:00+00:00", due: true },
+               { rang: 1, objet: "", texte: "Relance", delai_jours: 4, statut: "planifiee", quand: "2026-11-06T09:00:00+00:00", due: false }] },
+    { id: "sq_00000003", pid: "pr_00000001", canal: "email", statut: "annulee", motif: "fiche:repondu", ouvrir: null,
+      etapes: [{ rang: 0, objet: "x", texte: "Ancien", delai_jours: 0, statut: "annulee", quand: null, due: false }] }];
+  const appels = [];
+  const ouverts = [];
+  const routes = {
+    "GET /api/prospects/e1": () => reponse(200, { prospects: [FICHE({ statut: "qualifie" })], compte_par_statut: { qualifie: 1 }, oppositions: 0 }),
+    "GET /api/prospects/e1/sequences?pid=pr_00000001": () => reponse(200, { sequences: SEQS }),
+    "POST /api/prospects/e1/sequences/sq_00000001/valider": () => { appels.push("valider"); return reponse(200, {}); },
+    "POST /api/prospects/e1/sequences/sq_00000002/etapes/0/envoye": () => { appels.push("envoye"); return reponse(200, {}); },
+    "POST /api/prospects/e1/sequences/sq_00000002/annuler": () => reponse(409, { detail: { code: "etat", message: "séquence « terminee » : rien à annuler" } }),
+  };
+  const m = monde({ routes });
+  m.win.open = (u) => { ouverts.push(u); };
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  marques(m.hote, "ligne")[0].click(); await tick(); await tick();
+  const seqs = marques(m.hote, "sequence");
+  ok("11.1 trois séquences, textes et objet affichés", seqs.length === 3 && seqs[0].textContent.includes("Bonjour Léa")
+    && seqs[0].textContent.includes(FR("prospects.sequence.objet", { objet: "Vos vidéos" })), seqs.length);
+  ok("11.2 statut traduit, étape « à envoyer maintenant »", seqs[0].textContent.includes(FR("prospects.seqstatut.proposee"))
+    && seqs[1].textContent.includes(FR("prospects.sequence.due")));
+  ok("11.3 « Valider » seulement sur la séquence proposée", marques(m.hote, "seq-valider").length === 1);
+  ok("11.4 copier et ouvrir : seulement la prochaine étape d'un canal manuel", marques(m.hote, "seq-copier").length === 1 && marques(m.hote, "seq-envoye").length === 1);
+  marque(m.hote, "seq-copier").click();
+  ok("11.5 ouvre le profil du prospect", ouverts[0] === "https://x.com/studiolune", ouverts);
+  ok("11.6 arrêt dit avec le statut traduit", marque(m.hote, "seq-motif").textContent === FR("prospects.sequence.arret", { statut: FR("prospects.statut.repondu") }));
+  marque(m.hote, "seq-valider").click(); await tick(); await tick();
+  ok("11.7 valider appelle la route", appels.includes("valider"));
+  marque(m.hote, "seq-envoye").click(); await tick(); await tick();
+  ok("11.8 marquer envoyé appelle la route de l'étape 0", appels.includes("envoye"));
+  marques(m.hote, "seq-annuler")[1].click(); await tick(); await tick();
+  ok("11.9 un refus est dit", marque(m.hote, "erreur").textContent.includes("rien à annuler"), marque(m.hote, "erreur").textContent);
+  const en = monde({ lang: "en", routes });
+  en.DzProspects.monter(en.hote, { espace_id: "e1" });
+  await tick();
+  marques(en.hote, "ligne")[0].click(); await tick(); await tick();
+  ok("11.10 anglais", marque(en.hote, "seq-valider").textContent === EN("prospects.bouton.valider_seq") && EN("prospects.bouton.valider_seq") !== FR("prospects.bouton.valider_seq")
+    && marques(en.hote, "sequence")[1].textContent.includes(EN("prospects.sequence.due")));
+}
+
 // ---- anglais, demontage -----------------------------------------------------------------------------------------------
 {
   const m = monde({ lang: "en", routes: { "GET /api/prospects/e1": () => reponse(200, LISTE) } });

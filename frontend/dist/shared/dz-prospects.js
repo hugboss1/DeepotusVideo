@@ -39,6 +39,10 @@
     "qualification"];
   var CRITERES = ["source_entrante", "source_web", "consentement", "canal_possible", "adresse_pro", "signal", "contact_recent"];   // t354
   var FOURNISSEURS = ["anthropic", "tavily", "exa", "serper"];   // t354 : recherche web de la prospection
+  var SEQ_STATUTS = ["proposee", "validee", "planifiee", "terminee", "annulee"];   // t355 : séquences
+  var ETAPE_STATUTS = ["brouillon", "validee", "planifiee", "envoyee", "annulee"];
+  var SEQ_MOTIFS = ["effacee", "remplacee", "annulee"];   // le motif d'un arrêt ; « fiche:<statut> » à part
+  var SEQ_MANUELS = ["x", "instagram", "linkedin"];    // envoyés à la main : jamais de message automatique
   var SAISIS = ["email", "telephone", "whatsapp", "linkedin"];     // les canaux du formulaire ; les autres sont gardés tels quels
   var JSON_H = { "Content-Type": "application/json" };
 
@@ -87,6 +91,9 @@
     + ".dzProspectsActions{display:flex;flex-wrap:wrap;gap:6px}"
     + ".dzProspects ul{margin:0;padding-left:18px}"
     + ".dzProspects a{color:var(--accent,#f0b429)}"
+    + ".dzProspectsSeq{border:1px solid var(--stroke,#2a2930);padding:6px 8px;margin:6px 0;display:flex;flex-direction:column;gap:4px}"
+    + ".dzProspectsEtape{border-left:2px solid var(--stroke,#2a2930);padding-left:8px}"
+    + ".dzProspectsTexte{white-space:pre-wrap;margin:2px 0;font:inherit;color:var(--ink,#c4bfb6)}"
     + ".dzProspectsPied{padding:6px 12px;border-top:1px solid var(--stroke,#2a2930);font-size:11px;color:var(--ink-soft,#8a857d)}";
   function poserCss() {
     if (document.getElementById && document.getElementById("dzProspectsCss")) return;
@@ -300,6 +307,7 @@
       if (p.informer_avant) bloc.appendChild(el("p", { class: p.informer_avant < aujourdhui() ? "dzProspectsErreur" : "dzProspectsNote",
         "data-dz-prospects": "informer", texte: T("prospects.fiche.informer", { le: p.informer_avant }) }));     // t354 : RGPD art. 14
       if (p.statut !== "oppose") bloc.appendChild(blocQualification(p, zone));
+      if (p.statut !== "oppose") bloc.appendChild(blocSequences(p, zone));     // t355
       if (etat.note && NOTES.indexOf(etat.note) >= 0) bloc.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "note",
         "data-note": etat.note, texte: T("prospects.note." + etat.note) }));
       // statut : seuls les passages permis
@@ -400,6 +408,66 @@
         texte: T("prospects.bouton.qualifier"), on: { click: async function () {
           var j = await geste("/qualifier", { offre: p.offre || "a_definir", ajustement: 0 }, zone);
           if (j) { etat.fiche = j; await recharger(); } } } })]));
+      return b;
+    }
+
+    // t355 : les séquences de la fiche — porte 2 (Valider), Planifier, Annuler ; canaux manuels : Copier et ouvrir, Marquer envoyé
+    function blocSequences(p, zone) {
+      var b = el("div", { "data-dz-prospects": "sequences" }, [el("h3", { texte: T("prospects.titre.sequences") })]);
+      var liste = el("div", {}, [el("p", { class: "dzProspectsNote", texte: T("prospects.sequence.chargement") })]);
+      b.appendChild(liste);
+      async function sgeste(sid, quoi, corpsJson) {
+        var r = await appel("POST", encodeURIComponent(eid) + "/sequences/" + encodeURIComponent(sid) + "/" + quoi, corpsJson);
+        if (!vivant) return;
+        if (!r.ok) { erreur(zone, r.j); return; }
+        vider(zone);
+        await recharger();
+      }
+      function peindre(seqs) {
+        vider(liste);
+        if (!seqs.length) { liste.appendChild(el("p", { class: "dzProspectsNote", texte: T("prospects.sequence.aucune") })); return; }
+        seqs.forEach(function (s) {
+          var d = el("div", { class: "dzProspectsSeq", "data-dz-prospects": "sequence", "data-id": s.id, "data-statut": s.statut });
+          d.appendChild(el("p", { class: "dzProspectsMeta", texte: T("prospects.sequence.entete", {
+            canal: lib(CANAUX, "prospects.canal.", s.canal), statut: lib(SEQ_STATUTS, "prospects.seqstatut.", s.statut) }) }));
+          var manuel = SEQ_MANUELS.indexOf(s.canal) >= 0;
+          var prochaine = (s.etapes || []).filter(function (e) { return e.statut === "planifiee"; })[0];
+          (s.etapes || []).forEach(function (e) {
+            var li = el("div", { class: "dzProspectsEtape", "data-dz-prospects": "etape", "data-statut": e.statut }, [
+              el("p", { class: "dzProspectsMeta", texte: T("prospects.sequence.etape", { n: e.rang + 1, jours: e.delai_jours,
+                statut: lib(ETAPE_STATUTS, "prospects.etapestatut.", e.statut) }) + (e.quand ? " · " + new Date(e.quand).toLocaleString() : "")
+                + (e.due ? " · " + T("prospects.sequence.due") : "") })]);
+            if (e.objet) li.appendChild(el("p", { texte: T("prospects.sequence.objet", { objet: e.objet }) }));
+            li.appendChild(el("pre", { class: "dzProspectsTexte", texte: e.texte }));
+            if (manuel && s.statut === "planifiee" && prochaine && prochaine.rang === e.rang) {
+              li.appendChild(el("div", { class: "dzProspectsActions" }, [
+                el("button", { type: "button", "data-dz-prospects": "seq-copier", texte: T("prospects.bouton.copier_ouvrir"), on: { click: function () {
+                  try { if (navigator.clipboard) navigator.clipboard.writeText(e.texte); } catch (x) { /* le texte reste lisible */ }
+                  if (sur(s.ouvrir)) window.open(s.ouvrir, "_blank", "noopener,noreferrer"); } } }),
+                el("button", { type: "button", "data-dz-prospects": "seq-envoye", texte: T("prospects.bouton.envoye"), on: { click: function () {
+                  sgeste(s.id, "etapes/" + e.rang + "/envoye"); } } })]));
+            }
+            d.appendChild(li);
+          });
+          var acts = [];
+          if (s.statut === "proposee") acts.push(el("button", { type: "button", "data-dz-prospects": "seq-valider", texte: T("prospects.bouton.valider_seq"),
+            on: { click: function () { sgeste(s.id, "valider"); } } }));
+          if (s.statut === "validee") acts.push(el("button", { type: "button", "data-dz-prospects": "seq-planifier", texte: T("prospects.bouton.planifier"),
+            on: { click: function () { sgeste(s.id, "planifier", {}); } } }));
+          if (["proposee", "validee", "planifiee"].indexOf(s.statut) >= 0) acts.push(el("button", { type: "button", "data-dz-prospects": "seq-annuler",
+            texte: T("prospects.bouton.annuler_seq"), on: { click: function () { sgeste(s.id, "annuler"); } } }));
+          if (s.statut === "planifiee" && !manuel) d.appendChild(el("p", { class: "dzProspectsNote", texte: T("prospects.sequence.auto") }));
+          if (s.motif) d.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "seq-motif", texte: String(s.motif).indexOf("fiche:") === 0
+            ? T("prospects.sequence.arret", { statut: lib(STATUTS, "prospects.statut.", String(s.motif).slice(6)) })
+            : lib(SEQ_MOTIFS, "prospects.seqmotif.", s.motif) }));
+          if (acts.length) d.appendChild(el("div", { class: "dzProspectsActions" }, acts));
+          liste.appendChild(d);
+        });
+      }
+      appel("GET", encodeURIComponent(eid) + "/sequences?pid=" + encodeURIComponent(p.id)).then(function (r) {
+        if (!vivant) return;
+        if (r.ok) peindre(Array.isArray(r.j.sequences) ? r.j.sequences : []); else erreur(zone, r.j);
+      });
       return b;
     }
 

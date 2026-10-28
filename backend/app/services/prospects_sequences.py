@@ -6,7 +6,7 @@
 Une séquence = 1 à 3 étapes (1er message + 2 relances) sur UN canal que `prospects_score.canaux_possibles` autorise :
   proposee (l'agent ou l'utilisateur la rédige) → validee (PORTE HUMAINE : l'utilisateur seul) → planifiee (consentement
   revérifié, heures calmes, plafond e-mail) → terminee ; annulee à tout moment, et d'office quand la fiche répond, prend
-  rendez-vous, signe, est perdue ou s'oppose (« motif »).
+  rendez-vous, signe, est perdue ou s'oppose (« motif » : fiche:<statut>, effacee, remplacee, annulee).
 Rien n'est ENVOYÉ ici : l'e-mail (P5) et WhatsApp (P6) liront les étapes dues de leur canal ; X, Instagram et LinkedIn
 restent manuels (« Copier et ouvrir », puis « Marquer envoyé », qui note le contact sur la fiche).
 Les envois ne vont pas dans la table du Planificateur : sa boucle publierait ou passerait « prête » des messages privés.
@@ -144,7 +144,7 @@ def _arreter(eid, doc: dict) -> bool:
         if st is not None and st not in ARRET:
             continue
         s["statut"] = "annulee"
-        s["motif"] = f"fiche {st}" if st else "fiche effacée"
+        s["motif"] = f"fiche:{st}" if st else "effacee"
         for e in s["etapes"]:
             if e["statut"] != "envoyee":
                 e["statut"] = "annulee"
@@ -299,7 +299,7 @@ def proposer(eid, pid, canal, etapes, interdits=(), qui: str = "agent") -> dict:
                 raise RefusSequence("une séquence est déjà validée sur ce canal pour ce prospect : annulez-la d'abord", "etat")
         for s in doc["sequences"]:
             if s["pid"] == pid and s["canal"] == canal and s["statut"] == "proposee":
-                s["statut"], s["motif"] = "annulee", "remplacée"
+                s["statut"], s["motif"] = "annulee", "remplacee"
                 for e in s["etapes"]:
                     e["statut"] = "annulee"
                 _noter(s, "remplacee", qui)
@@ -338,7 +338,7 @@ def annuler(eid, sid, qui: str = "utilisateur") -> dict:
         s = _trouver(doc, sid)
         if s["statut"] not in EN_COURS:
             raise RefusSequence(f"séquence « {s['statut']} » : rien à annuler", "etat")
-        s["statut"], s["motif"] = "annulee", "annulée"
+        s["statut"], s["motif"] = "annulee", "annulee"
         for e in s["etapes"]:
             if e["statut"] != "envoyee":
                 e["statut"] = "annulee"
