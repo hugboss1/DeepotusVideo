@@ -17,6 +17,7 @@ const ok = (nom, cond, detail = "") => { n++; if (!cond) echecs.push(nom + (deta
 const tick = () => new Promise((r) => setTimeout(r, 5));
 const ticks = async (k = 6) => { for (let i = 0; i < k; i++) await tick(); };
 
+const ACTIF = { el: null };
 class Noeud {
   constructor(tag) { this.tagName = String(tag).toUpperCase(); this.attrs = {}; this.children = []; this.parent = null; this.ec = {}; this._t = ""; this.value = ""; this.files = []; this.scrollTop = 0; }
   get firstChild() { return this.children[0] || null; }
@@ -33,7 +34,7 @@ class Noeud {
   get innerHTML() { throw new Error("innerHTML interdit"); }
   addEventListener(t, f) { (this.ec[t] = this.ec[t] || []).push(f); }
   removeEventListener(t, f) { this.ec[t] = (this.ec[t] || []).filter((g) => g !== f); }
-  focus() { this.focusee = true; }
+  focus() { this.focusee = true; ACTIF.el = this; }
   setSelectionRange(a, b) { this.selectionStart = a; this.selectionEnd = b; }
   fire(t, extra = {}) { (this.ec[t] || []).forEach((f) => f(Object.assign({ type: t, target: this, preventDefault() { this.defaultPrevented = true; } }, extra))); }
   click() { this.fire("click"); }
@@ -62,6 +63,7 @@ const img = (nom) => new File([new Uint8Array([137, 80, 78, 71])], nom, { type: 
 function monde({ lang = "fr", routes = {}, plafonds = false, dialogue = null } = {}) {
   const appels = [], minuteries = [], dialogues = [];
   const doc = { createElement: (t) => new Noeud(t), body: new Noeud("body"), documentElement: new Noeud("html"), ec: {},
+    get activeElement() { return ACTIF.el; },
     addEventListener(t, f) { (this.ec[t] = this.ec[t] || []).push(f); },
     removeEventListener(t, f) { this.ec[t] = (this.ec[t] || []).filter((g) => g !== f); } };
   const ctx = {
@@ -312,6 +314,7 @@ for (const accord of [true, false]) {
   const lis = tous(c, (x) => x.attrs["data-dz-scan"] === "chapitre-propose").map((x) => x.textContent);
   ok("10.2 découpage montré AVANT création : titres et tailles", visible(marque(c, "decoupage")) && recu === null
     && lis.join("|") === [FR("scan.decoupage.ligne", { titre: "Chapitre 1", n: 22 }), FR("scan.decoupage.ligne", { titre: FR("scan.decoupage.sans_titre", { n: 2 }), n: 23 })].join("|"), lis);
+  ok("10.5 sans série : dit dans l'aperçu du découpage", marque(c, "serie").textContent === FR("scan.decoupage.sans_serie"));
   marque(c, "creer-chapitres").click(); await ticks();
   ok("10.3 creerChapitres : titres et textes découpés (indices convertis, préambule gardé au 1er)", recu && recu.length === 2
     && recu[0].titre === "Chapitre 1" && recu[0].texte === "Prologue 😀.\n\nChapitre 1\nLe début." && recu[1].texte === "Chapitre 2\nLa suite 𝒜.", JSON.stringify(recu));
@@ -446,6 +449,152 @@ for (const accord of [true, false]) {
   const keys = Object.keys(D).filter((k) => k.startsWith("scan."));
   ok("18.7 chaque clé scan.* utilisée existe en fr et en", [...SRC.matchAll(/T\("(scan\.[a-z0-9_.]*[a-z0-9_])"/g)].every((x) => D[x[1]] && D[x[1]].fr && D[x[1]].en) && keys.length >= 50, keys.length);
   ok("18.8 aucune clé scan.* sans usage", keys.every((k) => SRC.includes('"' + k + '"') || (k.startsWith("scan.moteur.") && SRC.includes('"scan.moteur." +'))), keys.filter((k) => !SRC.includes('"' + k + '"')));
+}
+
+// ---- revue t312 tâche 6 : verrou de la lecture payante ------------------------------------------------------------------
+{
+  const attente = [];
+  const m = monde({ routes: { "POST /api/scan/lire": () => rep(503, INDISPO), "POST /api/scan/s2/vision": () => new Promise((r) => attente.push(r)) } });
+  const p = m.Scan.ouvrir({ inserer: () => true, creerChapitres: () => true, importerManuscrit: () => true });
+  deposer(m, [img("a.png")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  marque(m.corps(), "claude").click(); await ticks();
+  const c = m.corps();
+  const gris = (k) => marque(c, k) && marque(c, k).hasAttribute("disabled");
+  ok("20.1 pendant /vision : voile « lecture en cours » visible", visible(marque(c, "occupe")) && marque(c, "occupe").textContent === FR("scan.claude.en_cours"));
+  ok("20.2 pendant /vision : Lire, Choisir, Claude, Fermer et retrait grisés", ["lire", "choisir", "claude", "fermer", "retirer"].every(gris),
+    ["lire", "choisir", "claude", "fermer", "retirer"].filter((k) => !gris(k)));
+  const nLire = m.appels.filter((a) => a.url === "/api/scan/lire").length;
+  marque(c, "lire").fire("click"); await ticks();
+  ok("20.3 Lire cliqué quand même : aucune nouvelle lecture", m.appels.filter((a) => a.url === "/api/scan/lire").length === nLire);
+  deposer(m, [img("b.png")]);
+  ok("20.4 dépôt bloqué avec un message", tous(c, (x) => x.attrs["data-dz-scan"] === "page").length === 1 && marque(c, "etat").textContent === FR("scan.depot.occupe"));
+  (m.doc.ec.paste || []).forEach((f) => f({ clipboardData: { items: [{ kind: "file", type: "image/png", getAsFile: () => img("c.png") }] }, preventDefault() {} }));
+  ok("20.5 collage bloqué", tous(c, (x) => x.attrs["data-dz-scan"] === "page").length === 1);
+  marque(c, "retirer").fire("click");
+  ok("20.6 retrait bloqué", tous(c, (x) => x.attrs["data-dz-scan"] === "page").length === 1);
+  marque(c, "voile").fire("keydown", { key: "Escape" }); marque(c, "fermer").fire("click"); m.Scan.fermer();
+  ok("20.7 Échap / Fermer : la boîte reste ouverte", !!marque(m.corps(), "voile"));
+  ok("20.8 les envois sont grisés", ["inserer", "chapitres", "manuscrit"].every(gris));
+  marque(c, "chapitres").fire("click"); marque(c, "claude").fire("click"); await ticks();
+  ok("20.9 découpage et second clic Claude : rien ne part", !m.appels.some((a) => a.url === "/api/scan/decoupage")
+    && m.appels.filter((a) => a.url.endsWith("/vision")).length === 1 && m.dialogues.length === 1);
+  attente[0](rep(200, { moteur: "claude", texte: "Payé, donc gardé.", incertains: [], stats: {}, usd: 0.02 })); await ticks();
+  ok("20.10 la réponse facturée est gardée et affichée", marque(c, "texte").value === "Payé, donc gardé.");
+  ok("20.11 déverrouillé : voile caché, Lire et envois actifs", !visible(marque(c, "occupe")) && !gris("lire") && !gris("inserer") && !gris("fermer"));
+  marque(c, "fermer").click();
+  ok("20.12 puis fermable", (await p) === null);
+}
+{
+  const attente = [];
+  const m = monde({ routes: { "POST /api/scan/lire": () => new Promise((r) => attente.push(r)), "GET /api/scan/s1/devis-vision": () => rep(200, DEVIS) } });
+  m.Scan.ouvrir({});
+  deposer(m, [img("a.png")]);
+  marque(m.corps(), "lire").click(); await tick();
+  attente[0](rep(200, LU)); await ticks();
+  ok("20.13 bouton Claude visible après lecture", visible(marque(m.corps(), "claude")));
+  marque(m.corps(), "lire").click(); await tick();
+  ok("20.14 une relecture retire le devis de la lecture précédente", !visible(marque(m.corps(), "claude")));
+}
+
+// ---- délai de 180 s du secours Claude -----------------------------------------------------------------------------------
+{
+  let k = 0;
+  const m = monde({ routes: { "POST /api/scan/lire": () => rep(503, INDISPO),
+    "POST /api/scan/s2/vision": (a) => { k++; return k === 1 ? new Promise((_, rej) => a.signal.addEventListener("abort", () => rej(new Error("aborted"))))
+      : rep(200, { moteur: "claude", texte: "Relu après délai.", incertains: [], stats: {}, usd: 0.02 }); } } });
+  m.Scan.ouvrir({});
+  deposer(m, [img("a.png")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  marque(m.corps(), "claude").click(); await ticks();
+  const t = m.minuteries.filter((x) => x.ms === 180000 && !x.annulee);
+  ok("21.1 délai de 180 s armé pour /vision", t.length === 1);
+  t[0].f(); await ticks();
+  const c = m.corps();
+  ok("21.2 délai : message clair (peut-être facturé), en erreur", marque(c, "etat").textContent === FR("scan.claude.delai") && marque(c, "etat").hasAttribute("data-erreur"));
+  ok("21.3 « Relire » proposé, déverrouillé", visible(marque(c, "relire")) && marque(c, "relire").textContent === FR("scan.claude.relire")
+    && !marque(c, "relire").hasAttribute("disabled") && !visible(marque(c, "occupe")) && !marque(c, "lire").hasAttribute("disabled"));
+  marque(c, "relire").click(); await ticks();
+  ok("21.4 Relire : nouvelle confirmation puis lecture", m.dialogues.length === 2 && k === 2 && marque(c, "texte").value === "Relu après délai.");
+}
+
+// ---- double envoi -------------------------------------------------------------------------------------------------------
+{
+  const appels = { inserer: 0, chapitres: 0, manuscrit: 0 };
+  const fins = [];
+  const attendre = (k) => () => { appels[k]++; return new Promise((r) => fins.push(r)); };
+  const { m, p } = await lu({ inserer: attendre("inserer"), creerChapitres: attendre("chapitres"), importerManuscrit: attendre("manuscrit") });
+  const c = m.corps();
+  marque(c, "inserer").click(); marque(c, "inserer").fire("click"); await ticks();
+  ok("22.1 insérer double clic : une seule action, boutons grisés", appels.inserer === 1 && marque(c, "inserer").hasAttribute("disabled") && marque(c, "manuscrit").hasAttribute("disabled"));
+  marque(c, "manuscrit").fire("click"); await ticks();
+  ok("22.2 un autre envoi pendant le premier : rien", appels.manuscrit === 0);
+  fins[0](false); await ticks();
+  ok("22.3 l'hôte rend false : boutons rendus", !marque(c, "inserer").hasAttribute("disabled"));
+  const ta = marque(c, "texte"); ta.value = TEXTE + "\n" + "Encore du texte pour le manuscrit. ".repeat(8); ta.fire("input");
+  marque(c, "manuscrit").click(); marque(c, "manuscrit").fire("click"); await ticks();
+  ok("22.4 manuscrit double clic : une seule action", appels.manuscrit === 1);
+  fins[1](true); await ticks();
+  ok("22.5 fermé après l'envoi", (await p).action === "manuscrit");
+}
+{
+  let n = 0; const fins = [];
+  const m = monde({ routes: { "POST /api/scan/lire": () => rep(200, LU), "GET /api/scan/s1/devis-vision": () => rep(200, DEVIS),
+    "POST /api/scan/decoupage": () => rep(200, { chapitres: [{ titre: "A", caracteres: 5, debut: 0 }] }) } });
+  m.Scan.ouvrir({ serie: "Lost Abyss", creerChapitres: () => { n++; return new Promise((r) => fins.push(r)); } });
+  deposer(m, [img("a.png")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  marque(m.corps(), "chapitres").click(); marque(m.corps(), "chapitres").fire("click"); await ticks();
+  ok("22.6 découpage double clic : un seul POST", m.appels.filter((a) => a.url === "/api/scan/decoupage").length === 1);
+  ok("22.7 la série cible est dite dans l'aperçu du découpage", marque(m.corps(), "serie").textContent === FR("scan.decoupage.serie", { serie: "Lost Abyss" }));
+  marque(m.corps(), "creer-chapitres").click(); marque(m.corps(), "creer-chapitres").fire("click"); await ticks();
+  ok("22.8 « Créer ces chapitres » double clic : une seule création", n === 1 && marque(m.corps(), "creer-chapitres").hasAttribute("disabled"));
+  fins[0](true); await ticks();
+}
+
+// ---- création partielle -------------------------------------------------------------------------------------------------
+{
+  const recus = [];
+  const texte = "Chapitre 1\nUn.\n\nChapitre 2\nDeux.\n\nChapitre 3\nTrois.";
+  const m = monde({ routes: { "POST /api/scan/lire": () => rep(200, Object.assign({}, LU, { texte, incertains: [] })), "GET /api/scan/s1/devis-vision": () => rep(200, DEVIS),
+    "POST /api/scan/decoupage": () => rep(200, { chapitres: [{ titre: "Chapitre 1", caracteres: 14, debut: 0 }, { titre: "Chapitre 2", caracteres: 16, debut: pyPos(texte, "Chapitre 2").debut },
+      { titre: "Chapitre 3", caracteres: 17, debut: pyPos(texte, "Chapitre 3").debut }] }) } });
+  const p = m.Scan.ouvrir({ creerChapitres: (l) => {
+    recus.push(l.map((x) => x.titre));
+    if (recus.length === 1) { const e = new Error("serveur indisponible"); e.crees = 1; throw e; }
+    return true;
+  } });
+  deposer(m, [img("a.png")]);
+  marque(m.corps(), "lire").click(); await ticks();
+  marque(m.corps(), "chapitres").click(); await ticks();
+  marque(m.corps(), "creer-chapitres").click(); await ticks();
+  const c = m.corps();
+  ok("23.1 échec en route : « 1 créé sur 3 » dans la boîte", marque(c, "etat").textContent === FR("scan.decoupage.partiel", { k: 1, n: 3, msg: "serveur indisponible" }), marque(c, "etat").textContent);
+  ok("23.2 le bouton devient « Créer les chapitres restants »", marque(c, "creer-chapitres").textContent === FR("scan.decoupage.restants") && !marque(c, "creer-chapitres").hasAttribute("disabled"));
+  marque(c, "creer-chapitres").click(); await ticks();
+  ok("23.3 seuls les restants sont créés", JSON.stringify(recus) === JSON.stringify([["Chapitre 1", "Chapitre 2", "Chapitre 3"], ["Chapitre 2", "Chapitre 3"]]), JSON.stringify(recus));
+  ok("23.4 puis fermé", (await p).action === "chapitres");
+}
+
+// ---- focus et clavier ---------------------------------------------------------------------------------------------------
+{
+  const m = monde();
+  m.Scan.ouvrir({ inserer: () => true });
+  const c = m.corps();
+  ok("24.1 à l'ouverture, le focus est dans la boîte (Choisir)", ACTIF.el === marque(c, "choisir"));
+  const v = marque(c, "voile");
+  let empeche = false;
+  v.fire("keydown", { key: "Tab", shiftKey: true, preventDefault() { empeche = true; } });
+  ok("24.2 Maj+Tab sur le premier : le dernier (Fermer)", empeche && ACTIF.el === marque(c, "fermer"));
+  empeche = false;
+  v.fire("keydown", { key: "Tab", preventDefault() { empeche = true; } });
+  ok("24.3 Tab sur le dernier : retour au premier", empeche && ACTIF.el === marque(c, "choisir"));
+  empeche = false;
+  v.fire("keydown", { key: "Tab", preventDefault() { empeche = true; } });
+  ok("24.4 Tab au milieu : laissé au navigateur", !empeche);
+  ACTIF.el = new Noeud("button");
+  v.fire("keydown", { key: "Tab", preventDefault() {} });
+  ok("24.5 focus hors de la boîte : ramené dedans", ACTIF.el === marque(c, "choisir"));
 }
 
 // ---- garde-fous de source -----------------------------------------------------------------------------------------------

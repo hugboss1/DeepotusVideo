@@ -33,11 +33,12 @@
   "use strict";
   if (window.__dzScan) return;
 
-  var MAX_FICHIERS = 10, DELAI_MS = 90000, MIN_MANUSCRIT = 200;
+  var MAX_FICHIERS = 10, DELAI_MS = 90000, DELAI_CLAUDE_MS = 180000, MIN_MANUSCRIT = 200;
   var POLICE = "13px/1.5 'IBM Plex Mono',ui-monospace,monospace";
   var S = {
     voile: "position:fixed;inset:0;z-index:9990;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center",
-    boite: "width:720px;max-width:94vw;max-height:90vh;display:flex;flex-direction:column;border-radius:0;background:var(--srf-panel,var(--bg-panel-2,#13171c));border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138));color:var(--txt-hi,var(--ink-strong,#e6e9ee));box-shadow:0 18px 50px rgba(0,0,0,.5);font:13px/1.45 system-ui,sans-serif",
+    occupe: "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);color:var(--txt-hi,var(--ink-strong,#e6e9ee));font-size:13px;z-index:2",
+    boite: "position:relative;width:720px;max-width:94vw;max-height:90vh;display:flex;flex-direction:column;border-radius:0;background:var(--srf-panel,var(--bg-panel-2,#13171c));border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138));color:var(--txt-hi,var(--ink-strong,#e6e9ee));box-shadow:0 18px 50px rgba(0,0,0,.5);font:13px/1.45 system-ui,sans-serif",
     tete: "padding:9px 14px;border-bottom:1px solid var(--brd-soft,var(--stroke,#222830));font:9.5px 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--txt-mid,var(--ink-muted,#9aa4ae))",
     corps: "padding:12px 14px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;color:var(--txt-base,var(--ink,#cfd6e2))",
     depot: "border:1px dashed var(--brd-hard,var(--stroke-strong,#2a3138));padding:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start",
@@ -110,6 +111,7 @@
 
   function fermer(E, valeur) {
     if (!E || E.ferme) return;
+    if (E.occupe) return;                         // une lecture PAYANTE en cours : sa réponse ne sera jamais perdue
     E.ferme = true;
     E.jeton++;
     if (E.ctrl) { try { E.ctrl.abort(); } catch (e) { /* déjà fini */ } }
@@ -122,10 +124,11 @@
 
   function ouvrir(opts) {
     opts = opts || {};
+    if (courant && courant.occupe) return Promise.resolve(null);
     if (courant) fermer(courant, null);
     return new Promise(function (resoudre) {
-      var E = { opts: opts, fichiers: [], jeton: 0, scanId: null, devis: null, marques: [], idx: -1, base: "",
-                ferme: false, resoudre: resoudre, decoupage: null };
+      var E = { opts: opts, fichiers: [], jeton: 0, jetonClaude: 0, scanId: null, devis: null, marques: [], idx: -1, base: "",
+                ferme: false, resoudre: resoudre, decoupage: null, occupe: false, envoi: false };
       courant = E;
       construire(E);
     });
@@ -180,7 +183,10 @@
     montrer(E.claude, false);
     E.claude.addEventListener("click", function () { claude(E); });
     E.noteClaude = el("span", { style: S.note, hidden: "", "data-dz-scan": "note-claude" });
-    secours.appendChild(E.claude); secours.appendChild(E.noteClaude);
+    E.relire = bouton("relire", T("scan.claude.relire"), "");
+    montrer(E.relire, false);
+    E.relire.addEventListener("click", function () { claude(E); });
+    secours.appendChild(E.claude); secours.appendChild(E.relire); secours.appendChild(E.noteClaude);
     corps.appendChild(secours);
 
     // ── aperçu
@@ -210,6 +216,8 @@
     corps.appendChild(E.coupe);
 
     boite.appendChild(corps);
+    E.voileOccupe = el("div", { hidden: "", role: "status", "data-dz-scan": "occupe", style: S.occupe }, T("scan.claude.en_cours"));
+    boite.appendChild(E.voileOccupe);
 
     // ── pied : envoi + fermer
     var pied = el("div", { style: S.pied });
@@ -222,17 +230,65 @@
       b.addEventListener("click", function () { envoyer(E, a[0]); });
       E.envois.push(b); pied.appendChild(b);
     });
-    var f = bouton("fermer", T("scan.boite.fermer"));
+    var f = E.fermer = bouton("fermer", T("scan.boite.fermer"));
     f.addEventListener("click", function () { fermer(E, null); });
     pied.appendChild(f);
     boite.appendChild(pied);
     voile.appendChild(boite);
-    voile.addEventListener("keydown", function (e) { if (e && e.key === "Escape") fermer(E, null); });
+    voile.addEventListener("keydown", function (e) { clavier(E, e); });
 
     E.coller = function (e) { coller(E, e); };
     document.addEventListener("paste", E.coller);
     (document.body || document.documentElement).appendChild(voile);
     majListe(E);
+    try { choisir.focus(); } catch (e) { /* pas de focus possible */ }
+  }
+
+  /* le clavier : Échap ferme (sauf lecture payante en cours), Tab reste DANS la boîte */
+  function focalisables(n, out) {
+    out = out || [];
+    if (!n || (n.hasAttribute && n.hasAttribute("hidden"))) return out;
+    var tag = String(n.tagName || "").toUpperCase();
+    if ((tag === "BUTTON" || tag === "SELECT" || tag === "TEXTAREA") && !n.hasAttribute("disabled")) out.push(n);
+    Array.prototype.forEach.call(n.children || [], function (c) { focalisables(c, out); });
+    return out;
+  }
+  function clavier(E, e) {
+    if (!e) return;
+    if (e.key === "Escape") { fermer(E, null); return; }
+    if (e.key !== "Tab") return;
+    var liste = focalisables(E.voile);
+    if (!liste.length) { if (e.preventDefault) e.preventDefault(); return; }
+    var actif = document.activeElement, i = liste.indexOf(actif);
+    var cible = null;
+    if (i < 0) cible = e.shiftKey ? liste[liste.length - 1] : liste[0];
+    else if (e.shiftKey && i === 0) cible = liste[liste.length - 1];
+    else if (!e.shiftKey && i === liste.length - 1) cible = liste[0];
+    if (cible) { if (e.preventDefault) e.preventDefault(); try { cible.focus(); } catch (x) { /* caché */ } }
+  }
+
+  /* le verrou d'une lecture PAYANTE : tout ce qui pourrait la périmer ou la doubler est grisé, la boîte reste ouverte */
+  function verrouiller(E, oui) {
+    E.occupe = !!oui;
+    montrer(E.voileOccupe, !!oui);
+    var boutons = focalisables(E.voile).concat([E.lire, E.claude, E.relire, E.fermer, E.entree], E.envois);
+    tous(E.voile).forEach(function (n) { if (String(n.tagName || "").toUpperCase() === "BUTTON") boutons.push(n); });
+    boutons.forEach(function (b) { if (b && b.getAttribute("data-dz-scan") !== "prec" && b.getAttribute("data-dz-scan") !== "suiv") griser(b, !!oui); });
+    E.champ.readOnly = !!oui;
+    if (!oui) majEnvoi(E);
+  }
+  function tous(n, out) {
+    out = out || [];
+    if (!n) return out;
+    out.push(n);
+    Array.prototype.forEach.call(n.children || [], function (c) { tous(c, out); });
+    return out;
+  }
+  /* un envoi en cours : ses boutons grisés jusqu'à la réponse de l'hôte (aucun double envoi) */
+  function majEnvoi(E) {
+    var b = E.envoi || E.occupe;
+    E.envois.forEach(function (x) { griser(x, b); });
+    tous(E.coupe).forEach(function (n) { if (String(n.tagName || "").toUpperCase() === "BUTTON") griser(n, b); });
   }
 
   function dire(E, texte, erreur) {
@@ -250,6 +306,7 @@
   function ajouter(E, liste) {
     var neufs = Array.prototype.slice.call(liste || []);
     if (!neufs.length) return;
+    if (E.occupe) { dire(E, T("scan.depot.occupe"), true); return; }
     var refus = neufs.filter(function (f) { return !accepte(f); });
     if (refus.length) { dire(E, T("scan.fichiers.refuse", { nom: refus[0].name || "?" }), true); return; }
     if (E.fichiers.length + neufs.length > MAX_FICHIERS) {
@@ -280,7 +337,8 @@
       var p = el("span", { style: S.puce, "data-dz-scan": "page" }, String(f.name || "page-" + (i + 1)));
       var x = el("button", { type: "button", style: S.btn + ";" + S.mini, "data-dz-scan": "retirer",
                              "aria-label": T("scan.depot.retirer", { nom: f.name || "" }), title: T("scan.depot.retirer", { nom: f.name || "" }) }, "×");
-      x.addEventListener("click", function () { E.fichiers.splice(i, 1); E.jeton++; majListe(E); });
+      x.addEventListener("click", function () { if (E.occupe) return; E.fichiers.splice(i, 1); E.jeton++; majListe(E); });
+      if (E.occupe) griser(x, true);
       p.appendChild(x);
       E.liste.appendChild(p);
     });
@@ -289,6 +347,7 @@
 
   // ───────────────────────────────────────────── lecture locale
   async function lire(E) {
+    if (E.occupe) return;
     if (!E.fichiers.length) { dire(E, T("scan.fichiers.aucun"), true); return; }
     var jeton = ++E.jeton;
     if (E.ctrl) { try { E.ctrl.abort(); } catch (e) { /* fini */ } }
@@ -301,6 +360,8 @@
     fd.append("langue", E.langue.value || "fr");
     dire(E, T("scan.lecture.en_cours", { n: E.fichiers.length }));
     banniere(E, []);
+    proposerClaude(E, null, false, false);        // le devis de la lecture précédente ne vaut plus
+    montrer(E.relire, false);
     var R, j;
     try {
       R = await fetch("/api/scan/lire", { method: "POST", body: fd, signal: ctrl ? ctrl.signal : undefined });
@@ -416,25 +477,41 @@
 
   // ───────────────────────────────────────────── secours Claude
   async function claude(E) {
-    if (!E.scanId || !E.devis) return;
+    if (!E.scanId || !E.devis || E.occupe) return;
     var D = window.__dzDialogue;
     if (!D || typeof D.confirmer !== "function") { dire(E, T("scan.claude.annule"), true); return; }
     var montant = Number(E.devis.usd) || 0;
     var question = T("scan.claude.confirmer", { n: E.devis.pages || E.fichiers.length || 1, nom: E.devis.nom || "Claude", usd: usd(montant) });
-    var jeton = E.jeton;
-    griser(E.claude, true);
+    var jeton = ++E.jetonClaude;                  // son PROPRE jeton : aucune autre action ne périme une lecture payée
+    verrouiller(E, true);
+    montrer(E.voileOccupe, false);                // le voile « lecture en cours » ne vient qu'avec l'appel
+    montrer(E.relire, false);
     try {
       for (;;) {
         var oui = false;
         try { oui = !!(await D.confirmer(question, { titre: T("scan.claude.titre"), ok: T("scan.claude.ok") })); } catch (e) { oui = false; }
-        if (jeton !== E.jeton || E.ferme) return;
         if (!oui) { dire(E, T("scan.claude.annule")); return; }
         dire(E, T("scan.claude.en_cours"));
-        var R = await fetch("/api/scan/" + encodeURIComponent(E.scanId) + "/vision", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ max_usd: montant, langue: E.langue.value || "auto" }) });
-        var j = await lireJson(R);
-        if (jeton !== E.jeton || E.ferme) return;
+        montrer(E.voileOccupe, true);
+        var ctrl = typeof AbortController === "function" ? new AbortController() : null, expire = false;
+        var minut = setTimeout(function () { expire = true; if (ctrl) ctrl.abort(); }, DELAI_CLAUDE_MS);
+        var R, j;
+        try {
+          R = await fetch("/api/scan/" + encodeURIComponent(E.scanId) + "/vision", {
+            method: "POST", headers: { "Content-Type": "application/json" }, signal: ctrl ? ctrl.signal : undefined,
+            body: JSON.stringify({ max_usd: montant, langue: E.langue.value || "auto" }) });
+          j = await lireJson(R);
+        } catch (e) {
+          clearTimeout(minut);
+          if (expire) {                            // la lecture a pu être facturée : on le dit, « Relire » reste possible
+            dire(E, T("scan.claude.delai"), true);
+            montrer(E.claude, false); montrer(E.relire, true);
+          } else dire(E, T("scan.claude.echec", { msg: (e && e.message) || "?" }), true);
+          return;
+        }
+        clearTimeout(minut);
+        montrer(E.voileOccupe, false);
+        if (jeton !== E.jetonClaude) return;      // garde de principe : le verrou empêche une seconde lecture
         if (R.status === 409 && j && j.detail && j.detail.usd != null) {
           montant = Number(j.detail.usd) || 0;
           E.devis = Object.assign({}, E.devis, { usd: montant });
@@ -443,8 +520,9 @@
           continue;
         }
         if (!R.ok) { dire(E, T("scan.claude.echec", { msg: detail(j, R.status) }), true); return; }
+        E.jeton++;                                // une lecture locale ou un découpage d'avant ne remplaceront pas ce texte
         afficher(E, j);
-        montrer(E.claude, false); montrer(E.noteClaude, false);
+        montrer(E.claude, false); montrer(E.noteClaude, false); montrer(E.relire, false);
         var lignes = [];
         if (j.partiel) {
           lignes.push(T("scan.bandeau.partiel", { de: (Number(j.pages_lues) || 0) + 1,
@@ -459,24 +537,42 @@
         return;
       }
     } catch (e) {
-      if (jeton === E.jeton) dire(E, T("scan.claude.echec", { msg: (e && e.message) || "?" }), true);
+      dire(E, T("scan.claude.echec", { msg: (e && e.message) || "?" }), true);
     } finally {
-      griser(E.claude, false);
+      montrer(E.voileOccupe, false);
+      verrouiller(E, false);
     }
   }
 
   // ───────────────────────────────────────────── envoi
+  /* une fonction de l'hôte : boutons d'envoi grisés jusqu'à sa réponse (aucun double envoi) ; false = boîte gardée ;
+     une erreur = son message DANS la boîte ; creerChapitres peut dire combien ont été créés avant l'échec (e.crees) */
   async function rappeler(E, fn, arg, action) {
+    if (E.envoi || E.occupe) return;
+    E.envoi = true; majEnvoi(E);
     try {
       var r = await E.opts[fn](arg);
       if (r === false) return;
+      E.envoi = false;
       fermer(E, { action: action });
     } catch (e) {
-      dire(E, T("scan.envoi.echec", { msg: (e && e.message) || "?" }), true);
+      var k = Number(e && e.crees) || 0;
+      if (action === "chapitres" && k > 0) {
+        E.creesTotal = (E.creesTotal || 0) + k;
+        E.aCreer = arg.slice(k);
+        dire(E, T("scan.decoupage.partiel", { k: E.creesTotal, n: E.totalChap, msg: (e && e.message) || "?" }), true);
+        if (E.btnCreer) E.btnCreer.textContent = T("scan.decoupage.restants");
+      } else {
+        dire(E, T("scan.envoi.echec", { msg: (e && e.message) || "?" }), true);
+      }
+    } finally {
+      E.envoi = false;
+      if (!E.ferme) majEnvoi(E);
     }
   }
 
   async function envoyer(E, quoi) {
+    if (E.envoi || E.occupe) return;
     var texte = E.champ.value;
     if (!texte.trim()) { dire(E, T("scan.envoi.vide"), true); return; }
     if (quoi === "inserer") return rappeler(E, "inserer", texte, "inserer");
@@ -487,13 +583,20 @@
     }
     // créer les chapitres : le découpage proposé d'abord
     var jeton = ++E.jeton;
+    E.envoi = true; majEnvoi(E);
     dire(E, T("scan.decoupage.en_cours"));
     var R, j;
     try {
       R = await fetch("/api/scan/decoupage", { method: "POST", headers: { "Content-Type": "application/json" },
                                                 body: JSON.stringify({ texte: texte }) });
       j = await lireJson(R);
-    } catch (e) { if (jeton === E.jeton) dire(E, T("scan.decoupage.echec", { msg: (e && e.message) || "?" }), true); return; }
+    } catch (e) {
+      if (jeton === E.jeton) dire(E, T("scan.decoupage.echec", { msg: (e && e.message) || "?" }), true);
+      return;
+    } finally {
+      E.envoi = false;
+      if (!E.ferme) majEnvoi(E);
+    }
     if (jeton !== E.jeton) return;
     if (!R.ok) { dire(E, T("scan.decoupage.echec", { msg: detail(j, R.status) }), true); return; }
     var chap = (j && j.chapitres) || [];
@@ -512,19 +615,23 @@
   function montrerDecoupage(E, liste) {
     var c = E.coupe;
     c.textContent = "";
+    E.aCreer = liste.map(function (x) { return { titre: x.titre, texte: x.texte }; });
+    E.totalChap = liste.length;
+    E.creesTotal = 0;
     c.appendChild(el("div", { style: "font-weight:600" }, T("scan.decoupage.titre", { n: liste.length })));
+    var serie = String(E.opts.serie || "").trim();
+    c.appendChild(el("div", { style: S.note, "data-dz-scan": "serie" },
+                     serie ? T("scan.decoupage.serie", { serie: serie }) : T("scan.decoupage.sans_serie")));
     var ol = el("ol", { style: "margin:0;padding-left:20px", "data-dz-scan": "chapitres-proposes" });
     liste.forEach(function (x) {
       ol.appendChild(el("li", { "data-dz-scan": "chapitre-propose" }, T("scan.decoupage.ligne", { titre: x.titre, n: x.caracteres || Array.from(x.texte).length })));
     });
     c.appendChild(ol);
     var l = el("div", { style: S.ligne });
-    var ok = bouton("creer-chapitres", T("scan.decoupage.creer"), S.ok);
+    var ok = E.btnCreer = bouton("creer-chapitres", T("scan.decoupage.creer"), S.ok);
     var retour = bouton("retour", T("scan.decoupage.retour"));
-    ok.addEventListener("click", function () {
-      rappeler(E, "creerChapitres", liste.map(function (x) { return { titre: x.titre, texte: x.texte }; }), "chapitres");
-    });
-    retour.addEventListener("click", function () { montrer(c, false); montrer(E.resultat, true); });
+    ok.addEventListener("click", function () { rappeler(E, "creerChapitres", E.aCreer, "chapitres"); });
+    retour.addEventListener("click", function () { if (E.envoi) return; montrer(c, false); montrer(E.resultat, true); });
     l.appendChild(ok); l.appendChild(retour);
     c.appendChild(l);
     montrer(E.resultat, false);
@@ -536,6 +643,7 @@
     fermer: function () { if (courant) fermer(courant, null); },
     versU16: versU16,
     MAX_FICHIERS: MAX_FICHIERS,
-    DELAI_MS: DELAI_MS
+    DELAI_MS: DELAI_MS,
+    DELAI_CLAUDE_MS: DELAI_CLAUDE_MS
   };
 })();

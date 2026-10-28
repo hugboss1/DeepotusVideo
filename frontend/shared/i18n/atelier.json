@@ -681,5 +681,6 @@
   "atelier.t312_scan.chap_t": {"fr": "Scanner des pages : en faire de nouveaux chapitres de la série, ou un manuscrit pour l'agent Manuscrit", "en": "Scan pages: turn them into new chapters of the series, or a manuscript for the Manuscript agent"},
   "atelier.t312_scan.chapitres": {"fr": "{n} chapitre(s) créé(s) depuis le scan.", "en": "{n} chapter(s) created from the scan."},
   "atelier.t312_scan.insere": {"fr": "{n} caractères insérés depuis le scan.", "en": "{n} characters inserted from the scan."},
-  "atelier.t312_scan.lecture_seule": {"fr": "Chapitre emporté par le téléphone : lecture seule, rien n'est inséré.", "en": "Chapter taken by the phone: read-only, nothing is inserted."}
+  "atelier.t312_scan.lecture_seule": {"fr": "Chapitre emporté par le téléphone : lecture seule, rien n'est inséré.", "en": "Chapter taken by the phone: read-only, nothing is inserted."},
+  "atelier.t312_scan.ms_en_cours": {"fr": "Un manuscrit est déjà en cours d'import : attends sa fin.", "en": "A manuscript is already being imported: wait for it to finish."}
 }

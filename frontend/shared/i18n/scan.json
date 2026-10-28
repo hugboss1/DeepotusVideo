@@ -62,5 +62,12 @@
   "scan.decoupage.retour": {"fr": "Revenir au texte", "en": "Back to the text"},
   "scan.decoupage.en_cours": {"fr": "Découpage…", "en": "Splitting…"},
   "scan.decoupage.echec": {"fr": "Découpage impossible : {msg}", "en": "Could not split: {msg}"},
-  "scan.decoupage.aucun": {"fr": "Aucun chapitre trouvé dans ce texte.", "en": "No chapter found in this text."}
+  "scan.decoupage.aucun": {"fr": "Aucun chapitre trouvé dans ce texte.", "en": "No chapter found in this text."},
+  "scan.claude.relire": {"fr": "Relire", "en": "Read again"},
+  "scan.claude.delai": {"fr": "La lecture par Claude a dépassé 3 minutes : elle a peut-être été facturée. Relis le compteur des dépenses avant de relancer avec « Relire ».", "en": "Reading with Claude took more than 3 minutes: it may have been billed. Check the spending counter before trying again with “Read again”."},
+  "scan.depot.occupe": {"fr": "Lecture par Claude en cours : attends sa fin pour changer les pages.", "en": "Reading with Claude in progress: wait for it to finish before changing the pages."},
+  "scan.decoupage.partiel": {"fr": "{k} chapitre(s) créé(s) sur {n}, puis échec : {msg}", "en": "{k} chapter(s) created out of {n}, then failure: {msg}"},
+  "scan.decoupage.restants": {"fr": "Créer les chapitres restants", "en": "Create the remaining chapters"},
+  "scan.decoupage.serie": {"fr": "Série : {serie}", "en": "Series: {serie}"},
+  "scan.decoupage.sans_serie": {"fr": "Sans série (chapitres hors série)", "en": "No series (chapters outside any series)"}
 }

@@ -1942,6 +1942,7 @@ async function msRun(impose) {
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || dzT("atelier.at3_ms.envoi_echoue"));
     toast(dzT("atelier.at3_ms.lance", { serie: d.series, k: Math.round(d.chars / 1000) }));
+    if (msPolling) { clearInterval(msPolling); msPolling = null; }   // t312 : jamais deux sondes (la première fuirait)
     msPolling = setInterval(async () => {
       try {
         const st = await api.get("/atelier/manuscript/" + d.job_id);
@@ -1973,27 +1974,34 @@ async function msRun(impose) {
 /* ═════════ t312 (C1 Scan) — la boîte « Scanner une page » (/shared/dz-scan.js) ═════════
    Trois envois (Décision 7 du plan t312) : le texte au curseur du script puis scheduleSave() ; un POST /chapters par
    chapitre du découpage, dans la série courante, puis la liste relue ; un manuscrit « scan.txt » par msRun (l'agent
-   Manuscrit). Une fonction qui rend false garde la boîte ouverte. */
+   Manuscrit). Un refus LÈVE une erreur : la boîte (au-dessus des toasts de la page) affiche son message et reste
+   ouverte. */
 function scanInserer(texte) {
-  if (!chapter) { toast(dzT("atelier.at3_w.cree_chapitre"), true); return false; }
+  if (!chapter) throw new Error(dzT("atelier.at3_w.cree_chapitre"));
   const ta = $("#script");
-  if (ta.readOnly) { toast(dzT("atelier.t312_scan.lecture_seule"), true); return false; }
-  const a = typeof ta.selectionStart === "number" ? ta.selectionStart : ta.value.length;
-  const b = typeof ta.selectionEnd === "number" ? ta.selectionEnd : a;
-  ta.setRangeText(texte, a, b, "end");
+  if (ta.readOnly) throw new Error(dzT("atelier.t312_scan.lecture_seule"));
+  // au curseur, SANS remplacer une sélection : le texte va après sa fin
+  const b = typeof ta.selectionEnd === "number" ? ta.selectionEnd : ta.value.length;
+  ta.setRangeText(texte, b, b, "end");
   renderScript(); scheduleSave();
+  if (typeof refreshSelBar === "function") refreshSelBar();
   toast(dzT("atelier.t312_scan.insere", { n: texte.length }));
   return true;
 }
 
 async function scanCreerChapitres(liste) {
   const serie = $("#chapterSeries").value;
-  let premier = null;
+  let premier = null, crees = 0;
   try {
     for (const c of liste) {
       const ch = await api.send("POST", "/chapters", { title: c.titre, series: serie, script_text: c.texte, spans: [] });
       if (!premier) premier = ch.id;
+      crees++;
     }
+  } catch (e) {
+    const err = new Error(e && e.message ? e.message : String(e));
+    err.crees = crees;                            // la boîte dit k sur n et ne recrée que les restants
+    throw err;
   } finally {
     if (premier) await loadChapters(premier);     // un échec en route : les chapitres déjà créés sont listés
   }
@@ -2002,6 +2010,8 @@ async function scanCreerChapitres(liste) {
 }
 
 async function scanManuscrit(texte) {
+  // un seul job manuscrit à la fois : celui du bouton « Lancer » ou un scan déjà envoyé
+  if ($("#msRun").disabled || msPolling) throw new Error(dzT("atelier.t312_scan.ms_en_cours"));
   if (!$("#msSeries").value.trim() && $("#chapterSeries").value.trim()) $("#msSeries").value = $("#chapterSeries").value.trim();
   $("#msModal").classList.remove("hidden");
   await msRun(new File([texte], "scan.txt", { type: "text/plain" }));

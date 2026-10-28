@@ -13,7 +13,8 @@ la saisie L8 (scripts/i18n_l8/t312.py : la table réversible exige BASE + éditi
     mêmes variables, toutes employées) ; dictionnaire assemblé et L8 à jour ; aucun libellé français en dur ajouté ;
 [4] garde-fous : jamais de confirm / alert / prompt natifs (dialogue maison), jamais innerHTML dans dz-scan.js ;
     l'icône du bouton seule passe par innerHTML (chaîne fixe de dzIcone), le libellé par un nœud texte ;
-[5] la boîte sous node : frontend/shared/qa/scan.test.mjs (faux DOM, faux fetch, vraie enveloppe dz-plafonds.js).
+[5] la boîte sous node : frontend/shared/qa/scan.test.mjs (faux DOM, faux fetch, vraie enveloppe dz-plafonds.js) ; les
+    fonctions d'hôte de l'Atelier JOUÉES : frontend/shared/qa/scan_atelier.test.mjs (msRun et le bloc t312 extraits).
 Run : & $PY tests/test_scan_ecran.py   (depuis backend/)
 """
 import json, pathlib, re, shutil, subprocess, sys
@@ -69,7 +70,8 @@ def main():
           "window.__dzScan = {" in S and "ouvrir: ouvrir" in S and "if (window.__dzScan) return;" in S)
     check("1e routes de la Décision 6 employées", all(r in S for r in ('"/api/scan/lire"', '"/devis-vision"', '"/vision"',
                                                                      '"/api/scan/decoupage"')))
-    check("1f délai 90 s, dix fichiers, 200 caractères", "DELAI_MS = 90000" in S and "MAX_FICHIERS = 10" in S
+    check("1f délai 90 s (lecture) et 180 s (Claude), dix fichiers, 200 caractères", "DELAI_MS = 90000" in S
+          and "DELAI_CLAUDE_MS = 180000" in S and "MAX_FICHIERS = 10" in S
           and "MIN_MANUSCRIT = 200" in S)
     check("1g accept image/* et PDF, sélection multiple", 'accept: "image/*,application/pdf"' in S and 'multiple: ""' in S)
 
@@ -84,11 +86,13 @@ def main():
     check("2d scanBoutons() appelé au chargement", "  scanBoutons();" in js[js.find('window.addEventListener("DOMContentLoaded"'):])
     check("2e ouvrir avec les trois envois de l'hôte", "window.__dzScan.ouvrir({" in bloc and "inserer: scanInserer" in bloc
           and "creerChapitres: scanCreerChapitres" in bloc and "importerManuscrit: scanManuscrit" in bloc)
-    check("2f insérer : au curseur de #script puis renderScript() et scheduleSave()",
-          'const ta = $("#script");' in bloc and "ta.setRangeText(texte, a, b, \"end\");" in bloc
+    check("2f insérer : après la fin de la sélection de #script (sans la remplacer), puis renderScript() et scheduleSave()",
+          'const ta = $("#script");' in bloc and "ta.setRangeText(texte, b, b, \"end\");" in bloc
           and "renderScript(); scheduleSave();" in bloc)
-    check("2g insérer refusé sans chapitre ou chapitre emporté (rend false)", "if (!chapter)" in bloc and "ta.readOnly" in bloc
-          and bloc.count("return false;") >= 2)
+    check("2g refus de l'hôte LEVÉS (montrés dans la boîte) : sans chapitre, chapitre emporté, job manuscrit en cours",
+          'if (!chapter) throw new Error(' in bloc and 'if (ta.readOnly) throw new Error(' in bloc
+          and 'if ($("#msRun").disabled || msPolling) throw new Error(' in bloc)
+    check("2k msRun arrête une sonde précédente avant d'en lancer une", "if (msPolling) { clearInterval(msPolling); msPolling = null; }" in js)
     check("2h créer : un POST /chapters par chapitre, série courante, liste relue",
           'api.send("POST", "/chapters", { title: c.titre, series: serie, script_text: c.texte' in bloc
           and 'const serie = $("#chapterSeries").value;' in bloc and "await loadChapters(premier);" in bloc)
@@ -123,7 +127,7 @@ def main():
                        text=True, encoding="utf-8", errors="replace", cwd=str(REPO))
     check("3g aucun libellé français en dur (i18n_l8_generer --restes)", "restes : 0" in p.stdout, p.stdout[-300:])
     check("3h libellés du bloc par dzT (aucune chaîne française entre guillemets)",
-          not re.search(r'(toast|title\s*=|createTextNode)\([^)]*"[^"]*[àâçéèêëîïôûùü][^"]*"', bloc))
+          not re.search(r'(toast|title\s*=|createTextNode|Error)\([^)\n]*"[^"\n]*[àâçéèêëîïôûùü][^"\n]*"', bloc))
     check("3i même « Scanner une page » dans l'Atelier et la boîte", DIC["atelier.t312_scan.bouton"]["fr"] == SC["scan.boite.titre"]["fr"]
           and DIC["atelier.t312_scan.bouton"]["en"] == SC["scan.boite.titre"]["en"])
 
@@ -142,6 +146,10 @@ def main():
                            encoding="utf-8", errors="replace")
         check("5a frontend/shared/qa/scan.test.mjs : tout passe", r.returncode == 0 and "0 failed" in r.stdout,
               (r.stdout + r.stderr)[-600:])
+        r = subprocess.run([NODE, str(FRONT / "shared" / "qa" / "scan_atelier.test.mjs")], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        check("5c frontend/shared/qa/scan_atelier.test.mjs (fonctions d'hôte de l'Atelier jouées) : tout passe",
+              r.returncode == 0 and "0 failed" in r.stdout, (r.stdout + r.stderr)[-600:])
         r = subprocess.run([NODE, "--check", str(src)], capture_output=True, text=True)
         check("5b node --check dz-scan.js", r.returncode == 0, r.stderr[-200:])
     else:
