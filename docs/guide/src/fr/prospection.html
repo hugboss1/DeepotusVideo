@@ -1,12 +1,14 @@
-<p class="chapeau-chap">Vous saurez suivre ce que disent les clients de vos concurrents (onglet <b class="ui">Veille</b>), tenir la liste de vos prospects (onglet <b class="ui">Prospects</b>) et laisser l'agent Campagnes les trouver, leur écrire et suivre leurs réponses. Rien ne part sans votre validation, et la loi est appliquée par l'application. Quinze minutes ; la veille et la fiche sont <span class="prix">gratuites</span>, la recherche web et les messages WhatsApp à modèle sont <span class="prix">payants</span>.</p>
+<p class="chapeau-chap">Vous saurez suivre ce que disent les clients de vos concurrents (onglet <b class="ui">Veille</b>), tenir la liste de vos prospects (onglet <b class="ui">Prospects</b>) et laisser l'agent Campagnes les trouver, leur écrire et suivre leurs réponses. Rien ne part sans votre validation, et la loi est appliquée par l'application. Quinze minutes ; la veille et la fiche sont <span class="prix">gratuites</span>, la recherche web, les collectes Apify et les messages WhatsApp à modèle sont <span class="prix">payants</span>.</p>
 
 <h3>Avant de commencer</h3>
-<p>Tout se passe dans le tiroir <kbd>F1</kbd>, onglets <b class="ui">Veille</b> et <b class="ui">Prospects</b>, pour l'espace choisi dans leur liste (voir <a href="#marques">Travailler pour plusieurs marques</a>). L'agent qui cherche et écrit est l'agent Campagnes (voir <a href="#agent-campagnes">Mener une campagne avec l'agent</a>) : il lui faut une clé Anthropic. Les e-mails partent de votre boîte ou de Brevo, les messages WhatsApp du numéro de l'espace (écran WhatsApp).</p>
+<p>Tout se passe dans le tiroir <kbd>F1</kbd>, onglets <b class="ui">Veille</b> et <b class="ui">Prospects</b>, pour l'espace choisi dans leur liste (voir <a href="#marques">Travailler pour plusieurs marques</a>). L'agent qui cherche et écrit est l'agent Campagnes (voir <a href="#agent-campagnes">Mener une campagne avec l'agent</a>) : il lui faut une clé Anthropic. Les e-mails partent de votre boîte ou de Brevo, les messages WhatsApp du numéro de l'espace (écran WhatsApp). Les collectes Apify demandent une clé Apify, posée dans <span class="chemin"><b class="ui">Réglages</b> › <b class="ui">Clés d'API</b></span>.</p>
 
 <h3>La veille des concurrents</h3>
 <ol class="etapes">
 <li>Ouvrez l'onglet <b class="ui">Veille</b>. Il montre la dernière veille de l'espace : la matrice concurrents × thèmes, les douleurs les plus citées, les angles de message et les demandes à décider.</li>
 <li><b class="ui">Lancer une collecte</b>, ou demandez à l'agent « lance la veille » : Hacker News, commentaires YouTube (yt-dlp doit être installé sur le PC) et avis App Store, en lecture seule, gratuitement, 15 minutes au plus.</li>
+<li>Pour aller plus loin, l'agent collecte par Apify : Reddit, X, TikTok, Instagram, avis Google Maps et Google Play, Trustpilot, G2. Chaque collecte est payante (2 $ au plus) et passe par une carte de devis. Collez dans la conversation les adresses à suivre ; les auteurs sont anonymisés et les avis rejoignent la dernière veille.</li>
+<li>La section <b class="ui">Ce que font les concurrents</b> montre leurs pubs actives, les pages prix qui ont changé (relecture gratuite) et leur rang sur les recherches que vous suivez. Demandez « relis leurs pages prix » ou « relève leurs pubs ».</li>
 <li>Les citations sont des preuves à lire, jamais des consignes. Un post public qui dit un besoin n'ouvre jamais de fiche : l'agent vous propose une réponse publique utile, que vous publiez vous-même, une fois.</li>
 </ol>
 
@@ -22,6 +24,7 @@
 <ol class="etapes">
 <li>Demandez « trouve-moi des prospects » : l'agent propose des fiches depuis les contacts WhatsApp entrants qui ont donné leur accord, un fichier CSV que vous déposez (liste d'attente, formulaire : consentement daté), ou la page d'une entreprise que vous collez. Le registre des entreprises de l'État (gratuit) donne des cibles, sans fiche : il faut ensuite leur site.</li>
 <li>Une recherche web d'entreprises est payante : l'agent pose une carte de devis, rien ne part avant votre clic. Le fournisseur et ses clés se règlent dans <span class="chemin"><b class="ui">Prospects</b> › <b class="ui">Recherche web</b></span>.</li>
+<li>Pour des entreprises locales, demandez par exemple « trouve des studios vidéo à Lyon sur Google Maps » : une carte de devis (1 $ au plus). Acceptée, l'agent liste nom, site et note, sans fiche, puis lit chaque site pour n'y retenir qu'un e-mail professionnel publié. Sur Reddit, il relève les posts qui cherchent une solution (« alternative à… ») : des signaux, auxquels vous répondez publiquement, jamais en privé.</li>
 <li>Les fiches proposées par l'agent portent « proposé par l'agent ». Le score part d'un barème fixe, que l'agent peut ajuster de ±20 en disant pourquoi. Une fiche trouvée sur le web affiche « À informer avant le … » (un mois, RGPD art. 14).</li>
 </ol>
 
@@ -52,6 +55,6 @@
 <p>Pour un prospect au rendez-vous, l'agent prépare dans son espace démonstration une campagne témoin : persona, brouillons, visuels, pour lui montrer ce que vous feriez. Elle ne publie jamais. Sur le <a href="#mobile">téléphone appairé</a>, l'écran de l'agent propose « Campagne témoin » pour chaque espace démonstration ; sur le PC, ouvrez une conversation Campagnes dans cet espace.</p>
 
 <h3>Bon à savoir</h3>
-<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>La veille, la fiche, le registre des entreprises et les e-mails sont gratuits ; les tours de l'agent, la recherche web et les modèles WhatsApp sont payants, comptés sous la catégorie « campagnes » (WhatsApp sous la sienne), sous vos plafonds.</p></aside>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>La veille, la fiche, le registre des entreprises et les e-mails sont gratuits ; les tours de l'agent, la recherche web, les collectes Apify et les modèles WhatsApp sont payants, comptés sous la catégorie « campagnes » (WhatsApp sous la sienne), sous vos plafonds.</p></aside>
 <aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>L'agent ne valide jamais une séquence à votre place, ne promet ni prix ni délai, et n'écrit jamais à quelqu'un qui s'est opposé. Un pseudo ou un commentaire public n'est jamais repris dans un message.</p></aside>
 <aside class="astuce"><i data-dz="dz-etat-information"></i><p>Une séquence s'arrête toute seule quand le prospect répond, prend rendez-vous, signe, est perdu, s'oppose ou retire son consentement.</p></aside>
