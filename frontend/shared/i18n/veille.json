@@ -60,5 +60,12 @@
   "veille.theme.social_publication": {"fr": "Réseaux sociaux", "en": "Social media"},
   "veille.theme.support_fiabilite": {"fr": "Support et fiabilité", "en": "Support and reliability"},
   "veille.theme.apprentissage": {"fr": "Prise en main", "en": "Learning curve"},
-  "veille.theme.fournisseur_unique": {"fr": "Fournisseur unique", "en": "Single provider"}
+  "veille.theme.fournisseur_unique": {"fr": "Fournisseur unique", "en": "Single provider"},
+  "veille.section.concurrents": {"fr": "Ce que font les concurrents", "en": "What competitors are doing"},
+  "veille.concurrents.pubs": {"fr": "{nom} : {n} pub(s) active(s)", "en": "{nom}: {n} active ad(s)"},
+  "veille.concurrents.depuis": {"fr": "depuis le {date}", "en": "since {date}"},
+  "veille.concurrents.voir": {"fr": "voir", "en": "view"},
+  "veille.concurrents.page_changee": {"fr": "{nom} : page changée — {url}", "en": "{nom}: page changed — {url}"},
+  "veille.concurrents.serp": {"fr": "« {mot} » : {rangs}", "en": "“{mot}”: {rangs}"},
+  "veille.concurrents.serp_aucun": {"fr": "« {mot} » : aucun concurrent dans les 10 premiers", "en": "“{mot}”: no competitor in the top 10"}
 }

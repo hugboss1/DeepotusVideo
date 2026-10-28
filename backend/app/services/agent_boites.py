@@ -19,7 +19,8 @@ BOITES: dict[str, dict] = {
     # t352 (27/10/2026) : la veille concurrentielle (niveau 1, lecture seule) ; le compagnon l'aura en P8
     "veille": {
         "libelle": "agent.boites.veille",
-        "outils": ["veille_collecter", "veille_lire", "veille_sources", "veille_apify"],   # t366 : sources Apify
+        "outils": ["veille_collecter", "veille_lire", "veille_sources", "veille_apify",   # t366 : sources Apify
+                   "concurrents_pages", "concurrents_pubs", "concurrents_serp"],             # t368 : concurrents
         "agents": ["campagnes"],
         "mobile": False,
     },

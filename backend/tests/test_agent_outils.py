@@ -103,7 +103,8 @@ DIX = {"chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur",
        "reponses_lire", "relance_proposer",   # t358
        "entreprises_carte",   # t365 : leads Google Maps (Apify)
        "veille_sources", "veille_apify",   # t366 : veille enrichie (Apify)
-       "signaux_reddit"}   # t367
+       "signaux_reddit",   # t367
+       "concurrents_pages", "concurrents_pubs", "concurrents_serp"}   # t368
 
 
 def sans_accents(t: str) -> str:
@@ -140,7 +141,7 @@ async def main():
     check("test_seulement_dix_outils : OUTILS", set(ao.OUTILS) - set(_B.BOITES["whatsapp"]["outils"]) == DIX
           and set(_B.outils_pour("campagnes")) == DIX, str(sorted(ao.OUTILS)))
     defs = ao.definitions()
-    check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 25)   # t365 : + entreprises_carte ; t366 : + veille_sources, veille_apify
+    check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 28)   # t365 : + entreprises_carte ; t366 : + veille_sources, veille_apify
     check("definitions : forme de l'API", all(set(d) == {"name", "description", "input_schema"}
                                               and d["input_schema"].get("type") == "object" for d in defs))
     check("OUTILS : nature connue, fn appelable", all(o["nature"] in ("lecture", "ecriture", "carte")

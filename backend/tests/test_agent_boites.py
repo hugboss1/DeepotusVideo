@@ -39,7 +39,7 @@ from app.services import agent_outils as ao                         # noqa: E402
 print("[1] compatibilite : Campagnes voit les memes outils qu'a e0d6e51e")
 fige = json.loads((_ICI / "agent_definitions_campagnes.json").read_text(encoding="utf-8"))
 check("1a definitions() inchangees a l'octet", ao.definitions() == fige)
-check("1b 25 outils (dix + veille t352 + prospects t354 + séquences t355 + modèles t357 + suivi t358 + carte t365 + veille Apify t366 + signaux t367)", len(fige) == 25)
+check("1b 28 outils (dix + veille t352 + prospects t354 + séquences t355 + modèles t357 + suivi t358 + carte t365 + veille Apify t366 + signaux t367 + concurrents t368)", len(fige) == 28)
 
 from app.services import agent_boites as B                          # noqa: E402
 

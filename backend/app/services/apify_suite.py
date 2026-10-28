@@ -8,6 +8,8 @@ module en tire ce que l'agent et les écrans utilisent :
                    reconsolidées par la grille ;
   signaux (t367) : des SIGNAUX DE BESOIN Reddit (posts « alternative à », « combien coûte »…) gardés 30 jours par
                    espace, rendus par `prospects_chercher(source="veille")` ; jamais une fiche, jamais un DM ;
+  pubs    (t368) : les pubs actives d'une page Facebook, résumées (veille_concurrents.noter_pubs) ;
+  serp    (t368) : les positions des domaines des concurrents sur nos mots-clés (veille_concurrents.noter_serp) ;
 Rien ici n'écrit de fiche ni n'envoie quoi que ce soit.
 """
 from __future__ import annotations
@@ -16,7 +18,7 @@ import json
 import re
 from datetime import datetime, timedelta, timezone
 
-BUTS = ("leads", "veille", "signaux")
+BUTS = ("leads", "veille", "signaux", "pubs", "serp")
 
 # t366 : le champ d'entrée de chaque source de veille, et la nature de ses valeurs (requete : des mots, repris des
 # requêtes du concurrent par défaut ; url : collée par l'utilisateur ; url_objet : {"url": …} ; id : identifiant)
@@ -209,4 +211,11 @@ async def traiter(but, cid: str, args: dict, items: list) -> dict:
         return await _veille(args, items)
     if but == "signaux":
         return await _signaux(args, items)
+    if but in ("pubs", "serp") and args.get("espace_id"):
+        import asyncio
+        from app.services import veille_concurrents as VK
+        if but == "pubs":
+            conc = str(args.get("concurrent") or "")
+            return {"pubs": await asyncio.to_thread(VK.noter_pubs, args["espace_id"], conc, items)} if conc else {}
+        return {"mots_cles": await asyncio.to_thread(VK.noter_serp, args["espace_id"], items)}
     return {}

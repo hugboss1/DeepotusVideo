@@ -68,6 +68,7 @@
     + ".dzVeilleCit{margin:2px 0 0;padding-left:8px;border-left:2px solid var(--stroke,#2a2930);color:var(--ink-soft,#8a857d)}"
     + ".dzVeilleCit a{color:var(--accent,#f0b429)}"
     + ".dzVeilleChez{font-size:11px;color:var(--ink-soft,#8a857d)}"
+    + ".dzVeilleDiff{white-space:pre-wrap;font-size:11px;margin:4px 0 8px;color:var(--ink-soft,#8a857d)}"
     + ".dzVeilleVide{color:var(--ink-soft,#8a857d)}";
   function poserCss() {
     if (document.getElementById && document.getElementById("dzVeilleCss")) return;
@@ -130,6 +131,41 @@
       if (enCours) { btnLancer.setAttribute("disabled", ""); sonde = setTimeout(recharger, SONDE_MS); }
       if (j.rapport) dessiner(j.rapport);
       else corps.appendChild(el("p", { class: "dzVeilleVide", "data-dz-veille": "vide", texte: T("veille.vide.aucune") }));
+      concurrents(g);
+    }
+
+    // t368 : le volet « Concurrents » (lecture seule) — pubs actives, pages prix changées, positions sur nos mots-clés
+    async function concurrents(g) {
+      var k;
+      try {
+        var r = await window.fetch(BASE + encodeURIComponent(eid) + "/concurrents");
+        if (!vivant || g !== generation || !r.ok) return;
+        k = await lireJson(r);
+      } catch (e) { return; }
+      if (!vivant || g !== generation || !k) return;
+      var blocs = [];
+      var pubs = k.pubs || {};
+      Object.keys(pubs).sort().forEach(function (c) {
+        var liste = Array.isArray(pubs[c]) ? pubs[c] : [];
+        blocs.push(el("p", { "data-dz-veille": "pubs-" + c, texte: T("veille.concurrents.pubs", { nom: c, n: liste.length }) }));
+        blocs.push(el("ul", {}, liste.slice(0, 3).map(function (p) {
+          var li = el("li", {}, [el("span", { texte: String((p && p.texte) || "") + (p && p.debut ? " · " + T("veille.concurrents.depuis", { date: p.debut }) : "") })]);
+          if (p && sur(p.lien)) li.appendChild(el("a", { href: p.lien, target: "_blank", rel: "noopener noreferrer", texte: " " + T("veille.concurrents.voir") }));
+          return li;
+        })));
+      });
+      (Array.isArray(k.pages) ? k.pages : []).filter(function (p) { return p && p.change; }).forEach(function (p) {
+        blocs.push(el("p", { "data-dz-veille": "page-changee", texte: T("veille.concurrents.page_changee", { nom: String(p.concurrent || ""), url: String(p.url || "") }) }));
+        blocs.push(el("pre", { class: "dzVeilleDiff", texte: String(p.diff || "") }));
+      });
+      var mots = (k.serp && k.serp.mots_cles) || {};
+      Object.keys(mots).forEach(function (m) {
+        var leurs = (Array.isArray(mots[m]) ? mots[m] : []).filter(function (x) { return x && x.concurrent; });
+        blocs.push(el("p", { "data-dz-veille": "serp", texte: leurs.length
+          ? T("veille.concurrents.serp", { mot: m, rangs: leurs.map(function (x) { return x.concurrent + " #" + x.rang; }).join(", ") })
+          : T("veille.concurrents.serp_aucun", { mot: m }) }));
+      });
+      if (blocs.length) corps.appendChild(section("veille.section.concurrents", "concurrents", blocs));
     }
 
     async function lancer() {

@@ -94,6 +94,22 @@ ACTEURS = {
     "instagram_posts": {"acteur": "apify~instagram-scraper", "build": "0.0.831", "usage": "veille",
                         "max": "resultsLimit", "par": ("directUrls",), "champs": {"directUrls", "onlyPostsNewerThan"},
                         "impose": {"resultsType": "posts", "addParentData": False}, "evenements": {"result"}},
+    # t368 (28/10/2026) : ce que font les concurrents — pubs actives d'une page Facebook, positions sur nos mots-clés
+    "facebook_pubs": {"acteur": "apify~facebook-ads-scraper", "build": "0.0.392", "usage": "veille",
+                      "max": "resultsLimit", "par": ("startUrls",),
+                      "champs": {"startUrls", "activeStatus", "onlyAdsNewerThan"},
+                      "impose": {"enrichWithEcommerceData": False, "isDetailsPerAd": False, "includeAboutPage": False},
+                      "evenements": {"apify-default-dataset-item"}},
+    "serp": {"acteur": "apify~google-search-scraper", "build": "0.0.474", "usage": "veille",
+             "max": "maxPagesPerQuery", "par": ("queries",), "champs": {"queries", "countryCode", "languageCode"},
+             "impose": {"aiOverview": {"scrapeFullAiOverview": False}, "aiModeSearch": {"enableAiMode": False},
+                        "geminiSearch": {"enableGemini": False}, "perplexitySearch": {"enablePerplexity": False},
+                        "chatGptSearch": {"enableChatGpt": False}, "copilotSearch": {"enableCopilot": False},
+                        "maximumLeadsEnrichmentRecords": 0, "verifyLeadsEnrichmentEmails": False,
+                        "websiteContentScraper": {"enable": False}, "focusOnPaidAds": False, "saveHtml": False,
+                        "saveHtmlToKeyValueStore": False, "includeIcons": False, "includeUnfilteredResults": False,
+                        "mobileResults": False},
+             "evenements": {"search-page-scraped", "apify-actor-start"}},
 }
 
 
@@ -207,7 +223,12 @@ def _borne(n) -> int:
 def _entrees(a: dict, entree) -> int:
     """Le nombre d'entrées (recherches, URL…) auxquelles le champ `max` s'applique CHACUNE ; 1 sans liste `par`."""
     e = entree if isinstance(entree, dict) else {}
-    return max(1, sum(len(e.get(k) or []) if isinstance(e.get(k), list) else 0 for k in a.get("par", ())))
+
+    def n(v) -> int:                                   # t368 : une chaîne compte une entrée par ligne (serp.queries)
+        if isinstance(v, list):
+            return len(v)
+        return len([l for l in v.splitlines() if l.strip()]) if isinstance(v, str) else 0
+    return max(1, sum(n(e.get(k)) for k in a.get("par", ())))
 
 
 def _par_entree(cle: str, entree, n: int) -> int:

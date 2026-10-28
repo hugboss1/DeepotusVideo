@@ -202,6 +202,31 @@ const FR = dzTde("fr"), EN = dzTde("en");
   inst.demonter();
 }
 
+// ---- t368 : le volet « Concurrents » ---------------------------------------------------------------------------------
+{
+  const K = { pubs: { runway: [{ texte: "<img src=x onerror=alert(1)> Gen-4", debut: "2026-10-10", lien: "javascript:alert(1)" },
+                               { texte: "Pro plan", debut: "", lien: "https://www.facebook.com/ads/library/?id=2" }] },
+    pages: [{ concurrent: "runway", url: "https://runwayml.com/pricing", change: true, diff: "-Standard 12 $\n+Standard 15 $" },
+            { concurrent: "kling", url: "https://kling.ai/pricing", change: false, diff: "" }],
+    serp: { mots_cles: { "générateur vidéo ia": [{ rang: 1, domaine: "capcut.com", concurrent: null }, { rang: 3, domaine: "runwayml.com", concurrent: "runway" }],
+                         "studio ia": [{ rang: 2, domaine: "blog.example", concurrent: null }] } } };
+  const m = monde({ routes: { "GET /api/veille/e1": () => reponse(200, { etat: null, rapport: RAPPORT, veilles: [] }),
+                              "GET /api/veille/e1/concurrents": () => reponse(200, K) } });
+  m.DzVeille.monter(m.hote, { espace_id: "e1" });
+  await tick(); await tick(); await tick();
+  const v = marque(m.hote, "concurrents");
+  ok("8.1 volet affiché après le rapport", !!v && v.textContent.includes(FR("veille.concurrents.pubs", { nom: "runway", n: 2 })), v && v.textContent);
+  ok("8.2 page changée : le diff en texte", v && v.textContent.includes("+Standard 15 $") && !v.textContent.includes("kling.ai"), v && v.textContent);
+  ok("8.3 SERP : rang des concurrents, ou aucun", v && v.textContent.includes(FR("veille.concurrents.serp", { mot: "générateur vidéo ia", rangs: "runway #3" }))
+    && v.textContent.includes(FR("veille.concurrents.serp_aucun", { mot: "studio ia" })), v && v.textContent);
+  ok("8.4 texte hostile jamais interprété, lien https seul cliquable", v && !tous(v, (x) => x.tagName === "IMG").length
+    && tous(v, (x) => x.tagName === "A").map((a) => a.attrs.href).join() === "https://www.facebook.com/ads/library/?id=2");
+  const m2 = monde({ routes: { "GET /api/veille/e1": () => reponse(200, { etat: null, rapport: RAPPORT, veilles: [] }) } });
+  m2.DzVeille.monter(m2.hote, { espace_id: "e1" });
+  await tick(); await tick(); await tick();
+  ok("8.5 rien à montrer (404) : pas de volet, le rapport reste", !marque(m2.hote, "concurrents") && !!marque(m2.hote, "douleurs"));
+}
+
 // ---- les clés employées existent, sans mot « publier » ------------------------------------------------------------------
 {
   const cles = [...new Set((SRC.match(/"veille\.[a-z_]+\.[a-z_]+"/g) || []).map((s) => s.slice(1, -1)))];
