@@ -75,6 +75,18 @@ class _Plafond(Exception):
     """Plafond global atteint (textes ou durée)."""
 
 
+class EchecYoutube(RuntimeError):
+    """28/10/2026 : yt-dlp a échoué sur une vidéo ; le message est SA raison (sa ligne ERROR), jamais la commande.
+    `bloque` : YouTube refuse ce poste pour l'instant (vérification « bot », 429) — inutile d'essayer les autres vidéos."""
+    def __init__(self, message: str, bloque: bool = False):
+        super().__init__(message)
+        self.bloque = bloque
+
+
+_BLOCAGE = re.compile(r"confirm you.?re not a bot|HTTP Error 429|Too Many Requests|rate.?limit", re.I)
+PAUSE_YOUTUBE = 20.0                   # secondes avant de retenter une vidéo en échec
+
+
 # ---- périmètre -------------------------------------------------------------------------------------------------------
 
 def _textes(v, n: int, maxi: int = 120) -> list[str]:
@@ -162,12 +174,24 @@ async def _ytdlp_defaut(video: str, maxi: int) -> dict:
                       "--extractor-args", f"youtube:max_comments={maxi},all,100;comment_sort=top",
                       "-o", modele, f"https://www.youtube.com/watch?v={video}"]
         drapeaux = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        await asyncio.to_thread(subprocess.run, args, check=True, capture_output=True, timeout=DELAI_YTDLP,
-                                creationflags=drapeaux)
+        try:
+            # stdin fermé : le backend tourne sans console (lanceur silencieux) ; un exécutable figé qui lit stdin y échoue
+            await asyncio.to_thread(_RUN, args, check=True, capture_output=True, timeout=DELAI_YTDLP,
+                                    creationflags=drapeaux, stdin=subprocess.DEVNULL)
+        except subprocess.CalledProcessError as e:
+            err = (e.stderr or b"").decode("utf-8", "replace") if isinstance(e.stderr, bytes) else str(e.stderr or "")
+            lignes = [l.strip() for l in err.splitlines() if l.strip()]
+            raison = next((l for l in reversed(lignes) if l.startswith("ERROR")), lignes[-1] if lignes else "")
+            raison = re.sub(r"^ERROR:\s*", "", raison)[:200] or f"yt-dlp a rendu le code {e.returncode}"
+            raise EchecYoutube(raison, bloque=bool(_BLOCAGE.search(err))) from None
+        except subprocess.TimeoutExpired:
+            raise EchecYoutube(f"yt-dlp n'a pas répondu en {int(DELAI_YTDLP)} s") from None
         return json.loads(Path(modele + ".info.json").read_text(encoding="utf-8"))
 
 
 _GET_JSON = _get_json_defaut
+_RUN = subprocess.run                  # couture du banc
+_DORMIR = asyncio.sleep                # couture du banc
 _YTDLP = _ytdlp_defaut
 _ytdlp_commande = _ytdlp_commande_defaut
 _horloge = time.monotonic
@@ -308,11 +332,25 @@ async def collecter(perimetre: dict, brut: Path, echeance: float, journal: Calla
                 if not youtube_ok:
                     break
                 try:
-                    noter("youtube", cid, await _youtube(cid, v))
+                    try:
+                        noter("youtube", cid, await _youtube(cid, v))
+                    except EchecYoutube:                   # une panne passagère : une seule nouvelle tentative
+                        await _DORMIR(PAUSE_YOUTUBE)
+                        garde()
+                        noter("youtube", cid, await _youtube(cid, v))
                 except _Absent:
                     youtube_ok = False
                     limites.append("youtube : yt-dlp introuvable, source indisponible")
-                except Exception as e:  # noqa: BLE001 — vidéo privée, supprimée, délai…
+                except EchecYoutube as e:
+                    if e.bloque:
+                        youtube_ok = False
+                        limites.append(f"youtube : bloqué par YouTube pour l'instant ({str(e)[:160]}) : source "
+                                       "suspendue pour cette collecte, réessayez plus tard")
+                    else:
+                        limites.append(f"youtube {v} : {str(e)[:160]}")
+                except _Plafond:
+                    raise
+                except Exception as e:  # noqa: BLE001 — délai, réponse illisible…
                     limites.append(f"youtube {v} : {type(e).__name__} : {str(e)[:120]}")
             for app_id in c.get("appstore") or []:
                 for pays in c.get("pays") or ["us"]:
