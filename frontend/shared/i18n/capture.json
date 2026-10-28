@@ -30,6 +30,7 @@
   "capture.pastille.preuve": {"fr": "preuve", "en": "proof"},
   "capture.pastille.micro": {"fr": "Micro allumé", "en": "Microphone on"},
   "capture.pastille.camera": {"fr": "Caméra allumée", "en": "Camera on"},
+  "capture.pastille.arreter": {"fr": "Arrêter", "en": "Stop"},
   "capture.pastille.envoi": {"fr": "Rangement…", "en": "Saving…"},
   "capture.encart.titre": {"fr": "Encart caméra : glisse pour le déplacer, tire le coin pour l'agrandir", "en": "Camera inset: drag to move it, pull the corner to resize it"},
   "capture.masque.ecran": {"fr": "Masqué pendant l'enregistrement", "en": "Hidden while recording"},

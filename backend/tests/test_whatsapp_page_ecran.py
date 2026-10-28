@@ -137,10 +137,12 @@ if NODE:
 
 # ── [2] réversible ──────────────────────────────────────────────────────────────────────────────────────────────────
 print("\n[2] la chaîne inverse")
+# t315 (28/10/2026) : le maillon dzcapture est posé APRÈS celui-ci : defaire se lit sur le livré vu d'avant dzcapture
+BW = AIDE.avant_dzcapture(B) if hasattr(AIDE, "avant_dzcapture") else B
 check("2.1 avant_whatsapppage existe et rend defaire(B)",
-      lambda: PM is not None and AIDE.avant_whatsapppage(B) == PM.defaire(B))
+      lambda: PM is not None and AIDE.avant_whatsapppage(B) == PM.defaire(BW))
 check("2.2 avant_whatsapppage sans marqueur : rendu tel quel",
-      lambda: AIDE.avant_whatsapppage(PM.defaire(B)) == PM.defaire(B))
+      lambda: AIDE.avant_whatsapppage(PM.defaire(BW)) == PM.defaire(BW))
 check("2.3 avant_dzwhatsapp défait whatsapppage D'ABORD, puis dzwhatsapp",
       lambda: MARKER not in AIDE.avant_dzwhatsapp(B) and "/*dzwhatsapp*/" not in AIDE.avant_dzwhatsapp(B)
       and AIDE.avant_dzwhatsapp(B) == AIDE.avant_dzwhatsapp(AIDE.avant_whatsapppage(B)))

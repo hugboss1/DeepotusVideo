@@ -43,6 +43,8 @@ PARTAGES = {
     "frontend/shared/dz-pour-qui.js": ("espaces.pourqui.",),
     # t311 (27/10/2026) : le panneau « Agent WhatsApp » de Réglages › Espaces ; son « Fermer » est commun
     "frontend/shared/dz-whatsapp-espace.js": ("whatsapp.espace.",),
+    # t315 (28/10/2026) : l'enregistreur de l'app (bouton de la barre, boîte de départ, pastille, boîte de fin)
+    "frontend/shared/dz-capture.js": ("capture.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")

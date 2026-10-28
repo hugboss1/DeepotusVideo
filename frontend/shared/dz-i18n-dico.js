@@ -1495,6 +1495,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "capture.note.sans_ec": {"fr": "tout l'onglet", "en": "whole tab"},
   "capture.note.sans_voix": {"fr": "sans voix", "en": "no voice"},
   "capture.note.verif": {"fr": "onglet non vérifié", "en": "tab not verified"},
+  "capture.pastille.arreter": {"fr": "Arrêter", "en": "Stop"},
   "capture.pastille.camera": {"fr": "Caméra allumée", "en": "Camera on"},
   "capture.pastille.envoi": {"fr": "Rangement…", "en": "Saving…"},
   "capture.pastille.micro": {"fr": "Micro allumé", "en": "Microphone on"},

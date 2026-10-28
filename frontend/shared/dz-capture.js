@@ -68,7 +68,7 @@ if (!window.__dzCapture) {
     encart: "position:fixed;z-index:2147483002;overflow:hidden;background:#000;border:2px solid var(--brand,#f0b429);cursor:move;touch-action:none;box-shadow:0 8px 28px rgba(0,0,0,.5)",
     poignee: "position:absolute;right:0;bottom:0;width:16px;height:16px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 50%,var(--brand,#f0b429) 50%)",
   };
-  const CSS = ".dzCapGl{display:inline-flex;align-items:center}.dzCapGl svg{display:block}"
+  const CSS = ".dzCapGl{display:inline-flex;align-items:center;vertical-align:middle;margin-right:5px}.dzCapGl svg{display:block}"
     + "[data-dz-capture-ouvrir]{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;align-self:center;margin:0 4px;padding:4px 10px;font-size:12px;border-radius:0;cursor:pointer;background:transparent;color:inherit;border:1px solid var(--stroke,#2a3138)}"
     + "[data-dz-capture-ouvrir][data-actif]{border-color:#e5484d;color:#e5484d}"
     + "[data-dz-capture-ouvrir]:disabled{opacity:.45;cursor:not-allowed}";
@@ -86,7 +86,7 @@ if (!window.__dzCapture) {
 
   // ── le bouton de la barre du haut ──
   const bouton = el("button", { type: "button", "data-dz-capture-ouvrir": true, "data-dz-capture-ui": true,
-    on: { click: () => (session ? arreter() : ouvrir()) } });
+    title: T("capture.barre.titre"), on: { click: () => (session ? arreter() : ouvrir()) } });
   function peindreBouton() {
     const actif = !!session;
     bouton.replaceChildren(glyphe(actif ? "dz-media-arret" : "dz-media-rec"),
@@ -126,31 +126,41 @@ if (!window.__dzCapture) {
       else if (!ev.shiftKey && i === f.length - 1) { ev.preventDefault(); f[0].focus(); }
     });
   }
-  function caseA(nom, coche, cle) {
-    const c = el("input", { type: "checkbox", "data-dz-capture-option": nom });
+  // une case et son libellé (la case porte aussi le libellé en aria-label : lu par le catalogue de « Demander »)
+  function caseA(c, coche) {
     c.checked = !!coche;
-    return { c, ligne: el("label", { style: S.ligne }, [c, el("span", { texte: T(cle) })]) };
+    return { c, ligne: el("label", { style: S.ligne }, [c, el("span", { texte: c.getAttribute("aria-label") })]) };
   }
+
   function ouvrir() {
     if (session || boite || !disponible()) return;
     const memo = (() => { try { return JSON.parse(lire("dz_capture_options") || "{}") || {}; } catch (e) { return {}; } })();
     const radio = (v) => {
-      const r = el("input", { type: "radio", name: "dzCapCadre", value: v, "data-dz-capture-option": "mode-" + v });
+      const r = el("input", { type: "radio", name: "dzCapCadre", value: v, "data-dz-capture-option": "mode-" + v,
+        "aria-label": T(v === "app" ? "capture.cadre.app" : "capture.cadre.onglet") });
       r.checked = (memo.mode === "onglet" ? "onglet" : "app") === v;
-      return el("label", { style: S.ligne }, [r, el("span", { texte: T("capture.cadre." + v) })]);
+      return el("label", { style: S.ligne }, [r, el("span", { texte: r.getAttribute("aria-label") })]);
     };
-    const voix = caseA("voix", memo.voix !== false, "capture.son.voix");
-    const son = caseA("son_onglet", memo.son_onglet === true, "capture.son.onglet");
-    const cam = caseA("camera", false, "capture.camera.accord");           // l'accord se redonne à chaque capture
+    const voix = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "voix", "aria-label": T("capture.son.voix") }),
+      memo.voix !== false);
+    const son = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "son_onglet", "aria-label": T("capture.son.onglet") }),
+      memo.son_onglet === true);
+    // l'accord se redonne à chaque capture : jamais coché d'office
+    const cam = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "camera", "aria-label": T("capture.camera.accord") }),
+      false);
     const forme = el("select", { style: S.champ, "data-dz-capture-option": "forme", "aria-label": T("capture.camera.forme") },
       ["cercle", "carre", "vif"].map((f) => { const o = el("option", { value: f, texte: T("capture.forme." + f) }); return o; }));
     forme.value = formeLue(memo.forme);
-    const clics = caseA("clics", memo.clics !== false, "capture.clics.piste");
-    const halo = caseA("halo", memo.halo !== false, "capture.clics.halo");
-    const zoom = caseA("zoom", memo.zoom === true, "capture.clics.zoom");
+    const clics = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "clics", "aria-label": T("capture.clics.piste") }),
+      memo.clics !== false);
+    const halo = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "halo", "aria-label": T("capture.clics.halo") }),
+      memo.halo !== false);
+    const zoom = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "zoom", "aria-label": T("capture.clics.zoom") }),
+      memo.zoom === true);
     const erreur = el("div", { style: S.erreur, role: "alert", "data-dz-capture-erreur": true });
-    const btnDemarrer = el("button", { type: "button", style: S.principal, "data-dz-capture-demarrer": true });
-    btnDemarrer.append(glyphe("dz-media-rec"), document.createTextNode(" " + T("capture.boite.demarrer")));
+    const btnDemarrer = el("button", { type: "button", style: S.principal, "data-dz-capture-demarrer": true,
+      texte: T("capture.boite.demarrer") });
+    btnDemarrer.insertBefore(glyphe("dz-media-rec"), btnDemarrer.firstChild);
     const btnAnnuler = el("button", { type: "button", style: S.bouton, texte: T("capture.boite.annuler"), on: { click: fermerBoite } });
     const lireOptions = () => ({
       mode: (boite.querySelector('input[name="dzCapCadre"]:checked') || {}).value === "onglet" ? "onglet" : "app",
@@ -378,7 +388,8 @@ if (!window.__dzCapture) {
     if (session.preuve) enfants.push(el("em", { texte: T("capture.pastille.preuve"), style: "color:#f0b429" }));
     for (const n of session.notes) enfants.push(el("span", { texte: n, style: "font-size:11px;color:#9aa4ae" }));
     const arret = el("button", { type: "button", style: S.bouton + ";padding:3px 10px;border-color:#e5484d", "data-dz-capture-arreter": true,
-      on: { click: () => arreter() } }, [glyphe("dz-media-arret"), document.createTextNode(" " + T("capture.barre.arreter"))]);
+      texte: T("capture.pastille.arreter"), on: { click: () => arreter() } });
+    arret.insertBefore(glyphe("dz-media-arret"), arret.firstChild);
     enfants.push(arret);
     const p = el("div", { style: S.pastille, role: "status", "aria-live": "polite", "data-dz-capture-ui": true,
       "data-dz-capture-pastille": true }, enfants);

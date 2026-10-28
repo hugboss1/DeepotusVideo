@@ -214,6 +214,7 @@ function Noeud(tag){ this.tagName = String(tag).toUpperCase(); this.enfants = []
 Object.defineProperty(Noeud.prototype, "textContent", {get(){ return this._t + this.enfants.map(e => e.textContent).join(""); },
   set(v){ this._t = String(v); this.enfants = []; }});
 Object.defineProperty(Noeud.prototype, "parentNode", {get(){ return this.parent; }});
+Object.defineProperty(Noeud.prototype, "firstChild", {get(){ return this.enfants[0] || null; }});
 Object.defineProperty(Noeud.prototype, "lastElementChild", {get(){ return this.enfants[this.enfants.length - 1] || null; }});
 Object.defineProperty(Noeud.prototype, "isConnected", {get(){ let n = this; while (n.parent) n = n.parent; return n === document.documentElement; }});
 Noeud.prototype.setAttribute = function(k, v){ this.attrs[k] = String(v); if (k === "id") this.id = String(v); };
