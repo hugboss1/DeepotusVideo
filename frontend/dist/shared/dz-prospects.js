@@ -177,8 +177,8 @@
         barre.appendChild(el("button", { type: "button", "data-dz-prospects": "filtre-" + s, "aria-pressed": etat.filtre === s ? "true" : "false",
           texte: T("prospects.statut." + s) + " " + n, on: { click: function () { etat.filtre = s; etat.fiche = null; dessiner(); } } }));
       });
-      barre.appendChild(el("button", { type: "button", "data-dz-prospects": "vue-tableau", "aria-pressed": etat.tableau ? "true" : "false",   // t358
-        texte: T("prospects.bouton.tableau"), on: { click: function () { etat.tableau = !etat.tableau; etat.fiche = null; dessiner(); } } }));
+      barre.appendChild(el("button", { type: "button", "data-dz-prospects": "vue-tableau", texte: T("prospects.bouton.tableau"),   // t358
+        "aria-pressed": etat.tableau ? "true" : "false", on: { click: function () { etat.tableau = !etat.tableau; etat.fiche = null; dessiner(); } } }));
       barre.appendChild(el("button", { type: "button", "data-dz-prospects": "ajouter", texte: T("prospects.bouton.ajouter"),
         on: { click: function () { etat.fiche = null; vider(corps); corps.appendChild(formulaire(null)); } } }));
       barre.appendChild(el("button", { type: "button", "data-dz-prospects": "opposition-saisir", texte: T("prospects.bouton.opposition"),

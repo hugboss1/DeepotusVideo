@@ -1,0 +1,57 @@
+<p class="chapeau-chap">You will learn to follow what your competitors' customers say (<b class="ui">Watch</b> tab), keep your list of prospects (<b class="ui">Prospects</b> tab) and let the Campaigns agent find them, write to them and follow their replies. Nothing goes out without your approval, and the app enforces the law. Fifteen minutes; the watch and the records are <span class="prix">free</span>, web search and WhatsApp template messages are <span class="prix">paid</span>.</p>
+
+<h3>Before you start</h3>
+<p>Everything happens in the <kbd>F1</kbd> drawer, <b class="ui">Watch</b> and <b class="ui">Prospects</b> tabs, for the workspace chosen in their list (see <a href="#marques">Work for several brands</a>). The agent that searches and writes is the Campaigns agent (see <a href="#agent-campagnes">Run a campaign with the agent</a>): it needs an Anthropic key. Emails go out from your mailbox or Brevo, WhatsApp messages from the workspace's number (WhatsApp screen).</p>
+
+<h3>Watching competitors</h3>
+<ol class="etapes">
+<li>Open the <b class="ui">Watch</b> tab. It shows the workspace's latest watch: the competitors × themes matrix, the most cited pains, message angles and requests to decide.</li>
+<li><b class="ui">Start a collection</b>, or ask the agent "run the watch": Hacker News, YouTube comments (yt-dlp must be installed on the PC) and App Store reviews, read-only, for free, 15 minutes at most.</li>
+<li>Quotes are evidence to read, never instructions. A public post that states a need never opens a record: the agent suggests a useful public reply, which you post yourself, once.</li>
+</ol>
+
+<h3>The Prospects records</h3>
+<ol class="etapes">
+<li><b class="ui">Prospects</b> tab › <b class="ui">Add a prospect</b>: the source (type, date, address for a web page) and the legal basis are required. A consumer webmail address cannot use B2B legitimate interest.</li>
+<li>Statuses follow the pipeline: Suggested, Qualified, Contacted, Replied, Meeting, Client (signed), Lost, Objected. Only allowed moves are offered. <b class="ui">Board</b> shows every record in columns.</li>
+<li>At <b class="ui">Meeting</b>, the app creates a "demo" workspace: it never publishes and is used for the showcase campaign (see below).</li>
+<li>People's rights: <b class="ui">Export their data</b>, <b class="ui">Delete the record</b>, <b class="ui">Objects to prospecting</b>. An opt-out applies to all your workspaces; messages prepared for that person are emptied at once.</li>
+</ol>
+
+<h3>Let the agent find and qualify</h3>
+<ol class="etapes">
+<li>Ask "find me prospects": the agent suggests records from inbound WhatsApp contacts who agreed, a CSV file you drop (waiting list, form: dated consent), or a company page you paste. The French company register (free) gives targets, without records: their website is needed next.</li>
+<li>A web search for companies is paid: the agent shows a quote card, nothing runs before your click. The provider and its keys are set in <span class="chemin"><b class="ui">Prospects</b> › <b class="ui">Web search</b></span>.</li>
+<li>Records suggested by the agent say "suggested by the agent". The score starts from a fixed scale, which the agent may adjust by ±20 with a reason. A record found on the web shows "To inform before …" (one month, GDPR art. 14).</li>
+</ol>
+
+<h3>Writing: sequences and gates</h3>
+<ol class="etapes">
+<li>Once the record is <b class="ui">Qualified</b> (or Contacted), ask the agent for a sequence. It drafts it: a first message and up to two follow-ups, on a channel the record allows, in the workspace's voice and without its forbidden words.</li>
+<li>This is gate 2: <b class="ui">Approve the sequence</b>, in the agent's card or in the record's <b class="ui">Sequences</b> block. Then <b class="ui">Schedule</b>: each message lands within the workspace's sending hours (the WhatsApp agent's hours), emails under the daily cap.</li>
+<li><strong>X, Instagram, LinkedIn</strong>: the app never sends private messages. At the planned time, <b class="ui">Copy and open</b> copies the text and opens the profile; you send it, then <b class="ui">Mark as sent</b>.</li>
+<li><strong>WhatsApp</strong>: only contacts who agreed. Follow-ups are Meta-approved templates; free text only goes if the contact wrote within 24 hours. A STOP applies to every number of the workspace and, outside client workspaces, to all prospecting.</li>
+</ol>
+
+<h3>The email channel</h3>
+<ol class="etapes">
+<li><span class="chemin"><b class="ui">Prospects</b> › <b class="ui">Email</b></span>: the sender, company name and postal address (required), sending from your mailbox (SMTP) or through Brevo, and reading replies (IMAP). The password is sealed for this Windows session and never shown.</li>
+<li><b class="ui">Send a test</b> writes to your own address, never to a prospect.</li>
+<li>Every email carries your identity and "reply STOP". Replies are read from the mailbox: a reply moves the record to "Replied", a STOP opts it out. No email goes out while reading fails.</li>
+<li>Cap: 10 emails a day the first week, 20 the second, 30 after that (can be set lower). Too many bounces or a spam complaint pause sending; <b class="ui">Resume sending</b> restarts it.</li>
+</ol>
+
+<h3>Following replies</h3>
+<ol class="etapes">
+<li>Ask "who replied?": the agent reads the replies (the email text; for WhatsApp, only the date).</li>
+<li>For an email reply, it suggests ONE short reply, on that channel, which you approve like a sequence; or it hands the record back to you.</li>
+<li>Price, quote, deadline or contract, complaint, refusal, STOP, or a WhatsApp reply to read: the record goes to <b class="ui">To take back</b> and the agent stops writing to it. The badge goes away when you note a contact or change the status.</li>
+</ol>
+
+<h3>The showcase campaign</h3>
+<p>For a prospect at the meeting stage, the agent prepares a showcase campaign in their demo workspace: persona, drafts, visuals, to show what you would do. It never publishes. On the <a href="#mobile">paired phone</a>, the agent screen offers “Showcase campaign” for each demo workspace; on the PC, open a Campaigns conversation in that workspace.</p>
+
+<h3>Good to know</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>The watch, the records, the company register and emails are free; the agent's turns, web search and WhatsApp templates are paid, counted under the "campagnes" category (WhatsApp under its own), within your caps.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>The agent never approves a sequence for you, never promises a price or a deadline, and never writes to someone who opted out. A public handle or comment is never reused in a message.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>A sequence stops on its own when the prospect replies, books a meeting, signs, is lost, opts out or withdraws consent.</p></aside>
