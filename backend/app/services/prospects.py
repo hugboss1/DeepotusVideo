@@ -216,9 +216,41 @@ def valider(doc) -> dict | None:
            "prochaine_action": ({"texte": _txt(pa.get("texte"), 300), "le": _date_ok(pa.get("le")) or None}
                                 if pa and _txt(pa.get("texte"), 300) else None),
            "dernier_contact_entrant": _date_ok(d.get("dernier_contact_entrant")) or None,
-           "espace_demo": d.get("espace_demo") if _es.id_valide(d.get("espace_demo")) else None}
+           "espace_demo": d.get("espace_demo") if _es.id_valide(d.get("espace_demo")) else None,
+           "par_agent": d.get("par_agent") is True,
+           "informer_avant": _date_ok(d.get("informer_avant")) or None,
+           "qualification": _qualification(d.get("qualification"))}
     out["purge_le"] = _date_ok(d.get("purge_le")) or purge_le(out)
     return out
+
+
+def _qualification(q) -> dict | None:
+    """t354 : la qualification gardée (barème, ajustement borné, raison, canaux possibles), ou None."""
+    if not isinstance(q, dict) or not isinstance(q.get("base"), int) or isinstance(q.get("base"), bool):
+        return None
+    aj = q.get("ajustement") if isinstance(q.get("ajustement"), int) and not isinstance(q.get("ajustement"), bool) else 0
+    return {"base": max(0, min(100, q["base"])), "ajustement": max(-20, min(20, aj)), "raison": _txt(q.get("raison"), 300),
+            "details": [{"critere": _txt(x.get("critere"), 40), "points": x["points"]}
+                        for x in (q.get("details") if isinstance(q.get("details"), list) else [])
+                        if isinstance(x, dict) and isinstance(x.get("points"), int)][:10],
+            "canaux_possibles": [{"canal": x.get("canal"), "mode": x.get("mode"), "raison": _txt(x.get("raison"), 200)}
+                                 for x in (q.get("canaux_possibles") if isinstance(q.get("canaux_possibles"), list) else [])
+                                 if isinstance(x, dict) and x.get("canal") in CANAUX
+                                 and x.get("mode") in ("auto_apres_porte", "manuel")][:MAX_CANAUX],
+            "le": _txt(q.get("le"), 40), "qui": q.get("qui") if q.get("qui") in QUI else "utilisateur"}
+
+
+INDIRECTES = ("web", "recommandation")
+DELAI_INFORMATION = 30
+
+
+def informer_avant(fiche: dict) -> str | None:
+    """t354 (RGPD art. 14) : une collecte INDIRECTE (page web, recommandation) oblige à informer la personne dans le mois :
+    collecte (aujourd'hui, à la création de la fiche) + 30 jours ; None pour une collecte directe."""
+    if (fiche.get("source") or {}).get("type") not in INDIRECTES:
+        return None
+    from datetime import timedelta
+    return (_aujourdhui() + timedelta(days=DELAI_INFORMATION)).isoformat()
 
 
 # ---- contrôles des champs saisis ------------------------------------------------------------------------------------
@@ -416,8 +448,9 @@ def creer(eid, champs, qui: str = "utilisateur") -> dict:
                      "entreprise": entreprise, "role": champs.get("role"), "source": source,
                      "signal": champs.get("signal"), "offre": champs.get("offre"), "score": _score(champs.get("score")),
                      "canaux": canaux, "base_legale": base, "statut": "propose",
-                     "prochaine_action": champs.get("prochaine_action")})
+                     "prochaine_action": champs.get("prochaine_action"), "par_agent": qui == "agent"})
     fiche["purge_le"] = purge_le(fiche)
+    fiche["informer_avant"] = informer_avant(fiche)          # t354 : RGPD art. 14, collecte indirecte
     if _reg(_op.oppose, identifiants(fiche)):
         raise RefusProspect("cette personne s'est opposée à la prospection : elle ne peut pas être ajoutée", "opposition")
     with _verrou:
@@ -604,6 +637,35 @@ def revoquer_consentement(eid, pid, canal) -> dict:
         for c in en_cours:
             c["revoque_le"] = _aujourdhui().isoformat()
         _noter(f, "revocation", canal)
+        _poser(eid, fiches)
+    return f
+
+
+def qualifier(eid, pid, offre, ajustement=0, raison: str = "", qui: str = "utilisateur") -> dict:
+    """t354 : score = barème (prospects_score) + `ajustement` (±20, raison exigée s'il n'est pas nul), `offre`, canaux
+    possibles. Ne touche JAMAIS le statut : l'utilisateur seul passe un prospect à « qualifié »."""
+    from app.services import prospects_score as _sc
+    if offre not in OFFRES:
+        raise RefusProspect("offre inconnue (licence, prestation ou à définir)", "champ")
+    try:
+        _sc.score(0, ajustement)
+    except ValueError as e:
+        raise RefusProspect(str(e), "champ") from None
+    raison = _txt(raison, 300)
+    if ajustement and not raison:
+        raise RefusProspect("un ajustement du score exige sa raison", "champ")
+    _espace(eid)
+    with _verrou:
+        fiches = _charger(eid)
+        f = _trouver(fiches, pid)
+        _modifiable(f)
+        f["offre"] = offre
+        b = _sc.bareme(f)
+        f["score"] = _sc.score(b["base"], ajustement)
+        f["qualification"] = {"base": b["base"], "ajustement": ajustement, "raison": raison, "details": b["details"],
+                              "canaux_possibles": _sc.canaux_possibles(f), "le": _es._maintenant(),
+                              "qui": qui if qui in QUI else "utilisateur"}
+        _noter(f, "qualification", f"{f['score']}/100 · {offre}", qui)
         _poser(eid, fiches)
     return f
 

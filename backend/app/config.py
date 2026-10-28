@@ -187,6 +187,11 @@ class Settings(BaseSettings):
     # t310 (27/10/2026) : WhatsApp par Kapso — UNE clé plate partagée par tous les espaces (services/comptes.py, CLE_PLATE) ;
     # les champs de chaque compte whatsapp (numéro, client Kapso…) sont posés par la liaison, jamais ici.
     KAPSO_API_KEY: str = ""
+    # t354 (28/10/2026) : les fournisseurs de recherche web de la prospection (au coffre, posées depuis l'onglet
+    # Prospects ; Anthropic garde ANTHROPIC_API_KEY)
+    TAVILY_API_KEY: str = ""
+    EXA_API_KEY: str = ""
+    SERPER_API_KEY: str = ""
 
     # v1.11: local LLM via Ollama (optional). When OLLAMA_MODEL is set, the
     # marketing plan generator uses your local model — plans never leave the

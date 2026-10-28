@@ -74,7 +74,7 @@ check("constantes du format", lambda: (
     F.ROLES_MESSAGE == ("utilisateur", "agent", "outil", "fait")
     and F.TYPES_BLOC == ("texte", "carte", "resultat_outil", "porte")
     and F.GENRES_CARTE == ("porte", "devis", "continuer", "espace", "brouillons", "ouvrir",
-                          "reponse_whatsapp", "modele_whatsapp", "humain")
+                          "reponse_whatsapp", "modele_whatsapp", "humain", "recherche")   # t354 : recherche web d'entreprises
     and F.ETATS_CARTE == ("proposee", "acceptee", "refusee", "terminee")))
 
 m = F.nouveau_message("agent", TXT)

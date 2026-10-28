@@ -183,7 +183,8 @@
   // t285 T9 (relecture) : la ligne d'un outil = son libellé traduit (campagnes.outil.<nom>) + son état ; le résumé du
   // serveur (en français) n'est plus affiché. Un nom inconnu : un libellé générique.
   var OUTILS = ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_document", "ecrire_dossier",
-    "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "veille_collecter", "veille_lire"];
+    "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "veille_collecter", "veille_lire",
+    "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher"];
   function ligneOutil(nom, ok) {
     var lib = OUTILS.indexOf(String(nom)) >= 0 ? T("campagnes.outil." + nom) : T("campagnes.outil.inconnu");
     if (ok === true) return T("campagnes.fil.outil_ok", { outil: lib });
@@ -212,6 +213,7 @@
       case "espace": return T("campagnes.carte.espace");
       case "continuer": return T("campagnes.carte.continuer", { usd: usd(montantContinuer(b), true) });
       case "brouillons": return T("campagnes.carte.brouillons", { n: (a.ids || []).length });
+      case "recherche": return T("campagnes.carte.recherche");     // t354
       default: return String(b.libelle || "");   // secours : un genre que cet écran ne connaît pas
     }
   }
@@ -325,6 +327,26 @@
         if (propose) actions.appendChild(bouton(T("campagnes.action.continuer", { usd: usd(montantContinuer(b), true) }),
           function () { continuer(n, b); }, true, occupe));
         else c.appendChild(etat(T(e === "refusee" ? "campagnes.etat.refusee" : "campagnes.etat.acceptee")));
+      } else if (b.genre === "recherche") {      // t354 : une recherche web payante, lancée seulement si l'utilisateur accepte
+        c.appendChild(etat(T("campagnes.recherche.detail", { requete: String(a.requete || ""), fournisseur: String(a.fournisseur || ""),
+          usd: usd(a.devis_usd || 0) })));
+        if (propose) {
+          actions.appendChild(bouton(T("campagnes.action.rechercher", { usd: usd(a.devis_usd || 0) }), function () { decider(n, "acceptee"); }, true, occupe));
+          actions.appendChild(bouton(T("campagnes.action.refuser"), function () { decider(n, "refusee"); }, false, occupe));
+        } else if (e === "refusee") c.appendChild(etat(T("campagnes.etat.refusee")));
+        else {
+          var ra = Array.isArray((dernier.arguments || {}).resultats) ? dernier.arguments.resultats : [];
+          c.appendChild(etat(T("campagnes.recherche.trouves", { n: ra.length }), "ok"));
+          var ulr = el("ul", { class: "dzCampLignes", "data-dz-camp": "resultats" });
+          ra.forEach(function (x) {
+            var li = el("li", {});
+            var u = x && typeof x.url === "string" ? x.url : "";
+            if (/^https?:\/\//i.test(u)) li.appendChild(el("a", { class: "dzCampLien", href: u, target: "_blank", rel: "noopener noreferrer", texte: String(x.titre || u) }));
+            else li.appendChild(el("span", { texte: String((x && x.titre) || "") }));
+            ulr.appendChild(li);
+          });
+          c.appendChild(ulr);
+        }
       } else if (b.genre === "brouillons") {
         var ide = a.espace_id || (S.conv && S.conv.espace_id) || null;
         if (ide) c.appendChild(etat(T("campagnes.carte.brouillons_espace", { nom: nomEspace(ide) }), "", "brouillons-espace"));

@@ -35,7 +35,10 @@
   var CANAUX = ["email", "whatsapp", "telephone", "x", "instagram", "linkedin", "site", "autre"];
   var MOYENS = ["ecrit", "formulaire", "inscription", "whatsapp", "oral"];
   var NOTES = ["demo_active", "plafond_espaces", "demo_absente", "demo_erreur"];
-  var HISTO = ["creation", "modification", "statut", "consentement", "revocation", "contact_entrant", "contact_sortant", "opposition"];
+  var HISTO = ["creation", "modification", "statut", "consentement", "revocation", "contact_entrant", "contact_sortant", "opposition",
+    "qualification"];
+  var CRITERES = ["source_entrante", "source_web", "consentement", "canal_possible", "adresse_pro", "signal", "contact_recent"];   // t354
+  var FOURNISSEURS = ["anthropic", "tavily", "exa", "serper"];   // t354 : recherche web de la prospection
   var SAISIS = ["email", "telephone", "whatsapp", "linkedin"];     // les canaux du formulaire ; les autres sont gardés tels quels
   var JSON_H = { "Content-Type": "application/json" };
 
@@ -162,6 +165,8 @@
         on: { click: function () { etat.fiche = null; vider(corps); corps.appendChild(formulaire(null)); } } }));
       barre.appendChild(el("button", { type: "button", "data-dz-prospects": "opposition-saisir", texte: T("prospects.bouton.opposition"),
         on: { click: function () { vider(corps); corps.appendChild(saisieOpposition()); } } }));
+      barre.appendChild(el("button", { type: "button", "data-dz-prospects": "recherche", texte: T("prospects.bouton.recherche"),
+        on: { click: function () { vider(corps); corps.appendChild(reglageRecherche()); } } }));
     }
 
     function dessiner() {
@@ -184,6 +189,7 @@
         if (p.score !== null && p.score !== undefined) meta.push(T("prospects.liste.score", { n: p.score }));
         if (p.prochaine_action && p.prochaine_action.texte) meta.push(T("prospects.liste.prochaine", { texte: p.prochaine_action.texte, le: p.prochaine_action.le || "—" }));
         meta.push(T("prospects.liste.purge", { le: p.purge_le || "—" }));
+        if (p.par_agent) meta.push(T("prospects.liste.par_agent"));      // t354
         corps.appendChild(el("button", { type: "button", class: "dzProspectsLigne", "data-dz-prospects": "ligne", "data-id": p.id,
           on: { click: function () { etat.fiche = p; etat.note = ""; dessiner(); } } }, [
           el("strong", { texte: titre }), el("span", { texte: lib(STATUTS, "prospects.statut.", p.statut) }),
@@ -290,6 +296,10 @@
       if (p.espace_demo) bloc.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "espace-demo",
         texte: T(p.statut === "client" ? "prospects.fiche.espace_client" : "prospects.fiche.espace_demo",
           { id: typeof (etat.demos || {})[p.espace_demo] === "string" ? etat.demos[p.espace_demo] : p.espace_demo }) }));
+      if (p.par_agent) bloc.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "par-agent", texte: T("prospects.fiche.par_agent") }));
+      if (p.informer_avant) bloc.appendChild(el("p", { class: p.informer_avant < aujourdhui() ? "dzProspectsErreur" : "dzProspectsNote",
+        "data-dz-prospects": "informer", texte: T("prospects.fiche.informer", { le: p.informer_avant }) }));     // t354 : RGPD art. 14
+      if (p.statut !== "oppose") bloc.appendChild(blocQualification(p, zone));
       if (etat.note && NOTES.indexOf(etat.note) >= 0) bloc.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "note",
         "data-note": etat.note, texte: T("prospects.note." + etat.note) }));
       // statut : seuls les passages permis
@@ -369,6 +379,68 @@
       bloc.appendChild(confirmer);
       bloc.appendChild(zone);
       return bloc;
+    }
+
+    // t354 : la qualification (barème du serveur, ajustement borné, raison, canaux possibles) et son recalcul
+    function blocQualification(p, zone) {
+      var q = p.qualification;
+      var b = el("div", { "data-dz-prospects": "qualification" }, [el("h3", { texte: T("prospects.titre.qualification") })]);
+      if (q && typeof q.base === "number") {
+        var aj = (q.ajustement > 0 ? "+" : "") + String(q.ajustement || 0);
+        var lignes = [T("prospects.qualif.score", { score: p.score, base: q.base, ajustement: aj })];
+        if (q.raison) lignes.push(T("prospects.qualif.raison", { texte: q.raison }));
+        (q.details || []).forEach(function (d) { lignes.push(T("prospects.qualif.critere", { critere: lib(CRITERES, "prospects.critere.", d.critere), points: d.points })); });
+        (q.canaux_possibles || []).forEach(function (c) {
+          lignes.push(T(c.mode === "manuel" ? "prospects.qualif.canal_manuel" : "prospects.qualif.canal_auto", { canal: lib(CANAUX, "prospects.canal.", c.canal) }));
+        });
+        if (q.canaux_possibles && q.canaux_possibles.some(function (c) { return c.mode === "manuel"; })) lignes.push(T("prospects.qualif.manuel"));
+        b.appendChild(el("ul", {}, lignes.map(function (t) { return el("li", { texte: t }); })));
+      } else b.appendChild(el("p", { class: "dzProspectsNote", texte: T("prospects.qualif.aucune") }));
+      b.appendChild(el("div", { class: "dzProspectsActions" }, [el("button", { type: "button", "data-dz-prospects": "qualifier",
+        texte: T("prospects.bouton.qualifier"), on: { click: async function () {
+          var j = await geste("/qualifier", { offre: p.offre || "a_definir", ajustement: 0 }, zone);
+          if (j) { etat.fiche = j; await recharger(); } } } })]));
+      return b;
+    }
+
+    // t354 : le fournisseur de la recherche web d'entreprises (payante, lancée par une carte acceptée) et ses clés
+    function reglageRecherche() {
+      var zone = el("div", { "data-dz-prospects": "erreur" });
+      var res = el("p", { class: "dzProspectsNote", "data-dz-prospects": "recherche-resultat" });
+      var sel = el("select", { "data-dz-prospects": "recherche-fournisseur", "aria-label": T("prospects.recherche.fournisseur") });
+      var cle = el("input", { type: "password", autocomplete: "off", "data-dz-prospects": "recherche-cle", "aria-label": T("prospects.recherche.cle"), placeholder: T("prospects.recherche.cle") });
+      var etatR = el("ul", { "data-dz-prospects": "recherche-etat" });
+      function peindre(j) {
+        vider(sel); vider(etatR);
+        var liste = j.fournisseurs && j.fournisseurs.length ? j.fournisseurs : FOURNISSEURS.map(function (f) { return { id: f }; });
+        liste.forEach(function (f) {
+          if (FOURNISSEURS.indexOf(f.id) < 0) return;
+          sel.appendChild(el("option", { value: f.id, texte: T("prospects.recherche." + f.id) }));
+          if (f.configure !== undefined) etatR.appendChild(el("li", { texte: T(f.configure ? "prospects.recherche.pret" : "prospects.recherche.sans_cle",
+            { nom: T("prospects.recherche." + f.id), usd: String(f.prix_usd) }) }));
+        });
+        sel.value = j.fournisseur || "anthropic";
+      }
+      sel.addEventListener("change", async function () {
+        var r = await appel("POST", "recherche/fournisseur", { fournisseur: sel.value });
+        if (!vivant) return;
+        if (!r.ok) { erreur(zone, r.j); return; }
+        vider(zone); res.textContent = T("prospects.recherche.choisi");
+      });
+      var enregistrer = el("button", { type: "button", "data-dz-prospects": "recherche-cle-enregistrer", texte: T("prospects.bouton.cle"), on: { click: async function () {
+        var r = await appel("POST", "recherche/cle", { fournisseur: sel.value, valeur: cle.value });
+        cle.value = "";
+        if (!vivant) return;
+        if (!r.ok) { erreur(zone, r.j); return; }
+        vider(zone); res.textContent = T("prospects.recherche.cle_posee");
+        if (r.j && r.j.fournisseurs && r.j.fournisseurs.length) peindre(r.j);
+      } } });
+      appel("GET", "recherche").then(function (r) { if (!vivant) return; if (r.ok) peindre(r.j); else erreur(zone, r.j); });
+      return el("div", { "data-dz-prospects": "recherche-reglage" }, [
+        el("h3", { texte: T("prospects.titre.recherche") }),
+        el("p", { class: "dzProspectsNote", texte: T("prospects.recherche.aide") }),
+        el("div", { class: "dzProspectsActions" }, [sel, cle, enregistrer]), etatR, res, zone,
+        el("button", { type: "button", "data-dz-prospects": "annuler", texte: T("prospects.bouton.retour"), on: { click: function () { dessiner(); } } })]);
     }
 
     function saisieOpposition() {
