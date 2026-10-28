@@ -129,6 +129,10 @@ except AP.ApifyRefus as x:
     e = x
 check("1.7 valeur trop longue : refus", e is not None, e)
 
+f = AP.filtrer("reddit", {"searches": ["higgsfield ai"]}, 100)
+check("1.8 reddit (essai du 28/10 : 10 posts sur 100) : maxPostCount = N, pas de communautés, pas d'URL de départ",
+      f["maxItems"] == 100 and f["maxPostCount"] == 100 and f["skipCommunity"] is True and f["ignoreStartUrls"] is True, f)
+
 print("[2] devis")
 d = run(AP.devis("google_maps", 100))
 check("2.1 PPE : démarrage + par lieu × N, sans les événements optionnels", abs(d - (0.00005 + 0.4)) < 1e-6, d)

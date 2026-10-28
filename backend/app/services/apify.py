@@ -51,7 +51,11 @@ ACTEURS = {
                       "evenements": {"actor-start-gb", "pages-scraped"}},
     "reddit": {"acteur": "trudax~reddit-scraper-lite", "build": "5.8.7", "usage": "veille", "max": "maxItems",
                "champs": {"searches", "searchCommunityName", "sort", "time"},
-               "impose": {"skipUserPosts": True, "includeNSFW": False, "searchUsers": False, "searchCommunities": False}},
+               # essai réel du 28/10 : maxPostCount (10 par défaut) bornait la collecte à 10 posts et 2 pages de
+               # communauté passaient ; `aussi` : les champs mis au nombre demandé en plus de `max`
+               "aussi": ("maxPostCount",),
+               "impose": {"skipUserPosts": True, "includeNSFW": False, "searchUsers": False, "searchCommunities": False,
+                          "skipCommunity": True, "maxCommunitiesCount": 0, "ignoreStartUrls": True}},
     "x": {"acteur": "apidojo~tweet-scraper", "build": "0.0.1567", "usage": "veille", "max": "maxItems",
           "champs": {"searchTerms", "sort", "tweetLanguage"}, "impose": {}},
     "instagram": {"acteur": "apify~instagram-comment-scraper", "build": "0.0.647", "usage": "veille",
@@ -245,7 +249,8 @@ def filtrer(cle: str, entree: dict, n: int) -> dict:
             raise ApifyRefus(f"valeur illisible ou trop longue pour {k}", 422)
     propre = dict(entree)
     propre.update(a["impose"])
-    propre[a["max"]] = _borne(n)
+    for k in (a["max"], *a.get("aussi", ())):
+        propre[k] = _borne(n)
     return propre
 
 
