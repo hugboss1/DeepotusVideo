@@ -43,6 +43,7 @@ MDP_MIN = 8
 
 # Ce qui est un SECRET, et ce qui n'est qu'un réglage : un modèle par défaut ou l'identifiant d'un salon Telegram n'a
 # rien à faire derrière un mot de passe ; un jeton en clair sur le disque, si.
+SECRETES_ENV = {"APIFY_TOKEN"}     # t364 : les secrets dont la variable d'environnement est une voie prévue
 SECRETES = {
     "FAL_KEY", "HEYGEN_API_KEY", "ELEVENLABS_API_KEY", "MESHY_API_KEY",
     "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "FIGMA_TOKEN",
@@ -341,10 +342,10 @@ def archiver(mot_de_passe: str) -> bytes:
         raise CoffreVerrouille("le coffre est fermé : ouvrez-le pour que l'archive porte ses clés")
     cles = {k: v for k, v in lire_env().items() if v}
     cles.update((_ouvert or {}).get("cles") or {})
-    # t364 (28/10/2026) : un secret posé SEULEMENT en variable d'environnement (APIFY_TOKEN posé par l'utilisateur)
-    # sert l'application : il voyage aussi, sinon la machine d'arrivée le perd sans le dire.
+    # t364 (28/10/2026) : APIFY_TOKEN se pose aussi en variable d'environnement utilisateur (script du skill) ; posé
+    # SEULEMENT là, il voyage quand même. Relecture : jamais les AUTRES variables (des clés d'autres outils du poste).
     import os as _os
-    cles.update({k: _os.environ[k].strip() for k in SECRETES if not cles.get(k) and (_os.environ.get(k) or "").strip()})
+    cles.update({k: _os.environ[k].strip() for k in SECRETES_ENV if not cles.get(k) and (_os.environ.get(k) or "").strip()})
     objet = {"format": 1, "genre": "archive", "cree_le": _t.strftime("%Y-%m-%dT%H:%M:%S"),
              "app_version": APP_VERSION, "machine": socket.gethostname(), "cles": cles,
              "plafonds": _plaf.charger(), "pricing": _pricing.load()}

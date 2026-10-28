@@ -39,7 +39,7 @@ RUNS = []
 DEVIS = {"usd": 0.08}
 
 
-async def faux_devis(cle, n):
+async def faux_devis(cle, n, entree=None):
     return DEVIS["usd"]
 
 

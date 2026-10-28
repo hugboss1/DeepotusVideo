@@ -10,7 +10,9 @@ Coutures de banc : _GET, _POST, _HORLOGE.
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import math
 import time
 
 from app.config import DATA_ROOT, settings
@@ -24,6 +26,7 @@ MAX_RESULTATS = 500
 MAX_TEXTE = 300
 MAX_LISTE = 20
 PANNES_MAX = 3
+ATTENTE_PANNE_S = 5.0                           # relecture : entre deux relectures en panne, jamais une boucle serrée
 DEMARRAGE = ("start", "apify-actor-start", "actor-start-gb", "actor-start")
 _SANS_PROXY_RESIDENTIEL = {"useApifyProxy": True}
 _SANS_RESEAUX = {"facebooks": False, "instagrams": False, "youtubes": False, "tiktoks": False, "twitters": False}
@@ -32,7 +35,7 @@ _SANS_RESEAUX = {"facebooks": False, "instagrams": False, "youtubes": False, "ti
 # `evenements` : les seuls événements payants que l'entrée imposée laisse partir (le devis ignore les autres).
 ACTEURS = {
     "google_maps": {"acteur": "compass~crawler-google-places", "build": "0.14.777", "usage": "leads",
-                    "max": "maxCrawledPlacesPerSearch",
+                    "max": "maxCrawledPlacesPerSearch", "par": ("searchStringsArray",),
                     "champs": {"searchStringsArray", "locationQuery", "language", "skipClosedPlaces"},
                     "impose": {"scrapePlaceDetailPage": False, "scrapeContacts": False, "scrapeDirectories": False,
                                "includeWebResults": False, "scrapeTableReservationProvider": False,
@@ -59,18 +62,22 @@ ACTEURS = {
     "x": {"acteur": "apidojo~tweet-scraper", "build": "0.0.1567", "usage": "veille", "max": "maxItems",
           "champs": {"searchTerms", "sort", "tweetLanguage"}, "impose": {}},
     "instagram": {"acteur": "apify~instagram-comment-scraper", "build": "0.0.647", "usage": "veille",
-                  "max": "resultsLimit", "champs": {"directUrls"}, "impose": {"includeNestedComments": False}},
+                  "max": "resultsLimit", "par": ("directUrls",), "champs": {"directUrls"},
+                  "impose": {"includeNestedComments": False}},
     "avis_google_maps": {"acteur": "compass~Google-Maps-Reviews-Scraper", "build": "0.0.541", "usage": "veille",
-                         "max": "maxReviews", "champs": {"startUrls", "placeIds", "reviewsSort", "language"},
+                         "max": "maxReviews", "par": ("startUrls", "placeIds"),
+                         "champs": {"startUrls", "placeIds", "reviewsSort", "language"},
                          "impose": {"personalData": False}},
     "google_play": {"acteur": "thewolves~google-play-reviews-scraper", "build": "0.0.988", "usage": "veille",
                     "max": "maxItems", "champs": {"appIds", "country", "language", "sort"}, "impose": {}},
     "trustpilot": {"acteur": "automation-lab~trustpilot", "build": "0.1.55", "usage": "veille",
-                   "max": "maxReviewsPerCompany", "champs": {"companyUrls", "sort", "languages"},
+                   "max": "maxReviewsPerCompany", "par": ("companyUrls",), "champs": {"companyUrls", "sort", "languages"},
                    "impose": {"includeCompanyInfo": False}},
     "g2": {"acteur": "automation-lab~g2-scraper", "build": "0.1.43", "usage": "veille", "max": "maxReviews",
+           "par": ("productUrls",),
            "champs": {"productUrls", "sortReviews"}, "impose": {"mode": "reviews"}},
     "tiktok": {"acteur": "clockworks~tiktok-scraper", "build": "0.0.625", "usage": "veille", "max": "resultsPerPage",
+               "par": ("searchQueries", "hashtags", "profiles"),
                "champs": {"searchQueries", "hashtags", "profiles", "videoSearchSorting", "videoSearchDateFilter",
                           "oldestPostDateUnified"},
                "impose": {"shouldDownloadVideos": False, "shouldDownloadCovers": False,
@@ -81,10 +88,11 @@ ACTEURS = {
                           "proxyCountryCode": "None"},
                "evenements": {"result", "actor-start"}},
     "tiktok_commentaires": {"acteur": "clockworks~tiktok-comments-scraper", "build": "0.0.481", "usage": "veille",
-                            "max": "commentsPerPost", "champs": {"postURLs"}, "impose": {"maxRepliesPerComment": 0},
+                            "max": "commentsPerPost", "par": ("postURLs",), "champs": {"postURLs"},
+                            "impose": {"maxRepliesPerComment": 0},
                             "evenements": {"result"}},
     "instagram_posts": {"acteur": "apify~instagram-scraper", "build": "0.0.831", "usage": "veille",
-                        "max": "resultsLimit", "champs": {"directUrls", "onlyPostsNewerThan"},
+                        "max": "resultsLimit", "par": ("directUrls",), "champs": {"directUrls", "onlyPostsNewerThan"},
                         "impose": {"resultsType": "posts", "addParentData": False}, "evenements": {"result"}},
 }
 
@@ -145,7 +153,7 @@ async def _post(url: str, corps, jeton: str | None = None) -> tuple[int, object]
             return r.status_code, None
 
 
-_GET, _POST, _HORLOGE = _get, _post, time.monotonic       # coutures du banc
+_GET, _POST, _HORLOGE, _DORMIR = _get, _post, time.monotonic, asyncio.sleep       # coutures du banc
 
 
 def _acteur(cle: str) -> dict:
@@ -155,8 +163,8 @@ def _acteur(cle: str) -> dict:
 
 
 def _propre(message, jeton: str) -> str:
-    m = str(message or "")[:200]
-    return m.replace(jeton, "***") if jeton else m
+    m = str(message or "")
+    return (m.replace(jeton, "***") if jeton else m)[:200]          # masquer AVANT de couper
 
 
 def _cache(cle: str):
@@ -196,19 +204,36 @@ def _borne(n) -> int:
     return max(1, min(int(n or 1), MAX_RESULTATS))
 
 
-async def devis(cle: str, n: int) -> float:
-    """Estimation haute en $ de N résultats (palier le plus cher ; seuls les événements permis)."""
+def _entrees(a: dict, entree) -> int:
+    """Le nombre d'entrées (recherches, URL…) auxquelles le champ `max` s'applique CHACUNE ; 1 sans liste `par`."""
+    e = entree if isinstance(entree, dict) else {}
+    return max(1, sum(len(e.get(k) or []) if isinstance(e.get(k), list) else 0 for k in a.get("par", ())))
+
+
+def _par_entree(cle: str, entree, n: int) -> int:
+    return math.ceil(_borne(n) / _entrees(_acteur(cle), entree))
+
+
+def volume(cle: str, entree, n: int) -> int:
+    """Le nombre de résultats que l'entrée peut VRAIMENT produire : N réparti par entrée, arrondi au-dessus
+    (relecture : un devis à N quand 20 recherches en prennent chacune N sous-estimait jusqu'à 20 fois)."""
+    return _par_entree(cle, entree, n) * _entrees(_acteur(cle), entree)
+
+
+async def devis(cle: str, n: int, entree=None) -> float:
+    """Estimation haute en $ du volume de l'entrée (palier le plus cher ; seuls les événements permis). Un modèle de
+    prix inconnu, ou un PPE sans événement par résultat permis, est REFUSÉ : jamais un devis à 0 $ par défaut."""
     a = _acteur(cle)
-    n = _borne(n)
+    v = volume(cle, entree, n)
     pi = await _tarif(cle)
     modele = pi.get("pricingModel")
-    if modele == "FLAT_PRICE_PER_MONTH":
-        raise ApifyRefus("Actor au forfait mensuel : refusé", 422)
     if modele == "PRICE_PER_DATASET_ITEM":
-        return round(float(pi.get("pricePerUnitUsd") or 0) * n, 6)
+        return round(float(pi.get("pricePerUnitUsd") or 0) * v, 6)
     if modele == "FREE":
         return FORFAIT_CALCUL_USD
-    total, permis = 0.0, a.get("evenements")
+    if modele != "PAY_PER_EVENT":
+        raise ApifyRefus(f"modèle de prix d'Apify non pris en charge : {str(modele)[:40]}", 422)
+    total, permis, par_resultat = 0.0, a.get("evenements"), False
     for nom, ev in ((pi.get("pricingPerEvent") or {}).get("actorChargeEvents") or {}).items():
         if permis is not None and nom not in permis:
             continue
@@ -216,13 +241,16 @@ async def devis(cle: str, n: int) -> float:
         if prix is None:
             prix = max((t.get("tieredEventPriceUsd", 0) for t in (ev.get("eventTieredPricingUsd") or {}).values()),
                        default=0)
-        total += float(prix) * (1 if nom in DEMARRAGE else n)
+        par_resultat = par_resultat or nom not in DEMARRAGE
+        total += float(prix) * (1 if nom in DEMARRAGE else v)
+    if not par_resultat:
+        raise ApifyRefus(f"prix d'Apify sans événement par résultat pour {a['acteur']} : à relever", 422)
     return round(total, 6)
 
 
-async def op(cle: str, n: int) -> dict:
+async def op(cle: str, n: int, entree=None) -> dict:
     """L'op chiffrée par pricing (plafonds) : le devis tel quel."""
-    return {"kind": "apify", "acteur": _acteur(cle)["acteur"], "usd": await devis(cle, n)}
+    return {"kind": "apify", "acteur": _acteur(cle)["acteur"], "usd": await devis(cle, n, entree)}
 
 
 def _valeur_sure(v) -> bool:
@@ -249,7 +277,8 @@ def filtrer(cle: str, entree: dict, n: int) -> dict:
             raise ApifyRefus(f"valeur illisible ou trop longue pour {k}", 422)
     propre = dict(entree)
     propre.update(a["impose"])
-    for k in (a["max"], *a.get("aussi", ())):
+    propre[a["max"]] = _par_entree(cle, entree, n)
+    for k in a.get("aussi", ()):
         propre[k] = _borne(n)
     return propre
 
@@ -262,17 +291,21 @@ async def lancer(cle: str, entree: dict, n: int, plafond: float | None = None) -
     corps = filtrer(cle, entree, n)
     plafond_usage = PLAFONDS[a["usage"]]
     plafond = min(float(plafond), plafond_usage) if plafond else plafond_usage
-    d = await devis(cle, n)
+    d = await devis(cle, n, entree)
     if d > plafond:
         raise ApifyRefus(f"devis {d:.2f} $ au-delà du plafond {plafond:.2f} $ : réduire le nombre de résultats", 402)
+    v = volume(cle, entree, n)
     jeton = _jeton()
     if not jeton:
         raise SansCle("aucune clé Apify : posez-la dans Réglages › Clés d'API")
-    q = f"build={a['build']}&maxTotalChargeUsd={plafond}&maxItems={n}&timeout={DUREE_MAX}&waitForFinish=60"
+    q = f"build={a['build']}&maxTotalChargeUsd={plafond}&maxItems={v}&timeout={DUREE_MAX}&waitForFinish=60"
     try:
         statut, j = await _POST(f"{API}/acts/{a['acteur']}/runs?{q}", corps, jeton)
     except Exception as e:  # noqa: BLE001
-        raise ApifyRefus(f"Apify injoignable ({type(e).__name__})", 502) from None
+        # relecture : la requête a pu partir (réponse perdue) ; issue inconnue, sans id pour relire : le coût noté est
+        # le plafond de l'usage, que `maxTotalChargeUsd` borne de toute façon
+        raise ApifyEchec(f"Apify injoignable pendant le lancement ({type(e).__name__}) : issue inconnue, coût "
+                         "compté au plafond", plafond) from None
     run = ((j or {}).get("data") if isinstance(j, dict) else None) or None
     if statut not in (200, 201) or not run:
         err = ((j or {}).get("error") or {}) if isinstance(j, dict) else {}
@@ -290,9 +323,15 @@ async def lancer(cle: str, entree: dict, n: int, plafond: float | None = None) -
             break
         try:
             statut, j = await _GET(f"{API}/actor-runs/{rid}?waitForFinish=60", jeton)
-            run = ((j or {}).get("data") if isinstance(j, dict) else None) or run
+            lu = ((j or {}).get("data") if isinstance(j, dict) else None) if statut == 200 else None
         except Exception:  # noqa: BLE001 — relu au tour suivant, jamais relancé
+            lu = None
+        if lu:
+            run, pannes = lu, 0
+        else:                                           # relecture : 429, 5xx, page HTML… = une panne, et l'on attend
             pannes += 1
+            if pannes < PANNES_MAX:
+                await _DORMIR(ATTENTE_PANNE_S * pannes)
     items = []
     try:
         _s, li = await _GET(f"{API}/datasets/{run.get('defaultDatasetId')}/items?clean=true&format=json&limit={n}", jeton)
@@ -318,7 +357,7 @@ async def carte_collecte(cle: str, entree: dict, n: int) -> dict:
     a = _acteur(cle)
     n = _borne(n)
     filtrer(cle, entree, n)
-    d = await devis(cle, n)
+    d = await devis(cle, n, entree)
     if d > PLAFONDS[a["usage"]]:
         raise ApifyRefus(f"devis {d:.2f} $ au-delà du plafond {PLAFONDS[a['usage']]:.2f} $ : réduire le nombre de "
                          "résultats", 402)

@@ -662,7 +662,7 @@ async def _reserver_collecte(cid: str, l: dict, orig: dict) -> dict:
         AP.filtrer(cle, entree, n)
         if not AP.configure():
             raise HTTPException(503, "aucune clé Apify : posez-la dans Réglages › Clés d'API")
-        d = await AP.devis(cle, n)
+        d = await AP.devis(cle, n, entree)
         plafond = AP.PLAFONDS[AP.ACTEURS[cle]["usage"]]
         if d > plafond:
             raise AP.ApifyRefus(f"devis {d:.2f} $ au-delà du plafond {plafond:.2f} $ : réduire le nombre de résultats", 402)

@@ -79,6 +79,11 @@ check("3.2 retirée : plus dans l'archive", not a["cles"].get("APIFY_TOKEN"), a[
 os.environ["APIFY_TOKEN"] = JETON
 a = CF.dechiffrer(CF.archiver("archive-solide-2"), "archive-solide-2")
 check("3.3 posée seulement en variable d'environnement : dans l'archive aussi", a["cles"].get("APIFY_TOKEN") == JETON)
+os.environ["HEYGEN_API_KEY"] = "heygen-dune-autre-appli"
+a = CF.dechiffrer(CF.archiver("archive-solide-2"), "archive-solide-2")
+check("3.4 relecture : une AUTRE clé posée seulement en variable d'environnement n'est pas emportée",
+      not a["cles"].get("HEYGEN_API_KEY"), a["cles"].get("HEYGEN_API_KEY"))
+os.environ["HEYGEN_API_KEY"] = ""
 os.environ["APIFY_TOKEN"] = ""
 CF.fermer()
 

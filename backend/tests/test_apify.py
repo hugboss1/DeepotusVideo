@@ -225,6 +225,48 @@ AP._GET = ancien
 check("10.1 le run est relu par son id, jamais relancé", len([a for a in APPELS if a[0] == "POST" and "/abort" not in a[1]]) == 1, APPELS)
 check("10.2 résultats rendus (partiels : suivi perdu)", r["items"] == items and r["partiel"] is True, r)
 
+print("[11] relecture : suivi sans boucle serrée")
+DORMI = []
+async def faux_dormir(s):
+    DORMI.append(s)
+AP._DORMIR = faux_dormir
+scenario((201, {"data": dict(run_fini()["data"], status="RUNNING")}), [{"statut": 503, "json": None}], items, run_fini("ABORTED", 0.01))
+r = run(AP.lancer("google_maps", ENTREE_GM, 20))
+gets = [a for a in APPELS if a[0] == "GET" and "/actor-runs/R1?" in a[1]]
+check("11.1 une réponse 503 compte comme panne : suivi borné, abort, partiel", r["partiel"] is True and len(gets) == AP.PANNES_MAX
+      and any("/abort" in a[1] for a in APPELS), (len(gets), r))
+check("11.2 attente entre deux relectures en panne (jamais une boucle serrée)", len(DORMI) >= AP.PANNES_MAX - 1 and all(s > 0 for s in DORMI), DORMI)
+
+print("[12] relecture : devis au volume réel (N par recherche)")
+AP.vider_cache()
+G3 = dict(ENTREE_GM, searchStringsArray=["a", "b", "c"])
+f = AP.filtrer("google_maps", G3, 100)
+check("12.1 3 recherches, N=100 : 34 lieux par recherche (102 au plus)", f["maxCrawledPlacesPerSearch"] == 34, f)
+d = run(AP.devis("google_maps", 100, G3))
+check("12.2 devis sur 102 lieux, pas 100", abs(d - (0.00005 + 102 * 0.004)) < 1e-6, d)
+check("12.3 le volume (maxItems) suit", AP.volume("google_maps", G3, 100) == 102)
+
+print("[13] relecture : modèle de prix inconnu ou sans événement par résultat")
+PRIX["trudax~reddit-scraper-lite"] = {"data": {"pricingInfos": [{"pricingModel": "RENTAL"}]}}
+AP.vider_cache()
+check("13.1 modèle inconnu : refus, jamais 0 $", isinstance(erreur(AP.devis("reddit", 100)), AP.ApifyRefus))
+PRIX["compass~crawler-google-places"] = ppe({"apify-actor-start": {"eventPriceUsd": 0.00005}, "place-renamed": {"eventPriceUsd": 0.004}})
+AP.vider_cache()
+check("13.2 PPE sans événement par résultat permis : refus", isinstance(erreur(AP.devis("google_maps", 100)), AP.ApifyRefus))
+
+print("[14] relecture : panne pendant le lancement")
+PRIX["compass~crawler-google-places"] = ppe({"apify-actor-start": {"eventPriceUsd": 0.00005}, "place-scraped": {"eventPriceUsd": 0.004}})
+AP.vider_cache()
+async def post_panne(url, corps, jeton=None):
+    raise OSError("connexion coupée après l'envoi")
+ancien_post = AP._POST
+AP._POST = post_panne
+e = erreur(AP.lancer("google_maps", ENTREE_GM, 20))
+AP._POST = ancien_post
+check("14.1 issue inconnue : ApifyEchec, coût noté au plafond de l'usage (le run a pu partir)",
+      isinstance(e, AP.ApifyEchec) and e.cout_usd == AP.PLAFONDS["leads"], e)
+check("14.2 le message masque le jeton même au-delà de 200 caractères", JETON not in AP._propre("x" * 195 + JETON, JETON))
+
 settings.APIFY_TOKEN = ""
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)
