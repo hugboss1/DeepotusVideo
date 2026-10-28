@@ -54,6 +54,8 @@ PARTAGES = {
     # t328 (28/10/2026) : le panneau « Diffusion WhatsApp » de l'inspecteur d'un post du Planificateur ; sa boîte de
     # confirmation (diffusion.confirmer.*, diffusion.liste.*) est une boîte, pas un élément du panneau
     "frontend/shared/dz-diffusion-whatsapp.js": ("diffusion.action.", "diffusion.modele.choisir"),
+    # t319 (28/10/2026) : brouillon de tutoriel (éditeur de montage) et parcours partagés (boîte de départ, rejeu)
+    "frontend/shared/dz-tutoriels.js": ("tuto.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")

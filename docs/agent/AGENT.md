@@ -141,6 +141,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   est aussi enregistré dans la Bibliothèque. → [GUIDE:bibliotheque]
 - **S'inspirer d'un post sans le republier** : Planificateur › « Depuis une inspiration » (capture, angles, devis,
   brouillon du projet ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:planificateur]
+- **Tutoriel et parcours d'une capture** (t319) : éditeur de montage › « Tutoriel… » (une étape par geste, titres et
+  phrases FR/EN, « Fabriquer les brouillons » sans rien publier, « Exporter le parcours » .dzparcours) ; « Filmer
+  l'app » › « Parcours… » importe et rejoue : « Montrer » pointe le vrai bouton, sans cliquer. → [GUIDE:bibliotheque]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]

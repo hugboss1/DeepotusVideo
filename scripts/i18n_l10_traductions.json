@@ -12078,5 +12078,73 @@
  "l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est relancé, réessayez dans un instant": {
   "fr": "l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est relancé, réessayez dans un instant",
   "en": "the previous broadcast could not be neutralised at Kapso (outage): nothing was relaunched, try again in a moment"
+ },
+ "Une fabrication de ce tutoriel est déjà en cours.": {
+  "fr": "Une fabrication de ce tutoriel est déjà en cours.",
+  "en": "This tutorial is already being built."
+ },
+ "Parcours illisible.": {
+  "fr": "Parcours illisible.",
+  "en": "Unreadable walkthrough."
+ },
+ "Parcours trop lourd.": {
+  "fr": "Parcours trop lourd.",
+  "en": "Walkthrough too large."
+ },
+ "La vidéo de la capture est illisible.": {
+  "fr": "La vidéo de la capture est illisible.",
+  "en": "The recording's video is unreadable."
+ },
+ "Parcours introuvable.": {
+  "fr": "Parcours introuvable.",
+  "en": "Walkthrough not found."
+ },
+ "Brouillon de tutoriel illisible.": {
+  "fr": "Brouillon de tutoriel illisible.",
+  "en": "Unreadable tutorial draft."
+ },
+ "Brouillon de tutoriel trop long.": {
+  "fr": "Brouillon de tutoriel trop long.",
+  "en": "Tutorial draft too long."
+ },
+ "Aucune étape gardée dans ce brouillon.": {
+  "fr": "Aucune étape gardée dans ce brouillon.",
+  "en": "No step is kept in this draft."
+ },
+ "Vidéo trop lourde pour un parcours.": {
+  "fr": "Vidéo trop lourde pour un parcours.",
+  "en": "Video too large for a walkthrough."
+ },
+ "Identifiant de parcours invalide.": {
+  "fr": "Identifiant de parcours invalide.",
+  "en": "Invalid walkthrough identifier."
+ },
+ "Parcours refusé : entrée inattendue dans l'archive.": {
+  "fr": "Parcours refusé : entrée inattendue dans l'archive.",
+  "en": "Walkthrough refused: unexpected entry in the archive."
+ },
+ "Parcours refusé : il faut parcours.json et une seule vidéo.": {
+  "fr": "Parcours refusé : il faut parcours.json et une seule vidéo.",
+  "en": "Walkthrough refused: it needs parcours.json and a single video."
+ },
+ "Parcours refusé : la vidéo n'est pas une vidéo WebM ou MP4.": {
+  "fr": "Parcours refusé : la vidéo n'est pas une vidéo WebM ou MP4.",
+  "en": "Walkthrough refused: the video is not a WebM or MP4 video."
+ },
+ "Un export de ce parcours est déjà en cours.": {
+  "fr": "Un export de ce parcours est déjà en cours.",
+  "en": "An export of this walkthrough is already running."
+ },
+ "Trop de parcours importés : retirez-en avant d'importer.": {
+  "fr": "Trop de parcours importés : retirez-en avant d'importer.",
+  "en": "Too many imported walkthroughs: remove some before importing."
+ },
+ "Export du parcours impossible pour l'instant : réessayez.": {
+  "fr": "Export du parcours impossible pour l'instant : réessayez.",
+  "en": "The walkthrough cannot be exported right now: try again."
+ },
+ "Ce parcours est en cours de lecture : fermez-le avant de le retirer.": {
+  "fr": "Ce parcours est en cours de lecture : fermez-le avant de le retirer.",
+  "en": "This walkthrough is playing: close it before removing it."
  }
 }
