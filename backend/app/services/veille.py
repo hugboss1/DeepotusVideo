@@ -307,3 +307,34 @@ def _importer(eid, source: str) -> dict:
                 (d / n).unlink(missing_ok=True)
         raise ValueError(f"import illisible : {type(e).__name__} : {str(e)[:200]}") from None
     return {"date": date, "lignes": len(propres), "ignorees": ko, "rapport": rap}
+
+
+# ---- t366 (28/10/2026) : la veille enrichie par Apify --------------------------------------------------------------
+
+def poser_perimetre(eid, p: dict) -> dict:
+    """Garde `p` (validé) comme périmètre de l'espace, dans le dossier de la date la plus récente (sinon du jour)."""
+    _verifier(eid)
+    propre = VC.valider_perimetre(p)
+    date = (_dates(eid) or [dt.date.today().isoformat()])[0]
+    _ecrire_json(dossier(eid, date) / "perimetre.json", propre)
+    return propre
+
+
+def ajouter_brut(eid, source: str, concurrent: str, lignes: list[dict]) -> dict:
+    """Ajoute des lignes collectées hors de la collecte niveau 1 (une collecte Apify acceptée) au brut de la DERNIÈRE
+    veille (jamais un rapport neuf et maigre qui cacherait la veille complète ; le jour même s'il n'y en a aucune),
+    dédoublonnées (lien + texte), puis reconsolide — sauf si une collecte tourne : elle consolidera à sa fin."""
+    _verifier(eid)
+    date = (_dates(eid) or [dt.date.today().isoformat()])[0]
+    d = dossier(eid, date) / "brut"
+    d.mkdir(parents=True, exist_ok=True)
+    f = d / f"apify-{source}-{concurrent}.jsonl"
+    vus = {VC.cle(l) for l in _lignes(f)[0]} if f.exists() else set()
+    neuves = [l for l in lignes if VC.cle(l) not in vus and not vus.add(VC.cle(l))]
+    with f.open("a", encoding="utf-8", newline="\n") as fh:
+        for l in neuves:
+            fh.write(json.dumps(l, ensure_ascii=False) + "\n")
+    if _en_vie(eid) or eid in _IMPORTS:
+        return {"ajoutes": len(neuves), "consolide": False}
+    _consolider(eid, date, [])
+    return {"ajoutes": len(neuves), "consolide": True}

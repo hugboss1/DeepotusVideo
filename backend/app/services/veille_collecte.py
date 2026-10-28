@@ -42,6 +42,10 @@ MAX_REQUETES = 4                       # requêtes HN par concurrent
 MAX_APPS = 2
 MAX_PAYS = 3
 MAX_BRUT = 3000                        # textes neufs par collecte
+# t366 (28/10/2026) : les sources de veille collectées par Apify (carte de devis) ; leurs valeurs au périmètre
+SOURCES_APIFY = ("reddit", "x", "instagram", "instagram_posts", "tiktok", "tiktok_commentaires", "avis_google_maps",
+                 "google_play", "trustpilot", "g2")
+MAX_VALEURS_APIFY = 5
 DUREE_MAX = 900.0                      # secondes, toute la collecte
 DELAI_HTTP = 20.0
 DELAI_YTDLP = 180.0                    # secondes par vidéo
@@ -88,7 +92,10 @@ def valider_perimetre(p: dict) -> dict:
                 raise ValueError(f"périmètre : {quoi} invalide : {mauvais[0][:40]}")
         out.append({"id": c["id"], "famille": str(c.get("famille") or "")[:30], "hn": _textes(c.get("hn"), MAX_REQUETES),
                     "youtube": youtube[:MAX_VIDEOS_PAR_CONCURRENT], "appstore": apps[:MAX_APPS],
-                    "pays": pays[:MAX_PAYS] or ["us"]})
+                    "pays": pays[:MAX_PAYS] or ["us"],
+                    "apify": {s: v for s in SOURCES_APIFY                        # t366 : sources par Apify
+                              if (v := _textes((c.get("apify") or {}).get(s) if isinstance(c.get("apify"), dict) else None,
+                                               MAX_VALEURS_APIFY, 300))}})
     jours = p.get("depuis_jours", DEPUIS_JOURS)
     jours = jours if isinstance(jours, int) and 1 <= jours <= 3650 else DEPUIS_JOURS
     return {"version": 1, "depuis_jours": jours, "concurrents": out}

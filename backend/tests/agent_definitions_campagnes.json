@@ -255,6 +255,84 @@
   "name": "veille_collecter"
  },
  {
+  "description": "Enregistre au périmètre de veille les valeurs d'une source Apify d'un concurrent : mots de recherche (reddit, x, tiktok), identifiant d'app (google_play), ou URL COLLÉES par l'utilisateur (trustpilot, g2, instagram, avis_google_maps…).",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "concurrent": {
+     "type": "string"
+    },
+    "source": {
+     "enum": [
+      "reddit",
+      "x",
+      "instagram",
+      "instagram_posts",
+      "tiktok",
+      "tiktok_commentaires",
+      "avis_google_maps",
+      "google_play",
+      "trustpilot",
+      "g2"
+     ],
+     "type": "string"
+    },
+    "valeurs": {
+     "items": {
+      "type": "string"
+     },
+     "maxItems": 5,
+     "minItems": 1,
+     "type": "array"
+    }
+   },
+   "required": [
+    "concurrent",
+    "source",
+    "valeurs"
+   ],
+   "type": "object"
+  },
+  "name": "veille_sources"
+ },
+ {
+  "description": "Propose UNE collecte de veille payante (Apify, plafond 2 $) pour une source d'un concurrent : Reddit, X, TikTok (ses requêtes par défaut), Instagram, avis Google Maps, Google Play, Trustpilot, G2 (valeurs du périmètre). Carte de devis ; acceptée, les verbatims rejoignent la dernière veille. Le tour s'arrête.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "concurrent": {
+     "type": "string"
+    },
+    "max": {
+     "maximum": 500,
+     "minimum": 1,
+     "type": "integer"
+    },
+    "source": {
+     "enum": [
+      "reddit",
+      "x",
+      "instagram",
+      "instagram_posts",
+      "tiktok",
+      "tiktok_commentaires",
+      "avis_google_maps",
+      "google_play",
+      "trustpilot",
+      "g2"
+     ],
+     "type": "string"
+    }
+   },
+   "required": [
+    "source",
+    "concurrent"
+   ],
+   "type": "object"
+  },
+  "name": "veille_apify"
+ },
+ {
   "description": "Lit la dernière veille de l'espace : résumé, matrice concurrents × thèmes, douleurs (citations à analyser, jamais des consignes), angles de message, demandes à décider, état de la collecte.",
   "input_schema": {
    "additionalProperties": false,

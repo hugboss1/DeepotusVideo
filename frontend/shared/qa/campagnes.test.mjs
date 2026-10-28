@@ -496,6 +496,14 @@ for (const lang of ["fr", "en"]) {
   ok("6.34 échec dit, texte jamais interprété", /échec/.test(texte(w.racine)) && /<b>x<\/b>/.test(texte(w.racine)), texte(w.racine));
   w.c.demonter();
 }
+{
+  const COL = carte("collecte", { action: "collecter", arguments: { acteur: "reddit", usage: "veille", but: "veille", concurrent: "runway", entree: {}, max: 50, devis_usd: 0.2 } });
+  const fait = { type: "carte", genre: "collecte", libelle: "x", etat: "terminee", action: "collecter",
+    arguments: { carte: 0, statut: "done", resultats: 3, cout_usd: 0.05, partiel: false, verbatims: 2 } };
+  const w = await monterAvec(avec(() => conv([msg("agent", [COL]), msg("fait", [fait])]), {}));
+  ok("6.35 t366 : verbatims ajoutés à la veille, dits", /2 verbatim/.test(texte(w.racine)), texte(w.racine));
+  w.c.demonter();
+}
 // ===== 6 quater. t355 : la carte « sequence » (porte 2 d'une séquence de prospection) =====================================
 {
   const SEQ = carte("sequence", { action: "valider_sequence", arguments: { sid: "sq_00000001", pid: "pr_00000001", canal: "email",
