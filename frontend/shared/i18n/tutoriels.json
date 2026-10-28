@@ -57,7 +57,7 @@
   "tuto.rejeu.montrer_aide": {"fr": "Le pointeur de « Demander » va au bouton de cette étape, ici ; à vous de cliquer", "en": "The “Ask” pointer goes to this step's button, here; you do the clicking"},
   "tuto.rejeu.absent": {"fr": "Cet élément n'existe pas dans cette installation : suivez la vidéo.", "en": "This element does not exist in this installation: follow the video."},
   "tuto.rejeu.introuvable": {"fr": "Le bouton n'est pas visible sur cet écran pour l'instant : suivez la vidéo.", "en": "The button is not visible on this screen right now: follow the video."},
-  "tuto.erreur.chargement": {"fr": "Lecture impossible : {msg}", "en": "Could not load: {msg}"},
+  "tuto.erreur.chargement": {"fr": "Chargement impossible : {msg}", "en": "Could not load: {msg}"},
   "tuto.erreur.action": {"fr": "Échec : {msg}", "en": "Failed: {msg}"},
   "tuto.erreur.import": {"fr": "Import refusé : {msg}", "en": "Import refused: {msg}"}
 }

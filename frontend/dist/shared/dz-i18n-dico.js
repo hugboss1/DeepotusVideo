@@ -15751,7 +15751,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "tuto.entree.tutoriel": {"fr": "Tutoriel…", "en": "Tutorial…"},
   "tuto.entree.tutoriel_aide": {"fr": "Tirer de cette capture un brouillon de tutoriel et un parcours à partager", "en": "Turn this recording into a tutorial draft and a shareable walkthrough"},
   "tuto.erreur.action": {"fr": "Échec : {msg}", "en": "Failed: {msg}"},
-  "tuto.erreur.chargement": {"fr": "Lecture impossible : {msg}", "en": "Could not load: {msg}"},
+  "tuto.erreur.chargement": {"fr": "Chargement impossible : {msg}", "en": "Could not load: {msg}"},
   "tuto.erreur.import": {"fr": "Import refusé : {msg}", "en": "Import refused: {msg}"},
   "tuto.etape.entete": {"fr": "Étape {n} · {quand} · {ecran} · {fiche}", "en": "Step {n} · {quand} · {ecran} · {fiche}"},
   "tuto.etape.garder": {"fr": "Garder cette étape", "en": "Keep this step"},
