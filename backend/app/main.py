@@ -552,6 +552,9 @@ app.include_router(skins_router, prefix="/api/skins")
 # t317 (28/10/2026) : /api/capture-montage — le montage après coup des captures (zooms, coupes, chapitres, format), local seulement
 from app.api.capture_montage_routes import router as capture_montage_router
 app.include_router(capture_montage_router, prefix="/api/capture-montage")
+# t319 (28/10/2026) : /api/tutoriels — brouillon de tutoriel d'une capture et parcours partagés (.dzparcours), local seulement
+from app.api.tutoriels_routes import router as tutoriels_router
+app.include_router(tutoriels_router, prefix="/api/tutoriels")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
