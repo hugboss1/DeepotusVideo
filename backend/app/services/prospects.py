@@ -675,15 +675,16 @@ def qualifier(eid, pid, offre, ajustement=0, raison: str = "", qui: str = "utili
 def exporter(eid, pid) -> dict:
     """La fiche entière (droit d'accès), avec la date d'export, l'espace et l'état au registre."""
     f = lire(eid, pid)
-    from app.services import prospects_sequences as _sq      # t355 (relecture I1) : les messages préparés aussi
+    from app.services import email_canal as _em, prospects_sequences as _sq      # t355 / t356 : messages préparés et e-mails
     return dict(f, exporte_le=_es._maintenant(), espace=eid, oppose=_reg(_op.oppose, identifiants(f)),
-                sequences=_sq.pour_export(eid, pid))
+                sequences=_sq.pour_export(eid, pid), email=_em.pour_export(eid, pid))
 
 
 def _oublier_sequences(eid, pid) -> None:
     try:
-        from app.services import prospects_sequences as _sq
+        from app.services import email_canal as _em, prospects_sequences as _sq
         _sq.oublier(eid, pid)
+        _em.oublier(eid, pid)              # t356 (relecture I12) : le journal et les réponses e-mail aussi
     except Exception as e:  # noqa: BLE001 — la fiche est déjà effacée ; la lecture des séquences finira le travail
         logger.warning(f"séquences de {pid} non vidées tout de suite ({type(e).__name__})")
 

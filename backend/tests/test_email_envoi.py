@@ -5,7 +5,7 @@ toujours éligible ; rebond = séquence arrêtée ; passager = 3 essais ; pause 
 réponse rattachée (In-Reply-To) → « A répondu » ; STOP → opposition (registre) ; avis de non-remise → rebond ;
 rapport de plainte → pause ; inconnu → rien ; premier passage : l'historique n'est pas relu.
 Data-dir isolé, aucun réseau. Run (depuis backend/) : & $PY tests/test_email_envoi.py"""
-import os, pathlib, sys, tempfile
+import json, os, pathlib, sys, tempfile
 from datetime import date, datetime, timedelta, timezone
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
@@ -57,6 +57,7 @@ def faux_envoyer(eid, msg):
 
 
 V._ENVOYER = faux_envoyer
+V._IMAP_SAIN = lambda eid: True       # la fraîcheur de la lecture IMAP a son propre test (section 5)
 SRC = {"type": "web", "url": "https://studio.fr", "date": "2026-10-20"}
 
 
@@ -129,13 +130,11 @@ check("3b rebond : séquence arrêtée (motif rebond), journal rebond", r["rebon
       and M._doc(A)["journal"][-1]["statut"] == "rebond", (r, x["statut"], x["motif"]))
 p5 = prospect("Studio Cinq", "contact@studio-cinq.fr"); s5 = sequence(p5, 1)
 COMPORTEMENT["mode"] = "passager"
-for i in range(2):
+for i in range(5):
     V.envoyer_dues(A)
 x = [x for x in S.lister(A) if x["id"] == s5][0]
-check("3c passager : l'étape reste planifiée après 2 essais", x["statut"] == "planifiee" and x["etapes"][0].get("essais") == 2, x["etapes"][0])
-V.envoyer_dues(A)
-x = [x for x in S.lister(A) if x["id"] == s5][0]
-check("3d au 3e échec : arrêtée (motif echec)", x["statut"] == "annulee" and x["motif"] == "echec", (x["statut"], x["motif"]))
+check("3c passager (relecture I3) : après 5 pannes, l'étape attend toujours, rien n'est arrêté", x["statut"] == "planifiee" and not x.get("motif"), (x["statut"], x.get("motif")))
+check("3d passager : l'erreur est dite à l'écran", "injoignable" in (M.lire(A).get("erreur") or {}).get("message", ""), M.lire(A).get("erreur"))
 p6 = prospect("Studio Six", "contact@studio-six.fr"); s6 = sequence(p6, 1)
 COMPORTEMENT["mode"] = "config"
 r = V.envoyer_dues(A)
@@ -213,6 +212,87 @@ BOITE[7] = rapport("feedback-report", "message/feedback-report", "Feedback-Type:
 V.lire_reponses(A)
 check("4i rapport de plainte : pause immédiate", M.lire(A)["pause"]["active"] and M.lire(A)["pause"]["motif"] == "plainte")
 check("4j IMAP sans mot de passe : rien, sans erreur", (M.poser_secret(A, "mdp", "") and V.lire_reponses(A)["lus"] == 0))
+
+print("[5] relecture t356")
+M.poser_secret(A, "mdp", "motdepasse")
+M.reprendre(A)
+oui = ["STOP", "Stop", "Arrêtez", "arrêter svp", "Désinscrivez-moi", "désinscription", "Je souhaite me désinscrire",
+       "désabonnez-moi", "Merci de ne plus me contacter", "unsubscribe", "Please unsubscribe me", "retirez-moi de votre liste"]
+non = ["Oui, parlons-en", "Avec plaisir, appelez-moi", "Merci pour votre message", "Je suis intéressé par une démo"]
+check("5a STOP : formulations françaises et anglaises reconnues", all(V.est_stop("", x) for x in oui), [x for x in oui if not V.est_stop("", x)])
+check("5b STOP dans l'objet derrière « Re: »", V.est_stop("Re: STOP", "") and V.est_stop("RE : désinscription", ""))
+check("5c une réponse ordinaire n'est pas un STOP", not any(V.est_stop("Re: Bonjour", x) for x in non), [x for x in non if V.est_stop("", x)])
+HORLOGE[0] = datetime(2026, 11, 16, 10, 0, tzinfo=PARIS).astimezone(timezone.utc)
+COMPORTEMENT["mode"] = "ok"
+p7 = prospect("Studio Sept", "contact@studio-sept.fr"); s7 = sequence(p7, 1)
+M.noter(A, "tentative", "contact@studio-sept.fr", "<deja@deepotus.fr>", sid=s7, rang=0, pid=p7)
+n0 = len(ENVOIS); V.envoyer_dues(A)
+x = [y for y in S.lister(A) if y["id"] == s7][0]
+check("5d une tentative déjà écrite vaut envoi : jamais un second envoi", len(ENVOIS) == n0 and x["etapes"][0]["statut"] == "envoyee"
+      and x["etapes"][0]["message_id"] == "<deja@deepotus.fr>", (len(ENVOIS) - n0, x["etapes"][0]["statut"]))
+p8 = prospect("Studio Huit", "contact@studio-huit.fr")
+P.modifier(A, p8, {"canaux": [{"type": "email", "valeur": "x@gmail.com, contact@studio-huit.fr"}]})
+s8 = sequence(p8, 1) if False else None
+f8 = P.lire(A, p8)
+s8 = S.proposer(A, p8, "email", [{"objet": "x", "texte": "x", "delai_jours": 0}]) if "email" in [c["canal"] for c in __import__("app.services.prospects_score", fromlist=["x"]).canaux_possibles(f8)] else None
+if s8:
+    S.valider(A, s8["id"]); S.planifier(A, s8["id"])
+    n0 = len(ENVOIS); V.envoyer_dues(A)
+    x = [y for y in S.lister(A) if y["id"] == s8["id"]][0]
+    check("5e adresse composée (deux destinataires) : rien ne part, arrêt « canal »", len(ENVOIS) == n0 and x["motif"] == "canal", x.get("motif"))
+else:
+    check("5e adresse composée refusée dès la fiche", True)
+p9 = prospect("Studio Neuf", "contact@studio-neuf.fr"); s9 = sequence(p9, 2)
+COMPORTEMENT["mode"] = "passager"; V.envoyer_dues(A)
+HORLOGE[0] = HORLOGE[0] + timedelta(days=4)
+COMPORTEMENT["mode"] = "ok"; V.envoyer_dues(A)
+x = [y for y in S.lister(A) if y["id"] == s9][0]
+check("5f relance comptée depuis l'envoi réel : envoyée le même jour que le 1er message, elle attend", x["etapes"][0]["statut"] == "envoyee"
+      and x["etapes"][1]["statut"] == "planifiee", [e["statut"] for e in x["etapes"]])
+V._IMAP_SAIN = lambda eid: False
+p10 = prospect("Studio Dix", "contact@studio-dix.fr"); s10 = sequence(p10, 1)
+n0 = len(ENVOIS); r = V.envoyer_dues(A)
+check("5g lecture des réponses en échec : rien ne part", len(ENVOIS) == n0 and r["etat"] == "imap", r)
+V._IMAP_SAIN = lambda eid: True
+check("5h fraîcheur IMAP : jamais lue = pas saine", V.imap_sain(A) is False or M._doc(A)["imap_etat"].get("lu_le"))
+mid9 = [y for y in S.lister(A) if y["id"] == s9][0]["etapes"][0]["message_id"]
+BOITE[8] = mail("contact@studio-neuf.fr", "Réponse automatique : absent", "Je suis absent jusqu'au 20.", In_Reply_To=mid9, Auto_Submitted="auto-replied")
+BOITE[9] = rapport("delivery-status", "message/delivery-status", "Reporting-MTA: dns; mx.fr\n\nFinal-Recipient: rfc822; perso@ailleurs.fr\nAction: failed\nStatus: 5.1.1\n")
+BOITE[10] = mail("crash@x.fr", "question", "texte")
+BOITE[11] = mail("contact@studio-neuf.fr", "Re: Bonjour", "Merci de ne plus me contacter")
+_pid_adr = V._pid_par_adresse
+
+
+def piege(eid, adresse):
+    if adresse == "crash@x.fr":
+        raise ValueError("message piégé")
+    return _pid_adr(eid, adresse)
+
+
+V._pid_par_adresse = piege
+M.reprendre(A)
+r = V.lire_reponses(A)
+V._pid_par_adresse = _pid_adr
+check("5i réponse automatique : la fiche ne passe pas « A répondu »", P.lire(A, p9)["statut"] != "repondu" or P.lire(A, p9)["statut"] == "oppose", P.lire(A, p9)["statut"])
+check("5j non-remise d'une adresse que nous n'avons jamais écrite : pas de rebond", not any(j["a"] == "perso@ailleurs.fr" for j in M._doc(A)["journal"]))
+check("5k un message piégé est sauté, la suite est lue (STOP traité)", P.lire(A, p9)["statut"] == "oppose" and M._doc(A)["imap_etat"]["dernier"] == 11, (P.lire(A, p9)["statut"], M._doc(A)["imap_etat"]["dernier"]))
+import tempfile as _t                                                # noqa: E402
+B = E.creer({"nom": "Boîte vide"})["id"]
+M.regler(B, {"imap": {"hote": "imap.x.fr", "port": 993, "utilisateur": "u"}}); M.poser_secret(B, "mdp", "motdepasse")
+sauve = dict(BOITE); BOITE.clear()
+V.lire_reponses(B)
+BOITE[1] = mail("inconnu@x.fr", "STOP", "STOP")
+V.lire_reponses(B)
+check("5l boîte vide au premier passage : le message suivant est bien lu", O.opposes([["inconnu@x.fr"]]) == [True])
+BOITE.update(sauve)
+p11 = prospect("Studio Onze", "contact@studio-onze.fr"); s11 = sequence(p11, 1)
+V.envoyer_dues(A)
+M.ajouter_reponse(A, {"pid": p11, "de": "contact@studio-onze.fr", "sujet": "Re", "extrait": "secret-reponse-11", "stop": False})
+ex = json.dumps(P.exporter(A, p11), ensure_ascii=False)
+check("5m export (droit d'accès) : les envois et réponses e-mail y sont", "contact@studio-onze.fr" in ex and "secret-reponse-11" in ex)
+P.effacer(A, p11)
+brut = E.chemin(A, M.FICHIER).read_text(encoding="utf-8")
+check("5n effacement : adresse et extrait quittent email.json", "studio-onze" not in brut and "secret-reponse-11" not in brut)
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

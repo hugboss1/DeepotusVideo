@@ -11686,5 +11686,21 @@
  "registre des oppositions indisponible ({name})": {
   "fr": "registre des oppositions indisponible ({name})",
   "en": "opposition register unavailable ({name})"
+ },
+ "Brevo a refusé ce message (expéditeur ou paramètres) : vérifiez les réglages": {
+  "fr": "Brevo a refusé ce message (expéditeur ou paramètres) : vérifiez les réglages",
+  "en": "Brevo refused this message (sender or parameters): check the settings"
+ },
+ "destinataire momentanément refusé (liste grise) : nouvel essai plus tard": {
+  "fr": "destinataire momentanément refusé (liste grise) : nouvel essai plus tard",
+  "en": "recipient temporarily refused (greylisting): will retry later"
+ },
+ "adresse d'expéditeur refusée par le serveur (code {smtp_code})": {
+  "fr": "adresse d'expéditeur refusée par le serveur (code {smtp_code})",
+  "en": "sender address refused by the server (code {smtp_code})"
+ },
+ "envoi refusé par le serveur (code {smtp_code}) : vérifiez les réglages et le message": {
+  "fr": "envoi refusé par le serveur (code {smtp_code}) : vérifiez les réglages et le message",
+  "en": "sending refused by the server (code {smtp_code}): check the settings and the message"
  }
 }

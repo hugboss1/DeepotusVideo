@@ -87,7 +87,7 @@ class FauxSMTP:
         VU.append(("connexion", hote, port))
     def starttls(self, context=None): VU.append(("starttls",))
     def login(self, u, p): VU.append(("login", u, p))
-    def send_message(self, msg): VU.append(("envoi", msg["To"])); return {}
+    def send_message(self, msg, to_addrs=None): VU.append(("envoi", msg["To"], to_addrs)); return {}
     def quit(self): VU.append(("quit",))
     def __enter__(self): return self
     def __exit__(self, *a): self.quit()
@@ -96,7 +96,7 @@ class FauxSMTP:
 M._SMTP_SSL = FauxSMTP
 M._SMTP = FauxSMTP
 r = M.envoyer(A, m)
-check("4a SMTP SSL : connexion, login avec le secret, envoi", ("login", "lea@deepotus.fr", "s3cret-motdepasse") in VU and ("envoi", "contact@studio-lune.fr") in VU, VU)
+check("4a SMTP SSL : connexion, login avec le secret, envoi à CE seul destinataire", ("login", "lea@deepotus.fr", "s3cret-motdepasse") in VU and ("envoi", "contact@studio-lune.fr", ["contact@studio-lune.fr"]) in VU, VU)
 check("4b rend le Message-ID", r["message_id"] == "<abc@deepotus.fr>")
 M.regler(A, {"smtp": dict(REGL["smtp"], securite="starttls", port=587)})
 VU.clear(); M.envoyer(A, m)
@@ -105,7 +105,7 @@ import smtplib                                                      # noqa: E402
 
 
 class Refuse(FauxSMTP):
-    def send_message(self, msg):
+    def send_message(self, msg, to_addrs=None):
         raise smtplib.SMTPRecipientsRefused({msg["To"]: (550, b"no such user")})
 
 
@@ -132,6 +132,32 @@ M._SMTP = Auth
 r = refus(lambda: M.envoyer(A, m), "config")
 check("4f identifiants refusés : erreur de réglage, sans le mot de passe", r[0], r)
 M._SMTP = FauxSMTP
+
+
+def classe(f):
+    return type("X", (FauxSMTP,), {"send_message": f})
+
+
+M._SMTP = classe(lambda self, msg, to_addrs=None: (_ for _ in ()).throw(smtplib.SMTPRecipientsRefused({msg["To"]: (450, b"greylisted")})))
+check("4k destinataire en 4xx (liste grise) : passager, pas un rebond", refus(lambda: M.envoyer(A, m), "passager")[0])
+M._SMTP = classe(lambda self, msg, to_addrs=None: (_ for _ in ()).throw(smtplib.SMTPSenderRefused(550, b"sender not authorized", "lea@deepotus.fr")))
+check("4l expéditeur refusé : erreur de réglage", refus(lambda: M.envoyer(A, m), "config")[0])
+M._SMTP = classe(lambda self, msg, to_addrs=None: (_ for _ in ()).throw(smtplib.SMTPDataError(554, b"content rejected")))
+check("4m contenu refusé : erreur de réglage", refus(lambda: M.envoyer(A, m), "config")[0])
+
+
+class QuitRate(FauxSMTP):
+    def quit(self):
+        raise smtplib.SMTPResponseException(421, b"bye")
+
+
+M._SMTP = QuitRate
+try:
+    M.envoyer(A, m); livre = True
+except M.RefusEmail:
+    livre = False
+check("4n QUIT en échec APRÈS l'envoi : livré (jamais renvoyé ni compté en rebond)", livre)
+M._SMTP = FauxSMTP
 APPELS = []
 
 
@@ -147,7 +173,7 @@ c = APPELS[0][1] if APPELS else {}
 check("4g Brevo : clé, expéditeur, destinataire, objet, texte, en-têtes", APPELS and APPELS[0][0] == "xkeysib-abc" and c["sender"]["email"] == "lea@deepotus.fr"
       and c["to"] == [{"email": "contact@studio-lune.fr"}] and "STOP" in c["textContent"] and c["headers"]["List-Unsubscribe"].startswith("<mailto:"), c)
 M._BREVO = lambda cle, corps: (400, {"code": "invalid_parameter", "message": "email is not valid"})
-check("4h Brevo 400 : rebond définitif", refus(lambda: M.envoyer(A, m), "rebond")[0])
+check("4h Brevo 400 (requête ou expéditeur refusé) : erreur de réglage, pas un rebond", refus(lambda: M.envoyer(A, m), "config")[0])
 M._BREVO = lambda cle, corps: (401, {"code": "unauthorized"})
 check("4i Brevo 401 : erreur de réglage", refus(lambda: M.envoyer(A, m), "config")[0])
 M._BREVO = lambda cle, corps: (503, {})

@@ -43,7 +43,7 @@ FENETRE_REBONDS = timedelta(days=30)
 SEUIL_REBONDS = 0.05
 MIN_ENVOIS_TAUX = 10
 DELAI = 30
-STATUTS_JOURNAL = ("envoye", "rebond", "plainte", "echec")
+STATUTS_JOURNAL = ("tentative", "envoye", "rebond", "plainte", "echec")   # tentative : écrite AVANT l'envoi (au plus une fois)
 PIED = ("\n\n-- \n{raison}\n{adresse}\n"
         "Vous recevez ce message à titre professionnel. Pour ne plus recevoir de message de notre part, "
         "répondez STOP.")
@@ -71,7 +71,7 @@ def _vierge() -> dict:
             "smtp": {"hote": "", "port": 465, "securite": "ssl", "utilisateur": ""},
             "imap": {"hote": "", "port": 993, "utilisateur": ""}, "plafond_jour": PLAFOND_MAX,
             "secrets": {}, "pause": {"active": False, "motif": "", "depuis": None}, "reprise_le": None,
-            "premier_envoi": None, "erreur": None, "journal": [], "imap_etat": {"uidvalidity": None, "dernier": 0, "lu_le": None},
+            "premier_envoi": None, "erreur": None, "erreur_imap": None, "journal": [], "imap_etat": {"uidvalidity": None, "dernier": 0, "lu_le": None, "initialise": False},
             "reponses": []}
 
 
@@ -249,7 +249,8 @@ def lire(eid, maintenant: datetime | None = None) -> dict:
             "imap": doc["imap"], "plafond_jour": doc["plafond_jour"], "mdp_pose": bool(doc["secrets"].get("mdp")),
             "brevo_pose": bool(doc["secrets"].get("brevo")), "manques": m, "pret": not m, "pause": doc["pause"],
             "plafond_du_jour": _plafond(doc, jour), "envoyes_du_jour": _envoyes(doc, jour, _fuseau(eid)),
-            "taux_rebond": _taux(doc, now)[0], "imap_lu_le": doc["imap_etat"].get("lu_le"), "erreur": doc.get("erreur")}
+            "taux_rebond": _taux(doc, now)[0], "imap_lu_le": doc["imap_etat"].get("lu_le"), "erreur": doc.get("erreur"),
+            "erreur_imap": doc.get("erreur_imap")}
 
 
 # ---- plafond, journal, pause --------------------------------------------------------------------------------------------
@@ -301,18 +302,100 @@ def noter(eid, statut: str, adresse: str, message_id, detail: str = "", quand: d
         doc = _doc(eid)
         doc["journal"].append({"quand": q.isoformat(), "statut": statut, "a": str(adresse or "")[:254].lower(),
                                "message_id": message_id, "detail": str(detail or "")[:200], "sid": sid, "rang": rang, "pid": pid})
-        if statut == "envoye" and not doc.get("premier_envoi"):
-            doc["premier_envoi"] = q.astimezone(_fuseau(eid)).date().isoformat()
-        if not doc["pause"]["active"]:
-            if statut == "plainte":
-                doc["pause"] = {"active": True, "motif": "plainte", "depuis": q.isoformat()}
-            elif statut == "rebond":
-                taux, envois, rebonds = _taux(doc, q)
-                if (envois >= MIN_ENVOIS_TAUX and taux > SEUIL_REBONDS) or (envois < MIN_ENVOIS_TAUX and rebonds >= 2):
-                    doc["pause"] = {"active": True, "motif": "rebonds", "depuis": q.isoformat()}
-        if doc["pause"]["active"] and doc["pause"]["depuis"] == q.isoformat():
-            logger.warning(f"e-mail de l'espace {eid} mis en pause ({doc['pause']['motif']})")
+        _apres(eid, doc, statut, q)
         _poser(eid, doc)
+
+
+def _apres(eid, doc: dict, statut: str, q: datetime) -> None:
+    """Ce qu'une ligne du journal entraîne : date du premier envoi (montée en charge), pause sur plainte ou rebonds."""
+    if statut == "envoye" and not doc.get("premier_envoi"):
+        doc["premier_envoi"] = q.astimezone(_fuseau(eid)).date().isoformat()
+    if not doc["pause"]["active"]:
+        if statut == "plainte":
+            doc["pause"] = {"active": True, "motif": "plainte", "depuis": q.isoformat()}
+        elif statut == "rebond":
+            taux, envois, rebonds = _taux(doc, q)
+            if (envois >= MIN_ENVOIS_TAUX and taux > SEUIL_REBONDS) or (envois < MIN_ENVOIS_TAUX and rebonds >= 2):
+                doc["pause"] = {"active": True, "motif": "rebonds", "depuis": q.isoformat()}
+    if doc["pause"]["active"] and doc["pause"]["depuis"] == q.isoformat():
+        logger.warning(f"e-mail de l'espace {eid} mis en pause ({doc['pause']['motif']})")
+
+
+def tentative(eid, sid, rang) -> str | None:
+    """Le Message-ID d'un envoi déjà tenté ou fait pour cette étape (au plus une fois : relecture I1), sinon None."""
+    for j in reversed(_doc(eid)["journal"]):
+        if j.get("sid") == sid and j.get("rang") == rang and j.get("statut") in ("tentative", "envoye"):
+            return j.get("message_id")
+    return None
+
+
+def _requalifier(eid, message_id, statut: str, detail: str = "") -> None:
+    q = _maintenant()
+    with _verrou:
+        doc = _doc(eid)
+        for j in reversed(doc["journal"]):
+            if j.get("message_id") == message_id and j.get("statut") in ("tentative", "envoye"):
+                j["statut"], j["quand"] = statut, q.isoformat()
+                if detail:
+                    j["detail"] = str(detail)[:200]
+                _apres(eid, doc, statut, q)
+                _poser(eid, doc)
+                return
+
+
+def confirmer(eid, message_id) -> None:
+    """La tentative est partie : elle devient un envoi (plafond du jour, montée en charge)."""
+    _requalifier(eid, message_id, "envoye")
+
+
+def requalifier(eid, message_id, statut: str, detail: str = "") -> None:
+    """La tentative a échoué : rebond (refus définitif du destinataire) ou échec (rien n'est parti)."""
+    if statut not in ("rebond", "echec"):
+        raise ValueError("statut de journal inconnu")
+    _requalifier(eid, message_id, statut, detail)
+
+
+def noter_erreur_imap(eid, message) -> None:
+    """La dernière erreur de LECTURE (séparée : un envoi réussi ne l'efface pas, relecture I6) ; None l'efface."""
+    with _verrou:
+        doc = _doc(eid)
+        nouveau = {"message": str(message)[:300], "le": _maintenant().isoformat()} if message else None
+        if (doc.get("erreur_imap") or {}).get("message") == (nouveau or {}).get("message"):
+            return
+        doc["erreur_imap"] = nouveau
+        _poser(eid, doc)
+
+
+def oublier(eid, pid) -> None:
+    """RGPD (relecture I12) : la fiche est effacée, opposée ou purgée — ses lignes du journal perdent l'adresse et le
+    sujet, ses réponses gardées perdent l'expéditeur, l'objet et l'extrait. Les compteurs (plafond, rebonds) restent."""
+    if not pid:
+        return
+    with _verrou:
+        try:
+            doc = _doc(eid)
+        except RefusEmail:
+            return
+        adresses = {j.get("a") for j in doc["journal"] if j.get("pid") == pid and j.get("a")}
+        touche = False
+        for j in doc["journal"]:
+            if j.get("pid") == pid or (j.get("a") and j.get("a") in adresses):
+                j["a"], j["detail"], touche = "", "", True
+        for r in doc["reponses"]:
+            if r.get("pid") == pid or (r.get("de") and r.get("de") in adresses):
+                r["de"], r["sujet"], r["extrait"], touche = "", "", "", True
+        if touche:
+            _poser(eid, doc)
+
+
+def pour_export(eid, pid) -> dict:
+    """Les envois et réponses e-mail d'une fiche (droit d'accès) : lecture seule."""
+    try:
+        doc = _doc(eid)
+    except RefusEmail:
+        return {"envois": [], "reponses": []}
+    return {"envois": [j for j in doc["journal"] if j.get("pid") == pid],
+            "reponses": [r for r in doc["reponses"] if r.get("pid") == pid]}
 
 
 def noter_erreur(eid, message) -> None:
@@ -334,11 +417,13 @@ def ajouter_reponse(eid, r: dict) -> None:
         _poser(eid, doc)
 
 
-def poser_imap(eid, etat: dict) -> None:
+def poser_imap(eid, etat: dict, lu: bool = True) -> None:
+    """Le curseur IMAP ; `lu_le` n'avance que sur une lecture réussie (la fraîcheur conditionne l'envoi)."""
     with _verrou:
         doc = _doc(eid)
         doc["imap_etat"] = {"uidvalidity": etat.get("uidvalidity"), "dernier": int(etat.get("dernier") or 0),
-                            "lu_le": _maintenant().isoformat()}
+                            "lu_le": _maintenant().isoformat() if lu else doc["imap_etat"].get("lu_le"),
+                            "initialise": bool(etat.get("initialise"))}
         _poser(eid, doc)
 
 
@@ -397,30 +482,44 @@ _BREVO = _brevo
 
 
 def _par_smtp(doc: dict, mdp: str, msg: EmailMessage) -> None:
+    """Relecture t356 (I1, I2, I5) : un seul destinataire (`to_addrs`) ; une fois le message accepté (`send_message`
+    revenu), plus rien n'est une erreur (un QUIT raté ne fait ni renvoi ni rebond) ; rebond = refus 5xx DU destinataire
+    seulement ; 4xx (liste grise) = passager ; expéditeur, contenu ou session refusés = réglage."""
     s = doc["smtp"]
     ctx = ssl.create_default_context()
+    serveur = None
     try:
         if s["securite"] == "ssl":
             serveur = _SMTP_SSL(s["hote"], s["port"], timeout=DELAI, context=ctx)
         else:
             serveur = _SMTP(s["hote"], s["port"], timeout=DELAI)
-        with serveur:
-            if s["securite"] == "starttls":
-                serveur.starttls(context=ctx)
-            serveur.login(s["utilisateur"], mdp)
-            refuses = serveur.send_message(msg)
-        if refuses:
-            raise RefusEmail("destinataire refusé par le serveur", "rebond")
-    except smtplib.SMTPRecipientsRefused:
-        raise RefusEmail("destinataire refusé par le serveur", "rebond") from None
+        if s["securite"] == "starttls":
+            serveur.starttls(context=ctx)
+        serveur.login(s["utilisateur"], mdp)
+        refuses = serveur.send_message(msg, to_addrs=[str(msg["To"])])
+    except smtplib.SMTPRecipientsRefused as e:
+        codes = [c for c, _m in (e.recipients or {}).values()]
+        if codes and all(500 <= int(c) < 600 for c in codes):
+            raise RefusEmail("destinataire refusé par le serveur", "rebond") from None
+        raise RefusEmail("destinataire momentanément refusé (liste grise) : nouvel essai plus tard", "passager") from None
     except smtplib.SMTPAuthenticationError:
         raise RefusEmail("identifiants SMTP refusés : vérifiez l'utilisateur et le mot de passe", "config") from None
+    except smtplib.SMTPSenderRefused as e:
+        raise RefusEmail(f"adresse d'expéditeur refusée par le serveur (code {e.smtp_code})", "config") from None
     except smtplib.SMTPResponseException as e:
         if 500 <= e.smtp_code < 600:
-            raise RefusEmail(f"envoi refusé par le serveur (code {e.smtp_code})", "rebond") from None
+            raise RefusEmail(f"envoi refusé par le serveur (code {e.smtp_code}) : vérifiez les réglages et le message", "config") from None
         raise RefusEmail(f"serveur SMTP occupé (code {e.smtp_code}) : nouvel essai plus tard", "passager") from None
     except (OSError, smtplib.SMTPException) as e:
         raise RefusEmail(f"serveur SMTP injoignable ({type(e).__name__}) : nouvel essai plus tard", "passager") from None
+    finally:
+        if serveur is not None:
+            try:
+                serveur.quit()
+            except Exception:  # noqa: BLE001 — le message est accepté (ou l'erreur déjà dite) : la fermeture ne change rien
+                pass
+    if refuses:
+        raise RefusEmail("destinataire refusé par le serveur", "rebond")
 
 
 def _par_brevo(doc: dict, cle: str, msg: EmailMessage) -> None:
@@ -436,8 +535,8 @@ def _par_brevo(doc: dict, cle: str, msg: EmailMessage) -> None:
         return
     if statut in (401, 403):
         raise RefusEmail("clé Brevo refusée : vérifiez-la dans l'onglet Prospects", "config")
-    if statut == 400:
-        raise RefusEmail("Brevo a refusé ce destinataire ou ce message", "rebond")
+    if statut == 400:                   # relecture I2 : requête ou expéditeur refusés, pas un destinataire
+        raise RefusEmail("Brevo a refusé ce message (expéditeur ou paramètres) : vérifiez les réglages", "config")
     raise RefusEmail(f"Brevo indisponible (HTTP {statut}) : nouvel essai plus tard", "passager")
 
 
