@@ -102,6 +102,9 @@ px = S.planifier(A, sx["id"], debut=samedi.isoformat())
 q = [datetime.fromisoformat(e["quand"]).astimezone(PARIS) for e in px["etapes"]]
 check("3e samedi soir → lundi 9 h (heures calmes)", (q[0].weekday(), q[0].hour, q[0].minute) == (0, 9, 0), q[0])
 check("3f relance + 5 jours (samedi) → lundi suivant 9 h", (q[1].date(), q[1].hour) == (date(2026, 11, 16), 9), q[1])
+dim = datetime(2026, 11, 8, 12, 16, 36, tzinfo=PARIS)
+check("3i hors horaires : posé à l'ouverture pile (lundi 9 h 00 min 00 s)", S.prochain_calme(S._agent(A), dim.astimezone(timezone.utc)).astimezone(PARIS)
+      == datetime(2026, 11, 9, 9, 0, tzinfo=PARIS), S.prochain_calme(S._agent(A), dim.astimezone(timezone.utc)).astimezone(PARIS))
 check("3g une date passée vaut maintenant", S._quand_depart("2020-01-01T00:00:00") == LUNDI)
 check("3h date illisible refusée", refus(lambda: S._quand_depart("demain"), "champ")[0])
 

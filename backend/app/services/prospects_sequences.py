@@ -217,8 +217,13 @@ def _agent(eid) -> dict:
 
 
 def prochain_calme(agent: dict, t: datetime) -> datetime:
-    """Le premier instant >= t dans les horaires de l'agent de l'espace (pas de 15 min, 8 jours au plus)."""
+    """Le premier instant >= t dans les horaires de l'agent de l'espace (pas de 15 min, 8 jours au plus). Hors horaires,
+    l'instant est d'abord arrondi au quart d'heure suivant : l'étape tombe à l'ouverture pile (9 h 00), pas à 9 h 01 min 36."""
     from app.services import whatsapp as _wa
+    if _wa.dans_horaires(agent, t):
+        return t
+    t = t.replace(second=0, microsecond=0)
+    t = t + timedelta(minutes=(-t.minute) % 15)
     fin = t + timedelta(days=8)
     while t < fin:
         if _wa.dans_horaires(agent, t):

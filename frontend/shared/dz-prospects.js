@@ -435,7 +435,7 @@
           (s.etapes || []).forEach(function (e) {
             var li = el("div", { class: "dzProspectsEtape", "data-dz-prospects": "etape", "data-statut": e.statut }, [
               el("p", { class: "dzProspectsMeta", texte: T("prospects.sequence.etape", { n: e.rang + 1, jours: e.delai_jours,
-                statut: lib(ETAPE_STATUTS, "prospects.etapestatut.", e.statut) }) + (e.quand ? " · " + new Date(e.quand).toLocaleString() : "")
+                statut: lib(ETAPE_STATUTS, "prospects.etapestatut.", e.statut) }) + (e.quand ? " · " + new Date(e.quand).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : "")
                 + (e.due ? " · " + T("prospects.sequence.due") : "") })]);
             if (e.objet) li.appendChild(el("p", { texte: T("prospects.sequence.objet", { objet: e.objet }) }));
             li.appendChild(el("pre", { class: "dzProspectsTexte", texte: e.texte }));
