@@ -21,6 +21,7 @@ from __future__ import annotations
 import atexit
 import json
 import os
+import queue
 import re
 import secrets as _secrets
 import subprocess
@@ -43,6 +44,9 @@ MAX_DESTINATIONS = 6
 MAX_MARQUEURS = 200
 MAX_TITRE = 100
 MAX_ANNONCE = 1500
+FILE_MAX = 40                # morceaux de 250 ms en attente d'écriture (~10 s) : au-delà, le flux est déclaré engorgé
+BLOCAGE_S = 10               # une écriture dans ffmpeg bloquée plus longtemps = destination figée : on coupe
+PRET_MAX_S = 120             # une session ouverte mais jamais branchée (onglet fermé pendant le choix d'écran) expire
 ID = re.compile(r"^[a-f0-9]{16}$")
 _INTERDITS = re.compile(r"[|\[\]\\\"'\s\x00-\x1f\x7f]")
 _RTMP_URL = re.compile(r"(rtmps?://[^\s'\"|]*/)([^/\s'\"|]+)")
@@ -169,11 +173,37 @@ class Diffusion:
         self._histo = []                       # (instant, images, temps de sortie en µs) des 6 dernières secondes
         self._verrou = threading.Lock()
         self.ferme = False
+        self.engorge = False
+        self._casse = False
+        self._file = queue.Queue(maxsize=FILE_MAX)
+        self._en_ecriture = None               # instant du début de l'écriture en cours (None : aucune)
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         self.proc = lancer(commande(urls, fps), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                            creationflags=flags)
         threading.Thread(target=self._lire_progres, daemon=True).start()
         threading.Thread(target=self._lire_erreurs, daemon=True).start()
+        threading.Thread(target=self._ecrivain, daemon=True).start()
+
+    def _ecrivain(self):
+        """Le SEUL fil qui écrit dans ffmpeg (revue finale C1) : une destination figée bloque ce fil-ci, jamais la boucle
+        du WebSocket ni fermer(), qui tue ffmpeg au bout du délai (le write bloqué lève alors et le fil se termine)."""
+        while True:
+            b = self._file.get()
+            if b is None:
+                break
+            self._en_ecriture = time.monotonic()
+            try:
+                self.proc.stdin.write(b)
+                self.proc.stdin.flush()
+            except (OSError, ValueError):
+                self._casse = True
+                break
+            finally:
+                self._en_ecriture = None
+        try:
+            self.proc.stdin.close()
+        except (OSError, ValueError):
+            pass
 
     def _lire_progres(self):
         bloc = {}
@@ -207,13 +237,19 @@ class Diffusion:
     def vivant(self) -> bool:
         return self.proc.poll() is None
 
+    def bloque(self) -> bool:
+        e = self._en_ecriture
+        return e is not None and time.monotonic() - e > BLOCAGE_S
+
     def ecrire(self, octets: bytes) -> bool:
-        if self.ferme or not self.vivant():
+        """Met un morceau dans la file d'écriture ; False = le direct ne peut plus suivre (fermé, ffmpeg mort, écriture
+        bloquée, file pleine) : l'appelant coupe proprement plutôt que d'amputer le flux WebM."""
+        if self.ferme or self._casse or not self.vivant() or self.bloque():
             return False
         try:
-            self.proc.stdin.write(octets)
-            self.proc.stdin.flush()
-        except (OSError, ValueError):
+            self._file.put_nowait(octets)
+        except queue.Full:
+            self.engorge = True
             return False
         maintenant = time.monotonic()
         with self._verrou:
@@ -236,7 +272,7 @@ class Diffusion:
                 return None
         images = nombre("frame", int)
         etat = "arrete" if not vivant else ("en_direct" if images else "demarrage")
-        if vivant and pannes and all(pannes):
+        if vivant and ((pannes and all(pannes)) or self.bloque() or self.engorge):
             etat = "en_panne"
         fps, vitesse = nombre("fps"), nombre("speed", lambda v: float(str(v).rstrip("x")))
         if len(histo) >= 2 and histo[-1][0] - histo[0][0] >= 2:      # fenêtre glissante : l'état d'ICI, pas la moyenne
@@ -249,11 +285,13 @@ class Diffusion:
                 "erreur": err[-1] if err else ""}
 
     def fermer(self, delai: float = 5.0) -> int | None:
+        """Ne bloque jamais plus de `delai` + 3 s : la fin d'entrée passe par le fil écrivain ; ffmpeg qui ne s'arrête pas
+        (destination figée, écriture bloquée) est tué."""
         self.ferme = True
         try:
-            self.proc.stdin.close()
-        except (OSError, ValueError):
-            pass
+            self._file.put_nowait(None)
+        except queue.Full:
+            self.proc.kill()
         try:
             return self.proc.wait(timeout=delai)
         except subprocess.TimeoutExpired:
@@ -291,7 +329,12 @@ def ouvrir(eid: str, ids, titre="") -> dict:
     flux), leurs secrets restent dans la session."""
     dest = destinations(eid, ids)
     with _VERROU:
-        if any(s["etat"] in ("pret", "en_cours") for s in _SESSIONS.values()):
+        maintenant = time.monotonic()
+        for s in _SESSIONS.values():           # revue finale I1 : une session jamais branchée expire
+            if s["etat"] == "pret" and maintenant - s["t0"] > PRET_MAX_S:
+                s["etat"] = "termine"
+                _oublier_secrets(s)
+        if any(s["etat"] in ("pret", "en_cours", "fermeture") for s in _SESSIONS.values()):
             raise RefusLive("Un direct est déjà en cours.", 409)
         lid = _secrets.token_hex(8)
         _SESSIONS[lid] = {"id": lid, "espace_id": eid, "titre": (titre.strip() if isinstance(titre, str) else "")[:MAX_TITRE],
@@ -311,24 +354,37 @@ def brancher(lid: str, lancer=subprocess.Popen, fps: int = 30) -> Diffusion:
         s = _session(lid)
         if s["etat"] != "pret" or s["diffusion"] is not None:
             raise RefusLive("Ce direct est déjà branché ou terminé.", 409)
-        d = Diffusion([x["url"] for x in s["destinations"]], [x["cle"] for x in s["destinations"]], fps=fps, lancer=lancer)
+        try:
+            d = Diffusion([x["url"] for x in s["destinations"]], [x["cle"] for x in s["destinations"]], fps=fps, lancer=lancer)
+        except OSError:
+            raise RefusLive("ffmpeg introuvable : le direct ne peut pas partir.", 500) from None
         s["diffusion"] = d
         s["etat"] = "en_cours"
         s["t0"] = time.monotonic()
         return d
 
 
+def _oublier_secrets(s: dict) -> None:
+    for x in s["destinations"]:              # revue finale M5 : rien de secret ne reste en mémoire après le direct
+        x["url"] = x["cle"] = ""
+
+
 def debrancher(lid: str) -> None:
-    """Fin du flux (WebSocket fermé, onglet fermé, capture coupée) : ffmpeg ne reste jamais vivant."""
+    """Fin du flux (WebSocket fermé, onglet fermé, capture coupée) : ffmpeg ne reste jamais vivant. Les transitions
+    d'état passent sous _VERROU (revue finale I5) : « fermeture » interdit tout brancher() et tout nouveau direct."""
     with _VERROU:
         s = _SESSIONS.get(lid)
-        d = s and s.get("diffusion")
+        if not s or s["etat"] not in ("pret", "en_cours"):
+            return
+        d = s.get("diffusion")
+        s["etat"] = "fermeture"
     if d:
         d.fermer()
-    if s and s["etat"] in ("pret", "en_cours"):
+    with _VERROU:
         s["final"] = d.etat() if d else None
         s["duree_ms"] = int((time.monotonic() - s["t0"]) * 1000)
         s["etat"] = "fini"
+        _oublier_secrets(s)
 
 
 def marquer(lid: str, t_ms, libelle="") -> dict:
@@ -356,6 +412,8 @@ async def annoncer(lid: str, compte_id: str, texte: str = "", poster=None) -> di
     Rend {ok, statut} — jamais l'URL du webhook."""
     from app.services import comptes
     s = _session(lid)
+    if s["etat"] not in ("pret", "en_cours"):
+        raise RefusLive("Ce direct est terminé.", 409)
     try:
         v = comptes.obtenir(compte_id)
     except KeyError:
@@ -368,10 +426,13 @@ async def annoncer(lid: str, compte_id: str, texte: str = "", poster=None) -> di
         url = str(comptes.cle("DISCORD_WEBHOOK") or "").strip()
     if not _webhook_valide(url):
         raise RefusLive("Webhook Discord invalide : une adresse https://discord.com/api/webhooks/… est attendue.", 400)
+    if s.get("annonce"):                       # revue finale M6 : une annonce par direct, jamais de rafale dans le salon
+        raise RefusLive("Ce direct a déjà été annoncé.", 409)
     liens = [x["lien"] for x in s["destinations"] if x["lien"]]
     corps = ((texte.strip() if isinstance(texte, str) else "")[:MAX_ANNONCE] or s["titre"] or "Live").strip()
     contenu = "\n".join([corps] + liens)[:1990]
     statut = None
+    s["annonce"] = {"ok": False, "statut": None, "compte": compte_id}
     try:
         if poster is None:
             import httpx

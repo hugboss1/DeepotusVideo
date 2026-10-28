@@ -7,7 +7,7 @@
 export const MIMES_LIVE = ["video/webm;codecs=h264,opus", "video/webm;codecs=vp8,opus", "video/webm;codecs=vp9,opus",
   "video/webm"];
 export const MORCEAU_MS = 250;                       // latence visée < 5 s (spec §8.6)
-export const TAMPON_MAX = 32 * 1024 * 1024;          // au-delà, un morceau est perdu plutôt que la page étouffée
+export const TAMPON_MAX = 8 * 1024 * 1024;           // ~10 s de retard à 6 Mb/s : au-delà, le direct s'arrête proprement
 
 export function choisirMimeLive(supporte) {
   for (const m of MIMES_LIVE) { try { if (supporte(m)) return m; } catch (e) { /* type refusé */ } }

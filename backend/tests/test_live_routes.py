@@ -98,6 +98,14 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     except Exception:                                               # noqa: BLE001
         refuse = True
     check("R2.1 Origin étranger refusé, aucun ffmpeg lancé", refuse and L._SESSIONS[lid]["diffusion"] is None)
+    refuse = False
+    try:      # rebond DNS : Origin et Host concordent, mais Host n'est pas la boucle locale
+        with c.websocket_connect(f"/api/live/sessions/{lid}/flux",
+                                 headers={"host": "mechant.example:8796", "origin": "http://mechant.example:8796"}) as w:
+            w.receive_text()
+    except Exception:                                               # noqa: BLE001
+        refuse = True
+    check("R2.2 Host non local refusé (rebond DNS), aucun ffmpeg lancé", refuse and L._SESSIONS[lid]["diffusion"] is None)
 
     print("[3] WebSocket : flux réel")
     if not FF:
@@ -114,7 +122,7 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
         etats = []
         try:
             time.sleep(1)
-            with c.websocket_connect(f"/api/live/sessions/{lid}/flux", headers={"origin": "http://testserver"}) as w:
+            with c.websocket_connect(f"/api/live/sessions/{lid}/flux", headers={"host": "127.0.0.1:8796", "origin": "http://127.0.0.1:8796"}) as w:
                 octets = src.read_bytes()
                 for i in range(0, len(octets), 16384):
                     w.send_bytes(octets[i:i + 16384])

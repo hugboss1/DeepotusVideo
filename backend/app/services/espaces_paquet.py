@@ -49,7 +49,8 @@ def _json(doc) -> bytes:
 def _comptes_publics(eid: str) -> list:
     """Les comptes de l'espace, champs publics seulement ; les secrets NOMMÉS, jamais lus."""
     out = []
-    for v in comptes.lister(eid):
+    # t318 (28/10/2026) : les destinations du direct voyagent aussi (leurs clés de stream restent à ressaisir)
+    for v in comptes.lister(eid) + comptes.lister(eid, live=True):
         if comptes.champs_poses_par_serveur(v["plateforme"]):
             continue    # t310 (27/10/2026) : un compte relié par le serveur (whatsapp) ne voyage pas : il se relie dans chaque espace
         publics, secrets_ = {}, []

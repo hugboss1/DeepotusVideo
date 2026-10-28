@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -78,15 +79,21 @@ async def lire(lid: str, request: Request):
         raise _refus(e) from None
 
 
+_HOTE_LOCAL = re.compile(r"^(127\.0\.0\.1|localhost|\[::1\])(:\d{1,5})?$")
+
+
 def _origine_sure(ws: WebSocket) -> bool:
+    """Client local, en-tête Host local (revue finale M1 : un rebond DNS garde un Host étranger) et Origin absente ou
+    identique à Host."""
     from app.api.routes import _HOTES_LOCAUX
     hote = (ws.client.host if ws.client else "") or ""
-    if hote not in _HOTES_LOCAUX:
+    entete = (ws.headers.get("host") or "").lower()
+    if hote not in _HOTES_LOCAUX or not _HOTE_LOCAL.match(entete):
         return False
     origine = ws.headers.get("origin")
     if not origine:
         return True
-    return urlsplit(origine).netloc.lower() == (ws.headers.get("host") or "").lower()
+    return urlsplit(origine).netloc.lower() == entete
 
 
 @router.websocket("/sessions/{lid}/flux")

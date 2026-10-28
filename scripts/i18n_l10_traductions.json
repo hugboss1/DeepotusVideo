@@ -11818,5 +11818,13 @@
  "Destination du direct inconnue.": {
   "fr": "Destination du direct inconnue.",
   "en": "Unknown live destination."
+ },
+ "Ce direct a déjà été annoncé.": {
+  "fr": "Ce direct a déjà été annoncé.",
+  "en": "This live stream has already been announced."
+ },
+ "ffmpeg introuvable : le direct ne peut pas partir.": {
+  "fr": "ffmpeg introuvable : le direct ne peut pas partir.",
+  "en": "ffmpeg not found: the live stream cannot start."
  }
 }

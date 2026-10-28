@@ -125,6 +125,12 @@ check("S8 aucune journalisation (console) ni stockage local d'une clé", "consol
 check("S9 nos contrôles portent data-dz-capture-ui (jamais dans la piste des clics)",
       TXT.count('"data-dz-capture-ui": true') >= 3)
 
+check("S10 la pause coupe le son du DIRECT (pistes clonées), pas celui de l'enregistrement ; pistes coupées à la fin",
+      "x.clone()" in TXT and "p.enabled = !direct.pause" in TXT and "d.audio.forEach(couperPiste)" in TXT)
+check("S11 engorgement : aucun morceau jeté au milieu du WebM, le direct s'arrête proprement",
+      "direct.engorge = true" in TXT and "arreter();" in TXT and "perdus++" not in TXT)
+check("S12 une panne entre la capture et le WebSocket coupe la capture et abandonne le direct",
+      "await abandon();" in TXT and "await cap.arreter();" in TXT)
 print("[C] copies et chargement")
 for f in ("dz-live.js", "dz-live-logique.js"):
     check(f"C1 {f} copié octet pour octet dans dist", (SH / f).read_bytes() == (DIST / "shared" / f).read_bytes())

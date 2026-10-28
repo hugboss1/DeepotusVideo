@@ -166,6 +166,8 @@ check("S14 webhook local refusé hors preuve, accepté en preuve ; compte non-di
       refus(lambda: asyncio.run(L.annoncer(s["id"], dcl, "x", poster=poster)), 400)
       and refus(lambda: asyncio.run(L.annoncer(s["id"], tw, "x", poster=poster)), 400))
 os.environ["DZ_LIVE_PREUVE"] = "1"
+check("S14a une seule annonce par direct (409 à la seconde)", refus(lambda: asyncio.run(L.annoncer(s["id"], dc, "x", poster=poster)), 409))
+L._SESSIONS[s["id"]]["annonce"] = None
 check("S14b en preuve, webhook 127.0.0.1 accepté", asyncio.run(L.annoncer(s["id"], dcl, "x", poster=poster))["ok"])
 os.environ.pop("DZ_LIVE_PREUVE")
 cap = C.creer({"mode": "app"})["id"]
@@ -178,6 +180,62 @@ check("S15 terminer : ffmpeg fermé, .dzlive.json écrit à côté de la capture
       and CLE_Y not in f.read_text("utf-8") and diff.ferme, doc)
 check("S16 après terminer : marqueur 409, nouveau direct possible, capture inconnue 404",
       refus(lambda: L.marquer(s["id"], 1), 409) and refus(lambda: L.terminer(L.ouvrir(rip, [tw])["id"], "0" * 16), 404))
+check("S17 après le direct, plus aucune URL ni clé en mémoire ; annonce refusée (409)",
+      all(not x["url"] and not x["cle"] for x in L._SESSIONS[s["id"]]["destinations"])
+      and refus(lambda: asyncio.run(L.annoncer(s["id"], dc, "x", poster=poster)), 409))
+for lid in list(L._SESSIONS):
+    L.abandonner(lid)
+
+# revue finale I1 : une session ouverte mais jamais branchée expire (onglet fermé pendant le choix d'écran)
+v1 = L.ouvrir(rip, [tw])
+L._SESSIONS[v1["id"]]["t0"] -= L.PRET_MAX_S + 1
+v2 = L.ouvrir(rip, [tw])
+check("S18 session « pret » périmée : un nouveau direct s'ouvre, l'ancienne est close sans secret",
+      L._SESSIONS[v1["id"]]["etat"] == "termine" and not L._SESSIONS[v1["id"]]["destinations"][0]["cle"]
+      and L._SESSIONS[v2["id"]]["etat"] == "pret")
+
+
+# revue finale C1 : une destination FIGÉE (ffmpeg ne lit plus son entrée) ne bloque ni l'appelant ni fermer()
+class ProcFige(FauxProc):
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        import io, threading as th
+        self.debloque = th.Event()
+        fige = self
+
+        class Entree(io.BytesIO):
+            def write(self, b):
+                fige.debloque.wait(60)          # bloqué jusqu'au kill
+                raise OSError("tube cassé")
+        self.stdin = Entree()
+        self.stdin.flush = lambda: None
+        self.stdout, self.stderr = io.BytesIO(b""), io.BytesIO(b"")
+    def wait(self, timeout=None):
+        if self.code is None:
+            self.debloque.wait(timeout)
+            if self.code is None:
+                import subprocess as sp
+                raise sp.TimeoutExpired("ffmpeg", timeout)
+        return self.code
+    def kill(self):
+        self.code = -9
+        self.debloque.set()
+
+
+L.BLOCAGE_S = 0.5
+dg = L.brancher(v2["id"], lancer=ProcFige)
+t0 = time.time()
+r1 = dg.ecrire(b"x" * 10)
+time.sleep(0.8)
+r2 = dg.ecrire(b"y")
+e = dg.etat()
+L.debrancher(v2["id"])
+duree_fermer = time.time() - t0
+check("S19 écriture figée : ecrire() ne bloque pas, puis refuse ; état en_panne ; debrancher tue ffmpeg en moins de 7 s",
+      r1 is True and r2 is False and e["etat"] == "en_panne" and dg.proc.code == -9 and duree_fermer < 7.5
+      and L._SESSIONS[v2["id"]]["etat"] == "fini", (r1, r2, e, duree_fermer))
+check("S20 brancher après la fin : 409 (aucun second ffmpeg)", refus(lambda: L.brancher(v2["id"], lancer=FauxProc), 409))
+L.BLOCAGE_S = 10
 for lid in list(L._SESSIONS):
     L.abandonner(lid)
 

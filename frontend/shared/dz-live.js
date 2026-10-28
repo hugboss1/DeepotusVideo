@@ -289,11 +289,14 @@ if (!window.__dzLive) {
       const ac = new (window.AudioContext || window.webkitAudioContext)();
       const o = ac.createOscillator(), g = ac.createGain(), d = ac.createMediaStreamDestination();
       g.gain.value = 0; o.connect(g); g.connect(d); o.start();
+      if (ac.state === "suspended") ac.resume().catch(() => {});      // revue finale I4 : né après plusieurs await
       const p = d.stream.getAudioTracks()[0];
       p._dzArret = () => { try { o.stop(); } catch (e) { /* arrêté */ } ac.close().catch(() => {}); };
       return p;
     } catch (e) { return null; }
   }
+
+  const couperPiste = (p) => { try { p.stop(); if (p._dzArret) p._dzArret(); } catch (e) { /* déjà coupée */ } };
 
   async function demarrer(o) {
     const cap = capture();
@@ -308,16 +311,29 @@ if (!window.__dzLive) {
     if (o.skin !== undefined) options.skin = o.skin;
     const r = await cap.demarrer(options);
     if (!r || !r.ok) { await abandon(); return { ok: false, message: (r && r.message) || T("live.erreur.capture") }; }
-    const ses = cap.session();
-    const muette = ses.audio && ses.audio.getAudioTracks().length ? null : pisteMuette();
-    const pistes = [...ses.scene.flux(30).getVideoTracks(), ...(muette ? [muette] : ses.audio.getAudioTracks())];
-    const mime = choisirMimeLive((m) => window.MediaRecorder.isTypeSupported(m));
+    // revue finale I4 : toute panne d'ici au WebSocket coupe la capture et abandonne le direct (rien ne reste allumé)
+    let ses, audioLive, pistes, mime, ws;
+    try {
+      ses = cap.session();
+      // revue finale I2 : le direct a ses PROPRES pistes son (clones), coupées pendant « Pause écran » ; l'enregistrement
+      // garde le son. Sans voix ni son d'onglet : une piste muette (ffmpeg n'attend pas une piste absente).
+      const sons = ses.audio ? ses.audio.getAudioTracks() : [];
+      const muette = sons.length ? null : pisteMuette();
+      audioLive = sons.length ? sons.map((x) => x.clone()) : (muette ? [muette] : []);
+      pistes = [...ses.scene.flux(30).getVideoTracks(), ...audioLive];
+      mime = choisirMimeLive((m) => window.MediaRecorder.isTypeSupported(m));
+      const proto = location.protocol === "https:" ? "wss://" : "ws://";
+      ws = new WebSocket(proto + location.host + "/api/live/sessions/" + vue.id + "/flux");
+    } catch (e) {
+      (audioLive || []).forEach(couperPiste);
+      await abandon();
+      await cap.arreter();
+      return { ok: false, message: T("live.erreur.ouvrir", { msg: (e && e.message) || "—" }) };
+    }
     direct = { id: vue.id, vue, titre: o.titre, debutCapture: ses.debut, debut: performance.now(), ws: null, rec: null,
-      muette, etat: null, perdus: 0, marqueurs: 0, pause: false, discord: o.discord, message: o.message, annonce: null,
-      fini: false, ferme: false };
+      audio: audioLive, etat: null, engorge: false, marqueurs: 0, pause: false, discord: o.discord, message: o.message,
+      annonce: null, fini: false, ferme: false };
     window.addEventListener("dz-capture:fin", surFinCapture);
-    const proto = location.protocol === "https:" ? "wss://" : "ws://";
-    const ws = new WebSocket(proto + location.host + "/api/live/sessions/" + vue.id + "/flux");
     ws.binaryType = "arraybuffer";
     direct.ws = ws;
     ws.addEventListener("open", () => {
@@ -325,7 +341,8 @@ if (!window.__dzLive) {
       const rec = new window.MediaRecorder(new MediaStream(pistes), mime ? { mimeType: mime, videoBitsPerSecond: 6000000 } : undefined);
       rec.addEventListener("dataavailable", (ev) => {
         if (!ev.data || !ev.data.size || ws.readyState !== 1) return;
-        if (ws.bufferedAmount > TAMPON_MAX) { direct.perdus++; return; }
+        // revue finale I3 : jamais un morceau jeté au milieu d'un WebM (flux corrompu) ; ~10 s de retard = on coupe proprement
+        if (ws.bufferedAmount > TAMPON_MAX) { if (!direct.engorge) { direct.engorge = true; peindrePanneau(); arreter(); } return; }
         ws.send(ev.data);
       });
       direct.rec = rec;
@@ -404,7 +421,7 @@ if (!window.__dzLive) {
     if (direct.marqueurs) infos.push(T("live.panneau.marqueurs", { n: direct.marqueurs }));
     if (direct.annonce && direct.annonce.ok === true) infos.push(T("live.annonce.partie"));
     if (direct.annonce && direct.annonce.ok === false) infos.push(T("live.annonce.ratee"));
-    if (direct.perdus) infos.push(T("live.panneau.perdus", { n: direct.perdus }));
+    if (direct.engorge) infos.push(T("live.panneau.engorge"));
     if (direct.ferme) infos.push(T("live.panneau.coupe"));
     ui.infos.textContent = infos.join(" · ");
     ui.pause.replaceChildren(glyphe("dz-media-pause", 12), document.createTextNode(T(direct.pause ? "live.panneau.reprendre" : "live.panneau.pause")));
@@ -431,6 +448,7 @@ if (!window.__dzLive) {
   function basculerPause() {
     if (!direct || direct.fini) return;
     direct.pause = !direct.pause;
+    for (const p of direct.audio) p.enabled = !direct.pause;        // la pause coupe aussi le son du direct
     ecranPlein(direct.pause ? "pause" : null);
     peindrePanneau();
   }
@@ -470,7 +488,7 @@ if (!window.__dzLive) {
     try { if (d.rec && d.rec.state !== "inactive") d.rec.stop(); } catch (e) { /* déjà arrêté */ }
     await attendre(400);                                        // le dernier morceau part
     try { d.ws.close(); } catch (e) { /* déjà fermé */ }
-    if (d.muette && d.muette._dzArret) { d.muette.stop(); d.muette._dzArret(); }
+    d.audio.forEach(couperPiste);
     const capId = ev && ev.detail && ev.detail.capture ? ev.detail.id : undefined;
     let bilan = null;
     try { bilan = await api("/api/live/sessions/" + d.id + "/terminer", json("POST", capId ? { capture_id: capId } : {})); }
@@ -487,7 +505,7 @@ if (!window.__dzLive) {
     const lignes = [];
     if (live) {
       lignes.push(T("live.bilan.duree", { duree: duree(live.duree_ms || 0) }));
-      for (const x of live.destinations) lignes.push(nomPlateforme(x.plateforme) + " — " + x.libelle + " : " + T("live.etat." + x.etat));
+      for (const x of live.destinations) lignes.push(T("live.bilan.dest", { plateforme: nomPlateforme(x.plateforme), nom: x.libelle, etat: T("live.etat." + x.etat) }));
       lignes.push(T("live.bilan.marqueurs", { n: live.marqueurs.length }));
       lignes.push(T(enregistre ? "live.bilan.enregistre" : "live.bilan.non_enregistre"));
     } else lignes.push(T("live.bilan.erreur", { msg: (bilan && bilan.erreur) || "—" }));
