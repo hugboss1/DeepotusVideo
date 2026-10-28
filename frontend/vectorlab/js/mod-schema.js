@@ -140,6 +140,11 @@ async function lireJson(r) {
 
 export function initSchema(VL) {
   const { etat } = VL;
+  // le contenu du document est une DONNÉE : la surcouche de traduction ne doit jamais le réécrire (une étiquette lue
+  // « Publier » s'affichait « Publish » en anglais). Posé ici et non dans index.html, dont les gardes L6 sont à
+  // positions fixes.
+  const hote = typeof document !== "undefined" && document.getElementById("canvasHost");
+  if (hote) hote.setAttribute("data-dz-brut", "1");
   let dlg = null, analyse = null, fichier = null, enVol = false;
 
   function fermer() { if (dlg) { dlg.remove(); dlg = null; } analyse = null; fichier = null; enVol = false; }
