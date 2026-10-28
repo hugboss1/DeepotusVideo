@@ -31,6 +31,13 @@ BOITES: dict[str, dict] = {
         "agents": ["whatsapp"],
         "mobile": False,
     },
+    # t312 : lire le texte d'une image de la Bibliothèque ; aucun agent ne la déclare encore (§11 bis)
+    "scan": {
+        "libelle": "agent.boites.scan",
+        "outils": ["lire_texte_image"],
+        "agents": [],
+        "mobile": False,
+    },
 }
 
 

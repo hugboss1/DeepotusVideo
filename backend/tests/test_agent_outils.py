@@ -130,7 +130,8 @@ async def main():
     # ---- test_seulement_dix_outils ------------------------------------------------------------------------------
     # t311 : OUTILS porte aussi la boîte « whatsapp » (cinq outils, agent WhatsApp) ; l'agent Campagnes, lui, garde ses dix
     from app.services import agent_boites as _B
-    check("test_seulement_dix_outils : OUTILS", set(ao.OUTILS) - set(_B.BOITES["whatsapp"]["outils"]) == DIX
+    check("test_seulement_dix_outils : OUTILS", set(ao.OUTILS) - set(_B.BOITES["whatsapp"]["outils"])
+          - set(_B.BOITES["scan"]["outils"]) == DIX
           and set(_B.outils_pour("campagnes")) == DIX, str(sorted(ao.OUTILS)))
     defs = ao.definitions()
     check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 12)
