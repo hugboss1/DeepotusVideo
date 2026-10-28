@@ -29,16 +29,23 @@ export function nom_png(docId, calqueId) {
   return `vector_${String(docId)}_c${String(calqueId)}.png`;
 }
 
-// le corps (taille en px) d'une ligne d'étiquette lue, et sa ligne de base
-export function texte_de_ligne(l, couleur) {
-  const b = l.boite;
-  const corps = Math.max(6, Math.round(b.h * 0.9));
-  return { type: "texte", x: Math.round(b.x * 10) / 10, y: Math.round((b.y + b.h * 0.82) * 10) / 10,
-           contenu: String(l.texte || ""), style: { fond: couleur || "#1F1512", police: "Segoe UI", corps } };
+// une ligne d'étiquette lue → un objet texte. Avec `mesure(texte, corps) → { w, desc }` (canvas, police Segoe UI) :
+// le corps qui donne au texte la LARGEUR lue (la hauteur d'une boîte lue dépend des accents et jambages), la ligne de
+// base au bas de la boîte moins le jambage mesuré ; sans mesure : d'après la hauteur de la boîte.
+export function texte_de_ligne(l, couleur, mesure) {
+  const b = l.boite, t = String(l.texte || "");
+  let corps = Math.max(6, Math.round(b.h * 0.9)), y = b.y + b.h * 0.82;
+  const m = mesure && t ? mesure(t, 100) : null;
+  if (m && m.w > 0) {
+    corps = Math.max(6, Math.min(Math.round(b.h * 2), Math.round(100 * b.w / m.w)));
+    y = b.y + b.h - Math.max(0, (mesure(t, corps).desc || 0));
+  }
+  return { type: "texte", x: Math.round(b.x * 10) / 10, y: Math.round(y * 10) / 10,
+           contenu: t, style: { fond: couleur || "#1F1512", police: "Segoe UI", corps } };
 }
 
 // analyse (réponse de /api/schema/analyser) + tracés (Map id d'élément → objets du modèle, déjà au cadre) → document
-export function doc_depuis_analyse(analyse, traces, nom) {
+export function doc_depuis_analyse(analyse, traces, nom, mesure) {
   const doc = { v: 1, nom: String(nom || T("vectorlab.schema.nom_doc")).slice(0, 120),
                 taille: { w: analyse.largeur, h: analyse.hauteur }, fond: "#FFFFFF", calques: [] };
   const parOrdre = [...analyse.elements].sort((a, b) => a.ordre - b.ordre);
@@ -46,7 +53,7 @@ export function doc_depuis_analyse(analyse, traces, nom) {
   const calqueDe = {}, natures = {};
   for (const e of empiles) {
     const objets = e.nature === "etiquette"
-      ? (e.lignes || []).map((l) => texte_de_ligne(l, e.couleur))
+      ? (e.lignes || []).map((l) => texte_de_ligne(l, e.couleur, mesure))
       : (traces.get(e.id) || []);
     if (!objets.length) continue;
     const cid = op_calque_ajouter(doc, e.nom);
@@ -103,7 +110,8 @@ export function options_detourage(modeles) {
     let lib;
     if (m.id === "local-chroma") lib = T("vectorlab.schema.det_local");
     else if (m.id === "local-rembg") lib = T("vectorlab.schema.det_rembg");
-    else lib = T(m.disponible ? "vectorlab.schema.det_payant" : "vectorlab.schema.det_sans_cle",
+    else lib = T(!m.disponible ? "vectorlab.schema.det_sans_cle" : Number(m.usd) > 0 ? "vectorlab.schema.det_payant"
+                 : "vectorlab.schema.det_a_mesurer",
                  { label: m.label, usd: Number(m.usd || 0).toFixed(3), cle: m.raison || "" });
     return { id: m.id, libelle: lib, usd: Number(m.usd || 0), payant: m.voie === "fal" };
   });
@@ -215,7 +223,13 @@ export function initSchema(VL) {
         traces.set(aTracer[i].id, await tracer(aTracer[i]));
       }
       const nom = String((fichier && fichier.name) || "").replace(/\.[A-Za-z0-9]{2,5}$/, "") || T("vectorlab.schema.nom_doc");
-      const doc = doc_depuis_analyse(analyse, traces, nom);
+      const cv = document.createElement("canvas").getContext("2d");
+      const mesure = (t, corps) => {
+        cv.font = `${corps}px "Segoe UI"`;
+        const m = cv.measureText(t);
+        return { w: m.width, desc: m.actualBoundingBoxDescent || 0 };
+      };
+      const doc = doc_depuis_analyse(analyse, traces, nom, mesure);
       if (!doc.calques.length) throw new Error(T("vectorlab.schema.aucun_element"));
       etatTexte(T("vectorlab.schema.creation_en_cours"));
       const d = await lireJson(await fetch("/api/vector/docs", { method: "POST", headers: { "Content-Type": "application/json" },

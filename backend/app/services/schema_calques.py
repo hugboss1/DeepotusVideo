@@ -263,8 +263,38 @@ def _couleur_texte(rgb: Image.Image, b: dict) -> str:
     return "#%02X%02X%02X" % tuple(m)
 
 
-def _png(rgba: Image.Image, masque: Image.Image, petit_comp: Image.Image, b: dict, s: float):
-    """La découpe RGBA de la boîte `b`, limitée aux pixels de la composante ; (octets PNG, boîte resserrée)."""
+def _boucher(out: Image.Image, origine: tuple, boites: list) -> None:
+    """Dans une forme PLEINE qui porte du texte en réserve (texte clair sur aplat : ses glyphes sont des trous du
+    détourage), les trous sous chaque ligne lue sont rebouchés de la couleur de l'aplat qui l'entoure — le texte devient
+    un objet texte du Vectorlab, posé au-dessus. Une forme au trait (anneau autour de la ligne surtout transparent) est
+    laissée telle quelle."""
+    for b in boites:
+        x0, y0 = int(b["x"] - origine[0]) - 2, int(b["y"] - origine[1]) - 2
+        x1, y1 = int(math.ceil(b["x"] + b["w"] - origine[0])) + 2, int(math.ceil(b["y"] + b["h"] - origine[1])) + 2
+        x0, y0, x1, y1 = max(0, x0), max(0, y0), min(out.width, x1), min(out.height, y1)
+        if x1 - x0 < 2 or y1 - y0 < 2:
+            continue
+        px = out.load()
+        anneau = []
+        for x in range(max(0, x0 - 6), min(out.width, x1 + 6)):
+            for y in (*range(max(0, y0 - 6), y0), *range(y1, min(out.height, y1 + 6))):
+                anneau.append(px[x, y])
+        for y in range(y0, y1):
+            for x in (*range(max(0, x0 - 6), x0), *range(x1, min(out.width, x1 + 6))):
+                anneau.append(px[x, y])
+        pleins = [p for p in anneau if p[3] > 127]
+        if not anneau or len(pleins) < 0.8 * len(anneau):
+            continue
+        c = tuple(sorted(p[i] for p in pleins)[len(pleins) // 2] for i in range(3)) + (255,)
+        zone = out.crop((x0, y0, x1, y1))
+        trou = zone.getchannel("A").point(lambda v: 255 - v)
+        zone.paste(Image.new("RGBA", zone.size, c), (0, 0), trou)
+        out.paste(zone, (x0, y0))
+
+
+def _png(rgba: Image.Image, masque: Image.Image, petit_comp: Image.Image, b: dict, s: float, textes=()):
+    """La découpe RGBA de la boîte `b`, limitée aux pixels de la composante ; (octets PNG, boîte resserrée).
+    `textes` : les boîtes des lignes lues posées sur cette forme (voir `_boucher`)."""
     zone = (b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"])
     cm = petit_comp.filter(ImageFilter.MaxFilter(3))
     lx0, ly0 = int(b["x"] * s), int(b["y"] * s)
@@ -278,6 +308,8 @@ def _png(rgba: Image.Image, masque: Image.Image, petit_comp: Image.Image, b: dic
         return None, b
     out = rgba.crop(zone)
     out.putalpha(ImageChops.multiply(out.getchannel("A"), a))
+    if textes:
+        _boucher(out, zone[:2], textes)
     out = out.crop(bb)
     nb = {"x": b["x"] + bb[0], "y": b["y"] + bb[1], "w": bb[2] - bb[0], "h": bb[3] - bb[1]}
     f = io.BytesIO()
@@ -480,7 +512,8 @@ def analyser(img: Image.Image, lignes: list, langue: str = "fr") -> dict:
             for i in e["c"]["pix"]:
                 y, x = divmod(i, sw)
                 px[x, y] = 255
-            png, b = _png(rgba, masque, cm, e["boite"], s)
+            textes = [l["boite"] for t in etiqs if t["parent"] is e for l in t["lignes"]] if nat == "forme" else []
+            png, b = _png(rgba, masque, cm, e["boite"], s, textes)
             e["boite"] = b
             if png is None:
                 continue

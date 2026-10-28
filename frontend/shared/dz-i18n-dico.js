@@ -17225,6 +17225,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "vectorlab.schema.cree": {"fr": "Document créé : {n} calques nommés.", "en": "Document created: {n} named layers."},
   "vectorlab.schema.creer": {"fr": "Créer le document", "en": "Create the document"},
   "vectorlab.schema.depot": {"fr": "Déposez une photo d'illustration ou de schéma, ou cliquez pour choisir un fichier", "en": "Drop a photo of an illustration or a diagram, or click to choose a file"},
+  "vectorlab.schema.det_a_mesurer": {"fr": "{label} — prix à mesurer (IA, payant)", "en": "{label} — price not measured yet (AI, paid)"},
   "vectorlab.schema.det_local": {"fr": "Fond uni ou image transparente (local, gratuit)", "en": "Plain background or transparent image (local, free)"},
   "vectorlab.schema.det_payant": {"fr": "{label} — {usd} $ (IA, payant)", "en": "{label} — ${usd} (AI, paid)"},
   "vectorlab.schema.det_rembg": {"fr": "rembg (local, gratuit)", "en": "rembg (local, free)"},

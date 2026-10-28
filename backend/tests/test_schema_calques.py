@@ -113,6 +113,17 @@ check("1c étiquette juste après son parent", o.index(eC["id"]) == o.index(A["i
 check("1c couleur du texte sombre", eC.get("couleur", "#FFFFFF")[1:3] < "80", eC.get("couleur"))
 check("1c étiquette sans png, avec lignes", "png" not in eC and eC["lignes"][0]["texte"] == "Client", eC.keys())
 
+pA = Image.open(io.BytesIO(A["png"]))
+check("1n forme au trait étiquetée : l'intérieur reste transparent", pA.getpixel((pA.size[0] // 2, pA.size[1] // 2))[3] == 0)
+im, d = fond()
+boite(d, 300, 200, 200, 100, plein=True)
+d.rectangle((360, 235, 440, 262), fill=BLANC)                      # texte clair en réserve : un trou du détourage
+r = SC.analyser(im, [ligne("Vidéo", 360, 235, 80, 27)])
+F = par_nature(r, "forme")
+pF = Image.open(io.BytesIO(F[0]["png"])) if F else None
+px = pF.getpixel((400 - F[0]["boite"]["x"], 248 - F[0]["boite"]["y"])) if pF else None
+check("1n forme pleine : le texte en réserve est rebouché de l'aplat", px and px[3] == 255 and px[:3] == (40, 90, 200), px)
+
 print("\n[3] formes pleines, traits sans pointe")
 im, d = fond()
 boite(d, 60, 200, plein=True)

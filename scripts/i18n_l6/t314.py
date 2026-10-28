@@ -20,6 +20,7 @@ DICO_SCHEMA = {
                                    "Plain background or transparent image (local, free)"),
     "vectorlab.schema.det_rembg": ("rembg (local, gratuit)", "rembg (local, free)"),
     "vectorlab.schema.det_payant": ("{label} — {usd} $ (IA, payant)", "{label} — ${usd} (AI, paid)"),
+    "vectorlab.schema.det_a_mesurer": ("{label} — prix à mesurer (IA, payant)", "{label} — price not measured yet (AI, paid)"),
     "vectorlab.schema.det_sans_cle": ("{label} — clé {cle} absente", "{label} — {cle} key missing"),
     "vectorlab.schema.langue": ("Langue des étiquettes", "Label language"),
     "vectorlab.schema.langue_fr": ("Français", "French"),

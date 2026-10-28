@@ -36,6 +36,9 @@ const doc = doc_depuis_analyse(ANALYSE, TRACES, "Mon schéma");
   const t = doc.calques[doc.calques.length - 1].objets[0];
   ok("5c étiquette = texte au bon corps, couleur lue", t.contenu === "Client" && t.style.corps === 23 && t.style.fond === "#141414"
      && t.style.police === "Segoe UI" && Math.abs(t.y - (232 + 26 * 0.82)) < 0.1 && t.x === 95, t);
+  const mes = (t, corps) => ({ w: corps * 0.5 * t.length, desc: t.includes("p") ? corps * 0.2 : 0 });
+  const tm = texte_de_ligne({ texte: "Script", boite: { x: 10, y: 20, w: 120, h: 44 } }, "#000000", mes);
+  ok("5c mesure : corps à la largeur lue, base au-dessus du jambage", tm.style.corps === 40 && Math.abs(tm.y - (64 - 8)) < 0.1, tm);
   ok("5c texte_de_ligne : corps minimal", texte_de_ligne({ texte: "x", boite: { x: 0, y: 0, w: 4, h: 2 } }).style.corps === 6);
 }
 {
@@ -66,8 +69,9 @@ const doc = doc_depuis_analyse(ANALYSE, TRACES, "Mon schéma");
     { id: "bria-rmbg", voie: "fal", usd: 0.018, disponible: true, label: "Bria RMBG 2.0" },
     { id: "pixelcut", voie: "fal", usd: 0, disponible: false, label: "Pixelcut", raison: "FAL_KEY" }]);
   ok("5g détourages : local gratuit, fal payant avec prix, clé absente dite", o[0].payant === false && o[0].libelle.includes("gratuit")
-     && o[1].payant && o[1].libelle.includes("Bria RMBG 2.0") && o[1].libelle.includes("0.018") && o[2].libelle.includes("FAL_KEY"), o.map((x) => x.libelle));
+     && o[1].payant && o[1].libelle.includes("Bria RMBG 2.0") && o[1].libelle.includes("0.018") && o[2].libelle.includes("FAL_KEY")
+     && options_detourage([{ id: "birefnet-v2", voie: "fal", usd: 0, disponible: true, label: "BiRefNet v2" }])[0].libelle.includes("à mesurer"), o.map((x) => x.libelle));
   ok("5g natures traduites", libelle_nature("fleche") === "Flèche" && libelle_nature("zz") === "Forme");
 }
 if (echecs.length) { console.error("ECHECS schema :\n- " + echecs.join("\n- ")); process.exit(1); }
-console.log("QA schema : PASS (17 controles)");
+console.log("QA schema : PASS (18 controles)");
