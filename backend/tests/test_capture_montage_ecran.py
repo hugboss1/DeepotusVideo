@@ -79,7 +79,10 @@ const br = L.brouillon({job_id: "J", chapitres_texte: "00:00 A"}, "Tuto", "9:16"
 console.log(JSON.stringify({z, segs, vs, plein, vert, bord, cf, lec, n: n.zooms, br,
   proche: L.clicProche([{type:"clic", t: 100, x: .1, y: .2}, {type:"clic", t: 200, x: .7, y: .7, secret: true}], 900),
   ecran: L.ecranA([{type:"ecran", t:0, ecran:"quick"}, {type:"ecran", t:500, ecran:"studio"}], 400),
-  lib: [L.libelleChapitre({titre:"", ecran:"sonvfx_hub"}, 0), L.libelleChapitre({titre:"", ecran:""}, 2)]}));
+  lib: [L.libelleChapitre({titre:"", ecran:"sonvfx_hub"}, 0), L.libelleChapitre({titre:"", ecran:""}, 2),
+        L.libelleChapitre({titre:"", ecran:"library"}, 1, (k) => "<" + k + ">")],
+  remplis: L.titresRemplis({chapitres: [{id:"a", t:0, titre:"", ecran:"library"}, {id:"b", t:9, titre:"Mon titre", ecran:"quick"}]},
+    (k) => "Bibliothèque").chapitres.map((h) => h.titre)}));
 """ % (json.dumps((SH / "dz-montage-capture-logique.js").resolve().as_uri()), json.dumps(MONT), json.dumps(INSTANTS)))
 py = [list(M.zoom_a(MONT, t)) for t in INSTANTS]
 check("L1 zoomA (JS) = zoom_a (Python) sur 200 instants",
@@ -105,7 +108,8 @@ check("L9 brouillon : draft, sans canaux, demain 10 h, job et chapitres", L["br"
       and L["br"]["caption"] == "00:00 A" and L["br"]["run_at"].startswith("2026-10-29T") and L["br"]["format"] == "9:16",
       L["br"])
 check("L10 clic proche (jamais un clic masqué), écran à l'instant, libellés", L["proche"] == {"x": 0.1, "y": 0.2}
-      and L["ecran"] == "quick" and L["lib"] == ["Sonvfx hub", "3"], (L["proche"], L["ecran"], L["lib"]))
+      and L["ecran"] == "quick" and L["lib"] == ["Sonvfx hub", "3", "<coque.rail.bibliotheque>"]
+      and L["remplis"] == ["Bibliothèque", "Mon titre"], (L["proche"], L["ecran"], L["lib"], L["remplis"]))
 
 print("[P] livraison")
 check("P1 copies shared == dist", all((SH / f).read_bytes() == (DI / f).read_bytes() for f in FICHIERS))
