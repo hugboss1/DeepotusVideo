@@ -7241,6 +7241,57 @@ def test_le_PLAN_de_la_TRAME_suit_le_REGARD_et_ne_papillote_pas():
         assert abs(a - b) < 1e-12, (sortie["axeLu"], sortie["axeTrois"])
 
 
+def test_en_ORBITE_la_trame_reste_le_SOL_meme_sous_l_horizon():
+    """Vu par l'utilisateur le 29/10 dans l'Établi : en orbite, une caméra
+    amenée près de l'horizon ou juste dessous redressait la trame en mur
+    VERTICAL derrière le modèle. Le redressement est réservé aux vues d'axe
+    « face » et « profil » ; la molette les garde, une orbite les quitte.
+    """
+    sortie = json.loads(_node_trois(
+        "projeter, orienter, majRepere",
+        _table_js("etabli/etabli.js", "PROJECTION_DE_VUE") + "\n" + """
+      /* L'orbite à la main : la caméra posée à une élévation donnée autour de
+         la cible, comme le ferait OrbitControls, puis controls.update(). */
+      function orbiter(api, elevDeg, azimDeg) {
+        const c = api.controls.target;
+        const d = api.camera.position.distanceTo(c);
+        const e = elevDeg * Math.PI / 180, a = azimDeg * Math.PI / 180;
+        api.camera.position.set(c.x + d * Math.cos(e) * Math.sin(a),
+          c.y + d * Math.sin(e), c.z + d * Math.cos(e) * Math.cos(a));
+        api.controls.update();
+        return majRepere(api).plan;
+      }
+      const rangs = {};
+      for (const vue of ["libre", "iso"]) {
+        const api = monter(860, 824);
+        poserModele(api, 3, 1.1, 0.4, 0, 0, 0);
+        projeter(api, PROJECTION_DE_VUE[vue]); orienter(api, vue);
+        majRepere(api);
+        rangs[vue] = [10, 3, 0, -3, -10, -40].map((el) => orbiter(api, el, 35));
+      }
+      /* « face » tenue, puis la molette (la distance change, pas le regard). */
+      const f = monter(860, 824);
+      poserModele(f, 3, 1.1, 0.4, 0, 0, 0);
+      projeter(f, PROJECTION_DE_VUE["face"]); orienter(f, "face");
+      const face = majRepere(f).plan;
+      f.camera.position.z *= 1.7; f.controls.update();
+      const molette = majRepere(f).plan;
+      /* …puis une orbite qui reste sous le seuil de planDeTrame (5°). */
+      const orbite = orbiter(f, 5, 20);
+      const p = monter(860, 824);
+      poserModele(p, 3, 1.1, 0.4, 0, 0, 0);
+      projeter(p, PROJECTION_DE_VUE["profil"]); orienter(p, "profil");
+      const profil = majRepere(p).plan;
+      console.log(JSON.stringify({ rangs, face, molette, orbite, profil }));
+    """))
+    for vue, plans in sortie["rangs"].items():
+        assert plans == ["y"] * len(plans), (vue, plans)
+    assert sortie["face"] == "z", sortie
+    assert sortie["molette"] == "z", sortie
+    assert sortie["orbite"] == "y", sortie
+    assert sortie["profil"] == "x", sortie
+
+
 def test_le_bloc_du_repere_ne_PEUT_PAS_ecrire_un_millimetre_de_plus():
     """LA NÉGATIVE QUI MANQUAIT, et son absence était démontrable : ajouter
     dans la branche « aucune taille cible » un ` · soit ${(REP.pas *
