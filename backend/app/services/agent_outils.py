@@ -1199,6 +1199,34 @@ async def entreprises_carte(ctx: Ctx, categorie: str, ville: str, max: int = 20)
                 None, carte)
 
 
+async def signaux_reddit(ctx: Ctx, requetes: list, communaute: str | None = None, max: int = 50) -> dict:  # noqa: A002
+    """t367 (A5) : une CARTE « collecte » Reddit (Apify, payante) pour des posts de BESOIN récents (un mois) ; acceptée,
+    seuls les besoins exprimés deviennent des signaux, rendus par prospects_chercher (source veille). Jamais une fiche,
+    jamais un message privé : une réponse publique, à la main, par l'utilisateur."""
+    from app.services import apify as AP
+    _espace(ctx)
+    qs = [str(q).strip() for q in (requetes if isinstance(requetes, list) else []) if isinstance(q, str) and str(q).strip()]
+    if not qs or len(qs) > 5 or any(len(q) > 120 for q in qs):
+        raise _Refus("de 1 à 5 requêtes de 120 caractères au plus")
+    if not AP.configure():
+        raise _Refus("aucune clé Apify : l'utilisateur la pose dans Réglages › Clés d'API")
+    entree = {"searches": qs}
+    com = str(communaute or "").strip().removeprefix("r/")
+    if com:
+        if not re.fullmatch(r"[A-Za-z0-9_]{2,21}", com):
+            raise _Refus("communauté Reddit illisible (ex. vfx, videography)")
+        entree["searchCommunityName"] = com
+    entree.update(sort="new", time="month")
+    n = max if isinstance(max, int) and not isinstance(max, bool) else 50
+    n = min(200, n if n > 0 else 1)
+    try:
+        carte = await AP.carte_collecte("reddit", entree, n, but="signaux")
+    except AP.ApifyRefus as e:
+        raise _Refus(str(e)) from None
+    carte["libelle"] = "Signaux de besoin sur Reddit"
+    return _res(True, "collecte Reddit proposée (payante, devis dans la carte) : le tour s'arrête", None, carte)
+
+
 async def prospects_qualifier(ctx: Ctx, pid: str, offre: str, ajustement: int = 0, raison: str = "") -> dict:
     from app.services import prospects as P
     eid = _espace(ctx)
@@ -1460,6 +1488,15 @@ OUTILS: dict[str, dict] = {
                                         "ville": dict(_T, maxLength=120, description="ex. Lyon, France"),
                                         "max": {"type": "integer", "minimum": 1, "maximum": MAX_CARTE_LIEUX}},
                                        ("categorie", "ville"))},
+    "signaux_reddit": {"nature": "carte", "fn": signaux_reddit,
+                       "description": "Propose UNE collecte Reddit payante (Apify) de posts récents qui expriment un "
+                                      "besoin (« alternative à », « combien coûte », « je cherche ») : une carte de "
+                                      "devis. Acceptée : des signaux rendus par prospects_chercher (source veille) ; "
+                                      "jamais une fiche, jamais un message privé. Le tour s'arrête.",
+                       "schema": _o({"requetes": {"type": "array", "minItems": 1, "maxItems": 5,
+                                                  "items": dict(_T, maxLength=120)},
+                                     "communaute": dict(_T, description="subreddit sans r/, ex. vfx"),
+                                     "max": {"type": "integer", "minimum": 1, "maximum": 200}}, ("requetes",))},
     "prospects_qualifier": {"nature": "ecriture", "fn": prospects_qualifier,
                             "description": "Qualifie un prospect : le serveur calcule le barème et les canaux possibles ; "
                                            "tu choisis l'offre (licence, prestation, a_definir) et peux ajuster le score "

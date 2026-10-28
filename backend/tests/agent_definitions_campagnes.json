@@ -479,6 +479,37 @@
   "name": "entreprises_carte"
  },
  {
+  "description": "Propose UNE collecte Reddit payante (Apify) de posts récents qui expriment un besoin (« alternative à », « combien coûte », « je cherche ») : une carte de devis. Acceptée : des signaux rendus par prospects_chercher (source veille) ; jamais une fiche, jamais un message privé. Le tour s'arrête.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "communaute": {
+     "description": "subreddit sans r/, ex. vfx",
+     "type": "string"
+    },
+    "max": {
+     "maximum": 200,
+     "minimum": 1,
+     "type": "integer"
+    },
+    "requetes": {
+     "items": {
+      "maxLength": 120,
+      "type": "string"
+     },
+     "maxItems": 5,
+     "minItems": 1,
+     "type": "array"
+    }
+   },
+   "required": [
+    "requetes"
+   ],
+   "type": "object"
+  },
+  "name": "signaux_reddit"
+ },
+ {
   "description": "Qualifie un prospect : le serveur calcule le barème et les canaux possibles ; tu choisis l'offre (licence, prestation, a_definir) et peux ajuster le score de -20 à 20 avec une raison. Ne change jamais le statut.",
   "input_schema": {
    "additionalProperties": false,

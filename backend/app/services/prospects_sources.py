@@ -203,4 +203,11 @@ def signaux_veille(eid, limite: int = 30) -> list:
             out.append({k: x.get(k) for k in ("theme", "concurrent", "source", "date", "url", "texte")})
         if len(out) >= limite:
             break
+    # t367 (28/10/2026) : les signaux de besoin Reddit collectés par Apify (carte acceptée), sans auteur
+    from app.services import apify_suite as _su
+    for x in _su.signaux_reddit(eid):
+        if len(out) >= limite:
+            break
+        out.append({"theme": None, "concurrent": None, "source": "reddit", "date": x.get("date"), "url": x.get("url"),
+                    "texte": x.get("texte")})
     return out

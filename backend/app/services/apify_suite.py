@@ -6,13 +6,17 @@ module en tire ce que l'agent et les écrans utilisent :
                    cible déposé comme URL, lisible ensuite par `prospects_chercher(source="entreprise")` (lecteur t354) ;
   veille  (t366) : des LIGNES DE VEILLE (auteur haché, jamais en clair) ajoutées au brut de la dernière veille, puis
                    reconsolidées par la grille ;
+  signaux (t367) : des SIGNAUX DE BESOIN Reddit (posts « alternative à », « combien coûte »…) gardés 30 jours par
+                   espace, rendus par `prospects_chercher(source="veille")` ; jamais une fiche, jamais un DM ;
 Rien ici n'écrit de fiche ni n'envoie quoi que ce soit.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import json
+import re
+from datetime import datetime, timedelta, timezone
 
-BUTS = ("leads", "veille")
+BUTS = ("leads", "veille", "signaux")
 
 # t366 : le champ d'entrée de chaque source de veille, et la nature de ses valeurs (requete : des mots, repris des
 # requêtes du concurrent par défaut ; url : collée par l'utilisateur ; url_objet : {"url": …} ; id : identifiant)
@@ -143,10 +147,66 @@ async def _leads(cid: str, args: dict, items: list) -> dict:
     return {"cibles": cibles}
 
 
+# ---- t367 : signaux de besoin Reddit --------------------------------------------------------------------------------
+BESOIN_REDDIT = re.compile(r"alternativ|combien (co[uû]te|ça co[uû]te)|how much|looking for|je cherche|on cherche|"
+                           r"recommend|recommand|conseill|which (tool|app|software)|quel (outil|logiciel)|cheaper|"
+                           r"moins cher|switch(ing)? from|replace|remplacer", re.I)
+JOURS_SIGNAUX = 30
+MAX_SIGNAUX = 200
+EXTRAIT = 300
+
+
+def _fichier_signaux(eid: str):
+    from app.config import DATA_ROOT
+    return DATA_ROOT / "espaces" / eid / "signaux_reddit.json"
+
+
+def signaux_reddit(eid: str) -> list:
+    """Les signaux Reddit gardés de l'espace (30 jours), du plus récent au plus ancien ; [] si aucun ou illisible."""
+    try:
+        s = json.loads(_fichier_signaux(eid).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    limite = (datetime.now(timezone.utc) - timedelta(days=JOURS_SIGNAUX)).isoformat()
+    return [x for x in s if isinstance(x, dict) and str(x.get("collecte_le") or "") >= limite] if isinstance(s, list) else []
+
+
+def _garder_signaux(eid: str, nouveaux: list) -> list:
+    """Fusionne (doublon = même lien), garde 30 jours et 200 au plus ; rend les signaux réellement ajoutés."""
+    gardes = signaux_reddit(eid)
+    vus = {x.get("url") for x in gardes}
+    ajoutes = [x for x in nouveaux if x.get("url") and x["url"] not in vus and not vus.add(x["url"])]
+    tout = (ajoutes + gardes)[:MAX_SIGNAUX]
+    f = _fichier_signaux(eid)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(tout, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(f)
+    return ajoutes
+
+
+async def _signaux(args: dict, items: list) -> dict:
+    import asyncio
+    eid = args.get("espace_id")
+    if not eid:
+        return {}
+    requete = " | ".join(str(x) for x in ((args.get("entree") or {}).get("searches") or []) if isinstance(x, str))[:300]
+    nouveaux = [l for l in lignes_veille("reddit", "", items, requete)
+                if BESOIN_REDDIT.search(str(l.get("texte") or ""))]
+    for l in nouveaux:
+        l["texte"] = l["texte"][:EXTRAIT]
+        l.pop("concurrent", None)
+        l.pop("score", None)
+    ajoutes = await asyncio.to_thread(_garder_signaux, eid, nouveaux)
+    return {"signaux": len(ajoutes)}
+
+
 async def traiter(but, cid: str, args: dict, items: list) -> dict:
     """Ce que le fait « terminee » de la carte porte en plus ; {} pour un but inconnu ou absent."""
     if but == "leads":
         return await _leads(cid, args, items)
     if but == "veille":
         return await _veille(args, items)
+    if but == "signaux":
+        return await _signaux(args, items)
     return {}

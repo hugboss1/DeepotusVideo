@@ -185,7 +185,7 @@
   // serveur (en français) n'est plus affiché. Un nom inconnu : un libellé générique.
   var OUTILS = ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_document", "ecrire_dossier",
     "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "veille_collecter", "veille_lire", "veille_sources", "veille_apify",
-    "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher", "entreprises_carte",
+    "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher", "entreprises_carte", "signaux_reddit",
     "sequence_proposer", "sequence_planifier", "whatsapp_modeles",
     "reponses_lire", "relance_proposer"];
   function ligneOutil(nom, ok) {
@@ -365,6 +365,7 @@
           else if (fc.statut === "done") {
             c.appendChild(etat(T("campagnes.collecte.faite", { n: Number(fc.resultats) || 0, usd: usd(fc.cout_usd || 0) }), "ok"));
             if (fc.partiel) c.appendChild(etat(T("campagnes.collecte.partielle")));
+            if (typeof fc.signaux === "number") c.appendChild(etat(T("campagnes.collecte.signaux", { n: fc.signaux }), "ok"));   // t367
             if (typeof fc.verbatims === "number") c.appendChild(etat(T("campagnes.collecte.verbatims", { n: fc.verbatims }), "ok"));   // t366
             if (Array.isArray(fc.cibles)) {          // t365 : les entreprises trouvées sur Google Maps (aucune fiche)
               var ulc = el("ul", { class: "dzCampLignes", "data-dz-camp": "cibles" });
