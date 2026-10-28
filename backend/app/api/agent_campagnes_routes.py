@@ -670,7 +670,8 @@ async def _reserver_collecte(cid: str, l: dict, orig: dict) -> dict:
         raise HTTPException(e.code, str(e)) from None
     garde = await plafonds.verifier({"kind": "apify", "acteur": AP.ACTEURS[cle]["acteur"], "usd": d}, "campagnes",
                                     ref=cid, espace_id=l.get("espace_id"))
-    return {"cle": cle, "entree": entree, "n": n, "lignes": (garde or {}).get("lignes") or []}
+    return {"cle": cle, "entree": entree, "n": n, "lignes": (garde or {}).get("lignes") or [],
+            "espace_id": l.get("espace_id")}
 
 
 async def _executer_collecte(cid: str, n_carte: int, orig: dict, c0: dict, appareil) -> None:
@@ -688,10 +689,16 @@ async def _executer_collecte(cid: str, n_carte: int, orig: dict, c0: dict, appar
         raise HTTPException(502, msg) from None
     await plafonds.noter_reel_lignes(c0["lignes"], float(r["cout_usd"]))
     depot = await AO.enregistrer_depot(cid, f"apify-{c0['cle']}", json.dumps(r["items"], ensure_ascii=False))
+    from app.services import apify_suite as SU
+    a = orig.get("arguments") or {}
+    try:                                                # t365-t368 : ce que devient la collecte, selon son but
+        suite = await SU.traiter(a.get("but"), cid, dict(a, espace_id=c0.get("espace_id")), r["items"])
+    except Exception as e:  # noqa: BLE001 — la collecte est payée : le fait l'écrit quand même, la suite dit son échec
+        suite = {"suite_erreur": f"{type(e).__name__} : {str(e)[:200]}"}
     with _traduire():
-        await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n_carte, "terminee", {
+        await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n_carte, "terminee", dict(suite, **{
             "resultats": len(r["items"]), "cout_usd": r["cout_usd"], "partiel": bool(r["partiel"]), "statut": "done",
-            "depot": depot[:-4] if depot.endswith(".txt") else depot})], **_trace(appareil))])
+            "depot": depot[:-4] if depot.endswith(".txt") else depot}))], **_trace(appareil))])
 
 
 async def _deposer_resultats(cid: str, r: dict) -> dict:

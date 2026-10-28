@@ -185,7 +185,7 @@
   // serveur (en français) n'est plus affiché. Un nom inconnu : un libellé générique.
   var OUTILS = ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_document", "ecrire_dossier",
     "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "veille_collecter", "veille_lire",
-    "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher",
+    "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher", "entreprises_carte",
     "sequence_proposer", "sequence_planifier", "whatsapp_modeles",
     "reponses_lire", "relance_proposer"];
   function ligneOutil(nom, ok) {
@@ -365,6 +365,19 @@
           else if (fc.statut === "done") {
             c.appendChild(etat(T("campagnes.collecte.faite", { n: Number(fc.resultats) || 0, usd: usd(fc.cout_usd || 0) }), "ok"));
             if (fc.partiel) c.appendChild(etat(T("campagnes.collecte.partielle")));
+            if (Array.isArray(fc.cibles)) {          // t365 : les entreprises trouvées sur Google Maps (aucune fiche)
+              var ulc = el("ul", { class: "dzCampLignes", "data-dz-camp": "cibles" });
+              fc.cibles.forEach(function (x) {
+                var li = el("li", {});
+                var s = x && typeof x.site === "string" ? x.site : "";
+                var nom = String((x && x.nom) || s);
+                if (/^https?:\/\//i.test(s)) li.appendChild(el("a", { class: "dzCampLien", href: s, target: "_blank", rel: "noopener noreferrer", texte: nom }));
+                else li.appendChild(el("span", { texte: nom }));
+                if (x && typeof x.note === "number") li.appendChild(el("span", { texte: " · " + T("campagnes.collecte.note", { note: x.note }) }));
+                ulc.appendChild(li);
+              });
+              c.appendChild(ulc);
+            }
           }
         }
       } else if (b.genre === "sequence") {       // t355 : la porte 2 d'une séquence de prospection ; rien ne part ici

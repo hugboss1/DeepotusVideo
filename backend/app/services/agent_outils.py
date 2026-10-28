@@ -1111,6 +1111,32 @@ async def entreprises_rechercher(ctx: Ctx, requete: str, max: int = 5) -> dict: 
     return _res(True, f"recherche proposée chez {f} (payante, devis dans la carte) : le tour s'arrête", None, carte)
 
 
+MAX_CARTE_LIEUX = 100
+
+
+async def entreprises_carte(ctx: Ctx, categorie: str, ville: str, max: int = 20) -> dict:  # noqa: A002
+    """t365 (A4) : une CARTE « collecte » Google Maps (Apify, payante, plafond 1 $) pour des entreprises d'une catégorie
+    dans une ville ; rien n'est lancé ici. Acceptée : des cibles {nom, site, note, catégorie, ville} et leurs sites
+    déposés, lisibles ensuite par prospects_chercher (source entreprise). Aucune fiche."""
+    from app.services import apify as AP
+    _espace(ctx)
+    cat, lieu = str(categorie or "").strip(), str(ville or "").strip()
+    if not cat or not lieu or len(cat) > 120 or len(lieu) > 120:
+        raise _Refus("catégorie et ville exigées (120 caractères au plus chacune)")
+    if not AP.configure():
+        raise _Refus("aucune clé Apify : l'utilisateur la pose dans Réglages › Clés d'API")
+    n = max if isinstance(max, int) and not isinstance(max, bool) else 20
+    n = min(MAX_CARTE_LIEUX, n if n > 0 else 1)
+    try:
+        carte = await AP.carte_collecte("google_maps", {"searchStringsArray": [cat], "locationQuery": lieu,
+                                                        "language": "fr"}, n, but="leads")
+    except AP.ApifyRefus as e:
+        raise _Refus(str(e)) from None
+    carte["libelle"] = f"Entreprises sur Google Maps : {cat} à {lieu}"
+    return _res(True, f"collecte Google Maps proposée ({n} lieux au plus, payante, devis dans la carte) : le tour s'arrête",
+                None, carte)
+
+
 async def prospects_qualifier(ctx: Ctx, pid: str, offre: str, ajustement: int = 0, raison: str = "") -> dict:
     from app.services import prospects as P
     eid = _espace(ctx)
@@ -1344,6 +1370,15 @@ OUTILS: dict[str, dict] = {
                                               "prospects_chercher (source entreprise). Le tour s'arrête.",
                                "schema": _o({"requete": dict(_T, maxLength=300, description="ex. studios vidéo à Lyon"),
                                              "max": {"type": "integer", "minimum": 1, "maximum": 10}}, ("requete",))},
+    "entreprises_carte": {"nature": "carte", "fn": entreprises_carte,
+                          "description": "Propose UNE collecte Google Maps (Apify, payante, plafond 1 $) d'entreprises "
+                                         "d'une catégorie dans une ville : une carte de devis que l'utilisateur accepte "
+                                         "ou non. Acceptée : des cibles (nom, site, note) sans fiche, et leurs sites "
+                                         "lisibles par prospects_chercher (source entreprise). Le tour s'arrête.",
+                          "schema": _o({"categorie": dict(_T, maxLength=120, description="ex. studio vidéo, agence de pub"),
+                                        "ville": dict(_T, maxLength=120, description="ex. Lyon, France"),
+                                        "max": {"type": "integer", "minimum": 1, "maximum": MAX_CARTE_LIEUX}},
+                                       ("categorie", "ville"))},
     "prospects_qualifier": {"nature": "ecriture", "fn": prospects_qualifier,
                             "description": "Qualifie un prospect : le serveur calcule le barème et les canaux possibles ; "
                                            "tu choisis l'offre (licence, prestation, a_definir) et peux ajuster le score "

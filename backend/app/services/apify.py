@@ -351,7 +351,7 @@ async def lancer(cle: str, entree: dict, n: int, plafond: float | None = None) -
             "partiel": partiel or run.get("status") != "SUCCEEDED"}
 
 
-async def carte_collecte(cle: str, entree: dict, n: int) -> dict:
+async def carte_collecte(cle: str, entree: dict, n: int, but: str | None = None) -> dict:
     """La carte « collecte » du format v1 (t365 et t366 la proposent) : entrée filtrée D'AVANCE (un champ hors liste est
     refusé ici, jamais sur la carte), devis lu ; rien n'est lancé. Acceptée, la route recalcule le devis et lance."""
     a = _acteur(cle)
@@ -363,4 +363,5 @@ async def carte_collecte(cle: str, entree: dict, n: int) -> dict:
                          "résultats", 402)
     return {"type": "carte", "genre": "collecte", "libelle": f"Collecte Apify ({cle})", "etat": "proposee",
             "action": "collecter", "devis": d,
-            "arguments": {"acteur": cle, "usage": a["usage"], "entree": dict(entree or {}), "max": n, "devis_usd": d}}
+            "arguments": {"acteur": cle, "usage": a["usage"], "entree": dict(entree or {}), "max": n, "devis_usd": d,
+                          **({"but": but} if but else {})}}       # t365 : ce que devient la collecte (apify_suite)
