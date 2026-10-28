@@ -49,6 +49,26 @@ with TestClient(app) as c:
     check("6 la liste la donne", c.get("/api/agent/campagnes/temoins").json()["temoins"][0]["conversation_id"] == cid)
     check("7 un espace ordinaire : 409", c.post("/api/agent/campagnes/temoin", json={"espace_id": A}).status_code == 409)
     check("8 espace inconnu : 400 ou 404", c.post("/api/agent/campagnes/temoin", json={"espace_id": "es_inconnu00"}).status_code in (400, 404))
+    D2 = E.creer_demonstration("Démo · Studio Deux", "#ef4444", {"espace": A, "prospect": "pr_00000002"})["id"]
+    import asyncio, httpx                                             # noqa: E401
+    from app.api import agent_campagnes_routes as R
+    _orig = R._conversation_temoin
+
+    async def lent(eid):
+        r = await _orig(eid)
+        await asyncio.sleep(0.2)                                       # les deux requêtes lisent « rien » avant de créer
+        return r
+
+    R._conversation_temoin = lent
+
+    async def deux():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1") as ac:
+            return await asyncio.gather(*(ac.post("/api/agent/campagnes/temoin", json={"espace_id": D2}) for _ in range(2)))
+
+    r1, r2 = asyncio.run(deux())
+    R._conversation_temoin = _orig
+    check("9 deux ouvertures simultanées : UNE seule conversation", r1.status_code == r2.status_code == 200 and r1.json()["id"] == r2.json()["id"],
+          (r1.status_code, r2.status_code, r1.text[:80], r2.text[:80]))
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)
