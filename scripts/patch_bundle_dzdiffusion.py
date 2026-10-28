@@ -13,7 +13,7 @@ __DZ_*_BEGIN__, vérifié à l'écriture par `hors_couche`) :
      ouvre ce remplacement ;
   P2 DzPostComptes, sous la liste des comptes : quand UN compte whatsapp est coché, le point de montage
      `<div data-dz-diffusion={post.id}>` dont le ref appelle window.__dzDiffusionWhatsapp.monter(nœud, post.id,
-     {compte, espace, delai: 700}) (frontend/shared/dz-diffusion-whatsapp.js, chargé par frontend/dist/index.html ; le
+     {compte, espace, statut, delai: 700} ; un statut changé fait relire le panneau) (frontend/shared/dz-diffusion-whatsapp.js, chargé par frontend/dist/index.html ; le
      délai laisse partir le PATCH des comptes, différé de 500 ms ; s'il arrive plus tard, le panneau relit seul sur le
      409 « un seul compte »). Sa clé = post + compte whatsapp : cocher un autre compte ne le remonte pas. Deux comptes
      whatsapp cochés : une ligne dzT("diffusion.panneau.un_seul_compte") à la place ;
@@ -65,7 +65,7 @@ SONDE_AMONT = [
 _APRES_FILTRE = ';maj()},function(){delete dzPcCache[esp];maj()}'
 SANS_FILTRE = ';' + MARKER + 'dzPcCache[esp].liste=j.comptes||[];maj()},function(){delete dzPcCache[esp];maj()}'
 _SOUS_LISTE = '}),esp!=="deepotus"&&!choisis.length&&'
-MONTER = "window.__dzDiffusionWhatsapp&&window.__dzDiffusionWhatsapp.monter(n,p.id,{compte:wa[0],espace:esp,delai:700})"
+MONTER = "window.__dzDiffusionWhatsapp&&window.__dzDiffusionWhatsapp.monter(n,p.id,{compte:wa[0],espace:esp,statut:p.status,delai:700})"
 MONTAGE = ('(function(){var wa=choisis.filter(function(i){var v=liste.find(function(x2){return x2.id===i});'
            'return v&&v.plateforme==="whatsapp"});'
            'return wa.length===1?r.jsx("div",{"data-dz-diffusion":p.id,ref:function(n){n&&' + MONTER + '}},'

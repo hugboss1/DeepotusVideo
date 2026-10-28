@@ -67,7 +67,10 @@ function monde({ lang = "fr", routes = {}, dialogue = [] , sansDialogue = false 
   ctx.window = ctx;
   ctx.dzT = dzTde(lang);
   ctx.dzLang = () => lang;
-  ctx.dispatchEvent = (e) => { evenements.push(e.type); };
+  const ecouteurs = {};
+  ctx.addEventListener = (t, f) => { (ecouteurs[t] = ecouteurs[t] || []).push(f); };
+  ctx.removeEventListener = (t, f) => { ecouteurs[t] = (ecouteurs[t] || []).filter((g) => g !== f); };
+  ctx.dispatchEvent = (e) => { evenements.push(e.type); (ecouteurs[e.type] || []).slice().forEach((f) => f(e)); };
   ctx.document = { createElement: (t) => new Noeud(t), body: new Noeud("body"), documentElement: new Noeud("html") };
   if (!sansDialogue) ctx.__dzDialogue = {
     ouvert: () => etat.ouvert,
@@ -525,6 +528,46 @@ const REFUS_NOM = { detail: { message: "confirmez la publication au nom du clien
   await m.API.monter(m.hote, "p1", O); await tick();
   ok("18.3 introuvable : suivi, statut traduit", un(m.hote, "data-dz-diffusion-statut", "introuvable")?.textContent.includes(FR("diffusion.statut.introuvable")), m.hote.textContent);
   ok("18.4 modèle d'authentification écarté (règle pure)", m.API._regles.utilisable(MODELES.find((x) => x.nom === "code_otp")) === false);
+}
+
+// ---- post publié depuis le Planificateur : le panneau passe au suivi sans recharger la page -------------------------
+{
+  let envoye = false, gets = 0, puts = 0;
+  const CONFIG = { config: CFG({ nom: "bienvenue", langue: "fr", categorie: "marketing" }, { prenom: "A", code: "B" }), audience: { n: 3, ecartes: {} }, devis: { usd: 0.05, lignes: [] }, etat: { statut: "configuree", incertain: false } };
+  const SUIVI = { ...CONFIG, etat: { statut: "sending", broadcast_id: "b1", n: 3, incertain: false, compteurs: { sent: 1 } } };
+  const m = monde({ routes: {
+    [GET]: () => { gets++; return rep(200, envoye ? SUIVI : CONFIG); }, [MOD]: () => rep(200, MODELES),
+    [PUT]: () => { puts++; return rep(200, { config: CONFIG.config, audience: CONFIG.audience, devis: CONFIG.devis }); },
+  } });
+  await m.API.monter(m.hote, "p1", { ...O, statut: "ready" }); await tick();
+  ok("17.0 configurée : édition", !!un(m.hote, "data-dz-diffusion-enregistrer") && gets === 1);
+  const champ = attr(m.hote, "data-dz-diffusion-param")[0];
+  champ.value = "Zoé"; champ.fire("input");
+  await m.API.monter(m.hote, "p1", { ...O, statut: "ready" }); await tick();
+  ok("17.1 même statut au rendu suivant : aucune relecture", gets === 1);
+  await m.API.monter(m.hote, "p1", { ...O, statut: "a_valider" }); await tick();
+  ok("17.2 statut changé (encore en édition) : relu, la saisie est gardée", gets === 2 && attr(m.hote, "data-dz-diffusion-param")[0].value === "Zoé");
+  envoye = true;
+  await m.API.monter(m.hote, "p1", { ...O, statut: "posted" }); await tick();
+  ok("17.3 post publié (statut posted) : le panneau passe au suivi", !!un(m.hote, "data-dz-diffusion-statut", "sending") && !un(m.hote, "data-dz-diffusion-enregistrer")
+    && gets === 3, m.hote.textContent);
+  m.ctx.dispatchEvent({ type: "deepotus:schedule-reload" }); await tick();
+  ok("17.4 signal deepotus:schedule-reload : relu", gets === 4);
+  m.ctx.dispatchEvent({ type: "deepotus:schedule-recharger" }); await tick();
+  ok("17.5 signal deepotus:schedule-recharger : relu", gets === 5);
+  // nos propres signaux (après PUT) ne font pas relire
+  envoye = false;
+  const m2 = monde({ routes: { [GET]: () => { gets++; return rep(200, CONFIG); }, [MOD]: () => rep(200, MODELES), [PUT]: () => { puts++; return rep(200, { config: CONFIG.config, audience: CONFIG.audience, devis: CONFIG.devis }); } } });
+  gets = 0;
+  await m2.API.monter(m2.hote, "p1", O); await tick();
+  un(m2.hote, "data-dz-diffusion-enregistrer").click(); await tick();
+  ok("17.6 le signal émis après le PUT ne fait pas relire le panneau qui l'émet", puts === 1 && gets === 1 && m2.evenements.includes("deepotus:schedule-recharger"));
+  // remplacé : l'ancienne instance se retire de l'écoute
+  const m3 = monde({ routes: { [GET]: () => { gets++; return rep(200, CONFIG); }, ["GET /api/schedule/p2/diffusion"]: () => { gets++; return rep(200, CONFIG); }, [MOD]: () => rep(200, MODELES) } });
+  gets = 0;
+  await m3.API.monter(m3.hote, "p1", O); await m3.API.monter(m3.hote, "p2", O); await tick();
+  m3.ctx.dispatchEvent({ type: "deepotus:schedule-reload" }); await tick();
+  ok("17.7 signal après remontage : seule l'instance montée relit", gets === 3, String(gets));
 }
 
 if (echecs.length) { console.log(`ÉCHEC ${echecs.length}/${n}\n  - ` + echecs.join("\n  - ")); process.exit(1); }

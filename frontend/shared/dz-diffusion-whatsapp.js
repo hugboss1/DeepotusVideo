@@ -88,8 +88,30 @@
   }
   function categorie(c) { return CATEGORIES.indexOf(c) >= 0 ? T("diffusion.categorie." + c) : String(c || ""); }
   function statut(s) { return STATUTS.indexOf(s) >= 0 ? T("diffusion.statut." + s) : String(s || ""); }
+  var enEmission = false;                    // nos propres signaux ne nous font pas relire
   function signaler(nom) {
+    enEmission = true;
     try { window.dispatchEvent(new CustomEvent(nom)); } catch (e) { /* rien : l'écran garde son état */ }
+    enEmission = false;
+  }
+  // preuve à l'écran t328 : un post publié depuis le Planificateur (« Envoyer … maintenant ») laissait le panneau en
+  // édition. Le panneau relit donc quand le STATUT du post change (le ref du bundle le repasse à chaque rendu) et sur les
+  // signaux de relecture du Planificateur ; jamais pendant une requête ou un dialogue (la saisie de l'instance reste).
+  function relireSiLibre(inst) {
+    if (inst.el.__dzDiffusion !== inst || inst.occupe || inst.verrou) return null;
+    return charger(inst, false, null);
+  }
+  var EVENEMENTS = ["deepotus:schedule-reload", "deepotus:schedule-recharger"];
+  function ecouter(inst) {
+    if (typeof window.addEventListener !== "function") return;
+    var f = function () {
+      if (inst.el.__dzDiffusion !== inst || inst.el.isConnected === false) {     // démonté ou remplacé : on se retire
+        EVENEMENTS.forEach(function (n) { try { window.removeEventListener(n, f); } catch (e) { /* rien */ } });
+        return;
+      }
+      if (!enEmission) relireSiLibre(inst);
+    };
+    EVENEMENTS.forEach(function (n) { window.addEventListener(n, f); });
   }
 
   // ── le réseau : délai de 30 s, réponse {ok, status, data} ; rejet {message, delai} ──
@@ -182,10 +204,18 @@
     o = o || {};
     var pid = String(postId);
     var deja = elt.__dzDiffusion;
-    if (deja && deja.postId === pid) return deja.pret;
-    var inst = { el: elt, postId: pid, compte: o.compte || "", espace: o.espace || "", jeton: 0, d: null,
+    if (deja && deja.postId === pid) {
+      if (o.statut != null && deja.statut != null && String(o.statut) !== deja.statut) {
+        deja.statut = String(o.statut);
+        var r = relireSiLibre(deja);
+        if (r) return r;
+      }
+      return deja.pret;
+    }
+    var inst = { el: elt, postId: pid, compte: o.compte || "", espace: o.espace || "", statut: o.statut != null ? String(o.statut) : null, jeton: 0, d: null,
                  modeles: null, modelesDe: null, noteModeles: "", occupe: false, modifie: false, choix: null, saisie: {}, msg: "", err: "" };
     elt.__dzDiffusion = inst;
+    ecouter(inst);
     var delai = Number(o.delai) || 0;
     inst.pret = new Promise(function (ok) { delai > 0 ? setTimeout(ok, delai) : ok(); }).then(function () {
       return elt.__dzDiffusion === inst ? charger(inst, false, 0) : null;
