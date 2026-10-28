@@ -2799,6 +2799,7 @@
   "erreur.f38555bdab": {"fr": "Sauvegarde refusée — plus de 2 Mo.", "en": "Save rejected — over 2 MB.", "src": "fr"},
   "erreur.f3dbd17198": {"fr": "aucune pièce à creuser dans la scène active", "en": "no part to hollow in the active scene", "src": "fr"},
   "erreur.f3e8421952": {"fr": "Nom d'image invalide : {name} — les images de calque s'appellent « img_1.png », « img_2.png », etc.", "en": "Invalid image name: {name} — layer images are named \"img_1.png\", \"img_2.png\", etc.", "src": "fr"},
+  "erreur.f3f525d7d6": {"fr": "Une campagne témoin se prépare dans un espace démonstration.", "en": "A showcase campaign is prepared in a demo workspace.", "src": "fr"},
   "erreur.f3f720f820": {"fr": "plan de plaque : l'index {index} est posé deux fois", "en": "plate layout: index {index} is placed twice", "src": "fr"},
   "erreur.f4081c4c5b": {"fr": "preset {pid} : fps {fps} hors de {DELIVER_FPS}", "en": "preset {pid}: fps {fps} not in {DELIVER_FPS}", "src": "fr"},
   "erreur.f42957860d": {"fr": "Aperçu de titre : il n'y a rien à écrire — donne un texte.", "en": "Title preview: there is nothing to write — enter some text.", "src": "fr"},
