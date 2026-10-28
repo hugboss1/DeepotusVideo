@@ -36,9 +36,18 @@
   var MOYENS = ["ecrit", "formulaire", "inscription", "whatsapp", "oral"];
   var NOTES = ["demo_active", "plafond_espaces", "demo_absente", "demo_erreur"];
   var HISTO = ["creation", "modification", "statut", "consentement", "revocation", "contact_entrant", "contact_sortant", "opposition",
-    "qualification"];
+    "qualification", "a_l_humain"];
   var CRITERES = ["source_entrante", "source_web", "consentement", "canal_possible", "adresse_pro", "signal", "contact_recent"];   // t354
   var FOURNISSEURS = ["anthropic", "tavily", "exa", "serper"];   // t354 : recherche web de la prospection
+  var SEQ_STATUTS = ["proposee", "validee", "planifiee", "terminee", "annulee"];   // t355 : séquences
+  var ETAPE_STATUTS = ["brouillon", "validee", "planifiee", "envoyee", "annulee"];
+  var SEQ_MOTIFS = ["effacee", "remplacee", "annulee", "canal", "rebond", "echec", "fenetre", "modele", "incertain", "nouvelle_reponse", "humain"];
+  var MOTIFS_HUMAIN = ["prix", "devis", "plainte", "stop", "refus", "engagement", "illisible", "autre"];   // t358 : passage à l'humain
+  var EMAIL_MODES = ["smtp", "brevo"];   // t356 : canal e-mail
+  var EMAIL_MANQUES = ["expediteur", "identite", "smtp", "imap", "mdp", "brevo"];
+  var EMAIL_PAUSES = ["rebonds", "plainte"];
+  var EMAIL_CHAMPS = ["nom", "adresse", "raison", "smtp_hote", "smtp_port", "smtp_user", "imap_hote", "imap_port", "imap_user", "plafond"];   // les saisies du panneau   // le motif d'un arrêt ; « fiche:<statut> » à part
+  var SEQ_MANUELS = ["x", "instagram", "linkedin"];    // envoyés à la main : jamais de message automatique
   var SAISIS = ["email", "telephone", "whatsapp", "linkedin"];     // les canaux du formulaire ; les autres sont gardés tels quels
   var JSON_H = { "Content-Type": "application/json" };
 
@@ -87,6 +96,13 @@
     + ".dzProspectsActions{display:flex;flex-wrap:wrap;gap:6px}"
     + ".dzProspects ul{margin:0;padding-left:18px}"
     + ".dzProspects a{color:var(--accent,#f0b429)}"
+    + ".dzProspectsSeq{border:1px solid var(--stroke,#2a2930);padding:6px 8px;margin:6px 0;display:flex;flex-direction:column;gap:4px}"
+    + ".dzProspectsEtape{border-left:2px solid var(--stroke,#2a2930);padding-left:8px}"
+    + ".dzProspectsTableau{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(150px,1fr);gap:8px;overflow-x:auto}"
+    + ".dzProspectsColonne{display:flex;flex-direction:column;gap:6px;min-width:150px}"
+    + ".dzProspectsCarte{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;width:100%}"
+    + ".dzProspectsAReprendre{border-color:var(--red,#e35d4a)!important}"
+    + ".dzProspectsTexte{white-space:pre-wrap;margin:2px 0;font:inherit;color:var(--ink,#c4bfb6)}"
     + ".dzProspectsPied{padding:6px 12px;border-top:1px solid var(--stroke,#2a2930);font-size:11px;color:var(--ink-soft,#8a857d)}";
   function poserCss() {
     if (document.getElementById && document.getElementById("dzProspectsCss")) return;
@@ -161,12 +177,16 @@
         barre.appendChild(el("button", { type: "button", "data-dz-prospects": "filtre-" + s, "aria-pressed": etat.filtre === s ? "true" : "false",
           texte: T("prospects.statut." + s) + " " + n, on: { click: function () { etat.filtre = s; etat.fiche = null; dessiner(); } } }));
       });
+      barre.appendChild(el("button", { type: "button", "data-dz-prospects": "vue-tableau", texte: T("prospects.bouton.tableau"),   // t358
+        "aria-pressed": etat.tableau ? "true" : "false", on: { click: function () { etat.tableau = !etat.tableau; etat.fiche = null; dessiner(); } } }));
       barre.appendChild(el("button", { type: "button", "data-dz-prospects": "ajouter", texte: T("prospects.bouton.ajouter"),
         on: { click: function () { etat.fiche = null; vider(corps); corps.appendChild(formulaire(null)); } } }));
       barre.appendChild(el("button", { type: "button", "data-dz-prospects": "opposition-saisir", texte: T("prospects.bouton.opposition"),
         on: { click: function () { vider(corps); corps.appendChild(saisieOpposition()); } } }));
       barre.appendChild(el("button", { type: "button", "data-dz-prospects": "recherche", texte: T("prospects.bouton.recherche"),
         on: { click: function () { vider(corps); corps.appendChild(reglageRecherche()); } } }));
+      barre.appendChild(el("button", { type: "button", "data-dz-prospects": "email", texte: T("prospects.bouton.email"),   // t356
+        on: { click: function () { vider(corps); corps.appendChild(reglageEmail()); } } }));
     }
 
     function dessiner() {
@@ -178,6 +198,7 @@
       if (etat.misDeCote) pied.appendChild(el("p", { class: "dzProspectsErreur", "data-dz-prospects": "registre-illisible",
         texte: T("prospects.registre.illisible", { n: etat.misDeCote }) }));
       if (etat.fiche) { corps.appendChild(fiche(etat.fiche)); return; }
+      if (etat.tableau) { corps.appendChild(tableau()); return; }       // t358
       var liste = etat.prospects.filter(function (p) { return !etat.filtre || p.statut === etat.filtre; });
       if (!liste.length) {
         corps.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "vide", texte: T("prospects.vide.aucun") }));
@@ -190,11 +211,35 @@
         if (p.prochaine_action && p.prochaine_action.texte) meta.push(T("prospects.liste.prochaine", { texte: p.prochaine_action.texte, le: p.prochaine_action.le || "—" }));
         meta.push(T("prospects.liste.purge", { le: p.purge_le || "—" }));
         if (p.par_agent) meta.push(T("prospects.liste.par_agent"));      // t354
+        if (p.a_l_humain) meta.unshift(T("prospects.liste.a_reprendre", { motif: lib(MOTIFS_HUMAIN, "prospects.humain.", p.a_l_humain.motif) }));   // t358
         corps.appendChild(el("button", { type: "button", class: "dzProspectsLigne", "data-dz-prospects": "ligne", "data-id": p.id,
           on: { click: function () { etat.fiche = p; etat.note = ""; dessiner(); } } }, [
           el("strong", { texte: titre }), el("span", { texte: lib(STATUTS, "prospects.statut.", p.statut) }),
           el("span", { class: "dzProspectsMeta", texte: meta.join(" · ") })]));
       });
+    }
+
+    // t358 : le tableau du pipeline — une colonne par statut ; clic sur une carte = la fiche (ses boutons font les passages)
+    function tableau() {
+      var t = el("div", { class: "dzProspectsTableau", "data-dz-prospects": "tableau" });
+      STATUTS.forEach(function (s) {
+        var fiches = etat.prospects.filter(function (p) { return p.statut === s; });
+        var col = el("div", { class: "dzProspectsColonne", "data-dz-prospects": "colonne-" + s }, [
+          el("h3", { texte: T("prospects.statut." + s) + " · " + fiches.length })]);
+        fiches.forEach(function (p) {
+          var lignes = [p.entreprise || p.nom || T("prospects.fiche.anonyme")];
+          if (p.score !== null && p.score !== undefined) lignes.push(T("prospects.liste.score", { n: p.score }));
+          if (p.prochaine_action && p.prochaine_action.texte) lignes.push(p.prochaine_action.texte);
+          var carte = el("button", { type: "button", class: "dzProspectsCarte" + (p.a_l_humain ? " dzProspectsAReprendre" : ""),
+            "data-dz-prospects": "carte", "data-id": p.id, on: { click: function () { etat.fiche = p; etat.note = ""; dessiner(); } } },
+            lignes.map(function (x, i) { return el(i ? "span" : "strong", { texte: x }); }));
+          if (p.a_l_humain) carte.appendChild(el("span", { class: "dzProspectsErreur", "data-dz-prospects": "a-reprendre",
+            texte: T("prospects.liste.a_reprendre", { motif: lib(MOTIFS_HUMAIN, "prospects.humain.", p.a_l_humain.motif) }) }));
+          col.appendChild(carte);
+        });
+        t.appendChild(col);
+      });
+      return t;
     }
 
     function champ(cle, saisie) { return [el("label", { texte: T(cle) }), saisie]; }
@@ -297,9 +342,12 @@
         texte: T(p.statut === "client" ? "prospects.fiche.espace_client" : "prospects.fiche.espace_demo",
           { id: typeof (etat.demos || {})[p.espace_demo] === "string" ? etat.demos[p.espace_demo] : p.espace_demo }) }));
       if (p.par_agent) bloc.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "par-agent", texte: T("prospects.fiche.par_agent") }));
+      if (p.a_l_humain) bloc.appendChild(el("p", { class: "dzProspectsErreur", "data-dz-prospects": "a-reprendre",   // t358
+        texte: T("prospects.fiche.a_reprendre", { motif: lib(MOTIFS_HUMAIN, "prospects.humain.", p.a_l_humain.motif), raison: p.a_l_humain.raison || "—" }) }));
       if (p.informer_avant) bloc.appendChild(el("p", { class: p.informer_avant < aujourdhui() ? "dzProspectsErreur" : "dzProspectsNote",
         "data-dz-prospects": "informer", texte: T("prospects.fiche.informer", { le: p.informer_avant }) }));     // t354 : RGPD art. 14
       if (p.statut !== "oppose") bloc.appendChild(blocQualification(p, zone));
+      if (p.statut !== "oppose") bloc.appendChild(blocSequences(p, zone));     // t355
       if (etat.note && NOTES.indexOf(etat.note) >= 0) bloc.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "note",
         "data-note": etat.note, texte: T("prospects.note." + etat.note) }));
       // statut : seuls les passages permis
@@ -403,6 +451,67 @@
       return b;
     }
 
+    // t355 : les séquences de la fiche — porte 2 (Valider), Planifier, Annuler ; canaux manuels : Copier et ouvrir, Marquer envoyé
+    function blocSequences(p, zone) {
+      var b = el("div", { "data-dz-prospects": "sequences" }, [el("h3", { texte: T("prospects.titre.sequences") })]);
+      var liste = el("div", {}, [el("p", { class: "dzProspectsNote", texte: T("prospects.sequence.chargement") })]);
+      b.appendChild(liste);
+      async function sgeste(sid, quoi, corpsJson) {
+        var r = await appel("POST", encodeURIComponent(eid) + "/sequences/" + encodeURIComponent(sid) + "/" + quoi, corpsJson);
+        if (!vivant) return;
+        if (!r.ok) { erreur(zone, r.j); return; }
+        vider(zone);
+        await recharger();
+      }
+      function peindre(seqs) {
+        vider(liste);
+        if (!seqs.length) { liste.appendChild(el("p", { class: "dzProspectsNote", texte: T("prospects.sequence.aucune") })); return; }
+        seqs.forEach(function (s) {
+          var d = el("div", { class: "dzProspectsSeq", "data-dz-prospects": "sequence", "data-id": s.id, "data-statut": s.statut });
+          d.appendChild(el("p", { class: "dzProspectsMeta", texte: T("prospects.sequence.entete", {
+            canal: lib(CANAUX, "prospects.canal.", s.canal), statut: lib(SEQ_STATUTS, "prospects.seqstatut.", s.statut) }) }));
+          var manuel = SEQ_MANUELS.indexOf(s.canal) >= 0;
+          var prochaine = (s.etapes || []).filter(function (e) { return e.statut === "planifiee"; })[0];
+          (s.etapes || []).forEach(function (e) {
+            var li = el("div", { class: "dzProspectsEtape", "data-dz-prospects": "etape", "data-statut": e.statut }, [
+              el("p", { class: "dzProspectsMeta", texte: T("prospects.sequence.etape", { n: e.rang + 1, jours: e.delai_jours,
+                statut: lib(ETAPE_STATUTS, "prospects.etapestatut.", e.statut) }) + (e.quand ? " · " + new Date(e.quand).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : "")
+                + (e.due ? " · " + T("prospects.sequence.due") : "") })]);
+            if (e.objet) li.appendChild(el("p", { texte: T("prospects.sequence.objet", { objet: e.objet }) }));
+            if (e.modele && e.modele.nom) li.appendChild(el("p", { "data-dz-prospects": "etape-modele", texte: T("prospects.sequence.modele", { nom: String(e.modele.nom), langue: String(e.modele.langue || "") }) }));   // t357
+            li.appendChild(el("pre", { class: "dzProspectsTexte", texte: e.texte }));
+            if (manuel && s.statut === "planifiee" && prochaine && prochaine.rang === e.rang) {
+              li.appendChild(el("div", { class: "dzProspectsActions" }, [
+                el("button", { type: "button", "data-dz-prospects": "seq-copier", texte: T("prospects.bouton.copier_ouvrir"), on: { click: function () {
+                  try { if (navigator.clipboard) navigator.clipboard.writeText(e.texte); } catch (x) { /* le texte reste lisible */ }
+                  if (sur(s.ouvrir)) window.open(s.ouvrir, "_blank", "noopener,noreferrer"); } } }),
+                el("button", { type: "button", "data-dz-prospects": "seq-envoye", texte: T("prospects.bouton.envoye"), on: { click: function () {
+                  sgeste(s.id, "etapes/" + e.rang + "/envoye"); } } })]));
+            }
+            d.appendChild(li);
+          });
+          var acts = [];
+          if (s.statut === "proposee") acts.push(el("button", { type: "button", "data-dz-prospects": "seq-valider", texte: T("prospects.bouton.valider_seq"),
+            on: { click: function () { sgeste(s.id, "valider"); } } }));
+          if (s.statut === "validee") acts.push(el("button", { type: "button", "data-dz-prospects": "seq-planifier", texte: T("prospects.bouton.planifier"),
+            on: { click: function () { sgeste(s.id, "planifier", {}); } } }));
+          if (["proposee", "validee", "planifiee"].indexOf(s.statut) >= 0) acts.push(el("button", { type: "button", "data-dz-prospects": "seq-annuler",
+            texte: T("prospects.bouton.annuler_seq"), on: { click: function () { sgeste(s.id, "annuler"); } } }));
+          if (s.statut === "planifiee" && !manuel) d.appendChild(el("p", { class: "dzProspectsNote", texte: T("prospects.sequence.auto") }));
+          if (s.motif) d.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "seq-motif", texte: String(s.motif).indexOf("fiche:") === 0
+            ? T("prospects.sequence.arret", { statut: lib(STATUTS, "prospects.statut.", String(s.motif).slice(6)) })
+            : lib(SEQ_MOTIFS, "prospects.seqmotif.", s.motif) }));
+          if (acts.length) d.appendChild(el("div", { class: "dzProspectsActions" }, acts));
+          liste.appendChild(d);
+        });
+      }
+      appel("GET", encodeURIComponent(eid) + "/sequences?pid=" + encodeURIComponent(p.id)).then(function (r) {
+        if (!vivant) return;
+        if (r.ok) peindre(Array.isArray(r.j.sequences) ? r.j.sequences : []); else erreur(zone, r.j);
+      });
+      return b;
+    }
+
     // t354 : le fournisseur de la recherche web d'entreprises (payante, lancée par une carte acceptée) et ses clés
     function reglageRecherche() {
       var zone = el("div", { "data-dz-prospects": "erreur" });
@@ -440,6 +549,89 @@
         el("h3", { texte: T("prospects.titre.recherche") }),
         el("p", { class: "dzProspectsNote", texte: T("prospects.recherche.aide") }),
         el("div", { class: "dzProspectsActions" }, [sel, cle, enregistrer]), etatR, res, zone,
+        el("button", { type: "button", "data-dz-prospects": "annuler", texte: T("prospects.bouton.retour"), on: { click: function () { dessiner(); } } })]);
+    }
+
+    // t356 : le canal e-mail de l'espace — SMTP de votre boîte ou Brevo, IMAP pour les réponses, identité, plafond, pause
+    function reglageEmail() {
+      if (!eid) return el("p", { class: "dzProspectsNote", texte: T("prospects.vide.sans_espace") });
+      var zone = el("div", { "data-dz-prospects": "erreur" });
+      var res = el("p", { class: "dzProspectsNote", "data-dz-prospects": "email-resultat" });
+      var etatE = el("ul", { "data-dz-prospects": "email-etat" });
+      var actions = el("div", { class: "dzProspectsActions" });
+      var f = {};
+      function saisie(cle, type) {
+        f[cle] = el("input", { type: type || "text", autocomplete: "off", "data-dz-prospects": "email-" + cle, "aria-label": T("prospects.email." + cle) });
+        return champ("prospects.email." + cle, f[cle]);
+      }
+      f.mode = el("select", { "data-dz-prospects": "email-mode", "aria-label": T("prospects.email.mode") },
+        EMAIL_MODES.map(function (m) { return el("option", { value: m, texte: T("prospects.emailmode." + m) }); }));
+      f.securite = el("select", { "data-dz-prospects": "email-securite", "aria-label": T("prospects.email.securite") },
+        ["ssl", "starttls"].map(function (m) { return el("option", { value: m, texte: m.toUpperCase() }); }));
+      f.postale = el("textarea", { rows: "2", "data-dz-prospects": "email-postale", "aria-label": T("prospects.email.postale") });
+      var grille = el("div", { class: "dzProspectsChamps" }, [].concat(
+        champ("prospects.email.mode", f.mode), saisie("nom"), saisie("adresse", "email"), saisie("raison"),
+        champ("prospects.email.postale", f.postale), saisie("smtp_hote"), saisie("smtp_port", "number"),
+        champ("prospects.email.securite", f.securite), saisie("smtp_user"), saisie("imap_hote"), saisie("imap_port", "number"),
+        saisie("imap_user"), saisie("plafond", "number")));
+      var mdp = el("input", { type: "password", autocomplete: "off", "data-dz-prospects": "email-mdp", "aria-label": T("prospects.email.mdp"), placeholder: T("prospects.email.mdp") });
+      var brevo = el("input", { type: "password", autocomplete: "off", "data-dz-prospects": "email-brevo", "aria-label": T("prospects.email.brevo"), placeholder: T("prospects.email.brevo") });
+      function peindre(j) {
+        var x = j.expediteur || {}, id = j.identite || {}, s = j.smtp || {}, im = j.imap || {};
+        f.mode.value = j.mode || "smtp";
+        f.nom.value = x.nom || ""; f.adresse.value = x.adresse || "";
+        f.raison.value = id.raison_sociale || ""; f.postale.value = id.adresse_postale || "";
+        f.smtp_hote.value = s.hote || ""; f.smtp_port.value = String(s.port || 465); f.securite.value = s.securite || "ssl";
+        f.smtp_user.value = s.utilisateur || "";
+        f.imap_hote.value = im.hote || ""; f.imap_port.value = String(im.port || 993); f.imap_user.value = im.utilisateur || "";
+        f.plafond.value = String(j.plafond_jour || 30);
+        vider(etatE); vider(actions);
+        var lignes = [j.pret ? T("prospects.email.pret") : T("prospects.email.manque", {
+          liste: (j.manques || []).map(function (m) { return lib(EMAIL_MANQUES, "prospects.emailmanque.", m); }).join(", ") })];
+        lignes.push(T("prospects.email.jour", { n: j.envoyes_du_jour || 0, plafond: j.plafond_du_jour || 0 }));
+        lignes.push(T("prospects.email.rebonds", { pct: String(Math.round((j.taux_rebond || 0) * 1000) / 10) }));
+        lignes.push(T(j.mdp_pose ? "prospects.email.mdp_pose" : "prospects.email.mdp_absent"));
+        lignes.forEach(function (t) { etatE.appendChild(el("li", { texte: t })); });
+        if (j.pause && j.pause.active) {
+          etatE.appendChild(el("li", { class: "dzProspectsErreur", "data-dz-prospects": "email-pause",
+            texte: T("prospects.email.pause", { motif: lib(EMAIL_PAUSES, "prospects.emailpause.", j.pause.motif) }) }));
+          actions.appendChild(el("button", { type: "button", "data-dz-prospects": "email-reprendre", texte: T("prospects.bouton.reprendre"),
+            on: { click: function () { geste_("reprendre"); } } }));
+        }
+        if (j.erreur && j.erreur.message) etatE.appendChild(el("li", { class: "dzProspectsErreur", "data-dz-prospects": "email-erreur", texte: j.erreur.message }));
+        if (j.pret) actions.appendChild(el("button", { type: "button", "data-dz-prospects": "email-essai", texte: T("prospects.bouton.essai"),
+          on: { click: function () { geste_("test", undefined, "prospects.email.essai_ok"); } } }));
+      }
+      async function geste_(quoi, corpsJson, ok) {
+        var r = await appel("POST", encodeURIComponent(eid) + "/email" + (quoi ? "/" + quoi : ""), corpsJson);
+        if (!vivant) return;
+        if (!r.ok) { erreur(zone, r.j); return; }
+        vider(zone);
+        res.textContent = T(ok || "prospects.email.enregistre", { adresse: (r.j && r.j.envoye_a) || "" });
+        if (quoi === "test") { var g = await appel("GET", encodeURIComponent(eid) + "/email"); if (vivant && g.ok) peindre(g.j); }
+        else peindre(r.j);
+      }
+      var enregistrer = el("button", { type: "button", "data-dz-prospects": "email-enregistrer", texte: T("prospects.bouton.enregistrer_email"), on: { click: function () {
+        geste_("", { mode: f.mode.value, expediteur: { nom: f.nom.value, adresse: f.adresse.value.trim() },
+          identite: { raison_sociale: f.raison.value, adresse_postale: f.postale.value },
+          smtp: { hote: f.smtp_hote.value.trim(), port: parseInt(f.smtp_port.value, 10) || 465, securite: f.securite.value, utilisateur: f.smtp_user.value.trim() },
+          imap: { hote: f.imap_hote.value.trim(), port: parseInt(f.imap_port.value, 10) || 993, utilisateur: f.imap_user.value.trim() },
+          plafond_jour: parseInt(f.plafond.value, 10) || 30 });
+      } } });
+      function poser(quoi, input) {
+        return el("button", { type: "button", "data-dz-prospects": "email-" + quoi + "-enregistrer", texte: T("prospects.bouton.cle"), on: { click: function () {
+          var v = input.value; input.value = "";
+          geste_("secret", { quoi: quoi, valeur: v }, "prospects.email.secret_pose");
+        } } });
+      }
+      appel("GET", encodeURIComponent(eid) + "/email").then(function (r) { if (!vivant) return; if (r.ok) peindre(r.j); else erreur(zone, r.j); });
+      return el("div", { "data-dz-prospects": "email-reglage" }, [
+        el("h3", { texte: T("prospects.titre.email") }),
+        el("p", { class: "dzProspectsNote", texte: T("prospects.email.aide") }),
+        grille, el("div", { class: "dzProspectsActions" }, [enregistrer]),
+        el("div", { class: "dzProspectsActions" }, [mdp, poser("mdp", mdp)]),
+        el("div", { class: "dzProspectsActions" }, [brevo, poser("brevo", brevo)]),
+        etatE, actions, res, zone,
         el("button", { type: "button", "data-dz-prospects": "annuler", texte: T("prospects.bouton.retour"), on: { click: function () { dessiner(); } } })]);
     }
 

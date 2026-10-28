@@ -95,6 +95,7 @@ from app.services.news_service import news_daily_loop
 from app.services.marketing import schedule_loop
 from app.services.whatsapp_releve import releve_loop   # t311 : relevé de fond WhatsApp (30 s après le démarrage)
 from app.services.prospects import purge_loop as prospects_purge_loop   # t353 : purge des prospects à 3 ans
+from app.services.email_envoi import boucle as email_loop   # t356 : envoi des e-mails de prospection, lecture des réponses
 
 
 def _setup_file_logging() -> Path | None:
@@ -185,6 +186,7 @@ async def lifespan(app: FastAPI):
     sched_task = asyncio.create_task(schedule_loop())
     releve_task = asyncio.create_task(releve_loop())
     purge_task = asyncio.create_task(prospects_purge_loop())   # t353 : purge des prospects à 3 ans (2 min, puis 24 h)
+    email_task = asyncio.create_task(email_loop())   # t356 : e-mails dus toutes les 60 s, réponses toutes les 5 min
 
     async def _maj_au_demarrage():
         """Tâche #18 : une fois par lancement, 20 s après le boot, et au plus une fois par jour (cache disque).
@@ -235,7 +237,7 @@ async def lifespan(app: FastAPI):
         if warm_task:
             from app.services.heygen_service import annuler_en_vol
             annuler_en_vol()
-        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, maj_task, warm_task) if t])
+        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, email_task, maj_task, warm_task) if t])
         # t136 : le moteur du Photolab s'arrête avec le backend (fin de stdin = fin propre de photocraft-cli serve)
         try:
             from app.services import photolab_moteur

@@ -386,6 +386,61 @@ def _paquet_telephone_pc(espace_id: str | None, lg: str) -> dict:
     return _paquet_telephone(espace_id, lg)
 
 
+def _temoins_espaces() -> list:
+    """Les espaces démonstration non archivés : (id, nom, prospect d'origine)."""
+    out = []
+    for eid, e in (_es_lire()["espaces"] or {}).items():
+        if isinstance(e, dict) and e.get("type") == "demonstration" and not e.get("archive"):
+            out.append((eid, e.get("nom") or eid, str((e.get("origine") or {}).get("prospect") or "") or None))
+    return sorted(out, key=lambda x: x[1])
+
+
+def _es_lire():
+    from app.services import espaces as _es
+    return _es.lire()
+
+
+async def _conversation_temoin(eid: str) -> str | None:
+    from sqlalchemy import select
+    from app.services.storage import AgentConversation, async_session_factory
+    async with async_session_factory() as s:
+        r = (await s.execute(select(AgentConversation).where(AgentConversation.espace_id == eid,
+                                                             AgentConversation.role == "campagnes")
+                             .order_by(AgentConversation.cree.asc()))).scalars().first()
+    return r.id if r else None
+
+
+_VERROU_TEMOIN = asyncio.Lock()
+
+
+@router.get("/temoins")
+async def temoins(request: Request):
+    """t359 : les espaces démonstration (rendez-vous d'un prospect) et leur conversation « campagne témoin »."""
+    await _local_ou_appareil(request)
+    return {"temoins": [{"espace_id": eid, "nom": nom, "prospect": pr, "conversation_id": await _conversation_temoin(eid)}
+                        for eid, nom, pr in await asyncio.to_thread(_temoins_espaces)]}
+
+
+@router.post("/temoin")
+async def temoin(request: Request):
+    """t359 : ouvre (ou rouvre) la conversation « campagnes » d'un espace démonstration : la campagne témoin, qui ne
+    publie jamais. 409 pour un espace qui n'est pas une démonstration."""
+    appareil = await _local_ou_appareil(request)
+    corps = await _json(request)
+    eid = _espace_valide(corps.get("espace_id"))
+    from app.services import espaces as _es
+    if not _es.est_demonstration(eid):
+        raise HTTPException(409, "Une campagne témoin se prépare dans un espace démonstration.")
+    async with _VERROU_TEMOIN:              # relecture t359 (1) : deux ouvertures simultanées → UNE conversation
+        cid = await _conversation_temoin(eid)
+        if cid is None:
+            nom = _es.lire()["espaces"][eid].get("nom") or eid
+            with _traduire():
+                l = await ST.creer("campagnes", eid, f"Campagne témoin · {nom}"[:200], origine="telephone" if appareil else "pc")
+            cid = l["id"]
+    return await _conversation(cid)
+
+
 @router.get("/paquet")
 async def paquet(request: Request, espace_id: str | None = None, avec: str | None = None, langue: str | None = None):
     await _local_ou_appareil(request)
@@ -521,6 +576,10 @@ async def carte(cid: str, n: int, request: Request):
             # sous le verrou, la recherche part APRÈS (jamais le verrou global pendant un appel payant, jamais rejouée)
             recherche = await _reserver_recherche(cid, l, orig)
             extra["statut"] = "en_cours"
+        elif genre == "sequence":
+            # t355 : la porte 2 d'une séquence — EXCEPTION à « la décision d'abord » : le geste d'abord (refus = 409, rien d'écrit) ; acceptée = validée par
+            # l'utilisateur, refusée = annulée ; un geste déjà fait (reprise après panne) passe
+            _decider_sequence(l.get("espace_id"), (orig.get("arguments") or {}).get("sid"), acceptee)
         with _traduire():
             await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n, decision, extra)],
                                                        **_trace(appareil))] + faits)
@@ -532,6 +591,22 @@ async def carte(cid: str, n: int, request: Request):
     if acceptee and genre == "recherche":
         await _executer_recherche(cid, n, orig, recherche, appareil)
     return await ST.lire(cid)
+
+
+def _decider_sequence(eid, sid, acceptee: bool) -> None:
+    from app.services import prospects_sequences as S
+    try:
+        s = [x for x in S.lister(eid) if x["id"] == sid] if eid else []
+        if not s:
+            raise HTTPException(404, "Séquence introuvable.")
+        if acceptee and s[0]["statut"] == "proposee":
+            S.valider(eid, sid, "utilisateur")
+        elif not acceptee and s[0]["statut"] in S.EN_COURS:
+            S.annuler(eid, sid, "utilisateur")
+        elif acceptee and s[0]["statut"] not in ("validee", "planifiee"):
+            raise HTTPException(409, f"Séquence {s[0]['statut']} : rien à valider.")
+    except S.RefusSequence as e:
+        raise HTTPException(e.statut, e.message) from None
 
 
 async def _reserver_recherche(cid: str, l: dict, orig: dict) -> dict:

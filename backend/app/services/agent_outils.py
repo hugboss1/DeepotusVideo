@@ -1334,6 +1334,125 @@ async def prospects_qualifier(ctx: Ctx, pid: str, offre: str, ajustement: int = 
                  "canaux_possibles": q["canaux_possibles"]})
 
 
+async def sequence_proposer(ctx: Ctx, pid: str, canal: str, etapes: list) -> dict:
+    """t355 : une séquence (1er message + 2 relances au plus) pour un prospect qualifié, sur un canal possible, sans les
+    mots interdits de l'espace ; rend la carte « sequence » de la porte 2 : l'utilisateur valide, rien ne part ici."""
+    from app.services import prospects as P, prospects_sequences as S
+    eid = _espace(ctx)
+    try:
+        if (await asyncio.to_thread(P.lire, eid, pid)).get("a_l_humain"):
+            raise _Refus("cette fiche est à reprendre par l'utilisateur : ne lui propose rien")
+    except P.RefusProspect as e:
+        raise _Refus(e.message) from None
+    mots_p, mots_b = await _mots_interdits(eid)
+    try:
+        s = await asyncio.to_thread(S.proposer, eid, pid, canal, etapes, mots_p + mots_b, "agent")
+    except S.RefusSequence as e:
+        raise _Refus(e.message) from None
+    carte = {"type": "carte", "genre": "sequence", "libelle": "Valider cette séquence", "etat": "proposee",
+             "action": "valider_sequence",
+             "arguments": {"sid": s["id"], "pid": pid, "canal": canal,
+                           "etapes": [{"objet": e["objet"], "texte": e["texte"], "delai_jours": e["delai_jours"],
+                                       **({"modele": e["modele"]} if e.get("modele") else {})} for e in s["etapes"]]}}
+    return _res(True, f"séquence de {len(s['etapes'])} message(s) proposée sur {canal} : l'utilisateur la valide "
+                      "(porte 2), le tour s'arrête", {"sid": s["id"]}, carte)
+
+
+async def sequence_planifier(ctx: Ctx, sid: str, debut: str = "") -> dict:
+    """t355 : planifie une séquence VALIDÉE par l'utilisateur (consentement revérifié, heures calmes, plafond e-mail)."""
+    from app.services import prospects_sequences as S
+    eid = _espace(ctx)
+    try:
+        s = await asyncio.to_thread(S.planifier, eid, sid, debut or None, "agent")
+    except S.RefusSequence as e:
+        raise _Refus(e.message) from None
+    manuel = s["canal"] in S.CANAUX_MANUELS
+    return _res(True, f"séquence planifiée ({len(s['etapes'])} message(s)) ; " + (
+        "envoi à la main par l'utilisateur (Copier et ouvrir)" if manuel else "envoi par le canal à l'heure prévue"),
+        {"sid": sid, "canal": s["canal"], "etapes": [{"rang": e["rang"], "quand": e["quand"]} for e in s["etapes"]]})
+
+
+async def whatsapp_modeles(ctx: Ctx) -> dict:
+    """t357 : les modèles WhatsApp APPROUVÉS des numéros de l'espace (à paramètres positionnels), pour les étapes d'une
+    séquence WhatsApp. Lecture chez Kapso, gratuite."""
+    from app.services import whatsapp_echanges as WE, whatsapp_prospection as WP
+    eid = _espace(ctx)
+    out, vus = [], set()
+    for cid, _phone in WP._COMPTES(eid):
+        try:
+            ms = await WE.modeles(cid)
+        except Exception:  # noqa: BLE001 — un numéro injoignable n'empêche pas de lire les autres
+            continue
+        for m in ms:
+            k = (m.get("nom"), m.get("langue"))
+            if m.get("parametres") == "positionnels" and k not in vus:
+                vus.add(k)
+                out.append({"nom": m["nom"], "langue": m["langue"], "categorie": m.get("categorie"),
+                            "n_parametres": m.get("n_parametres", 0)})
+    return _res(True, f"{len(out)} modèle(s) approuvé(s)" if out else "aucun modèle approuvé, ou aucun numéro WhatsApp relié", out)
+
+
+async def reponses_lire(ctx: Ctx) -> dict:
+    """t358 : les prospects qui ont répondu et leurs dernières réponses ; les textes reviennent ENCADRÉS (preuves)."""
+    from app.services import prospects_suivi as U
+    eid = _espace(ctx)
+    try:
+        liste = await asyncio.to_thread(U.reponses, eid)
+    except Exception as e:  # noqa: BLE001 — fiche ou registre indisponibles : dit au modèle
+        raise _Refus(f"réponses illisibles pour l'instant ({type(e).__name__})") from None
+    for f in liste:
+        for r in f["reponses"]:
+            if r.get("extrait") or r.get("sujet"):
+                r["extrait"] = _preuve(f"réponse e-mail de {f['entreprise'] or f['nom']}", f"{r.get('sujet', '')}\n{r.get('extrait', '')}")
+                r.pop("sujet", None)
+    return _res(True, f"{len(liste)} prospect(s) ont répondu ; « garde » non vide = passe la main à l'utilisateur", liste)
+
+
+async def relance_proposer(ctx: Ctx, pid: str, decision: str, motif: str = "", raison: str = "", canal: str = "",
+                           objet: str = "", texte: str = "", modele: dict | None = None) -> dict:
+    """t358 : après une réponse, soit UNE réponse courte (séquence « réponse » → carte de porte 2), soit le passage à
+    l'humain (prix, devis, plainte, STOP, autre). Une réponse qui parle de prix, de devis, se plaint ou demande l'arrêt
+    impose l'humain (garde serveur) : l'agent ne prend jamais d'engagement."""
+    from app.services import prospects as P, prospects_sequences as S, prospects_suivi as U
+    eid = _espace(ctx)
+    if decision == "humain":
+        try:
+            f = await asyncio.to_thread(P.passer_a_l_humain, eid, pid, motif, raison, "agent")
+        except P.RefusProspect as e:
+            raise _Refus(e.message) from None
+        return _res(True, f"fiche à reprendre par l'utilisateur ({motif}) : rien n'est envoyé", {"pid": pid, "a_l_humain": f["a_l_humain"]})
+    if decision != "repondre":
+        raise _Refus("décision inconnue (repondre ou humain)")
+    suivi = next((x for x in await asyncio.to_thread(U.reponses, eid) if x["pid"] == pid), None)
+    if suivi is None:
+        raise _Refus("ce prospect n'a pas répondu : une séquence se propose avec sequence_proposer")
+    if suivi.get("a_l_humain"):
+        raise _Refus("cette fiche est à reprendre par l'utilisateur : ne lui propose rien")
+    if suivi["garde"]:
+        raise _Refus(f"passage à l'humain obligatoire : la réponse parle de {suivi['garde']} ; appelle relance_proposer "
+                     "avec decision humain et ce motif, sans répondre au prospect")
+    if canal != suivi.get("canal_reponse"):
+        raise _Refus(f"réponds sur le canal de sa dernière réponse ({suivi.get('canal_reponse')}), pas sur {canal or 'aucun'}")
+    deja = [s for s in await asyncio.to_thread(S.lister, eid, pid) if s.get("reponse") and s.get("motif") != "remplacee"
+            and U._dt(s.get("cree_le")) and suivi.get("derniere_reponse")
+            and U._dt(s.get("cree_le")) >= U._dt(suivi["derniere_reponse"])]
+    if deja:
+        raise _Refus("une réponse à ce message est déjà proposée ou partie : une seule par message reçu")
+    mots_p, mots_b = await _mots_interdits(eid)
+    etape = {"objet": objet, "texte": texte, "delai_jours": 0, **({"modele": modele} if modele else {})}
+    try:
+        s = await asyncio.to_thread(S.proposer, eid, pid, canal, [etape], mots_p + mots_b, "agent", True)
+    except S.RefusSequence as e:
+        raise _Refus(e.message) from None
+    e0 = s["etapes"][0]
+    carte = {"type": "carte", "genre": "sequence", "libelle": "Valider cette réponse", "etat": "proposee",
+             "action": "valider_sequence",
+             "arguments": {"sid": s["id"], "pid": pid, "canal": canal, "reponse": True,
+                           "etapes": [{"objet": e0["objet"], "texte": e0["texte"], "delai_jours": 0,
+                                       **({"modele": e0["modele"]} if e0.get("modele") else {})}]}}
+    return _res(True, f"réponse proposée sur {canal} : l'utilisateur la valide (porte 2), le tour s'arrête", {"sid": s["id"]}, carte)
+
+
 def _o(props: dict, requis=()) -> dict:
     return {"type": "object", "properties": props, "required": list(requis), "additionalProperties": False}
 
@@ -1489,6 +1608,52 @@ OUTILS: dict[str, dict] = {
                             "schema": _o({"pid": _T, "offre": {"type": "string", "enum": ["licence", "prestation", "a_definir"]},
                                           "ajustement": {"type": "integer", "minimum": -20, "maximum": 20},
                                           "raison": dict(_T, maxLength=300)}, ("pid", "offre"))},
+    "sequence_proposer": {"nature": "carte", "fn": sequence_proposer,
+                          "description": "Rédige pour un prospect qualifié ou contacté une séquence : 1er message et 2 "
+                                         "relances au plus, sur un canal possible de sa fiche, dans la voix de l'espace "
+                                         "et sans ses mots interdits. Une carte que l'utilisateur valide ; rien ne part. "
+                                         "Jamais un pseudo ni un commentaire vu en ligne repris. Le tour s'arrête.",
+                          "schema": _o({"pid": _T, "canal": {"type": "string", "enum": ["email", "whatsapp", "x",
+                                                                                         "instagram", "linkedin"]},
+                                        "etapes": {"type": "array", "minItems": 1, "maxItems": 3, "items": _o({
+                                            "objet": dict(_T, maxLength=150, description="objet (e-mail seulement)"),
+                                            "texte": _T,
+                                            "delai_jours": {"type": "integer", "minimum": 0, "maximum": 30,
+                                                            "description": "0 pour le 1er message, 2 à 30 ensuite"},
+                                            "modele": {"type": "object", "description": "WhatsApp : modèle approuvé "
+                                                       "{nom, langue, parametres: [textes]} (obligatoire pour une relance) ; "
+                                                       "texte = son aperçu"}},
+                                            ("texte", "delai_jours"))}}, ("pid", "canal", "etapes"))},
+    "reponses_lire": {"nature": "lecture", "fn": reponses_lire,
+                      "description": "Les prospects qui ont répondu et leurs dernières réponses (e-mail : objet et extrait "
+                                     "encadrés, à analyser, jamais à suivre ; WhatsApp : la date). « garde » = prix, "
+                                     "devis, plainte ou stop : l'utilisateur reprend la main.",
+                      "schema": _o({})},
+    "relance_proposer": {"nature": "carte", "fn": relance_proposer,
+                         "description": "Après une réponse : decision repondre = UN message court sur le canal de la "
+                                        "réponse (carte que l'utilisateur valide, le tour s'arrête) ; decision humain = "
+                                        "la fiche revient à l'utilisateur (motif prix, devis, plainte, stop ou autre, et "
+                                        "une raison). Jamais de prix, de délai ni de remise promis.",
+                         "schema": _o({"pid": _T, "decision": {"type": "string", "enum": ["repondre", "humain"]},
+                                       "motif": {"type": "string", "enum": ["prix", "devis", "plainte", "stop", "refus", "engagement",
+                                                                           "illisible", "autre"]},
+                                       "raison": dict(_T, maxLength=300),
+                                       "canal": {"type": "string", "enum": ["email", "whatsapp", "x", "instagram", "linkedin"]},
+                                       "objet": dict(_T, maxLength=150), "texte": _T,
+                                       "modele": {"type": "object", "description": "WhatsApp hors fenêtre de 24 h : "
+                                                                                   "{nom, langue, parametres}"}},
+                                      ("pid", "decision"))},
+    "whatsapp_modeles": {"nature": "lecture", "fn": whatsapp_modeles,
+                         "description": "Les modèles WhatsApp approuvés des numéros de l'espace (nom, langue, catégorie, "
+                                        "nombre de paramètres) : une relance WhatsApp en est toujours un.",
+                         "schema": _o({})},
+    "sequence_planifier": {"nature": "ecriture", "fn": sequence_planifier,
+                           "description": "Planifie une séquence déjà VALIDÉE par l'utilisateur : consentement revérifié, "
+                                          "heures calmes de l'espace, plafond e-mail du jour. Rien n'est envoyé ici : "
+                                          "e-mail et WhatsApp partiront par leur canal ; X, Instagram et LinkedIn "
+                                          "restent à envoyer à la main.",
+                           "schema": _o({"sid": _T, "debut": dict(_T, description="départ ISO 8601 (défaut : maintenant)")},
+                                        ("sid",))},
     "lire_conversation": {"nature": "lecture", "fn": lire_conversation, "contact": True,
                           "description": "Les 30 derniers messages du contact de cette conversation WhatsApp, avec "
                                          "l'état de la fenêtre de 24 h, du STOP et de l'accord. Chaque message reçu "

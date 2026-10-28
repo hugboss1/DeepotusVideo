@@ -219,9 +219,20 @@ def valider(doc) -> dict | None:
            "espace_demo": d.get("espace_demo") if _es.id_valide(d.get("espace_demo")) else None,
            "par_agent": d.get("par_agent") is True,
            "informer_avant": _date_ok(d.get("informer_avant")) or None,
-           "qualification": _qualification(d.get("qualification"))}
+           "qualification": _qualification(d.get("qualification")),
+           "a_l_humain": _humain(d.get("a_l_humain"))}
     out["purge_le"] = _date_ok(d.get("purge_le")) or purge_le(out)
     return out
+
+
+MOTIFS_HUMAIN = ("prix", "devis", "plainte", "stop", "refus", "engagement", "illisible", "autre")
+
+
+def _humain(h) -> dict | None:
+    """t358 : la fiche est à reprendre par l'utilisateur {motif, raison, le}, ou None."""
+    if not isinstance(h, dict) or h.get("motif") not in MOTIFS_HUMAIN:
+        return None
+    return {"motif": h["motif"], "raison": _txt(h.get("raison"), 300), "le": _date_ok(h.get("le")) or None}
 
 
 def _qualification(q) -> dict | None:
@@ -576,11 +587,15 @@ def changer_statut(eid, pid, statut, detail: str = "", qui: str = "utilisateur")
                     f["dernier_contact_entrant"] = _aujourdhui().isoformat()
                     f["purge_le"] = purge_le(f)
                 _noter(f, "statut", f"{avant} → {statut}" + (f" · {detail}" if _txt(detail, 200) else ""), qui)
+                if qui == "utilisateur":       # t358 : l'utilisateur a repris la main
+                    f["a_l_humain"] = None
             fiches = [f if x["id"] == pid else x for x in fiches]
             _poser(eid, fiches)
         except Exception:
             _defaire_demo(statut, pid, demo_avant, demo_apres, archive_avant)
             raise
+    if statut == "oppose":
+        _OUBLIER(eid, pid)                 # t355 (relecture I1) : hors du verrou des fiches
     return {"prospect": f, "note": note}
 
 
@@ -597,7 +612,33 @@ def noter_contact(eid, pid, sens, detail: str = "", qui: str = "utilisateur") ->
             f["dernier_contact_entrant"] = _aujourdhui().isoformat()
             f["purge_le"] = purge_le(f)
         _noter(f, "contact_" + sens, detail, qui)
+        if qui == "utilisateur":               # t358 : l'utilisateur a repris la main
+            f["a_l_humain"] = None
         _poser(eid, fiches)
+    return f
+
+
+def passer_a_l_humain(eid, pid, motif, raison: str = "", qui: str = "agent") -> dict:
+    """t358 : la conversation revient à l'utilisateur (prix, devis, plainte, STOP, autre) : drapeau, prochaine action
+    « Reprendre la main » datée du jour. Rien n'est envoyé ; le statut ne change pas."""
+    if motif not in MOTIFS_HUMAIN:
+        raise RefusProspect("motif inconnu (prix, devis, plainte, stop, refus, engagement, illisible ou autre)", "champ")
+    _espace(eid)
+    with _verrou:
+        fiches = _charger(eid)
+        f = _trouver(fiches, pid)
+        _modifiable(f)
+        jour = _aujourdhui().isoformat()
+        r = _txt(raison, 300)
+        f["a_l_humain"] = {"motif": motif, "raison": r, "le": jour}
+        f["prochaine_action"] = {"texte": _txt(f"Reprendre la main ({motif})" + (f" : {r}" if r else ""), 300), "le": jour}
+        _noter(f, "a_l_humain", f"{motif}" + (f" · {r}" if r else ""), qui)
+        _poser(eid, fiches)
+    try:                                       # relecture t358 (5) : plus rien ne part tant que l'utilisateur n'a pas repris
+        from app.services import prospects_sequences as _sq
+        _sq.arreter_fiche(eid, pid, "humain")
+    except Exception as e:  # noqa: BLE001 — le drapeau est posé ; l'envoi revérifie de toute façon
+        logger.warning(f"séquences de {pid} non arrêtées au passage à l'humain ({type(e).__name__})")
     return f
 
 
@@ -673,7 +714,21 @@ def qualifier(eid, pid, offre, ajustement=0, raison: str = "", qui: str = "utili
 def exporter(eid, pid) -> dict:
     """La fiche entière (droit d'accès), avec la date d'export, l'espace et l'état au registre."""
     f = lire(eid, pid)
-    return dict(f, exporte_le=_es._maintenant(), espace=eid, oppose=_reg(_op.oppose, identifiants(f)))
+    from app.services import email_canal as _em, prospects_sequences as _sq      # t355 / t356 : messages préparés et e-mails
+    return dict(f, exporte_le=_es._maintenant(), espace=eid, oppose=_reg(_op.oppose, identifiants(f)),
+                sequences=_sq.pour_export(eid, pid), email=_em.pour_export(eid, pid))
+
+
+def _oublier_sequences(eid, pid) -> None:
+    try:
+        from app.services import email_canal as _em, prospects_sequences as _sq
+        _sq.oublier(eid, pid)
+        _em.oublier(eid, pid)              # t356 (relecture I12) : le journal et les réponses e-mail aussi
+    except Exception as e:  # noqa: BLE001 — la fiche est déjà effacée ; la lecture des séquences finira le travail
+        logger.warning(f"séquences de {pid} non vidées tout de suite ({type(e).__name__})")
+
+
+_OUBLIER = _oublier_sequences
 
 
 def effacer(eid, pid, inscrire_opposition: bool = True) -> None:
@@ -685,6 +740,7 @@ def effacer(eid, pid, inscrire_opposition: bool = True) -> None:
             _reg(_op.inscrire, identifiants(f), "effacement")
         _poser(eid, [x for x in fiches if x["id"] != pid])
     neutraliser_demo(f)
+    _OUBLIER(eid, pid)                     # t355 (relecture I1) : les séquences perdent leurs textes, hors du verrou
 
 
 def purger(maintenant: date, demos: list | None = None) -> dict:
@@ -692,7 +748,7 @@ def purger(maintenant: date, demos: list | None = None) -> dict:
     un fichier illisible est sauté (il sera mis de côté à la prochaine lecture de l'écran). Rend {espace: nombre}."""
     racine = DATA_ROOT / "espaces"
     jour = maintenant.isoformat()
-    out = {}
+    out, parties = {}, []
     try:
         dossiers = [d for d in racine.iterdir() if d.is_dir() and _es.id_valide(d.name)]
     except OSError:
@@ -714,6 +770,9 @@ def purger(maintenant: date, demos: list | None = None) -> dict:
             if len(gardees) != len(fiches):
                 _es._ecrire_json(f, {"version": 1, "prospects": gardees})
                 out[d.name] = len(fiches) - len(gardees)
+                parties.extend((d.name, x["id"]) for x in fiches if x["purge_le"] <= jour)
+    for eid_, pid_ in parties:             # t355 (relecture I1) : hors du verrou des fiches
+        _OUBLIER(eid_, pid_)
     if out:
         logger.info(f"prospects : purge à 3 ans, {sum(out.values())} fiche(s) retirée(s)")
     return out

@@ -26,7 +26,7 @@ from loguru import logger
 
 from app.services import espaces as _es
 
-ORIGINES = ("prospect", "whatsapp", "saisie", "effacement")
+ORIGINES = ("prospect", "whatsapp", "saisie", "effacement", "email")   # t356 : un STOP reçu par e-mail
 MOTIFS = ("saisie_erronee", "reabonnement")
 MAX_JOURNAL = 500
 FICHIER = "oppositions.json"

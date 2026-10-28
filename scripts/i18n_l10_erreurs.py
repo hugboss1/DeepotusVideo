@@ -37,7 +37,7 @@ ERREURS = {"RefusInspiration", "InspirationInconnue", "InspirationEnCours",   # 
            "ValueError", "RuntimeError", "FileNotFoundError", "PermissionError", "LookupError", "TimeoutError",
            "ConflitClient", "FluxCoupe", "CoffreVerrouille", "RefusClient", "WhatsappRefus",
            "RefusValidation", "RefusProspect", "PlafondEspaces", "RegistreIndisponible",   # t353 : refus de la fiche Prospects, plafond d'espaces   # t311 : RefusValidation = refus de validation_client.valider_post (400/404/409)   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
-           "SansCle", "RechercheEchouee",   # t354 : recherche web de la prospection
+           "SansCle", "RechercheEchouee", "RefusSequence", "RefusEmail",   # t356 : canal e-mail ; t355 : séquences de prospection ; t354 : recherche web de la prospection
            "ScanIndisponible", "ScanErreur", "CoutChange",   # t312 : refus du pont Windows.Media.Ocr (scan_ocr)
            "RefusCapture",   # t315 : refus des sessions de capture (400/404/409/413/415)
            "RefusSkin", "RefusMontage", "RefusTutoriel",   # t317 : refus du montage des captures ; t316 : refus des skins de capture (400/404/409/413/415)

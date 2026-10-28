@@ -9225,6 +9225,90 @@
      "payant": true
     }
    ]
+  },
+  {
+   "ecran": "Tiroir F1 : Veille, Prospects (fiche, séquences, e-mail, tableau)",
+   "acces": "Tiroir F1 → onglets « Veille » et « Prospects »",
+   "fonctions": [
+    {
+     "nom": "Onglet Veille",
+     "quoi": "La dernière veille des concurrents de l'espace : matrice, douleurs, angles, demandes ; collecte lecture seule (HN, YouTube, App Store).",
+     "comment": "F1 → Veille",
+     "depuis": "2026-10-27",
+     "ref": "PR #461 · t352",
+     "payant": false
+    },
+    {
+     "nom": "Fiche Prospects",
+     "quoi": "CRM léger par espace : source et base légale obligatoires, statuts du pipeline, consentements, export, effacement, opposition (registre global), purge à 3 ans, espace démonstration au rendez-vous.",
+     "comment": "F1 → Prospects → Ajouter un prospect",
+     "depuis": "2026-10-28",
+     "ref": "PR #464 · t353",
+     "payant": false
+    },
+    {
+     "nom": "Recherche et qualification par l'agent",
+     "quoi": "Prospects proposés depuis WhatsApp entrant, CSV déposé, page d'entreprise, registre des entreprises ; barème + avis ±20 ; recherche web payante sur carte de devis.",
+     "comment": "Demander à l'agent ; Prospects → Recherche web",
+     "depuis": "2026-10-28",
+     "ref": "PR #466 · t354",
+     "payant": true
+    },
+    {
+     "nom": "Séquences",
+     "quoi": "1er message + 2 relances par canal, validées par l'utilisateur, planifiées en heures calmes ; X/Instagram/LinkedIn : Copier et ouvrir, Marquer envoyé.",
+     "comment": "Fiche → Séquences → Valider la séquence → Planifier",
+     "depuis": "2026-10-28",
+     "ref": "PR #467 · t355",
+     "payant": false
+    },
+    {
+     "nom": "Canal e-mail",
+     "quoi": "SMTP ou Brevo par espace, IMAP pour les réponses, identité et STOP, plafond 10/20/30, pause sur rebonds ou plainte.",
+     "comment": "Prospects → E-mail",
+     "depuis": "2026-10-28",
+     "ref": "PR #468 · t356",
+     "payant": false
+    },
+    {
+     "nom": "WhatsApp pour la prospection",
+     "quoi": "Étapes WhatsApp par les règles de l'espace (accord, STOP, fenêtre de 24 h) ; relances = modèles approuvés.",
+     "comment": "Séquence sur le canal WhatsApp",
+     "depuis": "2026-10-28",
+     "ref": "PR #469 · t357",
+     "payant": true
+    },
+    {
+     "nom": "Suivi des réponses et tableau",
+     "quoi": "Réponses lues par l'agent, une réponse proposée ou passage à l'humain (« À reprendre ») ; vue Tableau du pipeline.",
+     "comment": "Prospects → Tableau ; demander « qui a répondu ? »",
+     "depuis": "2026-10-28",
+     "ref": "PR #470 · t358",
+     "payant": false
+    }
+   ]
+  },
+  {
+   "ecran": "Agent Campagnes, compagnon (campagne témoin)",
+   "acces": "Téléphone appairé → écran de l'agent → « Campagne témoin » ; PC : conversation Campagnes dans l'espace démonstration",
+   "fonctions": [
+    {
+     "nom": "Campagne témoin",
+     "quoi": "Une campagne préparée dans l'espace démonstration d'un prospect au rendez-vous ; ne publie jamais.",
+     "comment": "Compagnon → Agent → Campagne témoin",
+     "depuis": "2026-10-28",
+     "ref": "t359",
+     "payant": true
+    },
+    {
+     "nom": "Cartes de prospection au doigt",
+     "quoi": "Le compagnon lit et valide les cartes de séquence et de recherche des conversations du PC.",
+     "comment": "Compagnon → Agent → Valider la séquence",
+     "depuis": "2026-10-28",
+     "ref": "t359",
+     "payant": false
+    }
+   ]
   }
  ]
 }

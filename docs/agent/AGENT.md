@@ -148,12 +148,14 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Se faire aider** : F1 ou « Demander » ouvre ce tiroir (onglets « Demander », « Campagnes », « Veille »,
   « Prospects ») ; la réponse peut montrer un bouton, ouvrir l'écran ou le guide, ou proposer de regarder l'écran
   (accord et coût d'abord). Ce qui est dans le tiroir ne se pointe pas : nomme l'onglet. → [GUIDE:demander]
-- **Suivre ses prospects** (t353-t354) : onglet « Prospects » du tiroir, pour l'espace choisi. « Ajouter un
+- **Suivre ses prospects** (t353-t360) : onglet « Prospects » du tiroir, pour l'espace choisi. « Ajouter un
   prospect » exige la source et la base légale ; seuls les passages de statut permis sont proposés ; rien n'est
   envoyé d'ici (« Noter un contact »). Au Rendez-vous, un espace « Démo · <entreprise> » qui ne publie JAMAIS, devenu
   l'espace client à la signature. RGPD : exporter, effacer, « S'oppose à la prospection » (registre commun),
   effacement 3 ans après le dernier contact venu du prospect. L'agent peut PROPOSER des prospects (recherche web
-  payante seulement sur carte acceptée) ; score = barème ± 20. → [GUIDE:agent-campagnes]
+  payante seulement sur carte acceptée) ; score = barème ± 20. Séquences (fiche Qualifiée) : un message + 2
+  relances, « Valider la séquence », « Planifier » ; X, Instagram, LinkedIn : « Copier et ouvrir », « Marquer
+  envoyé » ; e-mail : Prospects › « E-mail » ; « Tableau » : le pipeline. → [GUIDE:prospection]
 - **Mener une campagne avec l'agent Campagnes** : onglet « Campagnes » du tiroir, ou Planificateur › Générer un
   plan, mode Agent Campagnes (clé Anthropic). Choisir d'abord l'espace de la campagne (jamais l'actif d'office, figé
   ensuite) ; un devis par message (Envoyer vaut accord, arrêt net au plafond, « Continuer ») ; porte 1 : Valider ou

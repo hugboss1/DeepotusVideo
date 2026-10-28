@@ -69,6 +69,7 @@ function monde({ lang = "fr", routes = {} } = {}) {
   return { win, appels, DzProspects: win.DzProspects, hote: new Noeud("div") };
 }
 
+const STATUTS_TEST = ["propose", "qualifie", "contacte", "repondu", "rdv", "client", "perdu", "oppose"];
 const FICHE = (o = {}) => ({ id: "pr_00000001", nom: "Léa Martin", entreprise: "Studio Lune", role: "gérante", statut: "repondu",
   offre: "prestation", score: 70, base_legale: "interet_legitime_b2b", purge_le: "2029-10-27", signal: "veut des clips",
   source: { type: "web", url: "https://studio-lune.fr/contact", date: "2026-10-20", detail: "" },
@@ -281,6 +282,121 @@ const LISTE = { prospects: [FICHE(), FICHE({ id: "pr_00000002", nom: "Tom", entr
   marque(m.hote, "recherche-cle-enregistrer").click(); await tick();
   ok("10.8 poser la clé : envoyée, champ vidé, jamais affichée", appels.some((a) => a.valeur === "tvly-abc") && marque(m.hote, "recherche-cle").value === ""
     && !m.hote.textContent.includes("tvly-abc"));
+}
+
+// ---- t355 : séquences de la fiche (porte 2, planifier, copier et ouvrir, marquer envoyé, arrêt) --------------------------
+{
+  const SEQS = [
+    { id: "sq_00000001", pid: "pr_00000001", canal: "email", statut: "proposee", motif: null, ouvrir: null,
+      etapes: [{ rang: 0, objet: "Vos vidéos", texte: "Bonjour Léa", delai_jours: 0, statut: "brouillon", quand: null, due: false }] },
+    { id: "sq_00000002", pid: "pr_00000001", canal: "x", statut: "planifiee", motif: null, ouvrir: "https://x.com/studiolune",
+      etapes: [{ rang: 0, objet: "", texte: "Salut", delai_jours: 0, statut: "planifiee", quand: "2026-11-02T09:00:00+00:00", due: true },
+               { rang: 1, objet: "", texte: "Relance", delai_jours: 4, statut: "planifiee", quand: "2026-11-06T09:00:00+00:00", due: false }] },
+    { id: "sq_00000003", pid: "pr_00000001", canal: "email", statut: "annulee", motif: "fiche:repondu", ouvrir: null,
+      etapes: [{ rang: 0, objet: "x", texte: "Ancien", delai_jours: 0, statut: "annulee", quand: null, due: false }] }];
+  const appels = [];
+  const ouverts = [];
+  const routes = {
+    "GET /api/prospects/e1": () => reponse(200, { prospects: [FICHE({ statut: "qualifie" })], compte_par_statut: { qualifie: 1 }, oppositions: 0 }),
+    "GET /api/prospects/e1/sequences?pid=pr_00000001": () => reponse(200, { sequences: SEQS }),
+    "POST /api/prospects/e1/sequences/sq_00000001/valider": () => { appels.push("valider"); return reponse(200, {}); },
+    "POST /api/prospects/e1/sequences/sq_00000002/etapes/0/envoye": () => { appels.push("envoye"); return reponse(200, {}); },
+    "POST /api/prospects/e1/sequences/sq_00000002/annuler": () => reponse(409, { detail: { code: "etat", message: "séquence « terminee » : rien à annuler" } }),
+  };
+  const m = monde({ routes });
+  m.win.open = (u) => { ouverts.push(u); };
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  marques(m.hote, "ligne")[0].click(); await tick(); await tick();
+  const seqs = marques(m.hote, "sequence");
+  ok("11.1 trois séquences, textes et objet affichés", seqs.length === 3 && seqs[0].textContent.includes("Bonjour Léa")
+    && seqs[0].textContent.includes(FR("prospects.sequence.objet", { objet: "Vos vidéos" })), seqs.length);
+  ok("11.2 statut traduit, étape « à envoyer maintenant »", seqs[0].textContent.includes(FR("prospects.seqstatut.proposee"))
+    && seqs[1].textContent.includes(FR("prospects.sequence.due")));
+  ok("11.3 « Valider » seulement sur la séquence proposée", marques(m.hote, "seq-valider").length === 1);
+  ok("11.4 copier et ouvrir : seulement la prochaine étape d'un canal manuel", marques(m.hote, "seq-copier").length === 1 && marques(m.hote, "seq-envoye").length === 1);
+  marque(m.hote, "seq-copier").click();
+  ok("11.5 ouvre le profil du prospect", ouverts[0] === "https://x.com/studiolune", ouverts);
+  ok("11.6 arrêt dit avec le statut traduit", marque(m.hote, "seq-motif").textContent === FR("prospects.sequence.arret", { statut: FR("prospects.statut.repondu") }));
+  marque(m.hote, "seq-valider").click(); await tick(); await tick();
+  ok("11.7 valider appelle la route", appels.includes("valider"));
+  marque(m.hote, "seq-envoye").click(); await tick(); await tick();
+  ok("11.8 marquer envoyé appelle la route de l'étape 0", appels.includes("envoye"));
+  marques(m.hote, "seq-annuler")[1].click(); await tick(); await tick();
+  ok("11.9 un refus est dit", marque(m.hote, "erreur").textContent.includes("rien à annuler"), marque(m.hote, "erreur").textContent);
+  const en = monde({ lang: "en", routes });
+  en.DzProspects.monter(en.hote, { espace_id: "e1" });
+  await tick();
+  marques(en.hote, "ligne")[0].click(); await tick(); await tick();
+  ok("11.10 anglais", marque(en.hote, "seq-valider").textContent === EN("prospects.bouton.valider_seq") && EN("prospects.bouton.valider_seq") !== FR("prospects.bouton.valider_seq")
+    && marques(en.hote, "sequence")[1].textContent.includes(EN("prospects.sequence.due")));
+}
+
+// ---- t356 : panneau « E-mail » (réglages, secret jamais affiché, pause, essai) -------------------------------------------
+{
+  const VUE = { mode: "smtp", expediteur: { nom: "Léa", adresse: "lea@deepotus.fr" }, identite: { raison_sociale: "Deepotus SAS", adresse_postale: "Paris" },
+    smtp: { hote: "smtp.x.fr", port: 465, securite: "ssl", utilisateur: "lea" }, imap: { hote: "imap.x.fr", port: 993, utilisateur: "lea" },
+    plafond_jour: 30, mdp_pose: true, brevo_pose: false, manques: [], pret: true, pause: { active: true, motif: "rebonds" },
+    plafond_du_jour: 10, envoyes_du_jour: 3, taux_rebond: 0.1, erreur: { message: "identifiants SMTP refusés" } };
+  const appels = [];
+  const m = monde({ routes: {
+    "GET /api/prospects/e1": () => reponse(200, LISTE),
+    "GET /api/prospects/e1/email": () => reponse(200, VUE),
+    "POST /api/prospects/e1/email": (c) => { appels.push(["regler", c]); return reponse(422, { detail: { code: "champ", message: "port : un entier de 1 à 65535" } }); },
+    "POST /api/prospects/e1/email/secret": (c) => { appels.push(["secret", c]); return reponse(200, { ...VUE, mdp_pose: true }); },
+    "POST /api/prospects/e1/email/reprendre": () => { appels.push(["reprendre"]); return reponse(200, { ...VUE, pause: { active: false, motif: "" } }); },
+    "POST /api/prospects/e1/email/test": () => { appels.push(["test"]); return reponse(200, { envoye_a: "lea@deepotus.fr" }); },
+  } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  marque(m.hote, "email").click(); await tick(); await tick();
+  ok("12.1 réglages lus dans les champs", marque(m.hote, "email-adresse").value === "lea@deepotus.fr" && marque(m.hote, "email-smtp_port").value === "465");
+  const etat = marque(m.hote, "email-etat").textContent;
+  ok("12.2 état : du jour, rebonds, pause traduite, erreur", etat.includes(FR("prospects.email.jour", { n: 3, plafond: 10 })) && etat.includes("10 %")
+    && etat.includes(FR("prospects.email.pause", { motif: FR("prospects.emailpause.rebonds") })) && etat.includes("identifiants SMTP refusés"), etat);
+  marque(m.hote, "email-mdp").value = "TresSecret";
+  marque(m.hote, "email-mdp-enregistrer").click(); await tick(); await tick();
+  ok("12.3 secret envoyé, champ vidé, jamais affiché", appels.some((a) => a[0] === "secret" && a[1].quoi === "mdp" && a[1].valeur === "TresSecret")
+    && marque(m.hote, "email-mdp").value === "" && !m.hote.textContent.includes("TresSecret"));
+  marque(m.hote, "email-enregistrer").click(); await tick(); await tick();
+  const reg = appels.find((a) => a[0] === "regler");
+  ok("12.4 enregistrer : corps complet, refus dit", reg && reg[1].smtp.port === 465 && reg[1].identite.raison_sociale === "Deepotus SAS"
+    && marque(m.hote, "erreur").textContent.includes("port"), JSON.stringify(reg));
+  marque(m.hote, "email-reprendre").click(); await tick(); await tick();
+  ok("12.5 reprendre : appelé, plus de pause", appels.some((a) => a[0] === "reprendre") && !marque(m.hote, "email-pause"));
+  marque(m.hote, "email-essai").click(); await tick(); await tick(); await tick();
+  ok("12.6 essai : à l'expéditeur, dit", appels.some((a) => a[0] === "test") && marque(m.hote, "email-resultat").textContent === FR("prospects.email.essai_ok", { adresse: "lea@deepotus.fr" }));
+}
+
+// ---- t357 : étape WhatsApp à modèle, arrêt « fenetre » ------------------------------------------------------------------
+{
+  const SEQS = [{ id: "sq_00000009", pid: "pr_00000001", canal: "whatsapp", statut: "annulee", motif: "fenetre", ouvrir: null,
+    etapes: [{ rang: 0, objet: "", texte: "aperçu", delai_jours: 0, statut: "annulee", quand: null, due: false,
+      modele: { nom: "prospection_relance", langue: "fr", parametres: ["Léa"] } }] }];
+  const m = monde({ routes: {
+    "GET /api/prospects/e1": () => reponse(200, { prospects: [FICHE({ statut: "qualifie" })], compte_par_statut: { qualifie: 1 }, oppositions: 0 }),
+    "GET /api/prospects/e1/sequences?pid=pr_00000001": () => reponse(200, { sequences: SEQS }) } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  marques(m.hote, "ligne")[0].click(); await tick(); await tick();
+  ok("13.1 le modèle WhatsApp de l'étape est nommé", marque(m.hote, "etape-modele").textContent === FR("prospects.sequence.modele", { nom: "prospection_relance", langue: "fr" }));
+  ok("13.2 arrêt « fenêtre de 24 h » expliqué", marque(m.hote, "seq-motif").textContent === FR("prospects.seqmotif.fenetre"));
+}
+
+// ---- t358 : tableau du pipeline, fiche « à reprendre » -------------------------------------------------------------------
+{
+  const H = FICHE({ statut: "repondu", a_l_humain: { motif: "prix", raison: "veut un tarif", le: "2026-10-28" } });
+  const m = monde({ routes: { "GET /api/prospects/e1": () => reponse(200, { prospects: [H, FICHE({ id: "pr_00000002", statut: "qualifie", entreprise: "Studio Deux" })],
+    compte_par_statut: { repondu: 1, qualifie: 1 }, oppositions: 0 }) } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  ok("14.1 liste : « À reprendre (prix) »", marques(m.hote, "ligne")[0].textContent.includes(FR("prospects.liste.a_reprendre", { motif: FR("prospects.humain.prix") })));
+  marque(m.hote, "vue-tableau").click(); await tick();
+  ok("14.2 tableau : huit colonnes, chaque fiche dans la sienne", marques(m.hote, "carte").length === 2
+    && marque(m.hote, "colonne-repondu").textContent.includes("Studio Lune") && marque(m.hote, "colonne-qualifie").textContent.includes("Studio Deux")
+    && STATUTS_TEST.every((s) => marque(m.hote, "colonne-" + s)));
+  marque(m.hote, "colonne-repondu").children[1].click(); await tick();
+  ok("14.3 clic sur la carte : la fiche, avec le bandeau « à reprendre »", marque(m.hote, "fiche") && marque(m.hote, "a-reprendre").textContent.includes("veut un tarif"));
 }
 
 // ---- anglais, demontage -----------------------------------------------------------------------------------------------

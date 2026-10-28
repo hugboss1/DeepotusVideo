@@ -83,6 +83,7 @@
     + ".dzCampCarteT{color:var(--ink-strong,#f2efe9);font-weight:600}"
     + ".dzCampResume{white-space:pre-wrap}"
     + ".dzCampLignes{margin:0;padding-left:18px;font-family:var(--f-mono,monospace);font-size:11px;color:var(--ink-soft,#8a857d)}"
+    + ".dzCampSeqTexte{white-space:pre-wrap;font-family:var(--f-ui,system-ui,sans-serif);color:var(--ink,#c4bfb6);margin-bottom:4px}"
     + ".dzCampEtat{font-family:var(--f-mono,monospace);font-size:11px;color:var(--ink-soft,#8a857d)}"
     + ".dzCampEtat[data-ton=ok]{color:var(--green,#5ec8a0)}.dzCampEtat[data-ton=ko]{color:var(--red,#e35d4a)}"
     + ".dzCampActions{display:flex;flex-wrap:wrap;gap:6px}"
@@ -184,7 +185,9 @@
   // serveur (en français) n'est plus affiché. Un nom inconnu : un libellé générique.
   var OUTILS = ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_document", "ecrire_dossier",
     "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "veille_collecter", "veille_lire",
-    "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher"];
+    "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher",
+    "sequence_proposer", "sequence_planifier", "whatsapp_modeles",
+    "reponses_lire", "relance_proposer"];
   function ligneOutil(nom, ok) {
     var lib = OUTILS.indexOf(String(nom)) >= 0 ? T("campagnes.outil." + nom) : T("campagnes.outil.inconnu");
     if (ok === true) return T("campagnes.fil.outil_ok", { outil: lib });
@@ -214,6 +217,7 @@
       case "continuer": return T("campagnes.carte.continuer", { usd: usd(montantContinuer(b), true) });
       case "brouillons": return T("campagnes.carte.brouillons", { n: (a.ids || []).length });
       case "recherche": return T("campagnes.carte.recherche");     // t354
+      case "sequence": return T("campagnes.carte.sequence", { canal: String(a.canal || "") });     // t355
       default: return String(b.libelle || "");   // secours : un genre que cet écran ne connaît pas
     }
   }
@@ -347,6 +351,21 @@
           });
           c.appendChild(ulr);
         }
+      } else if (b.genre === "sequence") {       // t355 : la porte 2 d'une séquence de prospection ; rien ne part ici
+        var ul = el("ul", { class: "dzCampLignes", "data-dz-camp": "sequence" });
+        (Array.isArray(a.etapes) ? a.etapes : []).forEach(function (x, i) {
+          var li = el("li", {}, [el("div", { class: "dzCampSeqT", texte: T("campagnes.sequence.etape", { n: i + 1, jours: Number(x && x.delai_jours) || 0 }) })]);
+          if (x && x.objet) li.appendChild(el("div", { texte: T("campagnes.sequence.objet", { objet: String(x.objet) }) }));
+          if (x && x.modele && x.modele.nom) li.appendChild(el("div", { texte: T("campagnes.sequence.modele", { nom: String(x.modele.nom), langue: String(x.modele.langue || "") }) }));   // t357
+          li.appendChild(el("div", { class: "dzCampSeqTexte", texte: String((x && x.texte) || "") }));
+          ul.appendChild(li);
+        });
+        c.appendChild(ul);
+        if (propose) {
+          actions.appendChild(bouton(T("campagnes.action.valider_sequence"), function () { decider(n, "acceptee"); }, true, occupe));
+          actions.appendChild(bouton(T("campagnes.action.refuser"), function () { decider(n, "refusee"); }, false, occupe));
+        } else if (e === "refusee") c.appendChild(etat(T("campagnes.etat.refusee")));
+        else c.appendChild(etat(T("campagnes.sequence.validee"), "ok"));
       } else if (b.genre === "brouillons") {
         var ide = a.espace_id || (S.conv && S.conv.espace_id) || null;
         if (ide) c.appendChild(etat(T("campagnes.carte.brouillons_espace", { nom: nomEspace(ide) }), "", "brouillons-espace"));
