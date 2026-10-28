@@ -115,6 +115,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   le chapitre, Créer les chapitres, Importer comme manuscrit. → [ALLER:episodes] [GUIDE:chapitres]
 - **Filmer l'app** (t315) : barre du haut, « Filmer l'app » ; partager CET onglet ; caméra sur accord ; secrets
   masqués ; « Arrêter » range la vidéo (gratuit) dans la Bibliothèque. → [GUIDE:bibliotheque]
+- **Habiller une capture (skin)** (t316) : boîte « Filmer l'app » › Habillage, « Modifier les skins » ; un skin par
+  espace (cadre, kit et logo de l'espace, bandeau, intro, outro, alertes, pause, fin, zoom, curseur, « Fait avec
+  DeepotusVideo » désactivable), cinq livrés, export et import .zip. Gratuit. → [GUIDE:bibliotheque]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]

@@ -45,6 +45,8 @@ PARTAGES = {
     "frontend/shared/dz-whatsapp-espace.js": ("whatsapp.espace.",),
     # t315 (28/10/2026) : l'enregistreur de l'app (bouton de la barre, boîte de départ, pastille, boîte de fin)
     "frontend/shared/dz-capture.js": ("capture.",),
+    # t316 (28/10/2026) : les skins de la capture (groupe « Habillage » de la boîte de départ, éditeur de skins)
+    "frontend/shared/dz-skins.js": ("skins.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")
