@@ -219,9 +219,20 @@ def valider(doc) -> dict | None:
            "espace_demo": d.get("espace_demo") if _es.id_valide(d.get("espace_demo")) else None,
            "par_agent": d.get("par_agent") is True,
            "informer_avant": _date_ok(d.get("informer_avant")) or None,
-           "qualification": _qualification(d.get("qualification"))}
+           "qualification": _qualification(d.get("qualification")),
+           "a_l_humain": _humain(d.get("a_l_humain"))}
     out["purge_le"] = _date_ok(d.get("purge_le")) or purge_le(out)
     return out
+
+
+MOTIFS_HUMAIN = ("prix", "devis", "plainte", "stop", "autre")
+
+
+def _humain(h) -> dict | None:
+    """t358 : la fiche est à reprendre par l'utilisateur {motif, raison, le}, ou None."""
+    if not isinstance(h, dict) or h.get("motif") not in MOTIFS_HUMAIN:
+        return None
+    return {"motif": h["motif"], "raison": _txt(h.get("raison"), 300), "le": _date_ok(h.get("le")) or None}
 
 
 def _qualification(q) -> dict | None:
@@ -576,6 +587,8 @@ def changer_statut(eid, pid, statut, detail: str = "", qui: str = "utilisateur")
                     f["dernier_contact_entrant"] = _aujourdhui().isoformat()
                     f["purge_le"] = purge_le(f)
                 _noter(f, "statut", f"{avant} → {statut}" + (f" · {detail}" if _txt(detail, 200) else ""), qui)
+                if qui == "utilisateur":       # t358 : l'utilisateur a repris la main
+                    f["a_l_humain"] = None
             fiches = [f if x["id"] == pid else x for x in fiches]
             _poser(eid, fiches)
         except Exception:
@@ -599,6 +612,27 @@ def noter_contact(eid, pid, sens, detail: str = "", qui: str = "utilisateur") ->
             f["dernier_contact_entrant"] = _aujourdhui().isoformat()
             f["purge_le"] = purge_le(f)
         _noter(f, "contact_" + sens, detail, qui)
+        if qui == "utilisateur":               # t358 : l'utilisateur a repris la main
+            f["a_l_humain"] = None
+        _poser(eid, fiches)
+    return f
+
+
+def passer_a_l_humain(eid, pid, motif, raison: str = "", qui: str = "agent") -> dict:
+    """t358 : la conversation revient à l'utilisateur (prix, devis, plainte, STOP, autre) : drapeau, prochaine action
+    « Reprendre la main » datée du jour. Rien n'est envoyé ; le statut ne change pas."""
+    if motif not in MOTIFS_HUMAIN:
+        raise RefusProspect("motif inconnu (prix, devis, plainte, stop ou autre)", "champ")
+    _espace(eid)
+    with _verrou:
+        fiches = _charger(eid)
+        f = _trouver(fiches, pid)
+        _modifiable(f)
+        jour = _aujourdhui().isoformat()
+        r = _txt(raison, 300)
+        f["a_l_humain"] = {"motif": motif, "raison": r, "le": jour}
+        f["prochaine_action"] = {"texte": _txt(f"Reprendre la main ({motif})" + (f" : {r}" if r else ""), 300), "le": jour}
+        _noter(f, "a_l_humain", f"{motif}" + (f" · {r}" if r else ""), qui)
         _poser(eid, fiches)
     return f
 

@@ -31,6 +31,8 @@ EN_COURS = ("proposee", "validee", "planifiee")
 CANAUX_AUTO = ("email", "whatsapp")            # envoyés par P5 / P6
 CANAUX_MANUELS = ("x", "instagram", "linkedin")
 STATUTS_FICHE = ("qualifie", "contacte")       # une fiche « proposé » se qualifie d'abord
+STATUTS_REPONSE = ("contacte", "repondu")      # t358 : une séquence « réponse » (1 étape) répond à une fiche qui a écrit
+ARRET_REPONSE = ("rdv", "client", "perdu", "oppose")
 ARRET = ("repondu", "rdv", "client", "perdu", "oppose")
 MAX_ETAPES = 3
 DELAI_MIN, DELAI_MAX = 2, 30
@@ -165,7 +167,7 @@ def _arreter(eid, doc: dict) -> bool:
         a_vider = (f is None or st == "oppose") and any(e.get("texte") or e.get("objet") for e in s["etapes"])
         if s.get("statut") not in EN_COURS and not a_vider:
             continue
-        if f is None or st in ARRET:
+        if f is None or st in (ARRET_REPONSE if s.get("reponse") else ARRET):
             _stopper(s, f"fiche:{st}" if st else "effacee", effacer=(f is None or st == "oppose"))
         elif s["canal"] not in [c["canal"] for c in _sc.canaux_possibles(f)]:
             _stopper(s, "canal")
@@ -209,8 +211,13 @@ def _charger(eid) -> dict:
 
 # ---- contrôles --------------------------------------------------------------------------------------------------------
 
-def _canal_possible(fiche: dict, canal: str) -> None:
-    if fiche.get("statut") not in STATUTS_FICHE:
+def statut_admis(s: dict, statut: str) -> bool:
+    """Le statut de fiche qu'une séquence (ou une étape due rendue par `etapes_dues`) admet à l'envoi."""
+    return statut in (STATUTS_REPONSE if s.get("reponse") else STATUTS_FICHE)
+
+
+def _canal_possible(fiche: dict, canal: str, reponse: bool = False) -> None:
+    if not statut_admis({"reponse": reponse}, fiche.get("statut")):
         raise RefusSequence(f"prospect au statut « {fiche.get('statut')} » : seule une fiche qualifiée ou contactée "
                             "reçoit une séquence", "etat")
     if canal not in [c["canal"] for c in _sc.canaux_possibles(fiche)]:
@@ -350,14 +357,17 @@ def lister(eid, pid=None) -> list:
     return out
 
 
-def proposer(eid, pid, canal, etapes, interdits=(), qui: str = "agent") -> dict:
+def proposer(eid, pid, canal, etapes, interdits=(), qui: str = "agent", reponse: bool = False) -> dict:
+    """t358 : `reponse` = une séquence d'UNE étape qui répond à une fiche « A répondu » (pas arrêtée par ce statut)."""
     _espace(eid)
     if canal not in LONGUEURS:
         raise RefusSequence(f"canal inconnu : {_txt(canal, 20)}", "champ")
+    if reponse and (not isinstance(etapes, list) or len(etapes) != 1):
+        raise RefusSequence("une réponse est un seul message", "champ")
     propres = _etapes(canal, etapes, interdits)
     with _verrou:
         fiche = _fiche(eid, pid)
-        _canal_possible(fiche, canal)
+        _canal_possible(fiche, canal, reponse)
         doc = _charger(eid)
         for s in doc["sequences"]:
             if s["pid"] == pid and s["canal"] == canal and s["statut"] in ("validee", "planifiee"):
@@ -370,7 +380,7 @@ def proposer(eid, pid, canal, etapes, interdits=(), qui: str = "agent") -> dict:
                 _noter(s, "remplacee", qui)
         s = {"id": "sq_" + uuid.uuid4().hex[:8], "pid": pid, "canal": canal, "statut": "proposee", "etapes": propres,
              "cree_le": _es._maintenant(), "cree_par": qui if qui in _p.QUI else "agent", "valide_le": None,
-             "planifie_le": None, "motif": None, "historique": []}
+             "planifie_le": None, "motif": None, "historique": [], "reponse": bool(reponse)}
         _noter(s, "proposee", s["cree_par"])
         doc["sequences"].append(s)
         _poser(eid, doc)
@@ -387,7 +397,7 @@ def valider(eid, sid, qui: str = "utilisateur") -> dict:
         s = _trouver(doc, sid)
         if s["statut"] != "proposee":
             raise RefusSequence(f"séquence « {s['statut']} » : rien à valider", "etat")
-        _canal_possible(_fiche(eid, s["pid"]), s["canal"])
+        _canal_possible(_fiche(eid, s["pid"]), s["canal"], bool(s.get("reponse")))
         s["statut"], s["valide_le"] = "validee", _es._maintenant()
         for e in s["etapes"]:
             e["statut"] = "validee"
@@ -436,7 +446,7 @@ def planifier(eid, sid, debut=None, qui: str = "utilisateur") -> dict:
         s = _trouver(doc, sid)
         if s["statut"] != "validee":
             raise RefusSequence("seule une séquence validée par l'utilisateur se planifie", "etat")
-        _canal_possible(_fiche(eid, s["pid"]), s["canal"])
+        _canal_possible(_fiche(eid, s["pid"]), s["canal"], bool(s.get("reponse")))
         pris: dict = {}
         depuis = date.fromisoformat(doc["email_depuis"]) if doc.get("email_depuis") else None
         quand = []
@@ -489,7 +499,7 @@ def etapes_dues(eid, canal: str) -> list:
                 datetime.fromisoformat(avant["envoye_utc"]) + timedelta(days=e["delai_jours"]) > now
             if e["statut"] == "planifiee" and e.get("quand") and datetime.fromisoformat(e["quand"]) <= now and not reel:
                 out.append({"sid": s["id"], "rang": e["rang"], "pid": s["pid"], "objet": e["objet"], "texte": e["texte"],
-                            "modele": e.get("modele")})
+                            "modele": e.get("modele"), "reponse": bool(s.get("reponse"))})
             break
     return out
 

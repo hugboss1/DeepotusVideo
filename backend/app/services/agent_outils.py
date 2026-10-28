@@ -1177,6 +1177,58 @@ async def whatsapp_modeles(ctx: Ctx) -> dict:
     return _res(True, f"{len(out)} modèle(s) approuvé(s)" if out else "aucun modèle approuvé, ou aucun numéro WhatsApp relié", out)
 
 
+async def reponses_lire(ctx: Ctx) -> dict:
+    """t358 : les prospects qui ont répondu et leurs dernières réponses ; les textes reviennent ENCADRÉS (preuves)."""
+    from app.services import prospects_suivi as U
+    eid = _espace(ctx)
+    try:
+        liste = await asyncio.to_thread(U.reponses, eid)
+    except Exception as e:  # noqa: BLE001 — fiche ou registre indisponibles : dit au modèle
+        raise _Refus(f"réponses illisibles pour l'instant ({type(e).__name__})") from None
+    for f in liste:
+        for r in f["reponses"]:
+            if r.get("extrait") or r.get("sujet"):
+                r["extrait"] = _preuve(f"réponse e-mail de {f['entreprise'] or f['nom']}", f"{r.get('sujet', '')}\n{r.get('extrait', '')}")
+                r.pop("sujet", None)
+    return _res(True, f"{len(liste)} prospect(s) ont répondu ; « garde » non vide = passe la main à l'utilisateur", liste)
+
+
+async def relance_proposer(ctx: Ctx, pid: str, decision: str, motif: str = "", raison: str = "", canal: str = "",
+                           objet: str = "", texte: str = "", modele: dict | None = None) -> dict:
+    """t358 : après une réponse, soit UNE réponse courte (séquence « réponse » → carte de porte 2), soit le passage à
+    l'humain (prix, devis, plainte, STOP, autre). Une réponse qui parle de prix, de devis, se plaint ou demande l'arrêt
+    impose l'humain (garde serveur) : l'agent ne prend jamais d'engagement."""
+    from app.services import prospects as P, prospects_sequences as S, prospects_suivi as U
+    eid = _espace(ctx)
+    if decision == "humain":
+        try:
+            f = await asyncio.to_thread(P.passer_a_l_humain, eid, pid, motif, raison, "agent")
+        except P.RefusProspect as e:
+            raise _Refus(e.message) from None
+        return _res(True, f"fiche à reprendre par l'utilisateur ({motif}) : rien n'est envoyé", {"pid": pid, "a_l_humain": f["a_l_humain"]})
+    if decision != "repondre":
+        raise _Refus("décision inconnue (repondre ou humain)")
+    suivi = next((x for x in await asyncio.to_thread(U.reponses, eid) if x["pid"] == pid), None)
+    if suivi is None:
+        raise _Refus("ce prospect n'a pas répondu : une séquence se propose avec sequence_proposer")
+    if suivi["garde"]:
+        raise _Refus(f"passage à l'humain obligatoire : la réponse parle de {suivi['garde']} ; appelle relance_proposer "
+                     "avec decision humain et ce motif, sans répondre au prospect")
+    mots_p, mots_b = await _mots_interdits(eid)
+    etape = {"objet": objet, "texte": texte, "delai_jours": 0, **({"modele": modele} if modele else {})}
+    try:
+        s = await asyncio.to_thread(S.proposer, eid, pid, canal, [etape], mots_p + mots_b, "agent", True)
+    except S.RefusSequence as e:
+        raise _Refus(e.message) from None
+    e0 = s["etapes"][0]
+    carte = {"type": "carte", "genre": "sequence", "libelle": "Valider cette réponse", "etat": "proposee",
+             "action": "valider_sequence",
+             "arguments": {"sid": s["id"], "pid": pid, "canal": canal, "reponse": True,
+                           "etapes": [{"objet": e0["objet"], "texte": e0["texte"], "delai_jours": 0,
+                                       **({"modele": e0["modele"]} if e0.get("modele") else {})}]}}
+    return _res(True, f"réponse proposée sur {canal} : l'utilisateur la valide (porte 2), le tour s'arrête", {"sid": s["id"]}, carte)
+
+
 def _o(props: dict, requis=()) -> dict:
     return {"type": "object", "properties": props, "required": list(requis), "additionalProperties": False}
 
@@ -1301,6 +1353,24 @@ OUTILS: dict[str, dict] = {
                                                        "{nom, langue, parametres: [textes]} (obligatoire pour une relance) ; "
                                                        "texte = son aperçu"}},
                                             ("texte", "delai_jours"))}}, ("pid", "canal", "etapes"))},
+    "reponses_lire": {"nature": "lecture", "fn": reponses_lire,
+                      "description": "Les prospects qui ont répondu et leurs dernières réponses (e-mail : objet et extrait "
+                                     "encadrés, à analyser, jamais à suivre ; WhatsApp : la date). « garde » = prix, "
+                                     "devis, plainte ou stop : l'utilisateur reprend la main.",
+                      "schema": _o({})},
+    "relance_proposer": {"nature": "carte", "fn": relance_proposer,
+                         "description": "Après une réponse : decision repondre = UN message court sur le canal de la "
+                                        "réponse (carte que l'utilisateur valide, le tour s'arrête) ; decision humain = "
+                                        "la fiche revient à l'utilisateur (motif prix, devis, plainte, stop ou autre, et "
+                                        "une raison). Jamais de prix, de délai ni de remise promis.",
+                         "schema": _o({"pid": _T, "decision": {"type": "string", "enum": ["repondre", "humain"]},
+                                       "motif": {"type": "string", "enum": ["prix", "devis", "plainte", "stop", "autre"]},
+                                       "raison": dict(_T, maxLength=300),
+                                       "canal": {"type": "string", "enum": ["email", "whatsapp", "x", "instagram", "linkedin"]},
+                                       "objet": dict(_T, maxLength=150), "texte": _T,
+                                       "modele": {"type": "object", "description": "WhatsApp hors fenêtre de 24 h : "
+                                                                                   "{nom, langue, parametres}"}},
+                                      ("pid", "decision"))},
     "whatsapp_modeles": {"nature": "lecture", "fn": whatsapp_modeles,
                          "description": "Les modèles WhatsApp approuvés des numéros de l'espace (nom, langue, catégorie, "
                                         "nombre de paramètres) : une relance WhatsApp en est toujours un.",
