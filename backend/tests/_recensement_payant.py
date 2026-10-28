@@ -27,6 +27,7 @@ MODULES = {
     "agent_campagnes": RACINE / "api" / "agent_campagnes_routes.py",   # t285a : le message de l'agent Campagnes (Anthropic)
     "scan": RACINE / "api" / "scan_routes.py",   # t312 : le secours Claude vision de la boîte Scan (Anthropic)
     "inspiration": RACINE / "api" / "inspiration_routes.py",   # t313 : matière, angles et rédaction d'une inspiration (Anthropic)
+    "schema": RACINE / "api" / "schema_routes.py",   # t314 : le détourage fal d'un schéma (calques du Vectorlab)
 }
 
 PUITS = {

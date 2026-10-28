@@ -11682,5 +11682,61 @@
  "La source de l'inspiration (lien ou compte) ne se publie pas : retire-la du texte.": {
   "fr": "La source de l'inspiration (lien ou compte) ne se publie pas : retire-la du texte.",
   "en": "The inspiration's source (link or account) is never published: remove it from the text."
+ },
+ "Ce détourage n'est pas proposé pour un schéma : choisis-en un autre.": {
+  "fr": "Ce détourage n'est pas proposé pour un schéma : choisis-en un autre.",
+  "en": "This background removal is not offered for a diagram: choose another one."
+ },
+ "Aucune image dans ce fichier : dépose une photo ou un dessin.": {
+  "fr": "Aucune image dans ce fichier : dépose une photo ou un dessin.",
+  "en": "No image in this file: drop a photo or a drawing."
+ },
+ "Identifiant de document invalide.": {
+  "fr": "Identifiant de document invalide.",
+  "en": "Invalid document identifier."
+ },
+ "Taille du document invalide.": {
+  "fr": "Taille du document invalide.",
+  "en": "Invalid document size."
+ },
+ "Il faut de 1 à 60 calques à animer.": {
+  "fr": "Il faut de 1 à 60 calques à animer.",
+  "en": "Between 1 and 60 layers are needed to animate."
+ },
+ "La page motion code du schéma dépasse 10 Mo : anime moins de calques à la fois.": {
+  "fr": "La page motion code du schéma dépasse 10 Mo : anime moins de calques à la fois.",
+  "en": "The diagram's motion code page is larger than 10 MB: animate fewer layers at a time."
+ },
+ "L'image est vide : rien à séparer.": {
+  "fr": "L'image est vide : rien à séparer.",
+  "en": "The image is empty: nothing to separate."
+ },
+ "Calque {n} : image « {v} » absente de la Bibliothèque.": {
+  "fr": "Calque {n} : image « {v} » absente de la Bibliothèque.",
+  "en": "Layer {n}: image “{v}” is not in the Library."
+ },
+ "Calque {n} : boîte invalide.": {
+  "fr": "Calque {n} : boîte invalide.",
+  "en": "Layer {n}: invalid box."
+ },
+ "Calque {n} : image « {v} » illisible.": {
+  "fr": "Calque {n} : image « {v} » illisible.",
+  "en": "Layer {n}: image “{v}” is unreadable."
+ },
+ "Le détourage n'a rien rendu : réessaie ou choisis un autre modèle.": {
+  "fr": "Le détourage n'a rien rendu : réessaie ou choisis un autre modèle.",
+  "en": "The background removal returned nothing: try again or choose another model."
+ },
+ "aucun calque à animer": {
+  "fr": "aucun calque à animer",
+  "en": "no layer to animate"
+ },
+ "Le coût du détourage a changé ou n'a pas été accepté : confirme le nouveau devis.": {
+  "fr": "Le coût du détourage a changé ou n'a pas été accepté : confirme le nouveau devis.",
+  "en": "The background removal cost changed or was not accepted: confirm the new quote."
+ },
+ "Le fond de l'image n'est pas uni : choisis un détourage par IA, ou dépose une image déjà détourée (PNG transparent).": {
+  "fr": "Le fond de l'image n'est pas uni : choisis un détourage par IA, ou dépose une image déjà détourée (PNG transparent).",
+  "en": "The image background is not plain: choose an AI background removal, or drop an image already cut out (transparent PNG)."
  }
 }

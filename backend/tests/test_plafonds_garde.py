@@ -35,6 +35,7 @@ PAYANTES = {
     ("audio_graph", "POST", "/apercu"), ("audio_graph", "POST", "/rendre"),   # t272 : nœuds IA de l'Atelier sonore
     ("scan", "POST", "/{scan_id}/vision"),   # t312 : le secours Claude vision du Scan (garde « atelier » avant chaque lot)
     ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
+    ("schema", "POST", "/analyser"),   # t314 : détourage fal d'un schéma (garde « vectorlab » avant l'envoi)
     ("agent_campagnes", "POST", "/{cid}/message"),   # t285a : le message de l'agent Campagnes (garde « campagnes » à chaque tour)
     ("post", "POST", "/rendre"),   # t277 : maillons IA de la pile de post-traitement (garde « son », avant le job)
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
@@ -202,6 +203,9 @@ anciens["scan"] = _scr.replace("SV.lire(", "_sans_garde(") if "SV.lire(" in _scr
 _inr = (RP.MODULES["inspiration"]).read_text(encoding="utf-8")
 anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I.rediger(", "_sans_garde(")
                           if "I.analyser(" in _inr else None)
+# t314 : la boîte « schéma » n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
+_shr = (RP.MODULES["schema"]).read_text(encoding="utf-8")
+anciens["schema"] = _shr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _shr else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

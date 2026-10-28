@@ -7,7 +7,7 @@ grand côté (composantes 8-connexes par parcours en largeur) ; les découpes re
 
 - **Masque** (`masque_de`) : l'alpha de l'image s'il y en a un ; sinon la couleur médiane du POURTOUR est le fond
   (« fond estimé ») — même principe que `pixel_ops.chroma_key`, sans sa garde de couverture de 5 % qui refuse un schéma
-  au trait (quelques traits fins sur une page blanche). Pourtour pas assez uni → ValueError("fond_non_uni").
+  au trait (quelques traits fins sur une page blanche). Pourtour pas assez uni → RefusSchema("fond_non_uni").
 - **Étiquettes** : les lignes de la lecture de t312 (`scan_ocr.lire_page`, boîtes dans le repère de l'image d'origine).
   Une composante dont 60 % de la boîte tombe dans une ligne lue est un GLYPHE : elle n'est ni forme ni flèche (le texte
   devient un objet texte du Vectorlab). Les lignes d'une même forme forment UNE étiquette ; une ligne libre se rattache à
@@ -50,6 +50,14 @@ NOMS = {
 }
 
 
+class RefusSchema(ValueError):
+    """Un refus de l'analyse, par CODE (« fond_non_uni », « image_vide ») : la route le dit en phrase."""
+
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__(code)
+
+
 # ── le masque ─────────────────────────────────────────────────────────────────────────────────────────────────────
 def _fond_du_pourtour(rgb: Image.Image):
     w, h = rgb.size
@@ -71,11 +79,11 @@ def masque_de(img: Image.Image):
     rgb = rgba.convert("RGB")
     cle, part = _fond_du_pourtour(rgb)
     if part < 0.6:
-        raise ValueError("fond_non_uni")
+        raise RefusSchema("fond_non_uni")
     diff = ImageChops.difference(rgb, Image.new("RGB", rgb.size, cle)).convert("L")
     m = diff.point(lambda v: 255 if v > ECART_FOND else 0)
     if m.getbbox() is None:
-        raise ValueError("image_vide")
+        raise RefusSchema("image_vide")
     return m, True
 
 
