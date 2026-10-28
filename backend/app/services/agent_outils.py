@@ -1137,8 +1137,8 @@ async def sequence_proposer(ctx: Ctx, pid: str, canal: str, etapes: list) -> dic
     carte = {"type": "carte", "genre": "sequence", "libelle": "Valider cette séquence", "etat": "proposee",
              "action": "valider_sequence",
              "arguments": {"sid": s["id"], "pid": pid, "canal": canal,
-                           "etapes": [{"objet": e["objet"], "texte": e["texte"], "delai_jours": e["delai_jours"]}
-                                      for e in s["etapes"]]}}
+                           "etapes": [{"objet": e["objet"], "texte": e["texte"], "delai_jours": e["delai_jours"],
+                                       **({"modele": e["modele"]} if e.get("modele") else {})} for e in s["etapes"]]}}
     return _res(True, f"séquence de {len(s['etapes'])} message(s) proposée sur {canal} : l'utilisateur la valide "
                       "(porte 2), le tour s'arrête", {"sid": s["id"]}, carte)
 
@@ -1155,6 +1155,26 @@ async def sequence_planifier(ctx: Ctx, sid: str, debut: str = "") -> dict:
     return _res(True, f"séquence planifiée ({len(s['etapes'])} message(s)) ; " + (
         "envoi à la main par l'utilisateur (Copier et ouvrir)" if manuel else "envoi par le canal à l'heure prévue"),
         {"sid": sid, "canal": s["canal"], "etapes": [{"rang": e["rang"], "quand": e["quand"]} for e in s["etapes"]]})
+
+
+async def whatsapp_modeles(ctx: Ctx) -> dict:
+    """t357 : les modèles WhatsApp APPROUVÉS des numéros de l'espace (à paramètres positionnels), pour les étapes d'une
+    séquence WhatsApp. Lecture chez Kapso, gratuite."""
+    from app.services import whatsapp_echanges as WE, whatsapp_prospection as WP
+    eid = _espace(ctx)
+    out, vus = [], set()
+    for cid, _phone in WP._COMPTES(eid):
+        try:
+            ms = await WE.modeles(cid)
+        except Exception:  # noqa: BLE001 — un numéro injoignable n'empêche pas de lire les autres
+            continue
+        for m in ms:
+            k = (m.get("nom"), m.get("langue"))
+            if m.get("parametres") == "positionnels" and k not in vus:
+                vus.add(k)
+                out.append({"nom": m["nom"], "langue": m["langue"], "categorie": m.get("categorie"),
+                            "n_parametres": m.get("n_parametres", 0)})
+    return _res(True, f"{len(out)} modèle(s) approuvé(s)" if out else "aucun modèle approuvé, ou aucun numéro WhatsApp relié", out)
 
 
 def _o(props: dict, requis=()) -> dict:
@@ -1276,8 +1296,15 @@ OUTILS: dict[str, dict] = {
                                             "objet": dict(_T, maxLength=150, description="objet (e-mail seulement)"),
                                             "texte": _T,
                                             "delai_jours": {"type": "integer", "minimum": 0, "maximum": 30,
-                                                            "description": "0 pour le 1er message, 2 à 30 ensuite"}},
+                                                            "description": "0 pour le 1er message, 2 à 30 ensuite"},
+                                            "modele": {"type": "object", "description": "WhatsApp : modèle approuvé "
+                                                       "{nom, langue, parametres: [textes]} (obligatoire pour une relance) ; "
+                                                       "texte = son aperçu"}},
                                             ("texte", "delai_jours"))}}, ("pid", "canal", "etapes"))},
+    "whatsapp_modeles": {"nature": "lecture", "fn": whatsapp_modeles,
+                         "description": "Les modèles WhatsApp approuvés des numéros de l'espace (nom, langue, catégorie, "
+                                        "nombre de paramètres) : une relance WhatsApp en est toujours un.",
+                         "schema": _o({})},
     "sequence_planifier": {"nature": "ecriture", "fn": sequence_planifier,
                            "description": "Planifie une séquence déjà VALIDÉE par l'utilisateur : consentement revérifié, "
                                           "heures calmes de l'espace, plafond e-mail du jour. Rien n'est envoyé ici : "

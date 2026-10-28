@@ -43,6 +43,8 @@ PAS = timedelta(minutes=15)
 _ID = re.compile(r"^sq_[0-9a-f]{8}$")
 _X = re.compile(r"^@?([A-Za-z0-9_]{1,15})$")
 _INSTA = re.compile(r"^@?([A-Za-z0-9._]{1,30})$")
+_NOM_MODELE = re.compile(r"^[a-z0-9_]{1,512}$")      # t357 : nom d'un modèle WhatsApp (Meta)
+_LANGUE = re.compile(r"^[a-z]{2,3}(_[A-Z]{2})?$")
 _LINKEDIN = re.compile(r"^https://([a-z]{2,3}\.|www\.)?linkedin\.com/[A-Za-z0-9_\-/%.]+$")
 _HTTP = {"champ": 422, "interdit": 422, "inconnu": 404, "etat": 409, "canal": 409, "plafond": 409, "indisponible": 503}
 _verrou = threading.RLock()
@@ -221,6 +223,23 @@ def _interdits(textes: list, interdits) -> list:
     return sorted({m for m, pat in motifs for t in textes if pat.search(t)})
 
 
+def _modele(canal: str, rang: int, m) -> dict | None:
+    """t357 : le modèle WhatsApp approuvé d'une étape {nom, langue, parametres (liste de textes)} ; obligatoire pour une
+    relance (hors de la fenêtre de 24 h, Meta n'accepte qu'un modèle) ; refusé sur un autre canal."""
+    if m is None:
+        if canal == "whatsapp" and rang > 0:
+            raise RefusSequence("une relance WhatsApp est un modèle approuvé (nom, langue, paramètres)", "champ")
+        return None
+    if canal != "whatsapp":
+        raise RefusSequence("un modèle ne vaut que pour WhatsApp", "champ")
+    p = m.get("parametres", []) if isinstance(m, dict) else None
+    if not isinstance(m, dict) or not _NOM_MODELE.match(str(m.get("nom") or "")) or not _LANGUE.match(str(m.get("langue") or "")) \
+            or not isinstance(p, list) or len(p) > 20 \
+            or not all(isinstance(v, str) and 0 < len(v) <= 1024 and "\n" not in v for v in p):
+        raise RefusSequence("modèle WhatsApp illisible : nom (minuscules, chiffres, _), langue (fr, en_US…), paramètres (textes d'une ligne, 1024 caractères au plus)", "champ")
+    return {"nom": m["nom"], "langue": m["langue"], "parametres": list(p)}
+
+
 def _etapes(canal: str, etapes, interdits) -> list:
     if not isinstance(etapes, list) or not 1 <= len(etapes) <= MAX_ETAPES:
         raise RefusSequence(f"une séquence a de 1 à {MAX_ETAPES} étapes (1er message et 2 relances au plus)", "champ")
@@ -242,9 +261,10 @@ def _etapes(canal: str, etapes, interdits) -> list:
             raise RefusSequence("le 1er message part sans délai (0 jour)", "champ")
         if i > 0 and not DELAI_MIN <= d <= DELAI_MAX:
             raise RefusSequence(f"une relance attend de {DELAI_MIN} à {DELAI_MAX} jours", "champ")
-        textes += [texte, objet]
+        modele = _modele(canal, i, e.get("modele"))
+        textes += [texte, objet] + [str(v) for v in ((modele or {}).get("parametres") or [])]
         out.append({"rang": i, "objet": objet if canal == "email" else "", "texte": texte, "delai_jours": d,
-                    "quand": None, "statut": "brouillon", "envoye_le": None})
+                    "quand": None, "statut": "brouillon", "envoye_le": None, "modele": modele})
     fautifs = _interdits(textes, interdits)
     if fautifs:
         raise RefusSequence("mots interdits de l'espace : " + ", ".join(fautifs) + " — réécris ces textes sans eux", "interdit")
@@ -464,7 +484,8 @@ def etapes_dues(eid, canal: str) -> list:
             if e["statut"] == "envoyee":
                 continue
             if e["statut"] == "planifiee" and e.get("quand") and datetime.fromisoformat(e["quand"]) <= now:
-                out.append({"sid": s["id"], "rang": e["rang"], "pid": s["pid"], "objet": e["objet"], "texte": e["texte"]})
+                out.append({"sid": s["id"], "rang": e["rang"], "pid": s["pid"], "objet": e["objet"], "texte": e["texte"],
+                            "modele": e.get("modele")})
             break
     return out
 

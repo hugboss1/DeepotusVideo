@@ -863,7 +863,17 @@ def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None, heure
         if not heure_sure:
             e["journal"][-1]["heure_sure"] = False
     _noter(cid, geste)
+    if not stop:                          # t357 : la réponse d'un prospect se voit sur sa fiche (un STOP va déjà au registre)
+        _PROSPECT_ENTRANT(cid, ident)
     return ident
+
+
+def _prospect_entrant(cid: str, ident: str) -> None:
+    from app.services import whatsapp_prospection as _wp
+    _wp.crochet_entrant(cid, ident)
+
+
+_PROSPECT_ENTRANT = _prospect_entrant     # couture de banc
 
 
 def noter_envoi(cid: str, identite_: str, *, type: str, categorie: str | None, statut: str, id: str | None,

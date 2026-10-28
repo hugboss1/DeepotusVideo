@@ -11686,5 +11686,17 @@
  "registre des oppositions indisponible ({name})": {
   "fr": "registre des oppositions indisponible ({name})",
   "en": "opposition register unavailable ({name})"
+ },
+ "un modèle ne vaut que pour WhatsApp": {
+  "fr": "un modèle ne vaut que pour WhatsApp",
+  "en": "a template only applies to WhatsApp"
+ },
+ "modèle WhatsApp illisible : nom (minuscules, chiffres, _), langue (fr, en_US…), paramètres (textes d'une ligne, 1024 caractères au plus)": {
+  "fr": "modèle WhatsApp illisible : nom (minuscules, chiffres, _), langue (fr, en_US…), paramètres (textes d'une ligne, 1024 caractères au plus)",
+  "en": "unreadable WhatsApp template: name (lowercase, digits, _), language (fr, en_US…), parameters (one-line texts, 1024 characters at most)"
+ },
+ "une relance WhatsApp est un modèle approuvé (nom, langue, paramètres)": {
+  "fr": "une relance WhatsApp est un modèle approuvé (nom, langue, paramètres)",
+  "en": "a WhatsApp follow-up is an approved template (name, language, parameters)"
  }
 }

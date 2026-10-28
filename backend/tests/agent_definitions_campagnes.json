@@ -430,6 +430,10 @@
         "minimum": 0,
         "type": "integer"
        },
+       "modele": {
+        "description": "WhatsApp : modèle approuvé {nom, langue, parametres: [textes]} (obligatoire pour une relance) ; texte = son aperçu",
+        "type": "object"
+       },
        "objet": {
         "description": "objet (e-mail seulement)",
         "maxLength": 150,
@@ -461,6 +465,16 @@
    "type": "object"
   },
   "name": "sequence_proposer"
+ },
+ {
+  "description": "Les modèles WhatsApp approuvés des numéros de l'espace (nom, langue, catégorie, nombre de paramètres) : une relance WhatsApp en est toujours un.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {},
+   "required": [],
+   "type": "object"
+  },
+  "name": "whatsapp_modeles"
  },
  {
   "description": "Planifie une séquence déjà VALIDÉE par l'utilisateur : consentement revérifié, heures calmes de l'espace, plafond e-mail du jour. Rien n'est envoyé ici : e-mail et WhatsApp partiront par leur canal ; X, Instagram et LinkedIn restent à envoyer à la main.",
