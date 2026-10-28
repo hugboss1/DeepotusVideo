@@ -999,6 +999,20 @@ async def prospects_chercher(ctx: Ctx, source: str, depot: str | None = None, or
                 {"crees": 1})
 
 
+async def entreprises_registre(ctx: Ctx, naf: str | None = None, code_postal: str | None = None,
+                               departement: str | None = None, q: str | None = None) -> dict:
+    """t354 tâche 5a : des CIBLES du registre des entreprises (gratuit, sans clé) ; aucune fiche écrite."""
+    from app.services import entreprises_registre as RG
+    _espace(ctx)
+    try:
+        cibles = await RG.chercher(naf=naf, code_postal=code_postal, departement=departement, q=q)
+    except (ValueError, RG.RegistreIndisponible) as e:
+        raise _Refus(str(e)) from None
+    return _res(True, f"{len(cibles)} société(s) active(s) au registre : aucune fiche écrite ; trouve leur site (collé par "
+                      "l'utilisateur ou par une recherche acceptée) avant de proposer une fiche",
+                {"cibles": cibles})
+
+
 async def prospects_qualifier(ctx: Ctx, pid: str, offre: str, ajustement: int = 0, raison: str = "") -> dict:
     from app.services import prospects as P
     eid = _espace(ctx)
@@ -1100,6 +1114,13 @@ OUTILS: dict[str, dict] = {
                                                    "source entreprise : {entreprise, nom?, role?, email, signal?}"},
                                          "max": {"type": "integer", "minimum": 1, "maximum": MAX_CHERCHER}},
                                         ("source",))},
+    "entreprises_registre": {"nature": "lecture", "fn": entreprises_registre,
+                             "description": "Cherche des sociétés actives au registre des entreprises de l'État (gratuit) "
+                                            "par code NAF (ex. 59.11A vidéo, 73.11Z agences, 58.21Z jeux), code postal, "
+                                            "département ou nom. Rend des cibles sans e-mail ni site : aucune fiche.",
+                             "schema": _o({"naf": dict(_T, description="code NAF, ex. 59.11A"),
+                                           "code_postal": _T, "departement": dict(_T, description="ex. 69, 2A, 974"),
+                                           "q": dict(_T, description="nom ou mot du nom")})},
     "prospects_qualifier": {"nature": "ecriture", "fn": prospects_qualifier,
                             "description": "Qualifie un prospect : le serveur calcule le barème et les canaux possibles ; "
                                            "tu choisis l'offre (licence, prestation, a_definir) et peux ajuster le score "

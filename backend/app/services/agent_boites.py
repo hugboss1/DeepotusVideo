@@ -26,7 +26,7 @@ BOITES: dict[str, dict] = {
     # t354 (28/10/2026) : la recherche et la qualification des prospects ; le compagnon l'aura en P8
     "prospects": {
         "libelle": "agent.boites.prospects",
-        "outils": ["prospects_chercher", "prospects_qualifier"],
+        "outils": ["prospects_chercher", "prospects_qualifier", "entreprises_registre"],
         "agents": ["campagnes"],
         "mobile": False,
     },

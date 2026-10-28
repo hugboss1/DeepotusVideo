@@ -11406,5 +11406,29 @@
  "un ajustement du score exige sa raison": {
   "fr": "un ajustement du score exige sa raison",
   "en": "a score adjustment requires its reason"
+ },
+ "registre des entreprises indisponible : réessayez dans un instant": {
+  "fr": "registre des entreprises indisponible : réessayez dans un instant",
+  "en": "business registry unavailable: try again in a moment"
+ },
+ "au moins un critère : activité (NAF), code postal, département ou nom": {
+  "fr": "au moins un critère : activité (NAF), code postal, département ou nom",
+  "en": "at least one criterion: activity (NAF code), postcode, department or name"
+ },
+ "code NAF invalide (ex. 59.11A)": {
+  "fr": "code NAF invalide (ex. 59.11A)",
+  "en": "invalid NAF code (e.g. 59.11A)"
+ },
+ "code postal invalide (5 chiffres)": {
+  "fr": "code postal invalide (5 chiffres)",
+  "en": "invalid postcode (5 digits)"
+ },
+ "département invalide (ex. 69, 2A, 974)": {
+  "fr": "département invalide (ex. 69, 2A, 974)",
+  "en": "invalid department (e.g. 69, 2A, 974)"
+ },
+ "registre des entreprises injoignable ({name}) : réessayez plus tard": {
+  "fr": "registre des entreprises injoignable ({name}) : réessayez plus tard",
+  "en": "business registry unreachable ({name}): try again later"
  }
 }

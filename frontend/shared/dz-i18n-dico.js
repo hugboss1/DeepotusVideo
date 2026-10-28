@@ -1410,6 +1410,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "campagnes.outil.creer_brouillons": {"fr": "Création des brouillons", "en": "Creating the drafts"},
   "campagnes.outil.deviser_generation": {"fr": "Devis d'une génération", "en": "Quoting a generation"},
   "campagnes.outil.ecrire_dossier": {"fr": "Écriture du dossier de campagne", "en": "Writing the campaign folder"},
+  "campagnes.outil.entreprises_registre": {"fr": "Registre des entreprises", "en": "Business registry"},
   "campagnes.outil.inconnu": {"fr": "Outil de l'agent", "en": "Agent tool"},
   "campagnes.outil.lire_bibliotheque": {"fr": "Lecture de la Bibliothèque", "en": "Reading the Library"},
   "campagnes.outil.lire_document": {"fr": "Lecture du document", "en": "Reading the document"},
