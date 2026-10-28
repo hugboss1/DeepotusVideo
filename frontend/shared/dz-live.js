@@ -83,7 +83,7 @@ if (!window.__dzLive) {
   const capture = () => window.__dzCapture;
 
   // ── le bouton de la barre du haut ──
-  const bouton = el("button", { type: "button", "data-dz-live-ouvrir": true, "data-dz-capture-ui": true,
+  const bouton = el("button", { type: "button", "data-dz-live-ouvrir": true, "data-dz-capture-ui": true, title: T("live.barre.titre"),
     on: { click: () => (direct ? arreter() : ouvrir()) } });
   function peindreBouton() {
     const cap = capture();
@@ -365,11 +365,11 @@ if (!window.__dzLive) {
     const chiffres = el("div", { style: "font-size:11px;color:#9aa4ae;font-variant-numeric:tabular-nums", "data-dz-live-chiffres": true });
     const infos = el("div", { style: "font-size:11px;color:#9aa4ae", "data-dz-live-infos": true });
     const pause = el("button", { type: "button", style: S.petit, "data-dz-live-pause": true, "aria-pressed": "false",
-      on: { click: basculerPause } });
-    const marque = el("button", { type: "button", style: S.petit, "data-dz-live-marqueur": true, on: { click: marquer } },
+      title: T("live.panneau.pause"), on: { click: basculerPause } });
+    const marque = el("button", { type: "button", style: S.petit, "data-dz-live-marqueur": true, title: T("live.panneau.marqueur"), on: { click: marquer } },
       [glyphe("dz-media-marqueur", 12), document.createTextNode(T("live.panneau.marqueur"))]);
     const stop = el("button", { type: "button", style: S.petit + ";border-color:#e5484d;color:#ff8a8e", "data-dz-live-arreter": true,
-      on: { click: () => arreter() } }, [glyphe("dz-media-arret", 12), document.createTextNode(T("live.panneau.arreter"))]);
+      title: T("live.panneau.arreter"), on: { click: () => arreter() } }, [glyphe("dz-media-arret", 12), document.createTextNode(T("live.panneau.arreter"))]);
     const p = el("div", { style: S.panneau, role: "status", "aria-live": "polite", "aria-label": T("live.panneau.titre"),
       "data-dz-capture-ui": true, "data-dz-live-panneau": true }, [
       el("div", { style: "display:flex;align-items:center;gap:8px" }, [

@@ -118,6 +118,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Habiller une capture (skin)** (t316) : boîte « Filmer l'app » › Habillage, « Modifier les skins » ; un skin par
   espace (cadre, kit et logo de l'espace, bandeau, intro, outro, alertes, pause, fin, zoom, curseur, « Fait avec
   DeepotusVideo » désactivable), cinq livrés, export et import .zip. Gratuit. → [GUIDE:bibliotheque]
+- **Passer en direct** (t318) : barre du haut, « Direct » ; destinations Twitch, YouTube Live, Kick, RTMP (clé au
+  coffre) ; Discord = annonce par webhook, pas de vidéo ; panneau : santé, Pause écran, Marqueur, Arrêter ; le direct
+  est aussi enregistré dans la Bibliothèque. → [GUIDE:bibliotheque]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]
