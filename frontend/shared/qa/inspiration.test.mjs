@@ -226,6 +226,7 @@ async function jusquAuxAngles(opts = {}) {
   ok("5.3 succès a_valider : statut dit, source notée, Planificateur rechargé", marque(c, "statut").textContent === FR("inspiration.brouillon.a_valider")
     && m.evenements.includes("deepotus:schedule-recharger"));
   ok("5.4 « Créer le brouillon » grisé après succès (pas de doublon)", marque(c, "creer").hasAttribute("disabled"));
+  ok("5.5 après le succès, l'alerte de copie du refus précédent a disparu", !marque(c, "copie"));
 }
 
 // ---- refus du dialogue, coût changé, verrou --------------------------------------------------------------------------

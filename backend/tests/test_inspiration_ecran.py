@@ -40,6 +40,9 @@ check("1c après dz-whatsapp-espace.js, avant </head>", html.find('/shared/dz-wh
 code = SRC.read_text(encoding="utf-8")
 check("1d aucun innerHTML, confirm( ou alert( natifs", not re.search(r"\.innerHTML\b|[^.\w]confirm\(|[^.\w]alert\(", code))
 check("1e confirmations par window.__dzDialogue.confirmer", "window.__dzDialogue" in code and "d.confirmer(" in code)
+check("1e' (preuve à l'écran) éléments masqués vraiment invisibles : règle [data-dz-insp][hidden] posée, et tout ce qui "
+      "est masqué porte data-dz-insp", "[data-dz-insp][hidden]{display:none!important}" in code
+      and '"data-dz-insp": "ligne-image"' in code)
 check("1f seule route d'image permise : /api/images/generate", 'ROUTE_IMAGE = "/api/images/generate"' in code
       and "img.route !== ROUTE_IMAGE" in code)
 

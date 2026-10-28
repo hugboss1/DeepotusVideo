@@ -125,7 +125,16 @@
     return { l: l, c: c };
   }
 
+  /* preuve à l'écran (t313) : un style en ligne display:flex l'emporte sur l'attribut hidden ; cette règle unique rend
+     les éléments masqués de la boîte vraiment invisibles (même défaut que t312) */
+  function regleMasque() {
+    if (!document.head || document.getElementById("dz-insp-masque")) return;
+    var st = el("style", { id: "dz-insp-masque" }, "[data-dz-insp][hidden]{display:none!important}[data-dz-insp][disabled]{opacity:.45;cursor:not-allowed}");
+    document.head.appendChild(st);
+  }
+
   function construire(E) {
+    regleMasque();
     var voile = el("div", { "data-dz-insp": "voile", style: S.voile, role: "dialog", "aria-modal": "true" });
     var boite = el("div", { style: S.boite });
     voile.appendChild(boite);
@@ -176,7 +185,7 @@
     /* 2. matière et angles */
     E.s2 = section(E, "analyse");
     montrer(E.s2, false);
-    var l3 = el("label", { style: S.ligne + ";font-size:12px" });
+    var l3 = el("label", { "data-dz-insp": "ligne-image", style: S.ligne + ";font-size:12px" });
     E.avecImage = el("input", { type: "checkbox", "data-dz-insp": "avec-image" });
     l3.appendChild(E.avecImage); l3.appendChild(el("span", null, T("inspiration.analyse.image")));
     E.ligneImage = l3;
@@ -597,6 +606,7 @@
       }
       var p = r.j.post || {};
       E.resultat = { post: p };
+      montrerGarde(E, r.j.garde, r.j.interdits);          // la garde du texte RETENU (pas celle d'un refus précédent)
       dire(E, "");
       vider(E.fait);
       montrer(E.fait, true);
