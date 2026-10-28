@@ -174,6 +174,10 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   générées (payant, catégorie « sprites », devis affiché à côté du bouton puis confirmation) ; SO, O et NO en miroir,
   cochés par défaut — décocher un miroir génère la vraie vue (O se découpe, gratuit). « 4 » découpe seulement la
   planche, gratuit ; « 8 directions (modèle 3D) » rend le modèle 3D, gratuit. → [ALLER:assets3d] [GUIDE:spritelab]
+- **Même grille pixel et même palette d'une animation à l'autre, boucle sans à-coup** (t340) : Sprite Lab, Pixel-art
+  coché, générer le sheet puis « Approuver ce sprite » (gratuit) : grille et palette verrouillées. Onglet Image,
+  Préréglage « Boucle » : la pose en 1re et dernière image (payant, catégorie « sprites », devis puis confirmation),
+  1 image sur 2 ou 3 re-pixelisée sur la grille verrouillée. → [ALLER:assets3d] [GUIDE:spritelab]
 - **Raccourcis clavier**. → [GUIDE:raccourcis]
 - **Ça ne marche pas**. → [GUIDE:depannage]
 

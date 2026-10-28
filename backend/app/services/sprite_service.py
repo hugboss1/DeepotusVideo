@@ -16,6 +16,7 @@ import json
 import logging
 import math
 import os
+import re
 import shutil
 import subprocess
 from datetime import datetime, timezone
@@ -107,6 +108,35 @@ def normalize_opts(body: dict) -> dict:
     if pixel is not None:
         from app.services.pixel_ops import normalize_pixel_opts
         pixel = dict(normalize_pixel_opts(pixel), scale=1)
+    # t340 (B1, Pixel Lock) : un sprite APPROUVÉ impose sa grille et sa palette — le `pixel` du client est ignoré, la
+    # règle vient du fichier d'approbation écrit par `approuver` (jamais du modèle, jamais de l'écran)
+    verrou = body.get("pixel_verrou")
+    if verrou not in (None, ""):
+        appro = lire_approbation(verrou)
+        from app.services.pixel_ops import normalize_pixel_opts
+        pixel = dict(normalize_pixel_opts({"target_px": appro["target_px"], "dither": appro["dither"],
+                                           "palette_hex": appro["palette_hex"]}), scale=1)
+        verrou = {"job": appro["job"], "target_px": appro["target_px"], "palette": appro.get("palette"),
+                  "n_couleurs": len(appro["palette_hex"])}
+    else:
+        verrou = None
+    # t340 (B2, préréglage « Boucle ») : 1 image sur `une_sur` (2 ou 3, 1 = toutes) puis la boucle se FERME — la
+    # dernière image, identique à la première (même pose aux deux bouts), est retirée pour ne pas bégayer
+    boucle = body.get("boucle")
+    if boucle not in (None, False):
+        if boucle is True:
+            boucle = {}
+        if not isinstance(boucle, dict):
+            raise ValueError("boucle must be an object {une_sur: 1-3}")
+        try:
+            une_sur = int(boucle.get("une_sur", 2))
+        except (TypeError, ValueError):
+            raise ValueError("boucle.une_sur must be 1, 2 or 3")
+        if une_sur not in (1, 2, 3):
+            raise ValueError("boucle.une_sur must be 1, 2 or 3")
+        boucle = {"une_sur": une_sur}
+    else:
+        boucle = None
 
     # T110 (plan-sprites T6) : post-traitement local (contour, ombre, nettoyage) — PIL pur, par image, après pixel et
     # avant l'assemblage
@@ -142,7 +172,87 @@ def normalize_opts(body: dict) -> dict:
            "extract_only": extract_only, "keep": keep, "anim": anim}
     if modele:   # t186 : les clés n'apparaissent qu'avec un modèle — les options par défaut restent celles d'avant
         out.update(modele=modele, sujet=sujet)
+    if verrou:   # t340 : idem, seulement quand un sprite approuvé verrouille la grille
+        out["pixel_verrou"] = verrou
+    if boucle:
+        out["boucle"] = boucle
     return out
+
+
+# ── t340 (B1) : le sprite « approuvé » — grille + palette figées pour les animations suivantes ────────────────────
+_COURT_HEX = re.compile(r"^[0-9a-f]{8}$")
+APPROBATION = "approbation.json"
+
+
+def _dossier_sprite(job: str) -> Path:
+    from app.config import settings
+    court = str(job or "").strip().lower()[:8]
+    if not _COURT_HEX.match(court):
+        raise ValueError("pixel_verrou: the 8-character id of an approved sprite is expected")
+    return settings.outputs_path / "sprites" / court
+
+
+def lire_approbation(job: str) -> dict:
+    """L'approbation d'un sprite (grille + palette). ValueError (-> 400) si le sprite n'a pas été approuvé."""
+    f = _dossier_sprite(job) / APPROBATION
+    if not f.is_file():
+        raise ValueError(f"sprite {str(job)[:8]} is not approved: approve it first (Pixel art on)")
+    return json.loads(f.read_text(encoding="utf-8"))
+
+
+def approuver(job: str) -> dict:
+    """« Approuver ce sprite » : fige SA grille (`target_px`, dither) et SA palette dans approbation.json. Palette
+    nommée ou explicite : celle-là, entière ; adaptative : les couleurs réellement posées sur ses images (une palette
+    adaptative recalculée image par image dériverait d'une animation à l'autre). ValueError sans pixel-art."""
+    from PIL import Image
+    from app.services import pixel_ops as PO
+    d = _dossier_sprite(job)
+    mf = d / "manifest.json"
+    if not mf.is_file():
+        raise FileNotFoundError(job)
+    m = json.loads(mf.read_text(encoding="utf-8"))
+    px = m.get("pixel")
+    if m.get("extract_only") or not px:
+        raise ValueError("only a pixel-art sprite can be approved: turn Pixel art on, generate the sheet, "
+                         "then approve it")
+    if px.get("palette_hex"):
+        hexes, origine = list(px["palette_hex"]), "verrou" if m.get("pixel_verrou") else "explicite"
+    elif px.get("palette"):
+        hexes, origine = [f"#{r:02X}{g:02X}{b:02X}" for r, g, b in PO.PALETTES[px["palette"]]], "nommee"
+    else:
+        images = []
+        for fr in m.get("frames") or []:
+            with Image.open(d / fr["file"]) as im:
+                images.append(im.convert("RGBA"))
+        hexes, origine = PO.palette_utilisee(images), "sprite"
+    appro = {"version": 1, "job": d.name, "target_px": int(px["target_px"]), "dither": px.get("dither") or "none",
+             "palette": px.get("palette") or (m.get("pixel_verrou") or {}).get("palette"),
+             "palette_origine": origine, "palette_hex": hexes,
+             "approuve_le": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")}
+    (d / APPROBATION).write_text(json.dumps(appro, indent=2), encoding="utf-8")
+    return appro
+
+
+def _boucle_echantillon(raw: list[Path], une_sur: int) -> tuple[list[Path], bool]:
+    """Préréglage « Boucle » : retire la DERNIÈRE image si elle reprend la première (même pose aux deux bouts : la
+    lire deux fois ferait bégayer la boucle), puis garde 1 image sur `une_sur`. Rend (images, boucle_fermee)."""
+    from PIL import Image, ImageChops, ImageStat
+    fermee = False
+    if len(raw) >= 3:
+        def _vignette(p):
+            with Image.open(p) as im:
+                return im.convert("RGB").resize((32, 32), Image.BILINEAR)
+        ecart = sum(ImageStat.Stat(ImageChops.difference(_vignette(raw[0]), _vignette(raw[-1]))).mean) / 3
+        if ecart <= BOUCLE_ECART_MAX:      # AVANT l'échantillonnage : c'est la vraie dernière image qui reprend la 1re
+            raw, fermee = raw[:-1], True
+    return raw[::une_sur], fermee
+
+
+# écart moyen (0-255, par canal, sur une vignette 32×32) sous lequel la dernière image « reprend » la première
+BOUCLE_ECART_MAX = 6.0
+# le préréglage « Boucle » ajouté au mouvement décrit (la pose est aussi l'image de FIN de la vidéo)
+BOUCLE_SUFFIXE = ("seamless looping animation, the last frame returns exactly to the first pose, static camera, "
+                  "no camera motion, plain solid green background, full body visible")
 
 
 # ── source resolution (job render / user upload / on-disk video) ─────────────
@@ -296,7 +406,20 @@ def compute_grid(n: int, columns) -> tuple[int, int]:
     return cols, math.ceil(n / cols)
 
 
-def _fit_into_cell(img, size: int, align: str, resample=None):
+def _fit_geometrie(w: int, h: int, size: int, align: str, entier: bool = False) -> tuple[int, int, int, int]:
+    """(nw, nh, x, y) de l'image posée « contain » dans la cellule. t340 (B1) : `entier` — facteur ENTIER (plancher)
+    quand l'image tient au moins une fois : 48 px dans 256 -> ×5, jamais ×5,33 (un agrandissement fractionnaire au
+    plus proche fait des blocs de 5 et de 6 px : la grille ne serait plus exacte)."""
+    scale = min(size / w, size / h)
+    if entier and scale >= 1:
+        scale = math.floor(scale)
+    nw, nh = max(1, round(w * scale)), max(1, round(h * scale))
+    x = (size - nw) // 2
+    y = (size - nh) if align == "feet" else (size - nh) // 2
+    return nw, nh, x, y
+
+
+def _fit_into_cell(img, size: int, align: str, resample=None, entier: bool = False):
     """Scale (contain) into a size×size transparent cell. Horizontal center;
     vertical: 'feet' anchors the content bottom to the cell bottom, 'center'
     centers it. `resample`: NEAREST for pixel-art frames (LANCZOS would blend
@@ -305,16 +428,13 @@ def _fit_into_cell(img, size: int, align: str, resample=None):
     w, h = img.size
     if not w or not h:
         return Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    scale = min(size / w, size / h)
-    nw, nh = max(1, round(w * scale)), max(1, round(h * scale))
+    nw, nh, x, y = _fit_geometrie(w, h, size, align, entier)
     if resample is None:          # NB: Image.NEAREST == 0, donc pas de `or`
         resample = Image.LANCZOS
     im2 = img.resize((nw, nh), resample)
     if im2.mode != "RGBA":
         im2 = im2.convert("RGBA")
     cell = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    x = (size - nw) // 2
-    y = (size - nh) if align == "feet" else (size - nh) // 2
     # SANS masque, comme _place_into_cell : la cellule est vide et la frame y tient. Avec `im2` en masque, l'alpha
     # était appliqué DEUX fois (un bord à 128 retombait à 64) — test_sprite_fit_cell
     cell.paste(im2, (x, y))
@@ -512,12 +632,40 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
 
     # pass 2 — crop (tight) -> cell -> paste into the sheet + save the frame
     manifest_frames, gif_frames = [], []
+    # t340 (B1) : en pixel-art, la grille se PROUVE sur chaque case écrite — blocs unis, couleurs de la palette
+    # imposée, alpha binaire — et le résultat entre dans le manifeste (l'écran l'affiche, l'agent le lit)
+    pixel = opts.get("pixel")
+    verif = None
+    if pixel:
+        from app.services import pixel_ops as _PO
+        pal_imposee = _PO.palette_rgb(pixel)
+        verif = {"bloc": None, "frames": 0, "blocs_non_unis": 0, "hors_palette": 0, "alpha_partiel": 0,
+                 "palette": len(pal_imposee) if pal_imposee else None, "ok": True}
+        hors = set()
     for i, (path, bg_removed) in enumerate(frame_files):
         with Image.open(path) as im:
             im = im.convert("RGBA")
             if union:
                 im = im.crop(union)
-            cell = _place_into_cell(im, size, align) if native else _fit_into_cell(im, size, align, resample)
+            cell = _place_into_cell(im, size, align) if native else _fit_into_cell(im, size, align, resample,
+                                                                                 entier=bool(pixel))
+            if verif is not None:
+                w0, h0 = im.size
+                if native:
+                    bloc, org = 1, ((size - w0) // 2, (size - h0) if align == "feet" else (size - h0) // 2)
+                else:
+                    nw, nh, x0, y0 = _fit_geometrie(w0, h0, size, align, True)
+                    bloc = nw // w0 if w0 and nw % w0 == 0 and nh % h0 == 0 and nw // w0 == nh // h0 else 1
+                    org = (x0, y0)
+                v = _PO.verifier_pixel(cell, bloc, pal_imposee, org)
+                verif["bloc"] = bloc if verif["bloc"] in (None, bloc) else min(verif["bloc"], bloc)
+                verif["frames"] += 1
+                verif["blocs_non_unis"] += v["blocs_non_unis"]
+                verif["alpha_partiel"] += v["alpha_partiel"]
+                if pal_imposee:
+                    pal_set = set(pal_imposee)
+                    hors |= {c for _n, c in (cell.convert("RGBA").getcolors(size * size) or [])
+                             if c[3] > 0 and c[:3] not in pal_set}
         fname = f"{i:03d}.png"
         cell.save(frames_dir / fname, format="PNG")
         x, y = (i % cols) * size, (i // cols) * size
@@ -532,6 +680,9 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
         })
 
     sheet.save(out_dir / "sheet.png", format="PNG")
+    if verif is not None:
+        verif["hors_palette"] = len({c[:3] for c in hors})
+        verif["ok"] = not (verif["blocs_non_unis"] or verif["hors_palette"] or verif["alpha_partiel"])
 
     fps = opts["fps"]
     # une durée PAR IMAGE ; sous 20 ms les navigateurs imposent leur propre plancher — le manifeste, lui, garde la vraie
@@ -551,6 +702,8 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
         "pixel": opts.get("pixel"),
         "post": opts.get("post"),
         "anim": anim,
+        **({"pixel_verif": verif} if verif is not None else {}),
+        **({"pixel_verrou": opts["pixel_verrou"]} if opts.get("pixel_verrou") else {}),
         "created_at": datetime.now(timezone.utc)
                               .isoformat(timespec="seconds")
                               .replace("+00:00", "Z"),
@@ -713,6 +866,13 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
     if not raw:
         raise RuntimeError("ffmpeg extracted no frames from the source video")
 
+    boucle_info = None
+    if opts.get("boucle"):
+        # t340 (B2) : AVANT la borne max_frames, et à l'identique dans la sonde et dans le vrai tir (keep compte juste)
+        n_brut = len(raw)
+        raw, fermee = await asyncio.to_thread(_boucle_echantillon, raw, opts["boucle"]["une_sur"])
+        boucle_info = {"une_sur": opts["boucle"]["une_sur"], "fermee": fermee, "images_video": n_brut,
+                       "images_gardees": len(raw)}
     sampled = len(raw) > opts["max_frames"]
     if sampled:
         # even subsample across the whole clip (keeps the loop cycle intact)
@@ -727,6 +887,8 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
                    "remove_bg": method}
     # t111 (T9) : la planche découpée et la limite « 4/8 », posées par /assets/sprite/from-board
     source_info.update(payload.get("_board_meta") or {})
+    if boucle_info:
+        source_info["boucle"] = boucle_info
 
     # 9c: filmstrip probe — publish the sampled frames as-is (no remove-bg /
     # pixel / sheet) so the UI can show them and let the user tick them off.

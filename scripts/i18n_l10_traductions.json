@@ -12458,5 +12458,73 @@
  "concurrent illisible": {
   "fr": "concurrent illisible",
   "en": "unreadable competitor"
+ },
+ "image_filename : un nom NU d'image de la Library est attendu, reçu {pose}": {
+  "fr": "image_filename : un nom NU d'image de la Library est attendu, reçu {pose}",
+  "en": "image_filename: a BARE Library image name is expected, got {pose}"
+ },
+ "Start image not found: {pose}": {
+  "fr": "Image de départ introuvable : {pose}",
+  "en": "Start image not found: {pose}"
+ },
+ "video_model inconnu : {mid}": {
+  "fr": "video_model inconnu : {mid}",
+  "en": "unknown video_model: {mid}"
+ },
+ "duration_s : un entier de 3 à 10 s est attendu": {
+  "fr": "duration_s : un entier de 3 à 10 s est attendu",
+  "en": "duration_s: an integer from 3 to 10 s is expected"
+ },
+ "aspect_ratio : 1:1, 9:16 ou 16:9": {
+  "fr": "aspect_ratio : 1:1, 9:16 ou 16:9",
+  "en": "aspect_ratio: 1:1, 9:16 or 16:9"
+ },
+ "prompt : décris le mouvement à boucler (ex : walks in place)": {
+  "fr": "prompt : décris le mouvement à boucler (ex : walks in place)",
+  "en": "prompt: describe the motion to loop (e.g. walks in place)"
+ },
+ "palette_hex must be a list of #RRGGBB colours": {
+  "fr": "palette_hex doit être une liste de couleurs #RRGGBB",
+  "en": "palette_hex must be a list of #RRGGBB colours"
+ },
+ "palette_hex must hold between 2 and {MAX_PALETTE} distinct colours": {
+  "fr": "palette_hex doit contenir de 2 à {MAX_PALETTE} couleurs distinctes",
+  "en": "palette_hex must hold between 2 and {MAX_PALETTE} distinct colours"
+ },
+ "the sprite has no visible pixel": {
+  "fr": "le sprite n'a aucun pixel visible",
+  "en": "the sprite has no visible pixel"
+ },
+ "palette_hex excludes palette and colors — give only one": {
+  "fr": "palette_hex exclut palette et colors — n'en donnez qu'un",
+  "en": "palette_hex excludes palette and colors — give only one"
+ },
+ "palette_hex: {c} is not a #RRGGBB colour": {
+  "fr": "palette_hex : {c} n'est pas une couleur #RRGGBB",
+  "en": "palette_hex: {c} is not a #RRGGBB colour"
+ },
+ "more than {MAX_PALETTE} colours: this sprite is not pixel art — turn Pixel art on before approving it": {
+  "fr": "plus de {MAX_PALETTE} couleurs : ce sprite n'est pas du pixel-art — activez Pixel-art avant de l'approuver",
+  "en": "more than {MAX_PALETTE} colours: this sprite is not pixel art — turn Pixel art on before approving it"
+ },
+ "pixel_verrou: the 8-character id of an approved sprite is expected": {
+  "fr": "pixel_verrou : l'identifiant à 8 caractères d'un sprite approuvé est attendu",
+  "en": "pixel_verrou: the 8-character id of an approved sprite is expected"
+ },
+ "sprite {v} is not approved: approve it first (Pixel art on)": {
+  "fr": "le sprite {v} n'est pas approuvé : approuvez-le d'abord (Pixel-art activé)",
+  "en": "sprite {v} is not approved: approve it first (Pixel art on)"
+ },
+ "only a pixel-art sprite can be approved: turn Pixel art on, generate the sheet, then approve it": {
+  "fr": "seul un sprite en pixel-art s'approuve : activez Pixel-art, générez la feuille, puis approuvez-la",
+  "en": "only a pixel-art sprite can be approved: turn Pixel art on, generate the sheet, then approve it"
+ },
+ "boucle must be an object {une_sur: 1-3}": {
+  "fr": "boucle doit être un objet {une_sur: 1-3}",
+  "en": "boucle must be an object {une_sur: 1-3}"
+ },
+ "boucle.une_sur must be 1, 2 or 3": {
+  "fr": "boucle.une_sur doit valoir 1, 2 ou 3",
+  "en": "boucle.une_sur must be 1, 2 or 3"
  }
 }
