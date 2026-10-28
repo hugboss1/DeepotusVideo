@@ -66,3 +66,14 @@ Ordre conseillé : A1 → A4 → A2 → A5 → A3 → A6 (les leads rapportent l
    Instagram** (publics mais contraires aux conditions de ces plateformes : à votre décision).
 3. Leads : Google Maps + contacts publiés sur le site (proposé) ; LinkedIn reste exclu.
 4. Budget : plafond par collecte (proposé : 2 $ la veille, 1 $ une recherche de leads), au-delà carte obligatoire.
+
+## 6. Décisions de l'utilisateur (28/10/2026)
+
+1. **Les deux voies** : le plugin dans Claude Code (t363) et l'intégration dans l'app (t364-t369).
+2. **Sources de veille** : Reddit, avis Google Maps et Google Play, Trustpilot et G2, **X et Instagram** (données
+   publiques, choix assumé malgré les conditions de ces plateformes).
+3. **Leads** : Google Maps + contacts publiés sur le site de l'entreprise, revérifiés ; LinkedIn exclu.
+4. **Plafonds** : 2 $ par collecte de veille, 1 $ par recherche de leads, toujours derrière une carte de devis.
+
+Suivi : t363 (V0 plugin), t364 (A1 socle), t365 (A4 leads), t366 (A2 veille), t367 (A5 Reddit), t368 (A3 concurrents),
+t369 (A6 clôture).
