@@ -74,6 +74,48 @@ export function corpsPrompt(sujet, puces, n, size) {
            source: "sprites" };
 }
 
+/* t339 (lot Scenario, B3) — 4 ou 8 directions depuis la planche. Le PLAN (d'où vient chaque direction) et le coût
+   viennent du serveur (POST /assets/sprite/from-board/devis, sprite_directions.plan_huit) : l'écran ne le recalcule
+   pas, il le dessine. Convention : 5 dessinées (S, SE, E, NE, N), 3 en miroir (SO <- SE, O <- E, NO <- NE). */
+export const MIROIRS = { southwest: "southeast", west: "east", northwest: "northeast" };
+/* la rose vue du dessus, nord en haut : 3 × 3, le centre est le personnage */
+export const ROSE = [["northwest", "north", "northeast"], ["west", null, "east"], ["southwest", "south", "southeast"]];
+
+/* « objet tenu asymétrique » : AUCUN miroir (le serveur refuse en 400 sinon) — la case l'emporte sur les cases */
+export function miroirsEffectifs(coches, asymetrique) {
+  return asymetrique ? [] : Object.keys(MIROIRS).filter((d) => (coches || []).includes(d));
+}
+
+/* le corps de /assets/sprite/from-board (et de son /devis) ; `confirme` seulement après le dialogue du devis */
+export function corpsDirections(n, coches, asymetrique, o) {
+  const opts = o || {}, b = { directions: n === 8 ? 8 : 4 };
+  if (b.directions === 8) { b.miroirs = miroirsEffectifs(coches, asymetrique); b.objet_asymetrique = !!asymetrique; }
+  if (opts.entity_id) b.entity_id = opts.entity_id;
+  for (const k of ["cell", "trim", "pixel", "post"]) if (opts[k]) b[k] = opts[k];
+  if (opts.confirme) b.confirme_cout = true;
+  return b;
+}
+
+/* le plan du devis posé sur la rose : 3 × 3 de {direction, source, de} (null au centre ou si absente) */
+export function rose(plan) {
+  const par = Object.fromEntries((plan || []).map((p) => [p.direction, p]));
+  return ROSE.map((ligne) => ligne.map((d) => (d && par[d]) || null));
+}
+
+const ABREV = { south: () => __dzT9("sprites.t339_dir.s", "S"), southwest: () => __dzT9("sprites.t339_dir.so", "SO"),
+  west: () => __dzT9("sprites.t339_dir.o", "O"), northwest: () => __dzT9("sprites.t339_dir.no", "NO"),
+  north: () => __dzT9("sprites.t339_dir.n", "N"), northeast: () => __dzT9("sprites.t339_dir.ne", "NE"),
+  east: () => __dzT9("sprites.t339_dir.e", "E"), southeast: () => __dzT9("sprites.t339_dir.se", "SE") };
+export function abrev(direction) { return ABREV[direction] ? ABREV[direction]() : String(direction || ""); }
+
+/* ce que dit une case de la rose : découpée (gratuit), générée (payant), miroir de… */
+export function libelleSource(p) {
+  if (!p) return "";
+  if (p.source === "planche") return __dzT9("sprites.t339_src.planche", "découpée");
+  if (p.source === "generee") return __dzT9("sprites.t339_src.generee", "générée");
+  return __dzT9("sprites.t339_src.miroir", "miroir · {d}", { d: abrev(p.de) });
+}
+
 /* les puces de la persona : 12 mots-clés au plus, puis une par couleur de marque */
 export function puces(persona) {
   const p = persona || {};

@@ -2728,20 +2728,59 @@ async def reassemble_sprite(job: str, body: dict):
 _EXT_PLANCHE = (".png", ".jpg", ".jpeg", ".webp")
 
 
-@router.post("/assets/sprite/from-board")
-async def sprite_from_board(body: dict, background_tasks: BackgroundTasks):
-    """t111 (plan-sprites T9, partie serveur) — 4 directions DÉCOUPÉES dans la planche d'un personnage de la bible.
-
-    Deux entrées, une sortie : `entity_id` (on lit `ref_image` et `kind`) ou `board` (un nom NU d'image de la
-    Library, lu comme un personnage). Les vues viennent du découpeur de #62 (`board_service.decouper_planche`, via
-    `sprite_directions`), puis le job passe par `assets_sprite` — LA même porte que le reste du Sprite Lab, avec la
-    source `images` de T0 : une seule machinerie de job. Gratuit : fond papier uni, clé chroma locale par défaut.
-
-    Les vues restent indexées « atelier » : ce sont celles que #62 partage avec les générateurs multi-références, et
-    LI.noter ÉCRASE la provenance — le plan les notait « sprites », ce qui les aurait reclassées."""
+def _sprite_plan_directions(body: dict):
+    """t339 — (nombre de directions, plan des 8 ou None, objet asymétrique) lus dans le corps ; 400 dit sinon."""
     from app.services import sprite_directions as SD
-    from app.services.storage import BibleEntity, async_session_factory
+    n = body.get("directions", 4)
+    if isinstance(n, bool) or n not in (4, 8):
+        raise HTTPException(400, f"directions : 4 ou 8, reçu {n!r}")
+    asym = body.get("objet_asymetrique", False)
+    if not isinstance(asym, bool):
+        raise HTTPException(400, "objet_asymetrique : vrai ou faux attendu")
+    if n == 4:
+        return 4, None, asym
+    miroirs = body.get("miroirs")
+    if miroirs is not None and (not isinstance(miroirs, list) or not all(isinstance(m, str) for m in miroirs)):
+        raise HTTPException(400, "miroirs : une liste de directions attendue (southwest, west, northwest)")
+    try:
+        return 8, SD.plan_huit(miroirs, asym), asym
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
+
+async def _sprite_fournisseur_directions() -> str:
+    """Le générateur des vues de directions : celui des planches du projet (réglage DA `image_provider`), pour que
+    les diagonales ressemblent à la planche dont elles prolongent l'identité."""
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as s:
+        return (await _atelier_setting(s, "image_provider")) or "flux"
+
+
+# t339 : (endpoint fal appelé pour une vue de direction quand le fournisseur est FLUX, id de la grille de prix qui le
+# chiffre) — UNE table pour le tir et le devis : le banc fige que l'un est l'autre.
+_SPRITE_VUE_FLUX = ("fal-ai/flux-kontext/dev", "flux_kontext")
+
+
+async def _generer_vue_direction(prompt: str, ref: Path, provider: str) -> str:
+    """t339 — UNE vue de direction, chaînée sur la vue découpée `ref` (même machinerie que les corps de la planche :
+    Kontext pour FLUX, sinon le fournisseur du projet avec l'image de référence). Rend le nom écrit dans la Library.
+    Remplacé par un générateur simulé dans les bancs."""
+    from app.services import image_providers as IP
+    taille = "portrait_16_9"
+    if provider == "flux":
+        out = await _flux_generate(prompt, taille, 1, model=_SPRITE_VUE_FLUX[0], image_path=ref,
+                                   ratio=_EDIT_RATIO.get(taille), guidance=3.5)
+    else:
+        try:
+            out = await IP.generate(provider, prompt, taille, 1, image_path=ref, ratio=_EDIT_RATIO.get(taille))
+        except RuntimeError as pe:
+            raise HTTPException(502, str(pe))
+    return out["images"][0]
+
+
+async def _sprite_planche_du_corps(body: dict):
+    """(planche, kind, nom de l'entité) d'après `entity_id` ou `board` ; 400 / 404 dits sinon."""
+    from app.services.storage import BibleEntity, async_session_factory
     eid = str(body.get("entity_id") or "").strip()
     nom_entite = None
     if eid:
@@ -2760,21 +2799,128 @@ async def sprite_from_board(body: dict, background_tasks: BackgroundTasks):
             raise HTTPException(400, f"board : un nom NU d'image de la Library est attendu, reçu {brut!r}")
     if not (settings.images_path / planche).is_file():
         raise HTTPException(400, f"Planche introuvable dans la Library : {planche!r}")
+    return planche, kind, nom_entite
+
+
+@router.post("/assets/sprite/from-board/devis")
+async def sprite_from_board_devis(body: dict):
+    """t339 — le DEVIS d'une feuille de directions, sans rien dépenser ni écrire : le plan des 8 (d'où vient chaque
+    direction), le nombre de vues à générer, leur coût au fournisseur du projet. Lu par le Spritelab avant le clic et
+    par l'assistant. 4 directions : 0 génération, 0 $."""
+    from app.services import image_providers as IP, pricing as _pricing, sprite_directions as SD
+    n, plan, asym = _sprite_plan_directions(body)
+    a_generer = SD.generations(plan) if plan else []
+    provider = await _sprite_fournisseur_directions()
+    usd = (float(_pricing.estimate(_sprite_op_directions(provider, len(a_generer)))["total_usd"])
+           if a_generer else 0.0)
+    if plan is None:
+        plan = [{"direction": d, "source": "planche", "de": c} for d, c in zip(SD.directions(), SD.COLONNES)]
+    return {"directions": n, "plan": plan, "generations": len(a_generer), "a_generer": a_generer,
+            "usd": round(usd, 4), "provider": provider, "objet_asymetrique": asym,
+            "cle_manquante": _sprite_cle_manquante(provider) if a_generer else None}
+
+
+def _sprite_op_directions(provider: str, n: int) -> dict:
+    """t339 — l'op des vues générées, au tarif du modèle RÉELLEMENT appelé par `_generer_vue_direction` : FLUX passe
+    par fal-ai/flux-kontext/dev (édition chaînée sur la vue découpée), pas par FLUX schnell."""
+    if provider == "flux":
+        return {"kind": _SPRITE_VUE_FLUX[1], "n": n}
+    return {"kind": "image", "n": n, "model": provider}
+
+
+def _sprite_cle_manquante(provider: str) -> str | None:
+    from app.services import image_providers as IP
+    return IP.missing_key(provider)
+
+
+@router.post("/assets/sprite/from-board")
+async def sprite_from_board(body: dict, background_tasks: BackgroundTasks, http: Request = None):
+    """t111 (plan-sprites T9, partie serveur) — 4 directions DÉCOUPÉES dans la planche d'un personnage de la bible.
+
+    Deux entrées, une sortie : `entity_id` (on lit `ref_image` et `kind`) ou `board` (un nom NU d'image de la
+    Library, lu comme un personnage). Les vues viennent du découpeur de #62 (`board_service.decouper_planche`, via
+    `sprite_directions`), puis le job passe par `assets_sprite` — LA même porte que le reste du Sprite Lab, avec la
+    source `images` de T0 : une seule machinerie de job. Gratuit : fond papier uni, clé chroma locale par défaut.
+
+    Les vues restent indexées « atelier » : ce sont celles que #62 partage avec les générateurs multi-références, et
+    LI.noter ÉCRASE la provenance — le plan les notait « sprites », ce qui les aurait reclassées.
+
+    t339 (B3) — `directions: 8` : 5 dessinées (S, E, N découpées ; SE, NE générées) + 3 miroirs (`miroirs`, les trois
+    par défaut ; décochés, SW / NW sont générés et W découpé). `objet_asymetrique: true` : aucun miroir (400 sinon),
+    l'est est généré aussi. Ordre des refus : corps 400 → planche 400 / 404 → générateur vectoriel 400 → clé absente
+    503 → `confirme_cout` absent 409 (avec le devis) → plafonds 402 → génération (une vue par direction, chaînée sur
+    la face ou le dos découpés) → miroirs logiciels → `assets_sprite`. Rien n'est généré sans les trois portes."""
+    from app.services import board_service as BS, image_providers as IP, pricing as _pricing
+    from app.services import sprite_directions as SD
+
+    n_dir, plan, asym = _sprite_plan_directions(body)
+    planche, kind, nom_entite = await _sprite_planche_du_corps(body)
     try:
         noms = await asyncio.to_thread(SD.vues_de_planche, settings.images_path, planche, kind)
     except ValueError as e:
         raise HTTPException(400, str(e))
     await LI.noter(noms, "atelier")
 
-    directions = SD.directions()
-    corps = {k: v for k, v in body.items() if k not in ("entity_id", "board")}
+    corps = {k: v for k, v in body.items()
+             if k not in ("entity_id", "board", "directions", "miroirs", "objet_asymetrique", "confirme_cout")}
+    if plan is None:
+        directions = SD.directions()
+        meta = {"board": planche, "directions": f"{len(directions)}/{len(SD.HUIT)}"}
+    else:
+        vue = dict(zip(SD.COLONNES, noms))
+        a_generer = SD.generations(plan)
+        provider = None
+        if a_generer:
+            provider = await _sprite_fournisseur_directions()
+            if IP.est_vectoriel(provider):
+                raise HTTPException(400, f"{provider} rend du SVG : une vue de sprite est une image raster. "
+                                         "Choisissez un autre générateur dans la direction artistique.")
+            manque = _sprite_cle_manquante(provider)
+            if manque:
+                raise _refus_cle(manque, provider, http)
+            op = _sprite_op_directions(provider, len(a_generer))
+            if body.get("confirme_cout") is not True:
+                usd = float(_pricing.estimate(op)["total_usd"])
+                raise HTTPException(409, {"message": "des vues sont à générer (payant) : confirmez le devis",
+                                          "usd": round(usd, 4), "generations": len(a_generer),
+                                          "a_generer": a_generer, "provider": provider})
+            await _plafond(op, "sprites")
+        # dans cet ordre : les découpées, puis les générées, puis les miroirs (qui lisent leur source)
+        fichiers, neufs = {}, []
+        for p in plan:
+            if p["source"] == "planche":
+                fichiers[p["direction"]] = vue[p["de"]]
+        for p in plan:
+            if p["source"] == "generee":
+                p["prompt"] = SD.prompt_vue(p["direction"], asym)
+                ref = settings.images_path / vue[SD.reference_vue(p["direction"])]
+                fichiers[p["direction"]] = await _generer_vue_direction(p["prompt"], ref, provider)
+                neufs.append(fichiers[p["direction"]])
+        for p in plan:
+            if p["source"] == "miroir":
+                fichiers[p["direction"]] = await asyncio.to_thread(BS.mirror_panel, settings.images_path,
+                                                                   fichiers[p["de"]])
+                neufs.append(fichiers[p["direction"]])
+        for p in plan:
+            p["fichier"] = fichiers[p["direction"]]
+        if neufs:
+            await LI.noter(neufs, "sprites")
+        noms = [fichiers[d] for d in SD.HUIT]
+        directions = list(SD.HUIT)
+        corps["max_frames"] = len(noms)                  # le défaut serveur échantillonnerait : 8 vues, 8 cases
+        corps.setdefault("columns", 4)
+        meta = {"board": planche, "directions": f"8/{len(SD.HUIT)}", "plan": plan, "generations": len(a_generer),
+                "objet_asymetrique": asym}
+        if provider:
+            meta["provider"] = provider
     corps["source"] = {"kind": "images", "filenames": noms}
     corps.setdefault("remove_bg", "chroma")
     corps.setdefault("columns", len(noms))
     corps["anim"] = {"tags": SD.tags_directions(directions)}
-    corps.setdefault("title", "Sprites · directions · " + (nom_entite or planche))
+    corps.setdefault("title", ("Sprites · 8 directions · " if plan else "Sprites · directions · ")
+                     + (nom_entite or planche))
     # clé INTERNE (soulignée) : posée par cette route, lue par generate_sprites dans `source` ; normalize_opts l'ignore
-    corps["_board_meta"] = {"board": planche, "directions": f"{len(directions)}/{len(SD.HUIT)}"}
+    corps["_board_meta"] = meta
     return await assets_sprite(corps, background_tasks)
 
 
