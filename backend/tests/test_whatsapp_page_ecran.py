@@ -137,10 +137,11 @@ if NODE:
 
 # ── [2] réversible ──────────────────────────────────────────────────────────────────────────────────────────────────
 print("\n[2] la chaîne inverse")
-check("2.1 avant_whatsapppage existe et rend defaire(B)",
-      lambda: PM is not None and AIDE.avant_whatsapppage(B) == PM.defaire(B))
+# t313 (28/10/2026) : le maillon dzinspiration est posé APRÈS whatsapppage ; avant_whatsapppage le défait d'abord
+check("2.1 avant_whatsapppage existe et rend defaire(B d'avant dzinspiration)",
+      lambda: PM is not None and AIDE.avant_whatsapppage(B) == PM.defaire(AIDE.avant_dzinspiration(B)))
 check("2.2 avant_whatsapppage sans marqueur : rendu tel quel",
-      lambda: AIDE.avant_whatsapppage(PM.defaire(B)) == PM.defaire(B))
+      lambda: AIDE.avant_whatsapppage(PM.defaire(AIDE.avant_dzinspiration(B))) == PM.defaire(AIDE.avant_dzinspiration(B)))
 check("2.3 avant_dzwhatsapp défait whatsapppage D'ABORD, puis dzwhatsapp",
       lambda: MARKER not in AIDE.avant_dzwhatsapp(B) and "/*dzwhatsapp*/" not in AIDE.avant_dzwhatsapp(B)
       and AIDE.avant_dzwhatsapp(B) == AIDE.avant_dzwhatsapp(AIDE.avant_whatsapppage(B)))
