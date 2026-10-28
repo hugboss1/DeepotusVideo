@@ -33,6 +33,7 @@ PAYANTES = {
     ("routes", "POST", "/espaces/{espace_id}/contenus/generer"),       # t207 : contenus de départ par LLM (sur demande)
     ("agent", "POST", "/lire"),   # A6 (19/10/2026) : la réponse de l'assistant lue à voix haute (garde « aide »)
     ("audio_graph", "POST", "/apercu"), ("audio_graph", "POST", "/rendre"),   # t272 : nœuds IA de l'Atelier sonore
+    ("scan", "POST", "/{scan_id}/vision"),   # t312 : le secours Claude vision du Scan (garde « atelier » avant chaque lot)
     ("agent_campagnes", "POST", "/{cid}/message"),   # t285a : le message de l'agent Campagnes (garde « campagnes » à chaque tour)
     ("post", "POST", "/rendre"),   # t277 : maillons IA de la pile de post-traitement (garde « son », avant le job)
     ("photolab", "POST", "/calque/ia"),          # t191 : calque IA du Photolab (image + détourage éventuel)
@@ -152,6 +153,13 @@ _ev = _wv[_wv.find("async def envoyer_validation("):]
 _ev = _ev[:_ev.find("# ---- les réponses")]
 check("A2h la demande de validation au client passe par WE.envoyer (gardé), et par aucun autre envoi",
       0 < _ev.find("WE.envoyer(") and "kapso.envoyer(" not in _ev, "")
+# t312 : la route vision délègue sa garde à scan_vision.lire — l'accord (CoutChange) puis tirer_garde avant CHAQUE lot,
+# et aucun appel nu au modèle (MT.tirer sans garde)
+_sv = (RP.RACINE / "services" / "scan_vision.py").read_text(encoding="utf-8")
+_sl = _sv[_sv.find("async def lire("):]
+check("A2i le secours Scan refuse un coût hors accord AVANT la boucle, puis appelle MT.tirer_garde dans chaque lot",
+      0 < _sl.find("raise CoutChange(") < _sl.find("for n, k in enumerate(lots)") < _sl.find("MT.tirer_garde(")
+      and "MT.tirer(" not in _sl, "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes
@@ -177,6 +185,9 @@ anciens["post"] = _pst.replace("_PLAF.verifier(", "_sans_garde(") if "_PLAF.veri
 # t285a : les routes de l'agent Campagnes n'existaient pas en bfec23e — même témoin : le source actuel privé de sa garde
 _acr = (RP.MODULES["agent_campagnes"]).read_text(encoding="utf-8")
 anciens["agent_campagnes"] = _acr.replace("AC.tour(", "_sans_garde(") if "AC.tour(" in _acr else None
+# t312 : le secours Claude vision du Scan n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
+_scr = (RP.MODULES["scan"]).read_text(encoding="utf-8")
+anciens["scan"] = _scr.replace("SV.lire(", "_sans_garde(") if "SV.lire(" in _scr else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

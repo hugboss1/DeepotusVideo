@@ -92,6 +92,8 @@ def _couts(n: int, langue: str, modele: str) -> list[float]:
     out = []
     for k in _lots(n):
         op = MT.estimer(MOTEUR, _prompt(k, langue), SYSTEME, MAX_TOKENS_PAGE * k, None, modele=modele, images=k)
+        if modele:          # t312 tâche 4 : `estimer` ne pose pas le modèle dans l'op ; sans lui, pricing chiffre au
+            op = {**op, "modele": modele}   # tarif Anthropic par défaut et un changement de modèle passe inaperçu
         out.append(round(float(PR.estimate(op).get("total_usd") or 0.0), 4))
     return out
 

@@ -103,6 +103,10 @@ try:
     x = V.devis(2)
     check("1h non configuré -> indisponible + raison", x["disponible"] is False and x["raison"], x)
     settings.ANTHROPIC_API_KEY = "cle-de-banc"
+    settings.ANTHROPIC_MODEL = "claude-sonnet-4-5"
+    xs = V.devis(2)
+    settings.ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
+    check("1i le devis suit le tarif du modèle réglé (Sonnet > Haiku)", xs["usd"] > V.devis(2)["usd"], xs)
 
     print("\n[2] lire, refus")
     img = png(800, 600)

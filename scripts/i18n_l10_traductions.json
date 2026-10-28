@@ -11454,5 +11454,53 @@
  "Le coût a changé : il dépasse le montant accepté.": {
   "fr": "Le coût a changé : il dépasse le montant accepté.",
   "en": "The cost changed: it exceeds the accepted amount."
+ },
+ "Aucune langue de lecture de texte n'est installée dans Windows.": {
+  "fr": "Aucune langue de lecture de texte n'est installée dans Windows.",
+  "en": "No text-recognition language is installed in Windows."
+ },
+ "Langue de lecture inconnue : fr, en ou auto.": {
+  "fr": "Langue de lecture inconnue : fr, en ou auto.",
+  "en": "Unknown reading language: fr, en or auto."
+ },
+ "Il faut de 1 à 10 pages à lire.": {
+  "fr": "Il faut de 1 à 10 pages à lire.",
+  "en": "Provide 1 to 10 pages to read."
+ },
+ "Ce scan n'a aucune page en image à relire : son texte a été lu directement.": {
+  "fr": "Ce scan n'a aucune page en image à relire : son texte a été lu directement.",
+  "en": "This scan has no image page to re-read: its text was read directly."
+ },
+ "Aucun texte à découper.": {
+  "fr": "Aucun texte à découper.",
+  "en": "No text to split."
+ },
+ "Texte trop long : 2 Mo au plus.": {
+  "fr": "Texte trop long : 2 Mo au plus.",
+  "en": "Text too long: 2 MB at most."
+ },
+ "Scan inconnu ou expiré (gardé une heure) : relance la lecture.": {
+  "fr": "Scan inconnu ou expiré (gardé une heure) : relance la lecture.",
+  "en": "Unknown or expired scan (kept for one hour): run the reading again."
+ },
+ "Rien à lire : ce PDF n'a ni texte sélectionnable ni image de page.": {
+  "fr": "Rien à lire : ce PDF n'a ni texte sélectionnable ni image de page.",
+  "en": "Nothing to read: this PDF has neither selectable text nor page images."
+ },
+ "Ce PDF est illisible (abîmé ou protégé par un mot de passe).": {
+  "fr": "Ce PDF est illisible (abîmé ou protégé par un mot de passe).",
+  "en": "This PDF cannot be read (damaged or password-protected)."
+ },
+ "Trop de pages : 10 au plus par lecture (les pages des PDF comptent).": {
+  "fr": "Trop de pages : 10 au plus par lecture (les pages des PDF comptent).",
+  "en": "Too many pages: 10 at most per reading (PDF pages count)."
+ },
+ "Fichier trop lourd : 20 Mo au plus par page.": {
+  "fr": "Fichier trop lourd : 20 Mo au plus par page.",
+  "en": "File too large: 20 MB at most per page."
+ },
+ "Format non pris en charge : PNG, JPEG, WEBP, BMP, TIFF ou PDF.": {
+  "fr": "Format non pris en charge : PNG, JPEG, WEBP, BMP, TIFF ou PDF.",
+  "en": "Unsupported format: PNG, JPEG, WEBP, BMP, TIFF or PDF."
  }
 }

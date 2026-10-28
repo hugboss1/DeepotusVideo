@@ -540,6 +540,9 @@ app.include_router(audio_graph_router, prefix="/api/audio/graph")
 # t276 (22/10/2026) : la pile de post-traitement de Son & VFX
 from app.api.post_routes import router as post_router
 app.include_router(post_router, prefix="/api/post")
+# t312 (28/10/2026) : /api/scan — une page (image ou PDF) -> texte (Windows.Media.Ocr, secours Claude payant), local seulement
+from app.api.scan_routes import router as scan_router
+app.include_router(scan_router, prefix="/api/scan")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
