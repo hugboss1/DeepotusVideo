@@ -207,6 +207,11 @@
     return Number(b.devis) || 0;
   }
 
+  // la source d'une collecte Apify en clair (campagnes.source.<id>), jamais l'id interne ; inconnue : telle quelle
+  var SOURCES = ["google_maps", "contacts_site", "reddit", "x", "instagram", "instagram_posts", "tiktok",
+    "tiktok_commentaires", "avis_google_maps", "google_play", "trustpilot", "g2", "facebook_pubs", "serp"];
+  function source(id) { return SOURCES.indexOf(String(id)) >= 0 ? T("campagnes.source." + id) : String(id || ""); }
+
   function libelle(b) {
     var a = b.arguments || {};
     switch (b.genre) {
@@ -218,7 +223,7 @@
       case "continuer": return T("campagnes.carte.continuer", { usd: usd(montantContinuer(b), true) });
       case "brouillons": return T("campagnes.carte.brouillons", { n: (a.ids || []).length });
       case "recherche": return T("campagnes.carte.recherche");     // t354
-      case "collecte": return T("campagnes.carte.collecte", { acteur: String(a.acteur || "") });     // t364
+      case "collecte": return T("campagnes.carte.collecte", { acteur: source(a.acteur) });     // t364
       case "sequence": return T("campagnes.carte.sequence", { canal: String(a.canal || "") });     // t355
       default: return String(b.libelle || "");   // secours : un genre que cet écran ne connaît pas
     }
@@ -354,7 +359,7 @@
           c.appendChild(ulr);
         }
       } else if (b.genre === "collecte") {       // t364 : un run Apify payant (plafonné chez Apify), lancé seulement si l'utilisateur accepte
-        c.appendChild(etat(T("campagnes.collecte.detail", { acteur: String(a.acteur || ""), max: Number(a.max) || 0,
+        c.appendChild(etat(T("campagnes.collecte.detail", { acteur: source(a.acteur), max: Number(a.max) || 0,
           usd: usd(a.devis_usd || 0) })));
         if (propose) {
           actions.appendChild(bouton(T("campagnes.action.collecter", { usd: usd(a.devis_usd || 0) }), function () { decider(n, "acceptee"); }, true, occupe));

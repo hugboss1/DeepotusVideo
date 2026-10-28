@@ -1,0 +1,122 @@
+{
+  "titre": {
+    "fr": "La clé Apify, puis l'état dans Prospects",
+    "en": "The Apify key, then its status in Prospects"
+  },
+  "legende": {
+    "fr": "Réglages › Clés d'API : collez la clé Apify sur sa ligne, puis Enregistrer. Prospects › Recherche web dit ensuite « Apify : prêt ».",
+    "en": "Settings › API keys: paste the Apify key on its line, then Save. Prospects › Web search then says “Apify: ready”."
+  },
+  "captures": [
+    {
+      "fr": "cle.fr.webp",
+      "en": "cle.en.webp"
+    },
+    {
+      "fr": "pret.fr.webp",
+      "en": "pret.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        491,
+        404,
+        842,
+        91
+      ],
+      "bulle": {
+        "fr": "Collez la clé Apify ici, puis Enregistrer",
+        "en": "Paste the Apify key here, then Save"
+      },
+      "ancre": [
+        912,
+        489
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 1.6,
+      "curseur": [
+        1259,
+        191
+      ],
+      "clic": true
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1047,
+        445,
+        387,
+        53
+      ],
+      "bulle": {
+        "fr": "Apify : prêt, avec ses plafonds",
+        "en": "Apify: ready, with its caps"
+      },
+      "ancre": [
+        1241,
+        492
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        491,
+        404,
+        842,
+        91
+      ],
+      "bulle": {
+        "fr": "Collez la clé Apify ici, puis Enregistrer",
+        "en": "Paste the Apify key here, then Save"
+      },
+      "ancre": [
+        912,
+        489
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 1.6,
+      "curseur": [
+        1242,
+        191
+      ],
+      "clic": true
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "surligne": [
+        1047,
+        412,
+        387,
+        53
+      ],
+      "bulle": {
+        "fr": "Apify : prêt, avec ses plafonds",
+        "en": "Apify: ready, with its caps"
+      },
+      "ancre": [
+        1241,
+        459
+      ]
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

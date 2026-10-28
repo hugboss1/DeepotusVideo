@@ -447,6 +447,7 @@ for (const lang of ["fr", "en"]) {
     "POST /api/agent/campagnes/c1/carte/0": async (c) => { faits.push(c); apres = true; return reponse(200, conv([msg("agent", [RECH]), msg("fait", [fait])])); }
   });
   const w = await monterAvec(routes);
+  ok("6.20b recherche : le devis en dollars", /Rechercher \(0,008 \$\)/.test(texte(w.racine)), texte(w.racine));
   ok("6.20 la carte dit la requête, le fournisseur et le devis", /studios vidéo Lyon/.test(texte(w.racine)) && /tavily/.test(texte(w.racine)), texte(w.racine));
   const [b] = parTexte(w.racine, /Rechercher/);
   ok("6.21 bouton « Rechercher » et « Refuser »", !!b && parTexte(w.racine, /Refuser/).length >= 1);
@@ -473,7 +474,9 @@ for (const lang of ["fr", "en"]) {
     "POST /api/agent/campagnes/c1/carte/0": async (c) => { faits.push(c); apres = true; return reponse(200, conv([msg("agent", [COL]), msg("fait", [fait])])); }
   });
   const w = await monterAvec(routes);
-  ok("6.30 la carte dit la source, le nombre et le devis", /google_maps/.test(texte(w.racine)) && /20/.test(texte(w.racine)) && /0[.,]08/.test(texte(w.racine)), texte(w.racine));
+  ok("6.30 la carte dit la source, le nombre et le devis", /Google Maps/.test(texte(w.racine)) && /20/.test(texte(w.racine)) && /0[.,]08/.test(texte(w.racine)), texte(w.racine));
+  ok("6.30b la source en clair (jamais l'id interne) et les montants en dollars", !/google_maps/.test(texte(w.racine))
+    && /Collecter \(0,08 \$\)/.test(texte(w.racine)) && /environ 0,08 \$/.test(texte(w.racine)), texte(w.racine));
   const [b] = parTexte(w.racine, /Collecter/);
   ok("6.31 bouton « Collecter » et « Refuser »", !!b && parTexte(w.racine, /Refuser/).length >= 1);
   b.click();

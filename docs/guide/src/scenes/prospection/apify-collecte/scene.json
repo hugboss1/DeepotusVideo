@@ -1,0 +1,150 @@
+{
+  "titre": {
+    "fr": "Une collecte Google Maps : la carte, puis les entreprises",
+    "en": "A Google Maps collection: the card, then the companies"
+  },
+  "legende": {
+    "fr": "Demandez à l'agent ; la carte dit la source, le nombre et le coût estimé. Collecter lance le run, plafonné chez Apify : les entreprises arrivent, sans fiche.",
+    "en": "Ask the agent; the card shows the source, the number and the estimated cost. Collect starts the run, capped at Apify: the companies arrive, without records."
+  },
+  "captures": [
+    {
+      "fr": "carte.fr.webp",
+      "en": "carte.en.webp"
+    },
+    {
+      "fr": "resultat.fr.webp",
+      "en": "resultat.en.webp"
+    }
+  ],
+  "taille": [
+    1100,
+    700
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        707,
+        306,
+        387,
+        151
+      ],
+      "bulle": {
+        "fr": "Source, nombre, coût estimé",
+        "en": "Source, number, estimated cost"
+      },
+      "ancre": [
+        901,
+        343
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 1.8,
+      "curseur": [
+        787,
+        424
+      ],
+      "clic": true,
+      "surligne": [
+        718,
+        402,
+        138,
+        44
+      ],
+      "bulle": {
+        "fr": "Rien ne part avant ce clic",
+        "en": "Nothing runs before this click"
+      },
+      "ancre": [
+        787,
+        440
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 3.4,
+      "surligne": [
+        718,
+        443,
+        365,
+        78
+      ],
+      "bulle": {
+        "fr": "Les entreprises trouvées, sans fiche",
+        "en": "The companies found, no records"
+      },
+      "ancre": [
+        901,
+        515
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        707,
+        266,
+        387,
+        134
+      ],
+      "bulle": {
+        "fr": "Source, nombre, coût estimé",
+        "en": "Source, number, estimated cost"
+      },
+      "ancre": [
+        901,
+        303
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 1.8,
+      "curseur": [
+        779,
+        367
+      ],
+      "clic": true,
+      "surligne": [
+        718,
+        346,
+        123,
+        44
+      ],
+      "bulle": {
+        "fr": "Rien ne part avant ce clic",
+        "en": "Nothing runs before this click"
+      },
+      "ancre": [
+        779,
+        383
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 3.4,
+      "surligne": [
+        718,
+        387,
+        365,
+        78
+      ],
+      "bulle": {
+        "fr": "Les entreprises trouvées, sans fiche",
+        "en": "The companies found, no records"
+      },
+      "ancre": [
+        901,
+        459
+      ]
+    }
+  ],
+  "taille_en": [
+    1100,
+    700
+  ]
+}
