@@ -58,6 +58,11 @@ if (!window.__dzSkins) {
     apercu: "position:relative;width:100%;aspect-ratio:16/9;background:#000;border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138))",
   };
 
+  // un bouton grisé se voit grisé (les styles en ligne gardent sinon l'aspect actif)
+  const feuille = el("style", { "data-dz-skins-ui": true,
+    texte: "[data-dz-skins-editeur] button:disabled,[data-dz-skins-groupe] button:disabled{opacity:.42;cursor:not-allowed}" });
+  document.head.appendChild(feuille);
+
   async function api(methode, url, corps, type) {
     const o = { method: methode, headers: {} };
     if (corps !== undefined) {

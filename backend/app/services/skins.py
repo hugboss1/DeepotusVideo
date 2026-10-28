@@ -481,7 +481,9 @@ def exporter(sid: str) -> tuple[str, bytes]:
         z.writestr("skin.json", json.dumps(doc, ensure_ascii=False, indent=1))
         for im in v["images"]:
             z.writestr(f"images/{im}.png", (racine() / sid / f"{im}.png").read_bytes())
-    slug = re.sub(r"[^A-Za-z0-9]+", "-", v["nom"].encode("ascii", "ignore").decode("ascii")).strip("-").lower()[:40]
+    import unicodedata
+    ascii_ = unicodedata.normalize("NFKD", v["nom"]).encode("ascii", "ignore").decode("ascii")      # « Néon » -> neon
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", ascii_).strip("-").lower()[:40]
     return f"skin-{slug or 'deepotus'}.zip", sortie.getvalue()
 
 

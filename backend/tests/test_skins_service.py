@@ -155,7 +155,8 @@ nom, z = K.exporter(d["id"])
 with zipfile.ZipFile(io.BytesIO(z)) as zz:
     noms = sorted(zz.namelist()); sj = json.loads(zz.read("skin.json"))
 check("6.1 export : skin.json + images, sans id ni espace", noms == ["images/fond.png", "images/logo.png", "skin.json"]
-      and sj["format"] == "deepotus-skin" and sj["version"] == 1 and "id" not in sj and "espace_id" not in sj and nom.endswith(".zip"), (noms, nom))
+      and sj["format"] == "deepotus-skin" and sj["version"] == 1 and "id" not in sj and "espace_id" not in sj
+      and nom == "skin-neon-2.zip", (noms, nom))
 r = K.importer(z, "deepotus")
 check("6.2 import : skin NEUF de l'espace courant, images comprises, rien d'ignoré", r["id"] != d["id"] and r["espace_id"] == "deepotus"
       and sorted(r["images"]) == ["fond", "logo"] and r["ignores"] == [] and r["cadre"] == d["cadre"], r)

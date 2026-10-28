@@ -213,7 +213,6 @@ export function habiller(scene, skin0, env) {
     if (g && typeof g.addColorStop === "function") { g.addColorStop(0, pal.fond); g.addColorStop(1, rgba(pal.principale, 1)); }
     ctx.fillStyle = g || pal.fond;
     ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = rgba(pal.fond, 0.35); ctx.fillRect(0, H * 0.62, W, H * 0.38);
     if (skin.logo && skin.logo.actif && prete(images.logo)) contenir(ctx, images.logo, W * 0.42, H * 0.14, W * 0.16, H * 0.24);
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillStyle = pal.texte; ctx.font = police(pol.titre, H * 0.085, true);
