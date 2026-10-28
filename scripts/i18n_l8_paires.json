@@ -2187,6 +2187,12 @@
     "groupe": "at3"
    },
    {
+    "pos": 89022,
+    "avant": "async function msRun() {\r\n  const f = $(\"#msFile\").files && $(\"#msFile\").files[0];",
+    "apres": "async function msRun(impose) {\r\n  // t312 : un File imposé (le texte d'un scan, « scan.txt ») suit le même envoi que le fichier choisi\r\n  const f = (typeof File === \"function\" && impose instanceof File) ? impose : ($(\"#msFile\").files && $(\"#msFile\").files[0]);",
+    "groupe": "t312"
+   },
+   {
     "pos": 89124,
     "avant": "\"Choisis le fichier du manuscrit.\"",
     "apres": "dzT(\"atelier.at3_ms.choisis\")",
@@ -2227,6 +2233,12 @@
     "avant": "\"Agent manuscrit : \" + e.message",
     "apres": "dzT(\"atelier.at3_ms.err\", { msg: e.message })",
     "groupe": "at3"
+   },
+   {
+    "pos": 90949,
+    "avant": "/* ═════════ utilitaires ═════════ */",
+    "apres": "/* ═════════ t312 (C1 Scan) — la boîte « Scanner une page » (/shared/dz-scan.js) ═════════\r\n   Trois envois (Décision 7 du plan t312) : le texte au curseur du script puis scheduleSave() ; un POST /chapters par\r\n   chapitre du découpage, dans la série courante, puis la liste relue ; un manuscrit « scan.txt » par msRun (l'agent\r\n   Manuscrit). Une fonction qui rend false garde la boîte ouverte. */\r\nfunction scanInserer(texte) {\r\n  if (!chapter) { toast(dzT(\"atelier.at3_w.cree_chapitre\"), true); return false; }\r\n  const ta = $(\"#script\");\r\n  if (ta.readOnly) { toast(dzT(\"atelier.t312_scan.lecture_seule\"), true); return false; }\r\n  const a = typeof ta.selectionStart === \"number\" ? ta.selectionStart : ta.value.length;\r\n  const b = typeof ta.selectionEnd === \"number\" ? ta.selectionEnd : a;\r\n  ta.setRangeText(texte, a, b, \"end\");\r\n  renderScript(); scheduleSave();\r\n  toast(dzT(\"atelier.t312_scan.insere\", { n: texte.length }));\r\n  return true;\r\n}\r\n\r\nasync function scanCreerChapitres(liste) {\r\n  const serie = $(\"#chapterSeries\").value;\r\n  let premier = null;\r\n  try {\r\n    for (const c of liste) {\r\n      const ch = await api.send(\"POST\", \"/chapters\", { title: c.titre, series: serie, script_text: c.texte, spans: [] });\r\n      if (!premier) premier = ch.id;\r\n    }\r\n  } finally {\r\n    if (premier) await loadChapters(premier);     // un échec en route : les chapitres déjà créés sont listés\r\n  }\r\n  toast(dzT(\"atelier.t312_scan.chapitres\", { n: liste.length }));\r\n  return true;\r\n}\r\n\r\nasync function scanManuscrit(texte) {\r\n  if (!$(\"#msSeries\").value.trim() && $(\"#chapterSeries\").value.trim()) $(\"#msSeries\").value = $(\"#chapterSeries\").value.trim();\r\n  $(\"#msModal\").classList.remove(\"hidden\");\r\n  await msRun(new File([texte], \"scan.txt\", { type: \"text/plain\" }));\r\n  return true;\r\n}\r\n\r\n/* les deux boutons, chacun après son voisin ; l'icône est la chaîne fixe de dzIcone, le libellé un nœud texte */\r\nfunction scanBoutons() {\r\n  const poser = (id, titre, voisin) => {\r\n    if (!voisin || document.getElementById(id)) return;\r\n    const b = document.createElement(\"button\");\r\n    b.id = id; b.type = \"button\"; b.className = \"btn\"; b.title = dzT(titre);\r\n    b.innerHTML = ico(\"dz-media-image\");\r\n    b.appendChild(document.createTextNode(\" \" + dzT(\"atelier.t312_scan.bouton\")));\r\n    b.addEventListener(\"click\", scanOuvrir);\r\n    voisin.insertAdjacentElement(\"afterend\", b);\r\n  };\r\n  poser(\"scanBtn\", \"atelier.t312_scan.bouton_t\", $(\"#importFile\"));\r\n  poser(\"scanChapBtn\", \"atelier.t312_scan.chap_t\", $(\"#msBtn\"));\r\n}\r\n\r\nfunction scanOuvrir() {\r\n  if (!window.__dzScan) { toast(dzT(\"atelier.t312_scan.absent\"), true); return; }\r\n  window.__dzScan.ouvrir({ hote: \"atelier\", serie: $(\"#chapterSeries\").value, inserer: scanInserer,\r\n                           creerChapitres: scanCreerChapitres, importerManuscrit: scanManuscrit });\r\n}\r\n\r\n/* ═════════ utilitaires ═════════ */",
+    "groupe": "t312"
    },
    {
     "pos": 91503,
@@ -2563,6 +2575,12 @@
     "avant": "\"Lecture : \" + e.message",
     "apres": "dzT(\"atelier.at3_w.err_lecture\", { msg: e.message })",
     "groupe": "at3"
+   },
+   {
+    "pos": 106129,
+    "avant": "  $(\"#msRun\").addEventListener(\"click\", msRun);",
+    "apres": "  $(\"#msRun\").addEventListener(\"click\", msRun);\r\n  // t312 : « Scanner une page » — près d'« Importer » et dans la barre des chapitres (mêmes envois)\r\n  scanBoutons();",
+    "groupe": "t312"
    },
    {
     "pos": 107607,

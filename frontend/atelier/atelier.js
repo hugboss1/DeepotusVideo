@@ -1925,8 +1925,9 @@ function msSetProgress(st) {
   $("#msStatus").textContent = `${st.phase}${where} — ${st.message || ""}`;
 }
 
-async function msRun() {
-  const f = $("#msFile").files && $("#msFile").files[0];
+async function msRun(impose) {
+  // t312 : un File imposé (le texte d'un scan, « scan.txt ») suit le même envoi que le fichier choisi
+  const f = (typeof File === "function" && impose instanceof File) ? impose : ($("#msFile").files && $("#msFile").files[0]);
   if (!f) { toast(dzT("atelier.at3_ms.choisis"), true); return; }
   const fd = new FormData();
   fd.append("manuscript", f);
@@ -1967,6 +1968,65 @@ async function msRun() {
     $("#msRun").disabled = false;
     toast(dzT("atelier.at3_ms.err", { msg: e.message }), true);
   }
+}
+
+/* ═════════ t312 (C1 Scan) — la boîte « Scanner une page » (/shared/dz-scan.js) ═════════
+   Trois envois (Décision 7 du plan t312) : le texte au curseur du script puis scheduleSave() ; un POST /chapters par
+   chapitre du découpage, dans la série courante, puis la liste relue ; un manuscrit « scan.txt » par msRun (l'agent
+   Manuscrit). Une fonction qui rend false garde la boîte ouverte. */
+function scanInserer(texte) {
+  if (!chapter) { toast(dzT("atelier.at3_w.cree_chapitre"), true); return false; }
+  const ta = $("#script");
+  if (ta.readOnly) { toast(dzT("atelier.t312_scan.lecture_seule"), true); return false; }
+  const a = typeof ta.selectionStart === "number" ? ta.selectionStart : ta.value.length;
+  const b = typeof ta.selectionEnd === "number" ? ta.selectionEnd : a;
+  ta.setRangeText(texte, a, b, "end");
+  renderScript(); scheduleSave();
+  toast(dzT("atelier.t312_scan.insere", { n: texte.length }));
+  return true;
+}
+
+async function scanCreerChapitres(liste) {
+  const serie = $("#chapterSeries").value;
+  let premier = null;
+  try {
+    for (const c of liste) {
+      const ch = await api.send("POST", "/chapters", { title: c.titre, series: serie, script_text: c.texte, spans: [] });
+      if (!premier) premier = ch.id;
+    }
+  } finally {
+    if (premier) await loadChapters(premier);     // un échec en route : les chapitres déjà créés sont listés
+  }
+  toast(dzT("atelier.t312_scan.chapitres", { n: liste.length }));
+  return true;
+}
+
+async function scanManuscrit(texte) {
+  if (!$("#msSeries").value.trim() && $("#chapterSeries").value.trim()) $("#msSeries").value = $("#chapterSeries").value.trim();
+  $("#msModal").classList.remove("hidden");
+  await msRun(new File([texte], "scan.txt", { type: "text/plain" }));
+  return true;
+}
+
+/* les deux boutons, chacun après son voisin ; l'icône est la chaîne fixe de dzIcone, le libellé un nœud texte */
+function scanBoutons() {
+  const poser = (id, titre, voisin) => {
+    if (!voisin || document.getElementById(id)) return;
+    const b = document.createElement("button");
+    b.id = id; b.type = "button"; b.className = "btn"; b.title = dzT(titre);
+    b.innerHTML = ico("dz-media-image");
+    b.appendChild(document.createTextNode(" " + dzT("atelier.t312_scan.bouton")));
+    b.addEventListener("click", scanOuvrir);
+    voisin.insertAdjacentElement("afterend", b);
+  };
+  poser("scanBtn", "atelier.t312_scan.bouton_t", $("#importFile"));
+  poser("scanChapBtn", "atelier.t312_scan.chap_t", $("#msBtn"));
+}
+
+function scanOuvrir() {
+  if (!window.__dzScan) { toast(dzT("atelier.t312_scan.absent"), true); return; }
+  window.__dzScan.ouvrir({ hote: "atelier", serie: $("#chapterSeries").value, inserer: scanInserer,
+                           creerChapitres: scanCreerChapitres, importerManuscrit: scanManuscrit });
 }
 
 /* ═════════ utilitaires ═════════ */
@@ -2222,6 +2282,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   $("#msClose").addEventListener("click", () => $("#msModal").classList.add("hidden"));
   $("#msModal").addEventListener("click", (e) => { if (e.target.id === "msModal") $("#msModal").classList.add("hidden"); });
   $("#msRun").addEventListener("click", msRun);
+  // t312 : « Scanner une page » — près d'« Importer » et dans la barre des chapitres (mêmes envois)
+  scanBoutons();
 
   $("#vpAddDecor").addEventListener("click", () => vectorCreer("decor"));
   $("#vpAddLumiere").addEventListener("click", () => vectorCreer("lumiere"));
