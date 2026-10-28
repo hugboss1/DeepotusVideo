@@ -56,7 +56,7 @@ def lancer(args, agent="scan"):
 print("[1] la boite et l'outil")
 check("1a verifier() sain", B.verifier() == [], B.verifier())
 b = B.BOITES.get("scan")
-check("1b boite scan figee (t313 : + angles_inspiration, deviser_contenu_neuf)", b == {"libelle": "agent.boites.scan", "outils": ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf"], "agents": [],
+check("1b boite scan figee (t313 : + angles_inspiration, deviser_contenu_neuf ; t314 : + calques_illustration)", b == {"libelle": "agent.boites.scan", "outils": ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf", "calques_illustration"], "agents": [],
                                    "mobile": False}, b)
 check("1c outil enregistre, nature lecture", ao.OUTILS["lire_texte_image"]["nature"] == "lecture")
 check("1d schema image requise, langue fr|en|auto",
@@ -69,7 +69,8 @@ check("1g paquet mobile sans scan", [x["id"] for x in B.paquet_mobile()] == ["ca
 b["agents"].append("demo")
 try:
     check("1h rendu par definitions_pour a une boite qui le contient",
-          [d["name"] for d in B.definitions_pour("demo")] == ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf"])
+          [d["name"] for d in B.definitions_pour("demo")] == ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf",
+                                                       "calques_illustration"])
     r = lancer({"image": "page.png"}, agent="demo")
     check("1i executer l'accepte pour cet agent", r["ok"] is True, r)
 finally:

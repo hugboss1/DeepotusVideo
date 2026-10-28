@@ -25,7 +25,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
-import importlib.util
 import io
 import json
 import math
@@ -70,25 +69,12 @@ def _traduire(texte: str, request: Request) -> str:
     return _ERR.texte(texte, _ERR.langue(request)) if texte else texte
 
 
-def _rembg() -> bool:
-    try:
-        return importlib.util.find_spec("rembg") is not None
-    except (ImportError, ValueError):
-        return False
-
-
 def _usd(mid: str) -> float:
-    if DT.REGISTRE[mid]["voie"] == "local":
-        return 0.0
-    from app.services import pricing
-    return round(float(pricing.estimate(DT.op_cout(mid, images=1))["total_usd"]), 4)
+    return SC.usd_detourage(mid)
 
 
 def modeles() -> list[str]:
-    """Les ids proposés, gratuits d'abord : local-chroma, local-rembg (s'il est installé), puis les modèles fal du
-    registre qui ne demandent pas de sujet nommé."""
-    out = [DEFAUT] + (["local-rembg"] if _rembg() else [])
-    return out + [m for m in DT.ids(DT.IMAGE) if DT.REGISTRE[m]["voie"] == "fal" and not DT.REGISTRE[m]["prompt"]]
+    return SC.detourages()
 
 
 @router.get("/devis", dependencies=[Depends(_local)])

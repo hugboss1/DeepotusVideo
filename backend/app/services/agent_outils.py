@@ -532,6 +532,32 @@ async def deviser_contenu_neuf(ctx: Ctx, titre: str = "", accroche: str = "", id
     return _res(True, f"devis contenu neuf : {total:.4f} $ — en attente du clic de l'utilisateur", None, carte)
 
 
+# ---- t314 : illustration ou schéma -> calques nommés du Vectorlab (boîte « scan », spec §7.3) ----------------------
+
+async def calques_illustration(ctx: Ctx, image: str = "", detourage: str = "local-chroma") -> dict:
+    """La CARTE qui propose de séparer une image de la Bibliothèque en calques nommés (formes, flèches, étiquettes) dans
+    un document du Vectorlab, avec le devis du détourage (0 $ en local). N'appelle rien : le Vectorlab le fait au clic
+    (« Scanner un schéma… »)."""
+    from app.services import schema_calques as SC
+    nom = image.strip() if isinstance(image, str) else ""
+    if not nom or len(nom) > 200 or any(c in nom for c in ("/", "\\", ":")) or ".." in nom or nom != nom.strip(". "):
+        raise _Refus("nom d'image refusé : un nom de fichier de la Bibliothèque, sans dossier")
+    if Path(nom).suffix.lower() not in _EXT_IMAGE:
+        raise _Refus("image refusée : PNG, JPEG, WEBP, BMP ou TIFF seulement")
+    racine = config.settings.images_path.resolve()
+    f = (racine / nom).resolve()
+    if f.parent != racine or not f.is_file():
+        raise _Refus("image inconnue dans la Bibliothèque")
+    mid = str(detourage or "local-chroma")
+    if mid not in SC.detourages():
+        raise _Refus("détourage inconnu pour un schéma : " + ", ".join(SC.detourages()))
+    usd = SC.usd_detourage(mid)
+    carte = {"type": "carte", "genre": "devis", "libelle": f"Calques d'illustration : {usd:.2f} $",
+             "etat": "proposee", "devis": usd, "action": "calques_illustration",
+             "arguments": {"genre": "calques_illustration", "image": nom, "detourage": mid, "usd": usd}}
+    return _res(True, f"calques d'illustration de {nom} : {usd:.4f} $ — en attente du clic de l'utilisateur", None, carte)
+
+
 # ---- écriture locale, porte, devis, brouillons, pointeur -------------------------------------------------------------
 
 def _chemin_confine(base: Path, chemin: str) -> Path:
@@ -1276,6 +1302,14 @@ OUTILS: dict[str, dict] = {
                                            "visuel": dict(_T, description="description d'un visuel NEUF"),
                                            "image": {"type": "boolean", "description": "chiffrer aussi le visuel"}},
                                           ("titre",))},
+    "calques_illustration": {"nature": "carte", "fn": calques_illustration,
+                             "description": "Propose de séparer une illustration ou un schéma de la Bibliothèque en "
+                                            "calques nommés (formes, flèches, étiquettes) d'un document du Vectorlab, "
+                                            "avec le devis du détourage : rend une carte. Ne lance rien. Le tour "
+                                            "s'arrête.",
+                             "schema": _o({"image": dict(_T, description="nom de l'image dans la Bibliothèque"),
+                                           "detourage": dict(_T, description="local-chroma (gratuit) ou un modèle "
+                                                                             "de détourage fal")}, ("image",))},
     "ecrire_dossier": {"nature": "ecriture", "fn": ecrire_dossier,
                        "description": "Écrit un fichier .md, .json ou .txt dans le dossier de la campagne.",
                        "schema": _o({"chemin": dict(_T, description="chemin relatif, ex. strategie.md ou textes/x.md"),

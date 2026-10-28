@@ -58,6 +58,34 @@ class RefusSchema(ValueError):
         super().__init__(code)
 
 
+# ── les détourages proposés (routes /api/schema et outil d'agent calques_illustration) ──────────────────────────
+DETOURAGE_DEFAUT = "local-chroma"
+
+
+def _rembg() -> bool:
+    import importlib.util
+    try:
+        return importlib.util.find_spec("rembg") is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def detourages() -> list:
+    """Les ids proposés, gratuits d'abord : local-chroma (le masque de `masque_de`), local-rembg s'il est installé,
+    puis les modèles fal du registre unique qui ne demandent pas de sujet nommé."""
+    from app.services import detourage as DT
+    out = [DETOURAGE_DEFAUT] + (["local-rembg"] if _rembg() else [])
+    return out + [m for m in DT.ids(DT.IMAGE) if DT.REGISTRE[m]["voie"] == "fal" and not DT.REGISTRE[m]["prompt"]]
+
+
+def usd_detourage(mid: str) -> float:
+    """Le devis d'UNE image par ce modèle (0 en local)."""
+    from app.services import detourage as DT, pricing
+    if DT.REGISTRE[mid]["voie"] == "local":
+        return 0.0
+    return round(float(pricing.estimate(DT.op_cout(mid, images=1))["total_usd"]), 4)
+
+
 # ── le masque ─────────────────────────────────────────────────────────────────────────────────────────────────────
 def _fond_du_pourtour(rgb: Image.Image):
     w, h = rgb.size

@@ -40,9 +40,10 @@ BOITES: dict[str, dict] = {
     },
     # t312 : lire le texte d'une image de la Bibliothèque ; aucun agent ne la déclare encore (§11 bis)
     # t313 : + l'inspiration vers un contenu neuf (angles_inspiration en lecture, deviser_contenu_neuf en carte)
+    # t314 : + calques_illustration (carte : schéma -> calques nommés du Vectorlab, devis du détourage)
     "scan": {
         "libelle": "agent.boites.scan",
-        "outils": ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf"],
+        "outils": ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf", "calques_illustration"],
         "agents": [],
         "mobile": False,
     },
