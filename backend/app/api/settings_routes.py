@@ -421,6 +421,7 @@ RUBRIQUE_DE_CLE = {
     # t310 (27/10/2026) : la clé Kapso (WhatsApp) est une clé de fournisseur PARTAGÉE, pas un compte : elle se règle dans
     # Clés d'API (ligne posée par le maillon dzwhatsapp, comme Decart), là où l'assistant d'espace renvoie.
     "KAPSO_API_KEY": "keys",
+    "APIFY_TOKEN": "keys",                                              # t364 : ligne « Apify » (maillon dzapify)
     "ELEVENLABS_VOICE_ID_FR": "keys", "ELEVENLABS_VOICE_ID_EN": "keys",  # t221 : voix par défaut, champs texte
     "ANTHROPIC_MODEL": "defaults", "OPENAI_MODEL": "defaults", "GEMINI_MODEL": "defaults", "OLLAMA_MODEL": "defaults",
     "SUMMARIZER_PROVIDER": "defaults", "PLANNER_PROVIDER": "defaults", "AGENT_MODEL": "defaults",   # t285a

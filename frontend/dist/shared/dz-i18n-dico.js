@@ -11313,6 +11313,8 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "reglages.cles.aide_4": {"fr": " : la clé s'applique dès qu'elle est enregistrée. « Tester » demande au fournisseur s'il accepte la clé (sans dépense), « Guide » dit où la créer et comment elle est facturée.", "en": " — the key applies as soon as it is saved. “Test” asks the provider whether it accepts the key (no spend), “Guide” says where to create it and how it is billed."},
   "reglages.cles.anthropic": {"fr": "Anthropic (résumé)", "en": "Anthropic (summary)"},
   "reglages.cles.anthropic_pourquoi": {"fr": "résumé des News", "en": "news summarizer"},
+  "reglages.cles.apify": {"fr": "Apify (veille et leads)", "en": "Apify (watch and leads)"},
+  "reglages.cles.apify_why": {"fr": "collectes de la veille et des leads · plafonnées chez Apify · console.apify.com", "en": "competitor-watch and lead collections · capped at Apify · console.apify.com"},
   "reglages.cles.applique": {"fr": "Appliqué tout de suite : la réponse le confirme, ou nomme la clé qui demande encore un redémarrage.", "en": "Applied immediately — the reply says so, or names the key that still needs a restart."},
   "reglages.cles.astuce_1": {"fr": "Astuce : voyez ", "en": "Tip: see "},
   "reglages.cles.astuce_2": {"fr": " pour choisir la clé de chaque rôle, et ", "en": " to pick which credential each role uses, and "},

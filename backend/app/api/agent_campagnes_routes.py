@@ -554,7 +554,7 @@ async def carte(cid: str, n: int, request: Request):
                 else:
                     await ST.regler_porte(cid, "porte1_validee")
             return await ST.lire(cid)
-        extra, faits, recherche = {}, [], None
+        extra, faits, recherche, collecte = {}, [], None, None
         if acceptee and genre == "espace":
             eid = _espace_valide(corps.get("espace_id"))
             if l.get("espace_id") is not None:
@@ -576,6 +576,11 @@ async def carte(cid: str, n: int, request: Request):
             # sous le verrou, la recherche part APRÈS (jamais le verrou global pendant un appel payant, jamais rejouée)
             recherche = await _reserver_recherche(cid, l, orig)
             extra["statut"] = "en_cours"
+        elif acceptee and genre == "collecte":
+            # t364 : même schéma que la recherche — clé (503), devis recalculé et plafonds (402) sous le verrou, rien
+            # d'écrit en cas de refus ; le run part APRÈS, hors du verrou, et n'est jamais rejoué
+            collecte = await _reserver_collecte(cid, l, orig)
+            extra["statut"] = "en_cours"
         elif genre == "sequence":
             # t355 : la porte 2 d'une séquence — EXCEPTION à « la décision d'abord » : le geste d'abord (refus = 409, rien d'écrit) ; acceptée = validée par
             # l'utilisateur, refusée = annulée ; un geste déjà fait (reprise après panne) passe
@@ -590,6 +595,8 @@ async def carte(cid: str, n: int, request: Request):
                 await ST.regler_porte(cid, "porte1_validee")
     if acceptee and genre == "recherche":
         await _executer_recherche(cid, n, orig, recherche, appareil)
+    if acceptee and genre == "collecte":
+        await _executer_collecte(cid, n, orig, collecte, appareil)
     return await ST.lire(cid)
 
 
@@ -639,6 +646,52 @@ async def _executer_recherche(cid: str, n_carte: int, orig: dict, r0: dict, appa
     with _traduire():
         await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n_carte, "terminee", dict(
             extra, fournisseur=r0["f"], cout_usd=r["cout_usd"], statut="done"))], **_trace(appareil))])
+
+
+async def _reserver_collecte(cid: str, l: dict, orig: dict) -> dict:
+    """t364, sous le verrou : l'acteur (422), la clé (503), le devis RECALCULÉ (un prix a pu changer) sous le plafond de
+    l'usage puis sous les plafonds de l'application (402). Un refus n'écrit rien. Rend ce que le run emporte."""
+    from app.services import apify as AP, plafonds
+    a = orig.get("arguments") or {}
+    cle = a.get("acteur")
+    n = a.get("max") if isinstance(a.get("max"), int) and not isinstance(a.get("max"), bool) else 0
+    entree = a.get("entree") if isinstance(a.get("entree"), dict) else {}
+    try:
+        if cle not in AP.ACTEURS or n < 1:
+            raise AP.ApifyRefus("collecte illisible : acteur hors liste blanche ou nombre absent", 422)
+        AP.filtrer(cle, entree, n)
+        if not AP.configure():
+            raise HTTPException(503, "aucune clé Apify : posez-la dans Réglages › Clés d'API")
+        d = await AP.devis(cle, n)
+        plafond = AP.PLAFONDS[AP.ACTEURS[cle]["usage"]]
+        if d > plafond:
+            raise AP.ApifyRefus(f"devis {d:.2f} $ au-delà du plafond {plafond:.2f} $ : réduire le nombre de résultats", 402)
+    except AP.ApifyRefus as e:
+        raise HTTPException(e.code, str(e)) from None
+    garde = await plafonds.verifier({"kind": "apify", "acteur": AP.ACTEURS[cle]["acteur"], "usd": d}, "campagnes",
+                                    ref=cid, espace_id=l.get("espace_id"))
+    return {"cle": cle, "entree": entree, "n": n, "lignes": (garde or {}).get("lignes") or []}
+
+
+async def _executer_collecte(cid: str, n_carte: int, orig: dict, c0: dict, appareil) -> None:
+    """t364, hors du verrou, la décision déjà écrite : UN run, le coût réel noté (même en échec), les résultats déposés
+    en JSON (lus par `lire_document`, encadrés), un fait « terminee » ; un échec rend 502 — la carte n'est plus rejouable."""
+    from app.services import agent_outils as AO, apify as AP, plafonds
+    try:
+        r = await AP.lancer(c0["cle"], c0["entree"], c0["n"])
+    except Exception as e:  # noqa: BLE001 — toute panne : coût réconcilié, échec dit, jamais une trace
+        await plafonds.noter_reel_lignes(c0["lignes"], float(getattr(e, "cout_usd", 0.0) or 0.0))
+        msg = str(e) if isinstance(e, (AP.SansCle, AP.ApifyRefus, AP.ApifyEchec, ValueError)) else f"collecte en échec ({type(e).__name__})"
+        with _traduire():
+            await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n_carte, "terminee", {
+                "statut": "failed", "erreur": msg[:300]})], **_trace(appareil))])
+        raise HTTPException(502, msg) from None
+    await plafonds.noter_reel_lignes(c0["lignes"], float(r["cout_usd"]))
+    depot = await AO.enregistrer_depot(cid, f"apify-{c0['cle']}", json.dumps(r["items"], ensure_ascii=False))
+    with _traduire():
+        await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n_carte, "terminee", {
+            "resultats": len(r["items"]), "cout_usd": r["cout_usd"], "partiel": bool(r["partiel"]), "statut": "done",
+            "depot": depot[:-4] if depot.endswith(".txt") else depot})], **_trace(appareil))])
 
 
 async def _deposer_resultats(cid: str, r: dict) -> dict:

@@ -334,12 +334,23 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzapify(bundle: str) -> str:
+    """Le bundle d'avant la clé Apify (maillon de queue patch_bundle_dzapify, t364 tâche 2, 28/10/2026, posé APRÈS
+    whatsapppage : la ligne APIFY_TOKEN de Réglages › Clés d'API) : ses paires défaites, lues dans le maillon lui-même.
+    Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzapify as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_whatsapppage(bundle: str) -> str:
     """Le bundle d'avant la page WhatsApp dans la barre (maillon de queue patch_bundle_whatsapppage, t311 tâche 8,
     27/10/2026, posé APRÈS dzwhatsapp : l'entrée de rail et la vue /whatsapp/, la liste blanche des vues, le bouton
     « Agent WhatsApp » de Réglages › Espaces) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur :
     rendu tel quel."""
     import patch_bundle_whatsapppage as _m
+    bundle = avant_dzapify(bundle)               # 28/10 (t364) : le maillon posé APRÈS whatsapppage, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

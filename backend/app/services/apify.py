@@ -305,3 +305,18 @@ async def lancer(cle: str, entree: dict, n: int, plafond: float | None = None) -
         raise ApifyEchec(f"le run Apify a échoué ({a['acteur']})", cout)
     return {"items": items, "cout_usd": round(cout, 6), "statut": run.get("status"), "run_id": rid, "devis_usd": d,
             "partiel": partiel or run.get("status") != "SUCCEEDED"}
+
+
+async def carte_collecte(cle: str, entree: dict, n: int) -> dict:
+    """La carte « collecte » du format v1 (t365 et t366 la proposent) : entrée filtrée D'AVANCE (un champ hors liste est
+    refusé ici, jamais sur la carte), devis lu ; rien n'est lancé. Acceptée, la route recalcule le devis et lance."""
+    a = _acteur(cle)
+    n = _borne(n)
+    filtrer(cle, entree, n)
+    d = await devis(cle, n)
+    if d > PLAFONDS[a["usage"]]:
+        raise ApifyRefus(f"devis {d:.2f} $ au-delà du plafond {PLAFONDS[a['usage']]:.2f} $ : réduire le nombre de "
+                         "résultats", 402)
+    return {"type": "carte", "genre": "collecte", "libelle": f"Collecte Apify ({cle})", "etat": "proposee",
+            "action": "collecter", "devis": d,
+            "arguments": {"acteur": cle, "usage": a["usage"], "entree": dict(entree or {}), "max": n, "devis_usd": d}}
