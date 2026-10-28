@@ -1097,6 +1097,7 @@
   "erreur.623312ad4e": {"fr": "palette : une liste de {MAX_PALETTE} couleurs au plus", "en": "palette: a list of {MAX_PALETTE} colors at most", "src": "fr"},
   "erreur.624d3c3017": {"fr": "le plan est confondu avec une face de « {nom} » ({coplanaires} triangle(s) dans le plan) et il y a de la matière des deux côtés — décale-le d'un cheveu : une face confondue qui n'est qu'une partie de la frontière n'a pas de section calculable sans adjacence (lot ultérieur)", "en": "the plane coincides with a face of “{nom}” ({coplanaires} triangle(s) in the plane) and there is material on both sides — offset it slightly: a coincident face that is only part of the boundary has no computable section without adjacency (later batch)", "src": "fr"},
   "erreur.62d267771b": {"fr": "{stem} a échoué ({returncode}) : {v}", "en": "{stem} failed ({returncode}): {v}", "src": "fr"},
+  "erreur.62dc0f5586": {"fr": "origine du fichier inconnue (liste_attente ou formulaire)", "en": "unknown file origin (liste_attente or formulaire)", "src": "fr"},
   "erreur.62e757e322": {"fr": "{label} : consigne trop longue (au plus {prompt_max} caractères)", "en": "{label}: instruction too long (at most {prompt_max} characters)", "src": "fr"},
   "erreur.62f8090d10": {"fr": "légende trop longue ({MAX_LEGENDE} caractères au plus)", "en": "caption too long ({MAX_LEGENDE} characters at most)", "src": "fr"},
   "erreur.6302062697": {"fr": "état de porte inconnu : {etat}", "en": "unknown gate state: {etat}", "src": "fr"},
