@@ -11678,5 +11678,9 @@
  "Image illisible.": {
   "fr": "Image illisible.",
   "en": "Unreadable image."
+ },
+ "La source de l'inspiration (lien ou compte) ne se publie pas : retire-la du texte.": {
+  "fr": "La source de l'inspiration (lien ou compte) ne se publie pas : retire-la du texte.",
+  "en": "The inspiration's source (link or account) is never published: remove it from the text."
  }
 }

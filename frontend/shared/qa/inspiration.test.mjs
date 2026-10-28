@@ -104,8 +104,9 @@ const RED = { angle: 0, titre: "L'aube", accroche: "Tout se prépare.", legende:
 const base = (extra = {}) => Object.assign({
   "GET /api/inspiration": () => rep(200, LISTE),
   "POST /api/inspiration/capter": () => rep(200, REC),
-  ["GET /api/inspiration/" + ID + "/devis-analyse?image=0"]: () => rep(200, { usd: 0.012, disponible: true }),
-  ["GET /api/inspiration/" + ID + "/devis-analyse?image=1"]: () => rep(200, { usd: 0.02, disponible: true }),
+  ["GET /api/inspiration/" + ID + "/devis-analyse?image=0&langue=fr"]: () => rep(200, { usd: 0.012, disponible: true }),
+  ["GET /api/inspiration/" + ID + "/devis-analyse?image=1&langue=fr"]: () => rep(200, { usd: 0.02, disponible: true }),
+  ["GET /api/inspiration/" + ID + "/devis-analyse?image=0&langue=en"]: () => rep(200, { usd: 0.012, disponible: true }),
   ["POST /api/inspiration/" + ID + "/analyse"]: () => rep(200, ANALYSE),
   ["POST /api/inspiration/" + ID + "/devis"]: () => rep(200, CARTE),
   ["POST /api/inspiration/" + ID + "/redaction"]: () => rep(200, RED),
@@ -148,12 +149,12 @@ async function jusquAuxAngles(opts = {}) {
   ok("2.2 texte lu montré tel quel (textContent, balises comprises)", marque(c, "texte-lu").textContent === CAPTE);
   ok("2.3 palette : deux pastilles", marque(c, "palette").children.length === 3);
   ok("2.4 étape 2 visible, case « image » visible (capture avec image)", visible(marque(c, "section-analyse")) && visible(marque(c, "avec-image").parent));
-  ok("2.5 devis d'analyse sans image demandé, montant sur le bouton", m.appels.some((a) => a.url.endsWith("/devis-analyse?image=0"))
+  ok("2.5 devis d'analyse sans image demandé, montant sur le bouton", m.appels.some((a) => a.url.includes("/devis-analyse?image=0&langue=fr"))
     && marque(c, "analyser").textContent === FR("inspiration.analyse.bouton", { usd: "0,012 $" }), marque(c, "analyser").textContent);
   const box = marque(c, "avec-image");
   box.checked = true; box.fire("change");
   await ticks();
-  ok("2.6 « Lire aussi l'image » : nouveau devis, plus cher", m.appels.some((a) => a.url.endsWith("/devis-analyse?image=1"))
+  ok("2.6 « Lire aussi l'image » : nouveau devis, plus cher", m.appels.some((a) => a.url.includes("/devis-analyse?image=1&langue=fr"))
     && marque(c, "analyser").textContent === FR("inspiration.analyse.bouton", { usd: "0,02 $" }), marque(c, "analyser").textContent);
 }
 {
@@ -260,7 +261,7 @@ async function jusquAuxAngles(opts = {}) {
 {
   const B = "b".repeat(32);
   const m = monde({ routes: base({ ["GET /api/inspiration/" + B]: () => rep(200, Object.assign({}, REC, { id: B, analyse: ANALYSE })),
-    ["GET /api/inspiration/" + B + "/devis-analyse?image=0"]: () => rep(200, { usd: 0.012, disponible: true }) }) });
+    ["GET /api/inspiration/" + B + "/devis-analyse?image=0&langue=fr"]: () => rep(200, { usd: 0.012, disponible: true }) }) });
   m.I.ouvrir();
   await ticks();
   marque(m.corps(), "reprendre").click();

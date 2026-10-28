@@ -21,11 +21,13 @@ import unicodedata
 
 SEUIL_SUITE = 12
 SEUIL_AHASH = 6
-_MOT = re.compile(r"[^\W_]+", re.UNICODE)
+_INVISIBLES = "\u00ad\u180e\u200b\u200c\u200d\u200e\u200f\u2060\u2061\u2062\u2063\u2064\ufeff"
+_MOT = re.compile(r"[^\W_]+(?:[" + _INVISIBLES + r"]+[^\W_]+)*", re.UNICODE)   # revue t313 : « mai\u00adson » = un mot
+_RETIRER = {ord(c): None for c in _INVISIBLES}
 
 
 def _norme(mot: str) -> str:
-    t = unicodedata.normalize("NFKD", mot.casefold())
+    t = unicodedata.normalize("NFKD", mot.translate(_RETIRER).casefold())
     return "".join(c for c in t if not unicodedata.combining(c))
 
 

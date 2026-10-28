@@ -343,6 +343,7 @@
   "erreur.1ed18a77d9": {"fr": "Le jeton en relief attend l'image de la carte (champ « image »)", "en": "The relief token expects the card image (\"image\" field)", "src": "fr"},
   "erreur.1f27485593": {"fr": "prompt_cats : une liste de {MAX_CATS} catégories au plus", "en": "prompt_cats: a list of {MAX_CATS} categories at most", "src": "fr"},
   "erreur.1f29c7c89f": {"fr": "meshy: aucun GLB dans la réponse (formats livrés : {v})", "en": "meshy: no GLB in the response (formats delivered: {v})", "src": "fr"},
+  "erreur.1f6271b64c": {"fr": "La source de l'inspiration (lien ou compte) ne se publie pas : retire-la du texte.", "en": "The inspiration's source (link or account) is never published: remove it from the text.", "src": "fr"},
   "erreur.1f69c41cd5": {"fr": "agent : jours d'activité invalides (entiers de 0 à 6)", "en": "agent: invalid active days (integers from 0 to 6)", "src": "fr"},
   "erreur.1f733a7731": {"fr": "adresse http(s) attendue", "en": "http(s) address expected", "src": "fr"},
   "erreur.1f951a161c": {"fr": "aucune instance à composer.", "en": "no instance to compose.", "src": "fr"},

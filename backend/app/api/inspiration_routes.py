@@ -157,9 +157,9 @@ async def obtenir(iid: str):
 
 
 @router.get("/{iid}/devis-analyse", dependencies=[Depends(_local)])
-async def devis_analyse(iid: str, request: Request, image: int = 0):
+async def devis_analyse(iid: str, request: Request, image: int = 0, langue: str = ""):
     try:
-        d = await I.devis_analyse(iid, bool(image), _langue(request))
+        d = await I.devis_analyse(iid, bool(image), _langue(request, {"langue": langue}))
     except Exception as e:  # noqa: BLE001
         raise _http(e) from None
     return {**d, "raison": _traduire(d.get("raison") or "", request)}

@@ -120,6 +120,12 @@ e8, f8 = G.empreinte(b8.getvalue()), G.empreinte(c8.getvalue())
 check("4h recadrée et éclaircie (quelques bits d'écart) -> même", e8["ahash"] != f8["ahash"] and G.meme_image(e8, f8),
       (e8, f8))
 
+# ---- 5. revue finale t313 : caractères invisibles dans un mot
+inv = douze.replace("cafés", "ca­fés").replace("vélos", "vé​los").replace("pavés", "pa﻿vés")
+n, ex = G.plus_longue_suite(CAPTE, "Voici : " + inv)
+check("5a trait d'union conditionnel / espace sans chasse dans les mots : suite toujours trouvée", n == 12, (n, ex))
+check("5b l'extrait garde la forme du texte jugé", "­" in ex or "ca" in ex)
+
 print(f"\n{ok} PASS, {fail} FAIL")
 if __name__ == "__main__":
     sys.exit(1 if fail else 0)

@@ -426,7 +426,7 @@
     E.analyser.textContent = T("inspiration.analyse.bouton", { usd: "…" });
     griser(E.analyser, true);
     try {
-      var r = await appel("GET", BASE + "/" + encodeURIComponent(id) + "/devis-analyse?image=" + (avec ? 1 : 0));
+      var r = await appel("GET", BASE + "/" + encodeURIComponent(id) + "/devis-analyse?image=" + (avec ? 1 : 0) + "&langue=" + langue());
       if (E.ferme || E.iid !== id || !!E.avecImage.checked !== avec) return;
       if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
       if (!r.j.disponible) { dire(E, T("inspiration.analyse.indispo", { raison: String(r.j.raison || "") }), true); return; }
@@ -507,7 +507,7 @@
     E.generer.textContent = T("inspiration.generer.bouton", { usd: "…" });
     griser(E.generer, true);
     try {
-      var r = await appel("POST", BASE + "/" + encodeURIComponent(id) + "/devis", { angle: angle, image: avec });
+      var r = await appel("POST", BASE + "/" + encodeURIComponent(id) + "/devis", { angle: angle, image: avec, langue: langue() });
       if (E.ferme || E.iid !== id || E.angle !== angle || !!E.avecVisuel.checked !== avec) return;
       if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
       E.carte = r.j;
