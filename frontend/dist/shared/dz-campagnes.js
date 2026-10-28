@@ -183,7 +183,8 @@
   // t285 T9 (relecture) : la ligne d'un outil = son libellé traduit (campagnes.outil.<nom>) + son état ; le résumé du
   // serveur (en français) n'est plus affiché. Un nom inconnu : un libellé générique.
   var OUTILS = ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_document", "ecrire_dossier",
-    "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "veille_collecter", "veille_lire"];
+    "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "veille_collecter", "veille_lire",
+    "prospects_chercher", "prospects_qualifier"];
   function ligneOutil(nom, ok) {
     var lib = OUTILS.indexOf(String(nom)) >= 0 ? T("campagnes.outil." + nom) : T("campagnes.outil.inconnu");
     if (ok === true) return T("campagnes.fil.outil_ok", { outil: lib });

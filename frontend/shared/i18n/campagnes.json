@@ -83,5 +83,7 @@
   "campagnes.outil.pointer": {"fr":"Désignation d'un élément de l'écran","en":"Pointing at an on-screen element"},
   "campagnes.outil.veille_collecter": {"fr":"Lancement de la veille des concurrents","en":"Starting the competitor watch"},
   "campagnes.outil.veille_lire": {"fr":"Lecture de la veille des concurrents","en":"Reading the competitor watch"},
+  "campagnes.outil.prospects_chercher": {"fr":"Recherche de prospects","en":"Finding prospects"},
+  "campagnes.outil.prospects_qualifier": {"fr":"Qualification d'un prospect","en":"Qualifying a prospect"},
   "campagnes.plan.reprendre": {"fr":"Reprendre la conversation","en":"Resume the conversation"}
 }

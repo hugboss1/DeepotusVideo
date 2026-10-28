@@ -275,5 +275,85 @@
    "type": "object"
   },
   "name": "veille_lire"
+ },
+ {
+  "description": "Propose des prospects dans la fiche Prospects de l'espace (statut « proposé », rien n'est envoyé) : contacts WhatsApp entrants avec accord ; fichier CSV déposé (liste d'attente ou formulaire, consentement daté) ; page d'une entreprise collée par l'utilisateur (lue en preuve, puis fiche avec l'e-mail pro qui y figure). « veille » rend les signaux de besoin vus en ligne, jamais des fiches.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "depot": {
+     "description": "nom du fichier déposé (source depot)",
+     "type": "string"
+    },
+    "fiche": {
+     "description": "source entreprise : {entreprise, nom?, role?, email, signal?}",
+     "type": "object"
+    },
+    "max": {
+     "maximum": 50,
+     "minimum": 1,
+     "type": "integer"
+    },
+    "origine": {
+     "enum": [
+      "liste_attente",
+      "formulaire"
+     ],
+     "type": "string"
+    },
+    "source": {
+     "enum": [
+      "whatsapp",
+      "depot",
+      "veille",
+      "entreprise"
+     ],
+     "type": "string"
+    },
+    "url": {
+     "description": "page de l'entreprise (source entreprise)",
+     "type": "string"
+    }
+   },
+   "required": [
+    "source"
+   ],
+   "type": "object"
+  },
+  "name": "prospects_chercher"
+ },
+ {
+  "description": "Qualifie un prospect : le serveur calcule le barème et les canaux possibles ; tu choisis l'offre (licence, prestation, a_definir) et peux ajuster le score de -20 à 20 avec une raison. Ne change jamais le statut.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "ajustement": {
+     "maximum": 20,
+     "minimum": -20,
+     "type": "integer"
+    },
+    "offre": {
+     "enum": [
+      "licence",
+      "prestation",
+      "a_definir"
+     ],
+     "type": "string"
+    },
+    "pid": {
+     "type": "string"
+    },
+    "raison": {
+     "maxLength": 300,
+     "type": "string"
+    }
+   },
+   "required": [
+    "pid",
+    "offre"
+   ],
+   "type": "object"
+  },
+  "name": "prospects_qualifier"
  }
 ]

@@ -23,6 +23,13 @@ BOITES: dict[str, dict] = {
         "agents": ["campagnes"],
         "mobile": False,
     },
+    # t354 (28/10/2026) : la recherche et la qualification des prospects ; le compagnon l'aura en P8
+    "prospects": {
+        "libelle": "agent.boites.prospects",
+        "outils": ["prospects_chercher", "prospects_qualifier"],
+        "agents": ["campagnes"],
+        "mobile": False,
+    },
     # t311 : l'agent WhatsApp d'un espace ; jamais sur le téléphone (mobile False : boites.json inchangé)
     "whatsapp": {
         "libelle": "agent.boites.whatsapp",
