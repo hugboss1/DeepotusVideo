@@ -1060,7 +1060,7 @@ button.actif, .cb button.actif, .onglet.actif, .outils button.actif, .fo-item.ac
 .sch-depot { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px dashed var(--aff-bord);
   border-radius: 6px; font-size: 12px; color: var(--aff-muet); cursor: pointer; }
 .sch-depot.survol { border-color: var(--aff-sel); color: var(--aff-texte); }
-.sch-apercu { background: #fff; border-radius: 6px; min-height: 160px; display: flex; align-items: center;
+.sch-apercu { background: white; border-radius: 6px; min-height: 160px; display: flex; align-items: center;
   justify-content: center; overflow: hidden; }
 .sch-apercu img { max-width: 100%; max-height: 240px; }
 .sch-champ { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--aff-muet); }
@@ -1072,6 +1072,6 @@ button.actif, .cb button.actif, .onglet.actif, .outils button.actif, .fo-item.ac
 .sch-nature { display: inline-block; min-width: 70px; margin-right: 8px; font-size: 11px; color: var(--aff-muet);
   text-transform: uppercase; letter-spacing: .04em; }
 .sch-fleche .sch-nature { color: var(--aff-cyan); }
-.sch-etiquette .sch-nature { color: #e0b34a; }
+.sch-etiquette .sch-nature { color: var(--amber); }
 .sch-etat { font-size: 12px; color: var(--aff-muet); margin: 0; }
-.sch-etat.sch-erreur { color: #e06c5a; }
+.sch-etat.sch-erreur { color: var(--red); }
