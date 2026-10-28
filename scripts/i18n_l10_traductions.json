@@ -11737,5 +11737,33 @@
  "Image trop grande.": {
   "fr": "Image trop grande.",
   "en": "Image too large."
+ },
+ "Cette capture n'est pas terminée.": {
+  "fr": "Cette capture n'est pas terminée.",
+  "en": "This recording is not finished."
+ },
+ "Un rendu de cette capture est déjà en cours.": {
+  "fr": "Un rendu de cette capture est déjà en cours.",
+  "en": "A render of this recording is already running."
+ },
+ "La confirmation exige le coût accepté (max_usd).": {
+  "fr": "La confirmation exige le coût accepté (max_usd).",
+  "en": "The confirmation needs the accepted cost (max_usd)."
+ },
+ "Montage illisible.": {
+  "fr": "Montage illisible.",
+  "en": "Unreadable edit."
+ },
+ "Les coupes retirent toute la vidéo.": {
+  "fr": "Les coupes retirent toute la vidéo.",
+  "en": "The cuts remove the whole video."
+ },
+ "La piste de la capture est illisible.": {
+  "fr": "La piste de la capture est illisible.",
+  "en": "The recording track is unreadable."
+ },
+ "Le rendu du montage a échoué.": {
+  "fr": "Le rendu du montage a échoué.",
+  "en": "The edit render failed."
  }
 }

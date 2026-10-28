@@ -549,6 +549,9 @@ app.include_router(capture_router, prefix="/api/capture")
 # t316 (28/10/2026) : /api/skins — les skins qui habillent la scène de la capture (cadre, bandeau, intro, alertes…), local seulement
 from app.api.skins_routes import router as skins_router
 app.include_router(skins_router, prefix="/api/skins")
+# t317 (28/10/2026) : /api/capture-montage — le montage après coup des captures (zooms, coupes, chapitres, format), local seulement
+from app.api.capture_montage_routes import router as capture_montage_router
+app.include_router(capture_montage_router, prefix="/api/capture-montage")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
