@@ -197,7 +197,7 @@ def test_huit_directions_confirmees_feuille_taggee_miroirs_au_pixel(planche, gen
     assert r.status_code == 200, r.text
     assert j["status"] == "done", j.get("error")
     assert len(generateur) == 2 and {a["ref"].rsplit("_", 1)[1] for a in generateur} == {"front.png", "back.png"}
-    assert ({"kind": "image", "n": 2, "model": "flux"}, "sprites") in gardes, gardes
+    assert ({"kind": "flux_kontext", "n": 2}, "sprites") in gardes, gardes
     court = r.json()["job_id"][:8]
     dossier = settings.outputs_path / "sprites" / court
     m = json.loads((dossier / "manifest.json").read_text("utf-8"))
@@ -255,6 +255,34 @@ def test_quatre_directions_inchangees(planche):
                        .read_text("utf-8"))
     assert [x["name"] for x in atlas["meta"]["directions"]] == ["south", "west", "east", "north"]
     assert not any(x["flip_h"] for x in atlas["meta"]["directions"])
+
+
+def test_le_devis_compte_au_tarif_du_modele_REELLEMENT_appele(planche, monkeypatch):
+    """Le tir FLUX passe par fal-ai/flux-kontext/dev, pas par FLUX schnell : le devis, l'affichage et la garde des
+    plafonds comptent au tarif de CE modèle (0,025 $ par vue, relevé sur fal.ai le 29/10/2026)."""
+    from app.api import routes as R
+    from app.config import settings
+    from app.services import pricing as P
+    appels = []
+
+    async def faux_flux(prompt, size, n, seed=None, model="", image_path=None, ratio=None, guidance=None):
+        appels.append(model)
+        nom = f"gen_kx_{len(appels)}.png"
+        _corps((0, 0, 0)).save(settings.images_path / nom)
+        return {"images": [nom], "seed": 1}
+    monkeypatch.setattr(R, "_flux_generate", faux_flux)
+    asyncio.run(R._generer_vue_direction("p", settings.images_path / "pan8_front.png", "flux"))
+    endpoint, id_prix = R._SPRITE_VUE_FLUX
+    assert appels == [endpoint] == ["fal-ai/flux-kontext/dev"], "le modèle appelé est celui que le devis chiffre"
+    assert R._sprite_op_directions("flux", 2) == {"kind": id_prix, "n": 2}
+    ligne = P.estimate(R._sprite_op_directions("flux", 1))["breakdown"][0]
+    assert ligne["provider"] == "fal" and "Kontext" in ligne["label"] and ligne["usd"] == P.DEFAULTS["flux_kontext_usd"] == 0.025
+    assert P.estimate(R._sprite_op_directions("flux", 2))["total_usd"] > P.estimate({"kind": "image", "n": 2})["total_usd"]
+    r, _ = _appel("/api/assets/sprite/from-board/devis", {"board": planche, "directions": 8})
+    assert r.json()["usd"] == round(2 * P.DEFAULTS["flux_kontext_usd"], 4), r.json()
+    r, _ = _appel("/api/assets/sprite/from-board/devis",
+                  {"board": planche, "directions": 8, "miroirs": [], "objet_asymetrique": True})
+    assert r.json()["usd"] == round(5 * P.DEFAULTS["flux_kontext_usd"], 4)
 
 
 if __name__ == "__main__":

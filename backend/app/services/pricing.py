@@ -20,6 +20,10 @@ _PRICING_FILE = DATA_ROOT / "pricing.json"
 # Directional defaults (USD). Editable in Settings -> Pricing & budget.
 DEFAULTS = {
     "flux_image_usd": 0.003,          # fal.ai FLUX schnell, per image
+    # t339 : fal-ai/flux-kontext/dev (vues de directions chaînées sur la planche). Relevé le 29/10/2026 sur
+    # fal.ai/models/fal-ai/flux-kontext/dev : « $0.025 per megapixel », arrondi au mégapixel supérieur. Le cadre
+    # 9:16 de Kontext (752 × 1392 = 1 046 784 px) tient dans 1 Mpx de fal (1024 × 1024 = 1 Mpx) : 0,025 $ par vue.
+    "flux_kontext_usd": 0.025,
     # fal.ai nano-banana (Gemini), per image — text-to-image AND /edit share
     # the same rate. Re-verified 2026-08-24 on fal.ai/models/fal-ai/nano-banana:
     # "Your request will cost $0.039 per image. For $1.00, you can run this
@@ -845,6 +849,11 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         label, prov, key = image_model_spec(model)
         unit = p.get(key, p["flux_image_usd"])
         lines.append(_line(prov, f"{label} x{n}", n, "image", n * unit))
+    elif kind == "flux_kontext":
+        # t339 : fal-ai/flux-kontext/dev, édition chaînée sur une image de référence (vues de directions du
+        # Spritelab) — un op à part : ce n'est pas un générateur choisissable du registre des images
+        n = int(op.get("n", 1))
+        lines.append(_line("fal", f"FLUX Kontext (édition) x{n}", n, "image", n * p.get("flux_kontext_usd", DEFAULTS["flux_kontext_usd"])))
     elif kind == "seedance":
         n = int(op.get("n", 1))
         dur = float(op.get("duration_s", 10)) * n

@@ -2756,6 +2756,11 @@ async def _sprite_fournisseur_directions() -> str:
         return (await _atelier_setting(s, "image_provider")) or "flux"
 
 
+# t339 : (endpoint fal appelé pour une vue de direction quand le fournisseur est FLUX, id de la grille de prix qui le
+# chiffre) — UNE table pour le tir et le devis : le banc fige que l'un est l'autre.
+_SPRITE_VUE_FLUX = ("fal-ai/flux-kontext/dev", "flux_kontext")
+
+
 async def _generer_vue_direction(prompt: str, ref: Path, provider: str) -> str:
     """t339 — UNE vue de direction, chaînée sur la vue découpée `ref` (même machinerie que les corps de la planche :
     Kontext pour FLUX, sinon le fournisseur du projet avec l'image de référence). Rend le nom écrit dans la Library.
@@ -2763,7 +2768,7 @@ async def _generer_vue_direction(prompt: str, ref: Path, provider: str) -> str:
     from app.services import image_providers as IP
     taille = "portrait_16_9"
     if provider == "flux":
-        out = await _flux_generate(prompt, taille, 1, model="fal-ai/flux-kontext/dev", image_path=ref,
+        out = await _flux_generate(prompt, taille, 1, model=_SPRITE_VUE_FLUX[0], image_path=ref,
                                    ratio=_EDIT_RATIO.get(taille), guidance=3.5)
     else:
         try:
@@ -2806,13 +2811,21 @@ async def sprite_from_board_devis(body: dict):
     n, plan, asym = _sprite_plan_directions(body)
     a_generer = SD.generations(plan) if plan else []
     provider = await _sprite_fournisseur_directions()
-    usd = (float(_pricing.estimate({"kind": "image", "n": len(a_generer), "model": provider})["total_usd"])
+    usd = (float(_pricing.estimate(_sprite_op_directions(provider, len(a_generer)))["total_usd"])
            if a_generer else 0.0)
     if plan is None:
         plan = [{"direction": d, "source": "planche", "de": c} for d, c in zip(SD.directions(), SD.COLONNES)]
     return {"directions": n, "plan": plan, "generations": len(a_generer), "a_generer": a_generer,
             "usd": round(usd, 4), "provider": provider, "objet_asymetrique": asym,
             "cle_manquante": _sprite_cle_manquante(provider) if a_generer else None}
+
+
+def _sprite_op_directions(provider: str, n: int) -> dict:
+    """t339 — l'op des vues générées, au tarif du modèle RÉELLEMENT appelé par `_generer_vue_direction` : FLUX passe
+    par fal-ai/flux-kontext/dev (édition chaînée sur la vue découpée), pas par FLUX schnell."""
+    if provider == "flux":
+        return {"kind": _SPRITE_VUE_FLUX[1], "n": n}
+    return {"kind": "image", "n": n, "model": provider}
 
 
 def _sprite_cle_manquante(provider: str) -> str | None:
@@ -2865,7 +2878,7 @@ async def sprite_from_board(body: dict, background_tasks: BackgroundTasks, http:
             manque = _sprite_cle_manquante(provider)
             if manque:
                 raise _refus_cle(manque, provider, http)
-            op = {"kind": "image", "n": len(a_generer), "model": provider}
+            op = _sprite_op_directions(provider, len(a_generer))
             if body.get("confirme_cout") is not True:
                 usd = float(_pricing.estimate(op)["total_usd"])
                 raise HTTPException(409, {"message": "des vues sont à générer (payant) : confirmez le devis",
