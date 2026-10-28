@@ -334,12 +334,23 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzcapture(bundle: str) -> str:
+    """Le bundle d'avant le marquage des écrans secrets de Réglages (maillon de queue patch_bundle_dzcapture, t315,
+    28/10/2026, posé APRÈS whatsapppage : `data-dz-secret="ecran"` sur le panneau des sections coffre, appareils, keys,
+    accounts, transfert) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzcapture as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_whatsapppage(bundle: str) -> str:
     """Le bundle d'avant la page WhatsApp dans la barre (maillon de queue patch_bundle_whatsapppage, t311 tâche 8,
     27/10/2026, posé APRÈS dzwhatsapp : l'entrée de rail et la vue /whatsapp/, la liste blanche des vues, le bouton
     « Agent WhatsApp » de Réglages › Espaces) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur :
     rendu tel quel."""
     import patch_bundle_whatsapppage as _m
+    bundle = avant_dzcapture(bundle)             # 28/10 (t315) : le maillon posé APRÈS whatsapppage, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)
