@@ -776,6 +776,100 @@ def test_partage_forme_positionnelle(tmp_path):
         assert k not in e, k
 
 
+# t320 (28/10/2026) : la forme POSITIONNELLE à attributs en OBJET (dz-scan.js, dz-inspiration.js) — la fabrique
+# bouton(marque, texte, style) rend el("button", { …, style: S.btn + (style ? ";" + style : "") }, texte)
+SCAN_JS = "\n".join([
+    'function el(tag, attrs, texte) { var n = document.createElement(tag); if (texte != null) n.textContent = texte; return n; }',
+    'function bouton(marque, texte, style) {',
+    '  return el("button", { type: "button", "data-dz-scan": marque, style: S.btn + (style ? ";" + style : "") }, texte);',
+    '}',
+    'E.lire = bouton("lire", T("scan.lecture.lire"), S.ok);',
+    'var retour = bouton("retour", T("scan.decoupage.retour"));',
+    'd.appendChild(el("div", { style: S.note }, T("scan.etat.lu")));',
+])
+CLES_SCAN = {k: {"fr": k.rsplit(".", 1)[-1], "en": k.rsplit(".", 1)[-1].upper()} for k in (
+    "scan.lecture.lire", "scan.decoupage.retour", "scan.etat.lu")}
+
+
+def test_partage_forme_positionnelle_attributs_objet(tmp_path):
+    racine = _depot(tmp_path, BUNDLE)
+    _ecrire(racine / "frontend" / "shared" / "i18n" / "scan.json", json.dumps(CLES_SCAN))
+    _ecrire(racine / "frontend" / "shared" / "dz-scan.js", SCAN_JS)
+    e = S.extraire(racine)
+    for k in ("scan.lecture.lire", "scan.decoupage.retour"):
+        assert e[k]["type"] == "bouton" and e[k]["libelle"]["fr"] == k.rsplit(".", 1)[-1], k
+        assert e[k]["sources"] == ["frontend/shared/dz-scan.js"], k
+    assert "scan.etat.lu" not in e                                    # un div : un message
+
+# t320 (28/10/2026) : les ENTRÉES de la barre de menus du Vectorlab (mod-menus.js, e(id, T(clé), action, raccourci)) —
+# avant, seuls les titres des menus avaient leur fiche
+MENUS_VL_JS = "\n".join([
+    'const e = (id, libelle, action, raccourci, extra) => ({ id, libelle, action, raccourci: raccourci || "" });',
+    'export const MENUS_BARRE = [',
+    '  { titre: T("vectorlab.menus.t_fichier"), entrees: [',
+    '    e("nouveau", T("vectorlab.menus.nouveau"), "nouveau", "ctrl+n"), "-",',
+    '    e("schema", T("vectorlab.menus.schema"), "schemaScanner"),',
+    '  ] },',
+    '  { titre: "Document", entrees: [',
+    '    e("instantaneDoc", T("vectorlab.menus.instantane"), "instantane"), e("annuler", T("vectorlab.menus.annuler"), "annuler", "ctrl+shift+z"),',
+    '    e("wImage", "Image", "ouvrir", "", { ouvre: "image" }),',
+    '  ] },',
+    '  { titre: T("vectorlab.menus.t_texte"), entrees: [',
+    '    e("instantane", T("vectorlab.menus.instantane"), "instantane"),',
+    '  ] },',
+    '];',
+    'const LIB = { ctrl: "Ctrl", shift: T("vectorlab.menus.touche_maj"), alt: "Alt" };',
+])
+CLES_MENUS_VL = {
+    "vectorlab.menus.t_fichier": {"fr": "Fichier", "en": "File"}, "vectorlab.menus.t_texte": {"fr": "Texte", "en": "Text"},
+    "vectorlab.menus.nouveau": {"fr": "Nouveau…", "en": "New…"}, "vectorlab.menus.schema": {"fr": "Scanner un schéma…",
+                                                                                          "en": "Scan a diagram…"},
+    "vectorlab.menus.instantane": {"fr": "Instantané", "en": "Snapshot"},
+    "vectorlab.menus.annuler": {"fr": "Annuler", "en": "Undo"},
+    "vectorlab.menus.touche_maj": {"fr": "Maj", "en": "Shift"}}
+
+
+def test_menus_vectorlab_entrees(tmp_path):
+    racine = _depot(tmp_path, BUNDLE)
+    _ecrire(racine / "frontend" / "shared" / "i18n" / "menusvl.json", json.dumps(CLES_MENUS_VL, ensure_ascii=False))
+    _ecrire(racine / "frontend" / "vectorlab" / "js" / "mod-menus.js", MENUS_VL_JS)
+    e = S.extraire(racine)
+    n = e["vectorlab.menus.nouveau"]
+    assert n["type"] == "menu" and n["ecran"] == "vectorlab" and n["cadre"] == "/vectorlab/"
+    assert n["libelle"] == {"fr": "Nouveau…", "en": "New…"}
+    assert n["chemin"] == {"fr": "Fichier › Nouveau…", "en": "File › New…"}
+    assert n["raccourci"] == {"fr": "Ctrl+N", "en": "Ctrl+N"}
+    assert n["sources"] == ["frontend/vectorlab/js/mod-menus.js"]
+    assert e["vectorlab.menus.schema"]["chemin"]["en"] == "File › Scan a diagram…" and "raccourci" not in e["vectorlab.menus.schema"]
+    i = e["vectorlab.menus.instantane"]                       # une clé placée deux fois : la 1re place
+    assert i["chemin"] == {"fr": "Document › Instantané", "en": "Document › Snapshot"}
+    assert e["vectorlab.menus.annuler"]["raccourci"] == {"fr": "Ctrl+Maj+Z", "en": "Ctrl+Shift+Z"}
+    assert not [k for k in e if k.startswith("vectorlab.menus.touche_")]  # les noms de touches ne sont pas des entrées
+
+
+def test_vrai_catalogue_menus_vectorlab():
+    """t320 : les entrées de la barre de menus du vrai Vectorlab ont toutes leur fiche, rédigée, dont « Scanner un
+    schéma… » (t314) et « Schéma → animation » (t314)."""
+    vrai = {x["id"]: x for x in json.loads((RACINE / "docs" / "agent" / "catalogue" / "vectorlab.json")
+                                           .read_text("utf-8"))["fiches"]}
+    entrees = [k for k, v in vrai.items() if v["type"] == "menu" and k.startswith("vectorlab.menus.")
+               and not k.startswith("vectorlab.menus.t_")]
+    assert len(entrees) >= 90, len(entrees)
+    assert all(vrai[k]["etat"] == "redige" for k in entrees), [k for k in entrees if vrai[k]["etat"] != "redige"]
+    for k in ("vectorlab.menus.schema", "vectorlab.menus.schema_animation"):
+        assert k in entrees and vrai[k]["guide"] in ("scan", "vectorlab"), k
+
+
+def test_vrai_catalogue_scan_inspiration():
+    """t320 : la boîte « Scanner une page » (t312) et la boîte « Depuis une inspiration » (t313) ont leurs fiches."""
+    vrai = {x["id"]: x for f in (RACINE / "docs" / "agent" / "catalogue").glob("[!_]*.json")
+            for x in json.loads(f.read_text("utf-8"))["fiches"]}
+    for k, ecran in (("scan.lecture.lire", "episodes"), ("scan.decoupage.creer", "episodes"),
+                     ("inspiration.analyse.bouton", "scheduler"), ("inspiration.brouillon.creer", "scheduler")):
+        assert vrai[k]["etat"] == "redige" and vrai[k]["ecran"] == ecran and vrai[k]["guide"] == "scan", k
+    assert "atelier" in vrai["scan.claude.relire"]["role"]["fr"]
+
+
 def test_vrai_catalogue_agent_campagnes():
     """t287 : le vrai composant de l'agent Campagnes et les onglets du tiroir F1 sont au catalogue, sur « commun »."""
     e = S.extraire(RACINE)

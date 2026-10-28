@@ -56,6 +56,10 @@ PARTAGES = {
     "frontend/shared/dz-diffusion-whatsapp.js": ("diffusion.action.", "diffusion.modele.choisir"),
     # t319 (28/10/2026) : brouillon de tutoriel (éditeur de montage) et parcours partagés (boîte de départ, rejeu)
     "frontend/shared/dz-tutoriels.js": ("tuto.",),
+    # t320 (28/10/2026) : la boîte « Scanner une page » (t312) et la boîte « Depuis une inspiration » (t313), lues par
+    # la forme positionnelle à attributs en objet ; leurs messages (div, span) ne sont pas des éléments
+    "frontend/shared/dz-scan.js": ("scan.",),
+    "frontend/shared/dz-inspiration.js": ("inspiration.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")
@@ -167,6 +171,24 @@ def _corps(s: str, m: re.Match, memo: dict):
     return (m.start(), r[0] + 1) if r else None
 
 
+RE_EL_OBJ = re.compile(r'(?<![\w$.])el\(\s*"[a-z]+"\s*,\s*\{')
+
+
+def _positionnel_objet(corps: str, e: str):
+    """t320 (28/10/2026) : el("balise", { attributs… }, T(param) | param) — dz-scan.js, dz-inspiration.js — : le
+    paramètre (échappé `e`) posé en 3e argument après un objet d'attributs est le libellé ; sinon None."""
+    memo = {}
+    for m in RE_EL_OBJ.finditer(corps):
+        r = _objet(corps, m.end() - 1, memo)
+        if not r:
+            continue
+        if re.compile(r"\s*,\s*(?:T|dzT)\(\s*" + e + r"\s*[,)]").match(corps, r[0] + 1):
+            return ("cle", LIBELLE)
+        if re.compile(r"\s*,\s*" + e + r"\s*\)").match(corps, r[0] + 1):
+            return ("texte", LIBELLE)
+    return None
+
+
 def _fabriques(s: str, rel: str, memo: dict, out: list) -> None:
     for m in RE_DEF.finditer(s):
         nom, params = (m.group(1), m.group(2)) if m.group(1) else (m.group(3), m.group(4))
@@ -194,6 +216,10 @@ def _fabriques(s: str, rel: str, memo: dict, out: list) -> None:
                     sortes[rang] = ("cle", LIBELLE)
                 elif re.search(RE_EL_POS + e + r"\s*\)", corps):
                     sortes[rang] = ("texte", LIBELLE)
+            if rang not in sortes:                        # t320 : el(tag, { attributs… }, T(param) | param)
+                forme = _positionnel_objet(corps, e)
+                if forme:
+                    sortes[rang] = forme
         for c in re.finditer(r"(?<![\w$.])" + re.escape(nom) + r"\(", s):
             if bornes[0] <= c.start() < bornes[1]:
                 continue

@@ -318,6 +318,47 @@ def depuis_menus_photolab(racine: pathlib.Path, dico: dict) -> dict:
     return out
 
 
+MENUS_VECTORLAB = ("frontend", "vectorlab", "js", "mod-menus.js")
+RE_MENU_VL = re.compile(r'\{\s*titre:\s*(?:T\("([a-z0-9_.]+)"\)|"([^"]*)")|(?<![\w$.])e\("\w+",\s*T\("([a-z0-9_.]+)"\)'
+                        r'\s*,\s*"[^"]*"(?:\s*,\s*"([^"]*)")?')
+RE_TOUCHE_VL = re.compile(r'(\w+):\s*T\("([a-z0-9_.]+)"\)')
+
+
+def depuis_menus_vectorlab(racine: pathlib.Path, dico: dict) -> dict:
+    """t320 (28/10/2026) : les ENTRÉES de la barre de menus du Vectorlab (frontend/vectorlab/js/mod-menus.js,
+    e(id, T(clé), action, raccourci, extra)). Id = la clé du libellé ; une clé placée dans deux menus : la 1re place.
+    Chemin « Menu › Entrée » et raccourci affiché comme raccourci_de (Ctrl, Maj, Alt…), par langue. Une entrée à
+    libellé littéral (sans T) n'a pas de clé : pas de fiche."""
+    f = racine.joinpath(*MENUS_VECTORLAB)
+    if not f.exists():
+        return {}
+    s = f.read_text(encoding="utf-8")
+    fin = s.find("const LIB")
+    touches = {k: dico.get(c, {}) for k, c in RE_TOUCHE_VL.findall(s[fin:])} if fin >= 0 else {}
+
+    def touche(k: str, l: str) -> str:
+        if k in touches:
+            return touches[k].get(l) or k
+        return {"ctrl": "Ctrl", "alt": "Alt"}.get(k) or (k.upper() if len(k) == 1 else k[:1].upper() + k[1:])
+
+    out, titre = {}, {"fr": "", "en": ""}
+    for m in RE_MENU_VL.finditer(s, 0, fin if fin >= 0 else len(s)):
+        if m.group(1) or m.group(2) is not None:
+            titre = dict(dico.get(m.group(1), {})) if m.group(1) else {"fr": m.group(2), "en": m.group(2)}
+            continue
+        k = m.group(3)
+        if k in out or k not in dico:
+            continue
+        lib = {l: dico[k].get(l, "") for l in ("fr", "en")}
+        e = {"id": k, "ecran": "vectorlab", "cadre": "/vectorlab/", "type": "menu", "libelle": lib, "infobulle": None,
+             "icone": None, "chemin": {l: f"{titre.get(l, '')} › {lib[l]}" for l in ("fr", "en")},
+             "sources": ["/".join(MENUS_VECTORLAB)]}
+        if m.group(4):
+            e["raccourci"] = {l: "+".join(touche(t, l) for t in m.group(4).split("+")) for l in ("fr", "en")}
+        out[k] = e
+    return out
+
+
 def _exclusions(racine: pathlib.Path) -> tuple:
     """(ids exacts, préfixes) que le skill connaissance-agent a écartés ; fichier absent : aucune exclusion.
     Mal formé → RuntimeError (une chaîne en guise de liste deviendrait un tuple de lettres et effacerait en silence)."""
@@ -354,5 +395,6 @@ def extraire(racine) -> dict:
     _ajouter(out, depuis_reglages(racine, inv))
     _ajouter(out, depuis_fiches(racine))
     _ajouter(out, depuis_menus_photolab(racine, dico))
+    _ajouter(out, depuis_menus_vectorlab(racine, dico))    # t320 : entrées de la barre de menus du Vectorlab
     _ajouter(out, depuis_partages(racine, dico))           # t287 : composants partagés (agent Campagnes)
     return {k: v for k, v in out.items() if k not in ids and not (prefixes and k.startswith(prefixes))}
