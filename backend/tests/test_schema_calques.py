@@ -211,7 +211,7 @@ boite(d, 60, 200); boite(d, 560, 200)
 fleche(d, 230, 245, 550, 245)
 r = SC.analyser(im, [ligne("Client", 95, 232, 90, 26)], langue="en")
 A = forme_en(r, 70, 210)
-check("1l noms EN", A["nom"] == "Shape 1 — Client" and par_nature(r, "fleche")[0]["nom"].startswith("Arrow 1"),
+check("1l noms EN", A["nom"] == "Shape 1 — Client" and par_nature(r, "fleche")[0]["nom"].startswith("Arrow 1: Client → "),
       (A["nom"], par_nature(r, "fleche")[0]["nom"]))
 
 im, d = fond(3000, 1800)

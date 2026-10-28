@@ -45,8 +45,8 @@ ECART_FOND = 40                # écart (niveaux L) au fond estimé au-delà duq
 MAX_NOM = 40
 
 NOMS = {
-    "fr": {"forme": "Forme {n}", "fleche": "Flèche {n}", "etiquette": "Étiquette {n}", "details": "Détails"},
-    "en": {"forme": "Shape {n}", "fleche": "Arrow {n}", "etiquette": "Label {n}", "details": "Details"},
+    "fr": {"forme": "Forme {n}", "fleche": "Flèche {n}", "etiquette": "Étiquette {n}", "details": "Détails", "sep": " : "},
+    "en": {"forme": "Shape {n}", "fleche": "Arrow {n}", "etiquette": "Label {n}", "details": "Details", "sep": ": "},
 }
 
 
@@ -493,14 +493,14 @@ def analyser(img: Image.Image, lignes: list, langue: str = "fr") -> dict:
         elif nat == "fleche":
             nom = titres["fleche"].format(n=e["num"])
             if e["dirigee"] and (e["de"] or e["vers"]):
-                nom += " : " + (appellation(e["de"]) if e["de"] else "?") + " → " + (appellation(e["vers"]) if e["vers"] else "?")
+                nom += titres["sep"] + (appellation(e["de"]) if e["de"] else "?") + " → " + (appellation(e["vers"]) if e["vers"] else "?")
             elif len(e["relie"]) == 2:
-                nom += " : " + appellation(e["relie"][0]) + " — " + appellation(e["relie"][1])
+                nom += titres["sep"] + appellation(e["relie"][0]) + " — " + appellation(e["relie"][1])
             d["nom"] = nom
             d.update(dirigee=e["dirigee"], queue=e["queue"], pointe=e["pointe"],
                      de=e["de"]["id"] if e["de"] else None, vers=e["vers"]["id"] if e["vers"] else None)
         elif nat == "etiquette":
-            d["nom"] = titres["etiquette"].format(n=e["num"]) + " : " + court(e["lignes"][0]["texte"])
+            d["nom"] = titres["etiquette"].format(n=e["num"]) + titres["sep"] + court(e["lignes"][0]["texte"])
             d.update(texte=e["texte"], lignes=e["lignes"], couleur=_couleur_texte(rgb, e["boite"]),
                      parent=e["parent"]["id"] if e["parent"] else None)
         else:

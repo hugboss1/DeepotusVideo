@@ -375,7 +375,7 @@ export function initSchema(VL) {
         haut.dispatchEvent(new haut.CustomEvent("deepotus:navigate", { detail: { view: "studio" } }));
         VL.toast(T("vectorlab.schema.envoi_ok", { n: rasters.size }));
       } else {
-        await VL.dialogue.informer(T("vectorlab.schema.envoi_seul", { nom: j.graph.name || "" }), { titre: T("vectorlab.schema.envoi_titre") });
+        await VL.dialogue.informer(T("vectorlab.schema.envoi_seul", { nom: j.nom_graphe || j.graph.name || "" }), { titre: T("vectorlab.schema.envoi_titre") });
       }
     } catch (e) {
       VL.toast(T("vectorlab.schema.envoi_echec", { m: e.message }), true);

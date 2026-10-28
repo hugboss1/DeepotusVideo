@@ -1053,6 +1053,7 @@ button.actif, .cb button.actif, .onglet.actif, .outils button.actif, .fo-item.ac
 #panneauCalques .ap-ligne input[type="text"]:not([placeholder]) { text-align: left; }
 
 /* ══ t314 (28/10/2026) : « Scanner un schéma… » (mod-schema.js) — même dessin que le dialogue Vectoriser ══ */
+#schemaDlg { z-index: 59; }   /* sous les dialogues maison (#vlDlg, 60) : la confirmation du devis passe devant */
 .sch-boite { width: min(980px, 94vw); }
 .sch-corps { display: flex; gap: 14px; padding: 12px; min-height: 380px; overflow: auto; }
 .sch-gauche { width: 360px; display: flex; flex-direction: column; gap: 10px; }

@@ -263,4 +263,5 @@ async def animation(request: Request):
     rec = {"id": gid, "name": titre[:120], "graph": graphe, "updated_at": datetime.utcnow().isoformat()}
     (R._studio_graphs_dir() / f"{gid}.json").write_text(json.dumps(rec, ensure_ascii=False), encoding="utf-8")
     logger.info(f"schema_routes : animation de {len(calques)} calque(s), {aspect}, {duree} s, page {len(page)} car.")
-    return {"graph": graphe, "graph_id": gid, "page_id": pid, "aspect": aspect, "duree_s": duree}
+    return {"graph": graphe, "graph_id": gid, "nom_graphe": rec["name"], "page_id": pid, "aspect": aspect,
+            "duree_s": duree}

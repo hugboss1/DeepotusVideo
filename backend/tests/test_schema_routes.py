@@ -184,7 +184,7 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     check("3h page enregistrée et saine", MC.controler(MC.lire(j["page_id"])) == [])
     g = R._studio_graphs_dir() / f"{j['graph_id']}.json"
     check("3h graphe au magasin du Studio, id stable", g.is_file() and j["graph"]["id"] == j["graph_id"]
-          and json.loads(g.read_text(encoding="utf-8"))["name"] == "Mon schéma — schéma animé", g)
+          and json.loads(g.read_text(encoding="utf-8"))["name"] == "Mon schéma — schéma animé" == j["nom_graphe"], g)
     r2 = c.post("/api/schema/animation", json=corps)
     check("3h renvoi : même id de graphe", r2.json()["graph_id"] == j["graph_id"])
     bad = dict(corps, calques=[dict(corps["calques"][0], image="absente.png")])
