@@ -16,7 +16,8 @@ VERSION = 1
 ROLES_MESSAGE = ("utilisateur", "agent", "outil", "fait")
 TYPES_BLOC = ("texte", "carte", "resultat_outil", "porte")
 GENRES_CARTE = ("porte", "devis", "continuer", "espace", "brouillons", "ouvrir",
-                "reponse_whatsapp", "modele_whatsapp", "humain")
+                "reponse_whatsapp", "modele_whatsapp", "humain",
+                "recherche")                       # t354 : recherche web d'entreprises (devis)
 ETATS_CARTE = ("proposee", "acceptee", "refusee", "terminee")
 ORIGINES = ("pc", "telephone")
 ETATS_PORTE = ("proposee", "validee", "refusee")

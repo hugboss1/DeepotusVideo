@@ -516,6 +516,10 @@ async def carte(cid: str, n: int, request: Request):
                     "fichier": extra["fichier"], "statut": "done"}, action="continuer")], **_trace(appareil)))
             elif job_id:                                  # vidéo : le fait viendra au GET, job fini
                 extra["job_id"] = job_id
+        elif acceptee and genre == "recherche":
+            # t354 tâche 5d : plafond AVANT tout appel (402 : rien), sans clé 503, puis UNE recherche ; ses sites publics
+            # sont déposés (url*.txt) pour prospects_chercher ; le coût réel est noté
+            extra.update(await _rechercher_carte(cid, l, orig))
         with _traduire():
             await ST.ajouter(cid, [fmt.nouveau_message("fait", [_bloc_etat(orig, n, decision, extra)],
                                                        **_trace(appareil))] + faits)
@@ -525,6 +529,37 @@ async def carte(cid: str, n: int, request: Request):
             elif acceptee and genre == "porte":
                 await ST.regler_porte(cid, "porte1_validee")
     return await ST.lire(cid)
+
+
+async def _rechercher_carte(cid: str, l: dict, orig: dict) -> dict:
+    from app.services import agent_outils as AO, plafonds, recherche_web as RW
+    a = orig.get("arguments") or {}
+    f = a.get("fournisseur") if a.get("fournisseur") in RW.FOURNISSEURS else RW.fournisseur_actif()
+    q, n = str(a.get("requete") or "")[:300], a.get("max") if isinstance(a.get("max"), int) else 5
+    if not RW.configure(f):
+        raise HTTPException(503, f"aucune clé pour la recherche {f} : posez-la dans l'onglet Prospects")
+    garde = await plafonds.verifier(RW.op(f, n), "campagnes", ref=cid, espace_id=l.get("espace_id"))
+    try:
+        r = await RW.rechercher(q, n, f)
+    except RW.SansCle as e:
+        await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], 0.0)
+        raise HTTPException(503, str(e)) from None
+    except (RW.RechercheEchouee, ValueError) as e:
+        await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], 0.0)
+        raise HTTPException(502, str(e)) from None
+    await plafonds.noter_reel_lignes((garde or {}).get("lignes") or [], float(r["cout_usd"]))
+    gardes = []
+    for x in r["resultats"]:
+        u = AO._url_normale(x.get("url") or "")
+        if not u:
+            continue
+        try:
+            AO._url_sure(u)
+        except Exception:  # noqa: BLE001 — hôte local ou interdit : jamais déposé
+            continue
+        await AO.enregistrer_depot(cid, "url", u)
+        gardes.append({"titre": x.get("titre") or "", "url": u})
+    return {"fournisseur": f, "cout_usd": r["cout_usd"], "resultats": gardes}
 
 
 async def _formulaire_borne(request: Request):

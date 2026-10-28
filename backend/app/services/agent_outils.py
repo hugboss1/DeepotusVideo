@@ -1077,6 +1077,25 @@ async def entreprises_registre(ctx: Ctx, naf: str | None = None, code_postal: st
                 {"cibles": cibles})
 
 
+async def entreprises_rechercher(ctx: Ctx, requete: str, max: int = 5) -> dict:  # noqa: A002
+    """t354 tâche 5d : une CARTE de devis pour UNE recherche web chez le fournisseur choisi ; rien n'est appelé ici.
+    Acceptée, la route lance la recherche (plafond vérifié avant) et dépose les sites trouvés pour prospects_chercher."""
+    from app.services import recherche_web as RW
+    _espace(ctx)
+    q = str(requete or "").strip()
+    if not q or len(q) > 300:
+        raise _Refus("requête vide ou trop longue (300 caractères au plus)")
+    f = RW.fournisseur_actif()
+    if not RW.configure(f):
+        raise _Refus(f"aucune clé pour la recherche {f} : l'utilisateur la pose dans l'onglet Prospects")
+    n = max if isinstance(max, int) and not isinstance(max, bool) else 5
+    n = min(RW.MAX_RESULTATS, n if n > 0 else 1)
+    carte = {"type": "carte", "genre": "recherche", "libelle": "Rechercher des entreprises sur le web", "etat": "proposee",
+             "action": "rechercher_entreprises",
+             "arguments": {"requete": q, "max": n, "fournisseur": f, "devis_usd": RW.devis(f, n)}}
+    return _res(True, f"recherche proposée chez {f} (payante, devis dans la carte) : le tour s'arrête", None, carte)
+
+
 async def prospects_qualifier(ctx: Ctx, pid: str, offre: str, ajustement: int = 0, raison: str = "") -> dict:
     from app.services import prospects as P
     eid = _espace(ctx)
@@ -1185,6 +1204,12 @@ OUTILS: dict[str, dict] = {
                              "schema": _o({"naf": dict(_T, description="code NAF, ex. 59.11A"),
                                            "code_postal": _T, "departement": dict(_T, description="ex. 69, 2A, 974"),
                                            "q": dict(_T, description="nom ou mot du nom")})},
+    "entreprises_rechercher": {"nature": "carte", "fn": entreprises_rechercher,
+                               "description": "Propose UNE recherche web d'entreprises (payante) : une carte de devis que "
+                                              "l'utilisateur accepte ou non ; les sites trouvés deviennent lisibles par "
+                                              "prospects_chercher (source entreprise). Le tour s'arrête.",
+                               "schema": _o({"requete": dict(_T, maxLength=300, description="ex. studios vidéo à Lyon"),
+                                             "max": {"type": "integer", "minimum": 1, "maximum": 10}}, ("requete",))},
     "prospects_qualifier": {"nature": "ecriture", "fn": prospects_qualifier,
                             "description": "Qualifie un prospect : le serveur calcule le barème et les canaux possibles ; "
                                            "tu choisis l'offre (licence, prestation, a_definir) et peux ajuster le score "

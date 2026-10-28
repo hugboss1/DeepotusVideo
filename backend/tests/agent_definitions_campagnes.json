@@ -349,6 +349,29 @@
   "name": "entreprises_registre"
  },
  {
+  "description": "Propose UNE recherche web d'entreprises (payante) : une carte de devis que l'utilisateur accepte ou non ; les sites trouvés deviennent lisibles par prospects_chercher (source entreprise). Le tour s'arrête.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "max": {
+     "maximum": 10,
+     "minimum": 1,
+     "type": "integer"
+    },
+    "requete": {
+     "description": "ex. studios vidéo à Lyon",
+     "maxLength": 300,
+     "type": "string"
+    }
+   },
+   "required": [
+    "requete"
+   ],
+   "type": "object"
+  },
+  "name": "entreprises_rechercher"
+ },
+ {
   "description": "Qualifie un prospect : le serveur calcule le barème et les canaux possibles ; tu choisis l'offre (licence, prestation, a_definir) et peux ajuster le score de -20 à 20 avec une raison. Ne change jamais le statut.",
   "input_schema": {
    "additionalProperties": false,

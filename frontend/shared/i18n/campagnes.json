@@ -16,6 +16,10 @@
   "campagnes.carte.espace": {"fr":"Choisir l'espace de marque de la campagne","en":"Choose the brand space for the campaign"},
   "campagnes.carte.continuer": {"fr":"Continuer : ≤ {usd} $","en":"Continue: up to ${usd}"},
   "campagnes.carte.brouillons": {"fr":"{n} brouillon(s) au Planificateur","en":"{n} draft(s) in the Scheduler"},
+  "campagnes.carte.recherche": {"fr":"Recherche web d'entreprises","en":"Web search for companies"},
+  "campagnes.recherche.detail": {"fr":"« {requete} » chez {fournisseur} : environ {usd}, payant, seulement si vous acceptez.","en":"“{requete}” with {fournisseur}: about {usd}, paid, only if you accept."},
+  "campagnes.action.rechercher": {"fr":"Rechercher ({usd})","en":"Search ({usd})"},
+  "campagnes.recherche.trouves": {"fr":"{n} site(s) trouvé(s) : l'agent peut maintenant les lire.","en":"{n} site(s) found: the agent can now read them."},
   "campagnes.genre.image": {"fr":"image","en":"image","contexte":true},
   "campagnes.genre.video": {"fr":"vidéo","en":"video","contexte":true},
   "campagnes.genre.voix": {"fr":"voix","en":"voice","contexte":true},
@@ -85,6 +89,7 @@
   "campagnes.outil.veille_lire": {"fr":"Lecture de la veille des concurrents","en":"Reading the competitor watch"},
   "campagnes.outil.prospects_chercher": {"fr":"Recherche de prospects","en":"Finding prospects"},
   "campagnes.outil.entreprises_registre": {"fr":"Registre des entreprises","en":"Business registry"},
+  "campagnes.outil.entreprises_rechercher": {"fr":"Recherche web d'entreprises","en":"Web search for companies"},
   "campagnes.outil.prospects_qualifier": {"fr":"Qualification d'un prospect","en":"Qualifying a prospect"},
   "campagnes.plan.reprendre": {"fr":"Reprendre la conversation","en":"Resume the conversation"}
 }
