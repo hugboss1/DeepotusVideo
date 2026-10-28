@@ -149,8 +149,10 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   aucun post programmé) ; il est archivé si le prospect est Perdu et devient l'espace client à la signature (ses
   brouillons restent ; les consentements de publication se datent ensuite dans la fiche client). RGPD : « Exporter ses
   données », « Effacer la fiche », « S'oppose à la prospection » (fiche anonymisée, registre des oppositions valable
-  pour tous les espaces, un STOP WhatsApp hors espace client y va aussi), et l'effacement automatique 3 ans après le
-  dernier contact VENU du prospect. Gratuit. → [GUIDE:agent-campagnes]
+  pour tous les espaces, un STOP WhatsApp hors espace client y va aussi, et un réabonnement l'en retire), et
+  l'effacement automatique 3 ans après le dernier contact VENU du prospect. Une saisie erronée au registre se retire
+  par « Saisir une opposition » › Retirer (noté au journal) ; une opposition de la personne, jamais. Gratuit.
+  → [GUIDE:agent-campagnes]
 - **Mener une campagne avec l'agent Campagnes** (stratégie, calendrier et posts d'un lancement) : onglet « Campagnes »
   de ce tiroir, ou Planificateur › Générer un plan, mode Agent Campagnes ; il faut une clé Anthropic. Choisir
   d'abord l'espace de marque de la campagne dans la liste du haut : vide par défaut, jamais l'espace actif d'office ;

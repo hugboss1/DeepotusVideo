@@ -114,7 +114,11 @@
     async function appel(methode, chemin, corpsJson) {
       var init = { method: methode };
       if (corpsJson !== undefined) { init.headers = JSON_H; init.body = JSON.stringify(corpsJson); }
-      var r = await window.fetch(BASE + chemin, init);
+      var r;
+      try { r = await window.fetch(BASE + chemin, init); }
+      catch (e) {      // t353 suite (M8) : serveur injoignable : on le dit, jamais un écran muet
+        return { ok: false, status: 0, j: { detail: { code: "reseau", message: T("prospects.erreur.reseau") } } };
+      }
       var j = await lireJson(r);
       return { ok: r.ok, status: r.status, j: j };
     }
@@ -138,6 +142,7 @@
       etat.compte = r.j.compte_par_statut || {};
       etat.oppositions = r.j.oppositions || 0;
       etat.misDeCote = r.j.registre_mis_de_cote || 0;     // relecture I2 : un registre illisible mis de côté
+      etat.demos = r.j.espaces_demo && typeof r.j.espaces_demo === "object" ? r.j.espaces_demo : {};     // M8 : leurs noms
       if (etat.fiche) etat.fiche = etat.prospects.filter(function (p) { return p.id === etat.fiche.id; })[0] || null;
       dessiner();
     }
@@ -283,7 +288,8 @@
         return el("li", { texte: lib(CANAUX, "prospects.canal.", c.type) + " : " + c.valeur });
       })));
       if (p.espace_demo) bloc.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "espace-demo",
-        texte: T(p.statut === "client" ? "prospects.fiche.espace_client" : "prospects.fiche.espace_demo", { id: p.espace_demo }) }));
+        texte: T(p.statut === "client" ? "prospects.fiche.espace_client" : "prospects.fiche.espace_demo",
+          { id: typeof (etat.demos || {})[p.espace_demo] === "string" ? etat.demos[p.espace_demo] : p.espace_demo }) }));
       if (etat.note && NOTES.indexOf(etat.note) >= 0) bloc.appendChild(el("p", { class: "dzProspectsNote", "data-dz-prospects": "note",
         "data-note": etat.note, texte: T("prospects.note." + etat.note) }));
       // statut : seuls les passages permis
@@ -374,13 +380,21 @@
         el("p", { class: "dzProspectsNote", texte: T("prospects.opposition.aide") }),
         el("div", { class: "dzProspectsActions" }, [champ_,
           el("button", { type: "button", "data-dz-prospects": "opposition-inscrire", texte: T("prospects.bouton.inscrire"), on: { click: async function () {
-            var r = await window.fetch(BASE + "oppositions", { method: "POST", headers: JSON_H, body: JSON.stringify({ identifiant: champ_.value }) });
-            var j = await lireJson(r);
+            var r = await appel("POST", "oppositions", { identifiant: champ_.value });
             if (!vivant) return;
-            if (!r.ok) { erreur(zone, j); return; }
+            if (!r.ok) { erreur(zone, r.j); return; }
             vider(zone); champ_.value = "";
-            res.textContent = T(j.inscrit ? "prospects.opposition.inscrite" : "prospects.opposition.deja");
-            if (j.inscrit) etat.oppositions += 1;
+            res.textContent = T(r.j.inscrit ? "prospects.opposition.inscrite" : "prospects.opposition.deja");
+            if (r.j.inscrit) etat.oppositions += 1;
+          } } }),
+          // t353 suite (M6) : une saisie erronée se retire (journalisé) ; une opposition de la personne, non (409 dit)
+          el("button", { type: "button", "data-dz-prospects": "opposition-retirer", texte: T("prospects.bouton.retirer"), on: { click: async function () {
+            var r = await appel("POST", "oppositions/retirer", { identifiant: champ_.value });
+            if (!vivant) return;
+            if (!r.ok) { res.textContent = ""; erreur(zone, r.j); return; }
+            vider(zone); champ_.value = "";
+            res.textContent = T(r.j.retire ? "prospects.opposition.retiree" : "prospects.opposition.absente");
+            if (r.j.retire) etat.oppositions = Math.max(0, etat.oppositions - 1);
           } } }),
           el("button", { type: "button", "data-dz-prospects": "annuler", texte: T("prospects.bouton.retour"), on: { click: function () { dessiner(); } } })]),
         res, zone]);

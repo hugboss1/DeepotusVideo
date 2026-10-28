@@ -461,6 +461,7 @@ win.DzCampagnes = fauxDzCampagnes;
   nouvelle.click(); await tick();
   ok("5c.8 ↺ sur Veille relit la veille", veilles[1].recharges === 1 && veilles.length === 2);
   const ongP4 = marque(T4, "onglet-prospects");
+  const nEspAvantP = appels.filter((a) => a.url.startsWith("/api/espaces")).length;     // t353 suite : Prospects relit les siens
   ongV.fire("keydown", { key: "ArrowRight" });
   ok("5c.9 flèche droite depuis Veille : Prospects (t353)", ongP4.attrs["aria-selected"] === "true" && DOC.activeElement === ongP4);
   ongP4.fire("keydown", { key: "ArrowRight" });
@@ -471,8 +472,7 @@ win.DzCampagnes = fauxDzCampagnes;
   ok("5c.10b flèche gauche depuis Prospects : Veille", ongV.attrs["aria-selected"] === "true" && DOC.activeElement === ongV);
   ongV.fire("keydown", { key: "ArrowLeft" });
   ok("5c.11 flèche gauche depuis Veille : Campagnes", ongC4.attrs["aria-selected"] === "true");
-  ok("5c.12 les espaces ne sont lus qu'une fois pour les deux onglets",
-    appels.filter((a) => a.url.startsWith("/api/espaces")).length === nEsp0 + 1);
+  ok("5c.12 les espaces ne sont lus qu'une fois pour les deux onglets", nEspAvantP === nEsp0 + 1, nEspAvantP - nEsp0);
   const S5 = stockage({ dz_agent_onglet: "veille", dz_agent_veille: "e2" });
   const avant = veilles.length;
   const { tiroir: T5, bouton: B5 } = await charger(S5, "veille2");
@@ -513,6 +513,14 @@ win.DzCampagnes = fauxDzCampagnes;
   const nouvelle = T7.querySelector(`button[aria-label="${dzT("agent.tiroir.nouvelle")}"]`);
   nouvelle.click(); await tick();
   ok("5d.6 ↺ sur Prospects relit la liste", montes[1].recharges === 1 && montes.length === 2);
+  // t353 suite (M8) : un espace archivé depuis sort du sélecteur à la prochaine ouverture de l'onglet, et l'écran revient au défaut
+  ESPACES.espaces[1].archive = true;
+  marque(T7, "onglet-demander").click(); await tick();
+  ongP.click(); await tick(); await tick();
+  const vals2 = Array.from(selP.children).map((o) => o.getAttribute("value"));
+  ok("5d.6b espace archivé depuis : retiré, l'écran remonté sur l'espace actif", !vals2.includes("e2") && vals2.includes("e1")
+    && montes.length === 3 && montes[1].demonte && montes[2].opts.espace_id === "e1" && selP.value === "e1", vals2.join() + " " + montes.length);
+  ESPACES.espaces[1].archive = false;
   delete win.DzProspects;
   const { tiroir: T8, bouton: B8 } = await charger(stockage({ dz_agent_onglet: "prospects" }), "prospects2");
   B8.click(); await tick(); await tick();

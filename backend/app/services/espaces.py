@@ -369,15 +369,32 @@ def neutraliser_demonstration(eid: str, nom: str) -> str:
     if not actif_:
         e["archive"] = True
     _ecrire(doc)
+    _nommer_persona(eid, e["nom"])
+    return "actif" if actif_ else "ok"
+
+
+def _nommer_persona(eid: str, nom: str) -> None:
     f = chemin(eid, "persona.json")
     try:
         p = json.loads(f.read_text(encoding="utf-8"))
         if isinstance(p, dict):
-            p["display_name"] = e["nom"]
+            p["display_name"] = nom
             _ecrire_json(f, p)
     except (OSError, ValueError):
         pass
-    return "actif" if actif_ else "ok"
+
+
+def renommer_demonstration(eid: str, nom: str) -> bool:
+    """t353 suite (M9) : l'entreprise du prospect a changé : l'espace démonstration prend le nouveau nom (espaces.json
+    ET persona.json). False s'il est inconnu ou n'est plus une démonstration (un espace client garde son nom)."""
+    doc = lire()
+    e = doc["espaces"].get(eid) if id_valide(eid) else None
+    if not isinstance(e, dict) or e.get("type") != "demonstration":
+        return False
+    e["nom"] = _nom(nom)
+    _ecrire(doc)
+    _nommer_persona(eid, e["nom"])
+    return True
 
 
 def est_demonstration(eid, brut: bool = False) -> bool:

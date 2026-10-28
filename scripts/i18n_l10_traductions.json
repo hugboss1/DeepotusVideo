@@ -11378,5 +11378,21 @@
  "fiche Prospects momentanément illisible : réessayez dans un instant": {
   "fr": "fiche Prospects momentanément illisible : réessayez dans un instant",
   "en": "Prospects record temporarily unreadable: try again in a moment"
+ },
+ "statut inconnu": {
+  "fr": "statut inconnu",
+  "en": "unknown status"
+ },
+ "motif de retrait inconnu": {
+  "fr": "motif de retrait inconnu",
+  "en": "unknown removal reason"
+ },
+ "cette personne s'est opposée elle-même : seul son réabonnement la retire du registre": {
+  "fr": "cette personne s'est opposée elle-même : seul son réabonnement la retire du registre",
+  "en": "this person objected themselves: only their re-subscription removes them from the register"
+ },
+ "espace démonstration : importé comme marque (il est lié à un prospect de l'autre installation)": {
+  "fr": "espace démonstration : importé comme marque (il est lié à un prospect de l'autre installation)",
+  "en": "demo space: imported as a brand (it is tied to a prospect of the other installation)"
  }
 }

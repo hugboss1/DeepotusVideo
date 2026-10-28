@@ -333,8 +333,31 @@ if (!window.__dzAgent) {
     try { prospects = D.monter(hoteProspects, { espace_id: eid }); }
     catch (e) { prospects = null; hoteProspects.replaceChildren(indisponible()); }
   }
+  // t353 suite (M8) : la liste de Prospects est relue à chaque ouverture de l'onglet : un espace archivé depuis (ou devenu
+  // démonstration) en sort, et l'écran monté sur lui revient au défaut. Hors ligne : la liste connue reste.
+  async function relireProspects() {
+    let liste = null;
+    try {
+      const j = await (await fetch("/api/espaces")).json();
+      if (j && typeof j.actif === "string") espaceActif = j.actif;
+      liste = Array.isArray(j && j.espaces) ? j.espaces : null;
+    } catch (e) { return; }
+    if (!liste) return;
+    const garder = liste.filter((e) => e && typeof e.id === "string" && !e.archive && e.type !== "demonstration");
+    for (const o of Array.from(selProspects.children)) {
+      const v = o.getAttribute("value");
+      if (v && !garder.some((e) => e.id === v)) o.remove();
+    }
+    for (const e of garder) {
+      if (!Array.from(selProspects.children).some((o) => o.getAttribute("value") === e.id)) {
+        selProspects.appendChild(el("option", { value: e.id, texte: typeof e.nom === "string" ? e.nom : e.id }));
+      }
+    }
+    if (!Array.from(selProspects.children).some((o) => o.getAttribute("value") === selProspects.value)) selProspects.value = "";
+  }
   async function ouvrirProspects() {
     await lireEspaces();
+    await relireProspects();
     if (prospects && prospectsEspace === selProspects.value) return;
     const garde = lire(window.sessionStorage, "dz_agent_prospects");
     const connus = Array.from(selProspects.children).map((o) => o.getAttribute("value"));

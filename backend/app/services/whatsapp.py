@@ -760,11 +760,15 @@ def _stop_au_registre(cid: str, identite_: str) -> None:
     """t353 (27/10/2026, décision de l'utilisateur) : un STOP reçu dans un espace gouverné par AUCUN client va aussi au
     registre global des oppositions (un STOP vaut pour toute la prospection) ; le STOP envoyé au numéro d'un client
     s'adresse à ce client, il n'y va pas. Lecture BRUTE d'espaces.json (la relève tourne en fond) ; un échec est journalisé,
-    jamais remonté (le STOP est déjà rangé dans l'espace)."""
+    jamais remonté (le STOP est déjà rangé dans l'espace). t353 suite (M6) : dans le DOUTE (compte ou espaces.json
+    illisible), le STOP va au registre : mieux vaut une opposition de trop qu'un message de trop."""
+    from app.services import oppositions, regles_client as _rc
     try:
-        from app.services import oppositions, regles_client as _rc
-        eid = _compte(cid)[0]["espace_id"]
-        if _rc._brut_responsable(_rc._brut_espaces(), eid) is None:
+        client = _rc._brut_responsable(_rc._brut_espaces(), _compte(cid)[0]["espace_id"])
+    except Exception:  # noqa: BLE001
+        client = None
+    try:
+        if client is None:
             oppositions.inscrire([identite_], "whatsapp")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"whatsapp : STOP non inscrit au registre des oppositions ({type(e).__name__})")
@@ -781,11 +785,19 @@ def lever_stop(cid: str, identite_: str, source: str, maintenant: datetime | Non
     q = _quand(maintenant)
     src = "reabonnement:" + source.strip()[:50]
 
+    groupe = []
+
     def geste(e):
-        for i in _groupe(e, identite_):
+        groupe.extend(_groupe(e, identite_))
+        for i in groupe:
             e["stops"].pop(i, None)
         e["accords"][identite_] = {"date": q, "source": src}
     _noter(cid, geste)
+    try:                       # t353 suite (M6) : son STOP quitte aussi le registre global (pas une autre opposition)
+        from app.services import oppositions
+        oppositions.retirer(groupe, "reabonnement", origines=("whatsapp",))
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"whatsapp : réabonnement non retiré du registre des oppositions ({type(e).__name__})")
 
 
 def noter_desinscription(cid: str, identite_: str, maintenant: datetime | None = None) -> None:

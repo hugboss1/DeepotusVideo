@@ -99,7 +99,7 @@ check("4a chaîne propose→client", f["statut"] == "client")
 g = P.creer(A, base(nom="Zoé", canaux=[{"type": "email", "valeur": "zoe@agence-k.fr"}]))
 check("4b propose→contacte interdit", refus(P.changer_statut, A, g["id"], "contacte") == ("transition", 409))
 check("4c propose→rdv interdit", refus(P.changer_statut, A, g["id"], "rdv") == ("transition", 409))
-check("4d statut inconnu", refus(P.changer_statut, A, g["id"], "gagne") == ("transition", 409))
+check("4d statut inconnu : un champ fautif (t353 suite, M5)", refus(P.changer_statut, A, g["id"], "gagne") == ("champ", 422))
 g = P.changer_statut(A, g["id"], "perdu")["prospect"]
 check("4e perdu → qualifie (réouverture)", P.changer_statut(A, g["id"], "qualifie")["prospect"]["statut"] == "qualifie")
 paires_ok = all(t in P.STATUTS for v in P.TRANSITIONS.values() for t in v) and set(P.TRANSITIONS) == set(P.STATUTS)
