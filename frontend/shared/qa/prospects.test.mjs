@@ -331,6 +331,42 @@ const LISTE = { prospects: [FICHE(), FICHE({ id: "pr_00000002", nom: "Tom", entr
     && marques(en.hote, "sequence")[1].textContent.includes(EN("prospects.sequence.due")));
 }
 
+// ---- t356 : panneau « E-mail » (réglages, secret jamais affiché, pause, essai) -------------------------------------------
+{
+  const VUE = { mode: "smtp", expediteur: { nom: "Léa", adresse: "lea@deepotus.fr" }, identite: { raison_sociale: "Deepotus SAS", adresse_postale: "Paris" },
+    smtp: { hote: "smtp.x.fr", port: 465, securite: "ssl", utilisateur: "lea" }, imap: { hote: "imap.x.fr", port: 993, utilisateur: "lea" },
+    plafond_jour: 30, mdp_pose: true, brevo_pose: false, manques: [], pret: true, pause: { active: true, motif: "rebonds" },
+    plafond_du_jour: 10, envoyes_du_jour: 3, taux_rebond: 0.1, erreur: { message: "identifiants SMTP refusés" } };
+  const appels = [];
+  const m = monde({ routes: {
+    "GET /api/prospects/e1": () => reponse(200, LISTE),
+    "GET /api/prospects/e1/email": () => reponse(200, VUE),
+    "POST /api/prospects/e1/email": (c) => { appels.push(["regler", c]); return reponse(422, { detail: { code: "champ", message: "port : un entier de 1 à 65535" } }); },
+    "POST /api/prospects/e1/email/secret": (c) => { appels.push(["secret", c]); return reponse(200, { ...VUE, mdp_pose: true }); },
+    "POST /api/prospects/e1/email/reprendre": () => { appels.push(["reprendre"]); return reponse(200, { ...VUE, pause: { active: false, motif: "" } }); },
+    "POST /api/prospects/e1/email/test": () => { appels.push(["test"]); return reponse(200, { envoye_a: "lea@deepotus.fr" }); },
+  } });
+  m.DzProspects.monter(m.hote, { espace_id: "e1" });
+  await tick();
+  marque(m.hote, "email").click(); await tick(); await tick();
+  ok("12.1 réglages lus dans les champs", marque(m.hote, "email-adresse").value === "lea@deepotus.fr" && marque(m.hote, "email-smtp_port").value === "465");
+  const etat = marque(m.hote, "email-etat").textContent;
+  ok("12.2 état : du jour, rebonds, pause traduite, erreur", etat.includes(FR("prospects.email.jour", { n: 3, plafond: 10 })) && etat.includes("10 %")
+    && etat.includes(FR("prospects.email.pause", { motif: FR("prospects.emailpause.rebonds") })) && etat.includes("identifiants SMTP refusés"), etat);
+  marque(m.hote, "email-mdp").value = "TresSecret";
+  marque(m.hote, "email-mdp-enregistrer").click(); await tick(); await tick();
+  ok("12.3 secret envoyé, champ vidé, jamais affiché", appels.some((a) => a[0] === "secret" && a[1].quoi === "mdp" && a[1].valeur === "TresSecret")
+    && marque(m.hote, "email-mdp").value === "" && !m.hote.textContent.includes("TresSecret"));
+  marque(m.hote, "email-enregistrer").click(); await tick(); await tick();
+  const reg = appels.find((a) => a[0] === "regler");
+  ok("12.4 enregistrer : corps complet, refus dit", reg && reg[1].smtp.port === 465 && reg[1].identite.raison_sociale === "Deepotus SAS"
+    && marque(m.hote, "erreur").textContent.includes("port"), JSON.stringify(reg));
+  marque(m.hote, "email-reprendre").click(); await tick(); await tick();
+  ok("12.5 reprendre : appelé, plus de pause", appels.some((a) => a[0] === "reprendre") && !marque(m.hote, "email-pause"));
+  marque(m.hote, "email-essai").click(); await tick(); await tick(); await tick();
+  ok("12.6 essai : à l'expéditeur, dit", appels.some((a) => a[0] === "test") && marque(m.hote, "email-resultat").textContent === FR("prospects.email.essai_ok", { adresse: "lea@deepotus.fr" }));
+}
+
 // ---- anglais, demontage -----------------------------------------------------------------------------------------------
 {
   const m = monde({ lang: "en", routes: { "GET /api/prospects/e1": () => reponse(200, LISTE) } });

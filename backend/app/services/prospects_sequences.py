@@ -447,6 +447,82 @@ def planifier(eid, sid, debut=None, qui: str = "utilisateur") -> dict:
     return s
 
 
+# ---- t356 : ce que lisent les envois automatiques (e-mail P5, WhatsApp P6) --------------------------------------------
+
+def etapes_dues(eid, canal: str) -> list:
+    """Les étapes à envoyer maintenant sur `canal` : séquence planifiée, étape planifiée à l'heure, les précédentes
+    envoyées. L'arrêt automatique (fiche, canal, registre) s'applique d'abord ; registre indisponible : 503."""
+    _espace(eid)
+    now = _maintenant()
+    with _verrou:
+        doc = _charger(eid)
+    out = []
+    for s in doc["sequences"]:
+        if s["canal"] != canal or s["statut"] != "planifiee":
+            continue
+        for e in s["etapes"]:
+            if e["statut"] == "envoyee":
+                continue
+            avant = s["etapes"][e["rang"] - 1] if e["rang"] > 0 else None
+            # relecture t356 (I4) : une relance se compte depuis l'envoi RÉEL de l'étape d'avant (jamais en rafale)
+            reel = avant and avant.get("envoye_utc") and \
+                datetime.fromisoformat(avant["envoye_utc"]) + timedelta(days=e["delai_jours"]) > now
+            if e["statut"] == "planifiee" and e.get("quand") and datetime.fromisoformat(e["quand"]) <= now and not reel:
+                out.append({"sid": s["id"], "rang": e["rang"], "pid": s["pid"], "objet": e["objet"], "texte": e["texte"]})
+            break
+    return out
+
+
+def _etape(doc: dict, sid, rang) -> tuple:
+    s = _trouver(doc, sid)
+    if not isinstance(rang, int) or not 0 <= rang < len(s["etapes"]):
+        raise RefusSequence("étape inconnue", "inconnu")
+    return s, s["etapes"][rang]
+
+
+def encore_due(eid, sid, rang) -> bool:
+    """Juste avant l'envoi (relecture t356 M1) : la séquence est toujours planifiée et l'étape aussi."""
+    with _verrou:
+        try:
+            s, e = _etape(_lire(eid), sid, rang)
+        except RefusSequence:
+            return False
+    return s["statut"] == "planifiee" and e["statut"] == "planifiee"
+
+
+def noter_envoi(eid, sid, rang, message_id: str) -> dict:
+    """Un envoi automatique réussi : l'étape passe « envoyée » avec son Message-ID ; la dernière termine la séquence
+    (une séquence arrêtée entre-temps le reste)."""
+    with _verrou:
+        doc = _lire(eid)
+        s, e = _etape(doc, sid, rang)
+        e["statut"], e["envoye_le"], e["message_id"] = "envoyee", _es._maintenant(), str(message_id or "")[:300]
+        e["envoye_utc"] = _maintenant().isoformat()
+        if s["statut"] == "planifiee" and all(x["statut"] == "envoyee" for x in s["etapes"]):
+            s["statut"] = "terminee"
+        _noter(s, f"envoyee:{rang}", "systeme")
+        _poser(eid, doc)
+    return s
+
+
+def noter_essai(eid, sid, rang) -> int:
+    """Un échec passager : rend le nombre d'essais de l'étape."""
+    with _verrou:
+        doc = _lire(eid)
+        s, e = _etape(doc, sid, rang)
+        e["essais"] = int(e.get("essais") or 0) + 1
+        _poser(eid, doc)
+    return e["essais"]
+
+
+def arreter(eid, sid, motif: str) -> None:
+    """Arrêt par le canal (rebond, échec répété) : étapes non envoyées annulées."""
+    with _verrou:
+        doc = _lire(eid)
+        _stopper(_trouver(doc, sid), motif)
+        _poser(eid, doc)
+
+
 def marquer_envoye(eid, sid, rang, qui: str = "utilisateur") -> dict:
     """Un envoi MANUEL fait par l'utilisateur (X, Instagram, LinkedIn) : l'étape passe « envoyée », la fiche note un
     contact sortant et passe « contacté » si elle était « qualifié »."""
@@ -470,7 +546,7 @@ def marquer_envoye(eid, sid, rang, qui: str = "utilisateur") -> dict:
                 _p.changer_statut(eid, s["pid"], "contacte", "1er message envoyé", qui)
         except _p.RefusProspect as x:
             raise RefusSequence(x.message, x.code if x.code in _HTTP else "etat") from None
-        e["statut"], e["envoye_le"] = "envoyee", _es._maintenant()
+        e["statut"], e["envoye_le"], e["envoye_utc"] = "envoyee", _es._maintenant(), _maintenant().isoformat()
         if all(x["statut"] == "envoyee" for x in s["etapes"]):
             s["statut"] = "terminee"
         _noter(s, f"envoyee:{rang}", qui)

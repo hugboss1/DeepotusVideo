@@ -36,7 +36,7 @@ TRADUCTIONS = RACINE / "scripts" / "i18n_l10_traductions.json"
 ERREURS = {"ValueError", "RuntimeError", "FileNotFoundError", "PermissionError", "LookupError", "TimeoutError",
            "ConflitClient", "FluxCoupe", "CoffreVerrouille", "RefusClient", "WhatsappRefus",
            "RefusValidation", "RefusProspect", "PlafondEspaces", "RegistreIndisponible",
-           "SansCle", "RechercheEchouee", "RefusSequence"}   # t355 : séquences de prospection   # t354 : recherche web de la prospection   # t353 : refus de la fiche Prospects, plafond d'espaces   # t311 : RefusValidation = refus de validation_client.valider_post (400/404/409)   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
+           "SansCle", "RechercheEchouee", "RefusSequence", "RefusEmail"}   # t356 : canal e-mail   # t355 : séquences de prospection   # t354 : recherche web de la prospection   # t353 : refus de la fiche Prospects, plafond d'espaces   # t311 : RefusValidation = refus de validation_client.valider_post (400/404/409)   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
                                        # L4.1 T3 : FluxCoupe = RuntimeError (flux Anthropic coupé)
                                        # t309 : RefusClient = PermissionError (409 structuré des règles d'un client)
                                        # t310 : WhatsappRefus = PermissionError (envoi WhatsApp refusé par les règles)

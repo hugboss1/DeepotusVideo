@@ -41,7 +41,11 @@
   var FOURNISSEURS = ["anthropic", "tavily", "exa", "serper"];   // t354 : recherche web de la prospection
   var SEQ_STATUTS = ["proposee", "validee", "planifiee", "terminee", "annulee"];   // t355 : séquences
   var ETAPE_STATUTS = ["brouillon", "validee", "planifiee", "envoyee", "annulee"];
-  var SEQ_MOTIFS = ["effacee", "remplacee", "annulee", "canal"];   // le motif d'un arrêt ; « fiche:<statut> » à part
+  var SEQ_MOTIFS = ["effacee", "remplacee", "annulee", "canal", "rebond", "echec"];
+  var EMAIL_MODES = ["smtp", "brevo"];   // t356 : canal e-mail
+  var EMAIL_MANQUES = ["expediteur", "identite", "smtp", "imap", "mdp", "brevo"];
+  var EMAIL_PAUSES = ["rebonds", "plainte"];
+  var EMAIL_CHAMPS = ["nom", "adresse", "raison", "smtp_hote", "smtp_port", "smtp_user", "imap_hote", "imap_port", "imap_user", "plafond"];   // les saisies du panneau   // le motif d'un arrêt ; « fiche:<statut> » à part
   var SEQ_MANUELS = ["x", "instagram", "linkedin"];    // envoyés à la main : jamais de message automatique
   var SAISIS = ["email", "telephone", "whatsapp", "linkedin"];     // les canaux du formulaire ; les autres sont gardés tels quels
   var JSON_H = { "Content-Type": "application/json" };
@@ -174,6 +178,8 @@
         on: { click: function () { vider(corps); corps.appendChild(saisieOpposition()); } } }));
       barre.appendChild(el("button", { type: "button", "data-dz-prospects": "recherche", texte: T("prospects.bouton.recherche"),
         on: { click: function () { vider(corps); corps.appendChild(reglageRecherche()); } } }));
+      barre.appendChild(el("button", { type: "button", "data-dz-prospects": "email", texte: T("prospects.bouton.email"),   // t356
+        on: { click: function () { vider(corps); corps.appendChild(reglageEmail()); } } }));
     }
 
     function dessiner() {
@@ -508,6 +514,89 @@
         el("h3", { texte: T("prospects.titre.recherche") }),
         el("p", { class: "dzProspectsNote", texte: T("prospects.recherche.aide") }),
         el("div", { class: "dzProspectsActions" }, [sel, cle, enregistrer]), etatR, res, zone,
+        el("button", { type: "button", "data-dz-prospects": "annuler", texte: T("prospects.bouton.retour"), on: { click: function () { dessiner(); } } })]);
+    }
+
+    // t356 : le canal e-mail de l'espace — SMTP de votre boîte ou Brevo, IMAP pour les réponses, identité, plafond, pause
+    function reglageEmail() {
+      if (!eid) return el("p", { class: "dzProspectsNote", texte: T("prospects.vide.sans_espace") });
+      var zone = el("div", { "data-dz-prospects": "erreur" });
+      var res = el("p", { class: "dzProspectsNote", "data-dz-prospects": "email-resultat" });
+      var etatE = el("ul", { "data-dz-prospects": "email-etat" });
+      var actions = el("div", { class: "dzProspectsActions" });
+      var f = {};
+      function saisie(cle, type) {
+        f[cle] = el("input", { type: type || "text", autocomplete: "off", "data-dz-prospects": "email-" + cle, "aria-label": T("prospects.email." + cle) });
+        return champ("prospects.email." + cle, f[cle]);
+      }
+      f.mode = el("select", { "data-dz-prospects": "email-mode", "aria-label": T("prospects.email.mode") },
+        EMAIL_MODES.map(function (m) { return el("option", { value: m, texte: T("prospects.emailmode." + m) }); }));
+      f.securite = el("select", { "data-dz-prospects": "email-securite", "aria-label": T("prospects.email.securite") },
+        ["ssl", "starttls"].map(function (m) { return el("option", { value: m, texte: m.toUpperCase() }); }));
+      f.postale = el("textarea", { rows: "2", "data-dz-prospects": "email-postale", "aria-label": T("prospects.email.postale") });
+      var grille = el("div", { class: "dzProspectsChamps" }, [].concat(
+        champ("prospects.email.mode", f.mode), saisie("nom"), saisie("adresse", "email"), saisie("raison"),
+        champ("prospects.email.postale", f.postale), saisie("smtp_hote"), saisie("smtp_port", "number"),
+        champ("prospects.email.securite", f.securite), saisie("smtp_user"), saisie("imap_hote"), saisie("imap_port", "number"),
+        saisie("imap_user"), saisie("plafond", "number")));
+      var mdp = el("input", { type: "password", autocomplete: "off", "data-dz-prospects": "email-mdp", "aria-label": T("prospects.email.mdp"), placeholder: T("prospects.email.mdp") });
+      var brevo = el("input", { type: "password", autocomplete: "off", "data-dz-prospects": "email-brevo", "aria-label": T("prospects.email.brevo"), placeholder: T("prospects.email.brevo") });
+      function peindre(j) {
+        var x = j.expediteur || {}, id = j.identite || {}, s = j.smtp || {}, im = j.imap || {};
+        f.mode.value = j.mode || "smtp";
+        f.nom.value = x.nom || ""; f.adresse.value = x.adresse || "";
+        f.raison.value = id.raison_sociale || ""; f.postale.value = id.adresse_postale || "";
+        f.smtp_hote.value = s.hote || ""; f.smtp_port.value = String(s.port || 465); f.securite.value = s.securite || "ssl";
+        f.smtp_user.value = s.utilisateur || "";
+        f.imap_hote.value = im.hote || ""; f.imap_port.value = String(im.port || 993); f.imap_user.value = im.utilisateur || "";
+        f.plafond.value = String(j.plafond_jour || 30);
+        vider(etatE); vider(actions);
+        var lignes = [j.pret ? T("prospects.email.pret") : T("prospects.email.manque", {
+          liste: (j.manques || []).map(function (m) { return lib(EMAIL_MANQUES, "prospects.emailmanque.", m); }).join(", ") })];
+        lignes.push(T("prospects.email.jour", { n: j.envoyes_du_jour || 0, plafond: j.plafond_du_jour || 0 }));
+        lignes.push(T("prospects.email.rebonds", { pct: String(Math.round((j.taux_rebond || 0) * 1000) / 10) }));
+        lignes.push(T(j.mdp_pose ? "prospects.email.mdp_pose" : "prospects.email.mdp_absent"));
+        lignes.forEach(function (t) { etatE.appendChild(el("li", { texte: t })); });
+        if (j.pause && j.pause.active) {
+          etatE.appendChild(el("li", { class: "dzProspectsErreur", "data-dz-prospects": "email-pause",
+            texte: T("prospects.email.pause", { motif: lib(EMAIL_PAUSES, "prospects.emailpause.", j.pause.motif) }) }));
+          actions.appendChild(el("button", { type: "button", "data-dz-prospects": "email-reprendre", texte: T("prospects.bouton.reprendre"),
+            on: { click: function () { geste_("reprendre"); } } }));
+        }
+        if (j.erreur && j.erreur.message) etatE.appendChild(el("li", { class: "dzProspectsErreur", "data-dz-prospects": "email-erreur", texte: j.erreur.message }));
+        if (j.pret) actions.appendChild(el("button", { type: "button", "data-dz-prospects": "email-essai", texte: T("prospects.bouton.essai"),
+          on: { click: function () { geste_("test", undefined, "prospects.email.essai_ok"); } } }));
+      }
+      async function geste_(quoi, corpsJson, ok) {
+        var r = await appel("POST", encodeURIComponent(eid) + "/email" + (quoi ? "/" + quoi : ""), corpsJson);
+        if (!vivant) return;
+        if (!r.ok) { erreur(zone, r.j); return; }
+        vider(zone);
+        res.textContent = T(ok || "prospects.email.enregistre", { adresse: (r.j && r.j.envoye_a) || "" });
+        if (quoi === "test") { var g = await appel("GET", encodeURIComponent(eid) + "/email"); if (vivant && g.ok) peindre(g.j); }
+        else peindre(r.j);
+      }
+      var enregistrer = el("button", { type: "button", "data-dz-prospects": "email-enregistrer", texte: T("prospects.bouton.enregistrer_email"), on: { click: function () {
+        geste_("", { mode: f.mode.value, expediteur: { nom: f.nom.value, adresse: f.adresse.value.trim() },
+          identite: { raison_sociale: f.raison.value, adresse_postale: f.postale.value },
+          smtp: { hote: f.smtp_hote.value.trim(), port: parseInt(f.smtp_port.value, 10) || 465, securite: f.securite.value, utilisateur: f.smtp_user.value.trim() },
+          imap: { hote: f.imap_hote.value.trim(), port: parseInt(f.imap_port.value, 10) || 993, utilisateur: f.imap_user.value.trim() },
+          plafond_jour: parseInt(f.plafond.value, 10) || 30 });
+      } } });
+      function poser(quoi, input) {
+        return el("button", { type: "button", "data-dz-prospects": "email-" + quoi + "-enregistrer", texte: T("prospects.bouton.cle"), on: { click: function () {
+          var v = input.value; input.value = "";
+          geste_("secret", { quoi: quoi, valeur: v }, "prospects.email.secret_pose");
+        } } });
+      }
+      appel("GET", encodeURIComponent(eid) + "/email").then(function (r) { if (!vivant) return; if (r.ok) peindre(r.j); else erreur(zone, r.j); });
+      return el("div", { "data-dz-prospects": "email-reglage" }, [
+        el("h3", { texte: T("prospects.titre.email") }),
+        el("p", { class: "dzProspectsNote", texte: T("prospects.email.aide") }),
+        grille, el("div", { class: "dzProspectsActions" }, [enregistrer]),
+        el("div", { class: "dzProspectsActions" }, [mdp, poser("mdp", mdp)]),
+        el("div", { class: "dzProspectsActions" }, [brevo, poser("brevo", brevo)]),
+        etatE, actions, res, zone,
         el("button", { type: "button", "data-dz-prospects": "annuler", texte: T("prospects.bouton.retour"), on: { click: function () { dessiner(); } } })]);
     }
 
