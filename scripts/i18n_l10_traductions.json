@@ -11714,5 +11714,9 @@
  "motif inconnu (prix, devis, plainte, stop, refus, engagement, illisible ou autre)": {
   "fr": "motif inconnu (prix, devis, plainte, stop, refus, engagement, illisible ou autre)",
   "en": "unknown reason (prix, devis, plainte, stop, refus, engagement, illisible or autre)"
+ },
+ "Une campagne témoin se prépare dans un espace démonstration.": {
+  "fr": "Une campagne témoin se prépare dans un espace démonstration.",
+  "en": "A showcase campaign is prepared in a demo workspace."
  }
 }
