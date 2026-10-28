@@ -39,6 +39,7 @@ from loguru import logger
 from app.services import scan_ocr as O
 from app.services import scan_pages as SP
 from app.services import scan_vision as SV
+from app.services.scan_lecture import _indisponible, _joindre, _langues, _lire_ocr, _page_texte  # noqa: F401
 
 router = APIRouter()
 
@@ -95,9 +96,6 @@ def _scan(scan_id: str) -> dict:
         return SP.obtenir(scan_id)
     except KeyError:
         raise HTTPException(404, "Scan inconnu ou expiré (gardé une heure) : relance la lecture.") from None
-
-
-from app.services.scan_lecture import _indisponible, _joindre, _langues, _lire_ocr, _page_texte  # noqa: E402,F401
 
 
 def _secours(n_images: int, request: Request) -> dict | None:

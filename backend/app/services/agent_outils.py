@@ -215,14 +215,19 @@ def _nom_sur(nom: str, defaut: str = "document") -> str:
     return (_SUR.sub("-", tige.lower()).strip("-") or defaut)[:60]
 
 
-_DELIMITEURS = re.compile(r"<<<PREUVE|PREUVE>>>")
+_INVISIBLES = re.compile(r"[\u200b-\u200f\u2060\u2062-\u2064\ufeff\u00ad\u180e]")
+_OUVREUR = re.compile(r"<{3,}\s*(PREUVE)", re.I)
+_FERMEUR = re.compile(r"(PREUVE)\s*>{3,}", re.I)
 
 
 def _neutraliser(texte: str) -> str:
-    """Le texte borné à MAX_DOC, ses délimiteurs `<<<PREUVE` et `PREUVE>>>` neutralisés en un passage (il ne peut pas
-    refermer un cadre)."""
-    return _DELIMITEURS.sub(lambda m: "<<< PREUVE" if m.group(0).startswith("<") else "PREUVE >>>",
-                            str(texte or "")[:MAX_DOC])
+    """Le texte borné à MAX_DOC, ses délimiteurs neutralisés : caractères invisibles ôtés, puis toute suite de trois `<`
+    (ou plus) collée à PREUVE (casse libre, blancs permis) devient `<<< PREUVE`, toute suite de trois `>` collée
+    derrière devient `PREUVE >>>`. Aucune sortie ne contient `<<<PREUVE` ni `PREUVE>>>` et aucun voisinage ne peut les
+    recréer : le texte ne peut pas refermer un cadre."""
+    t = _INVISIBLES.sub("", str(texte or "")[:MAX_DOC])
+    t = _OUVREUR.sub(lambda m: "<<< " + m.group(1), t)
+    return _FERMEUR.sub(lambda m: m.group(1) + " >>>", t)
 
 
 def _preuve(source: str, texte: str) -> str:
@@ -447,17 +452,28 @@ async def lire_texte_image(ctx: Ctx, image: str = "", langue: str = "fr") -> dic
     if f.parent != racine or not f.is_file():
         raise _Refus("image inconnue dans la Bibliothèque")
     from app.services import scan_lecture, scan_ocr, scan_pages
-    try:
+
+    def _lire() -> dict:           # fil : lecture du fichier, validation Pillow, OCR
         if f.stat().st_size > scan_pages.MAX_OCTETS:
             raise _Refus("image trop lourde : 20 Mo au plus")
         plan = scan_pages.charger([(nom, f.read_bytes())])
-        r = await asyncio.to_thread(scan_lecture._lire_ocr, plan, langue)
-    except (scan_pages.RefusPages, scan_ocr.ScanIndisponible, scan_ocr.ScanErreur, ValueError) as e:
+        return scan_lecture._lire_ocr(plan, langue)
+    try:
+        r = await asyncio.to_thread(_lire)
+    except _Refus:
+        raise
+    except (scan_pages.RefusPages, scan_ocr.ScanIndisponible, scan_ocr.ScanErreur) as e:
         raise _Refus(str(e)[:300]) from None
-    mots = int((r.get("stats") or {}).get("mots") or len(str(r.get("texte") or "").split()))
-    return _res(True, f"{mots} mots lus", {"texte": _preuve("scan:" + nom, r.get("texte") or ""),
-                                           "incertains": len(r.get("incertains") or []),
-                                           "stats": r.get("stats") or {}})
+    except OSError:
+        raise _Refus("image illisible : le fichier ne s'ouvre pas") from None
+    except ValueError:
+        raise _Refus("image illisible : la lecture du texte a échoué") from None
+    brut = str(r.get("texte") or "")
+    mots = int((r.get("stats") or {}).get("mots") or len(brut.split()))
+    tronque = len(brut) > MAX_DOC
+    return _res(True, f"{mots} mots lus" + (f" (texte tronqué à {MAX_DOC} caractères)" if tronque else ""),
+                {"texte": _preuve("scan:" + nom, brut), "incertains": len(r.get("incertains") or []),
+                 "stats": r.get("stats") or {}, "tronque": tronque})
 
 
 # ---- écriture locale, porte, devis, brouillons, pointeur -------------------------------------------------------------
