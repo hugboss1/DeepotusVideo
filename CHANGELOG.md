@@ -4,6 +4,30 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — à venir : "Depuis une inspiration" (t313)
+
+**Un post vous inspire ? L'application en refabrique un contenu NEUF, dans la
+voix de votre espace — elle ne republie jamais l'original.**
+
+### Planificateur › Depuis une inspiration
+- **La capture** : glisser, coller ou choisir une image, ou coller le texte du
+  post ; dire d'où elle vient (gardé dans la fiche, jamais publié). Lecture du
+  texte sur le PC, gratuite ; palette relevée.
+- **Matière et trois angles** (Claude, sur devis confirmé, catégorie
+  « scheduler ») : le texte capté n'entre dans la demande qu'encadré comme une
+  preuve ; un angle qui reprend la capture ou un mot interdit est grisé.
+- **Devis puis génération** : texte rédigé sans l'original, visuel fal neuf ;
+  l'image captée n'est jamais envoyée comme visuel.
+- **Brouillon** dans le projet actif de l'espace, sur ses canaux, « À valider »
+  chez un client qui valide. Refusé si 12 mots de suite reprennent la capture,
+  si un mot interdit ou la source (lien, @compte) s'y trouvent, ou si le visuel
+  est l'image captée. La source est notée dans la recette du visuel.
+- Limites : la garde ne joue qu'à la création du brouillon (une modification
+  ultérieure au Planificateur n'est pas rejugée) ; l'animation passe par
+  « Produire » sur le brouillon.
+
+---
+
 # 🐙 Deepotus Video Gen — à venir : "Scanner une page" (t312)
 
 **Une page de livre, un manuscrit tapé à la machine, un PDF scanné : son
