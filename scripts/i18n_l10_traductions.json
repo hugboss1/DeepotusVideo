@@ -11402,5 +11402,9 @@
  "ajustement du score invalide : un entier de -20 à 20 est attendu": {
   "fr": "ajustement du score invalide : un entier de -20 à 20 est attendu",
   "en": "invalid score adjustment: a whole number from -20 to 20 is expected"
+ },
+ "un ajustement du score exige sa raison": {
+  "fr": "un ajustement du score exige sa raison",
+  "en": "a score adjustment requires its reason"
  }
 }

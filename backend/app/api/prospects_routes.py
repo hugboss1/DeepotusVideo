@@ -117,6 +117,14 @@ async def post_statut(request: Request, eid: str, pid: str, body: dict):
     return _faire(request, lambda: P.changer_statut(eid, pid, b.get("statut"), str(b.get("detail") or "")))
 
 
+@router.post("/{eid}/{pid}/qualifier")
+async def post_qualifier(request: Request, eid: str, pid: str, body: dict):
+    """t354 : {offre, ajustement?, raison?} -> la fiche, score recalculé (barème + ajustement borné)."""
+    b = _corps(body)
+    return _faire(request, lambda: P.qualifier(eid, pid, b.get("offre"), b.get("ajustement", 0) if b.get("ajustement") is not None else 0,
+                                               str(b.get("raison") or "")))
+
+
 @router.post("/{eid}/{pid}/consentements")
 async def post_consentement(request: Request, eid: str, pid: str, body: dict):
     b = _corps(body)

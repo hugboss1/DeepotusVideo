@@ -1340,6 +1340,7 @@
   "erreur.7742213e44": {"fr": "{quoi} doit tenir entre {lo} et {hi} mm (reçu {v})", "en": "{quoi} must be between {lo} and {hi} mm (got {v})", "src": "fr"},
   "erreur.774aadf33f": {"fr": "fichier trop lourd (1 Gio au plus)", "en": "file too large (1 GiB at most)", "src": "fr"},
   "erreur.774b567476": {"fr": "rien d'exporté pour Blender sur cette version — « Préparer » d'abord", "en": "nothing exported for Blender on this version — “Prepare” first", "src": "fr"},
+  "erreur.775356cf43": {"fr": "un ajustement du score exige sa raison", "en": "a score adjustment requires its reason", "src": "fr"},
   "erreur.77625526f6": {"fr": "le modèle a rendu {sortie} texte(s) pour {lot} demandé(s)", "en": "the model returned {sortie} text(s) for {lot} requested", "src": "fr"},
   "erreur.7787adb624": {"fr": "Impossible de lire le document : {e}", "en": "Could not read the document: {e}", "src": "en"},
   "erreur.781f631ce2": {"fr": "paquet d'espace : identite/identite.json illisible", "en": "space package: identite/identite.json unreadable", "src": "fr"},
