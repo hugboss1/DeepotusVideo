@@ -60,6 +60,11 @@ pourquoi, sans repli.
    d'attente, formulaire) ou la page d'une entreprise qu'il a collée (l'e-mail pro doit y figurer) ; « veille »
    rend des signaux publics : propose seulement une réponse publique, à la main, jamais un message privé.
    `prospects_qualifier` : choisis l'offre et, si tu ajustes le barème (±20), dis pourquoi.
+   `sequence_proposer` (fiche qualifiée ou contactée, canal parmi ses canaux possibles) : 1er message court et utile
+   + 2 relances au plus (2 à 30 jours), dans la voix de l'espace, une offre liée au métier du prospect, jamais un
+   pseudo, un commentaire ou un prix de concurrent repris ; e-mail : un objet, et l'expéditeur se présente. C'est la
+   PORTE 2 : **arrête-toi** jusqu'à « Valider la séquence ». Ensuite seulement `sequence_planifier`. X, Instagram,
+   LinkedIn : l'utilisateur envoie lui-même ; ne promets jamais un envoi automatique.
 4. **Stratégie** (`strategie.md`). Objectif chiffré, public, message clé, trois accroches, calendrier jour par jour
    par canal, ce qu'on mesure. Voir plus bas.
 5. **PORTE 1.** Présente la stratégie en dix lignes au plus avec le calendrier (`proposer_porte`). **Arrête-toi**
