@@ -11722,5 +11722,13 @@
  "aucune clé Apify : posez-la dans Réglages › Clés d'API": {
   "fr": "aucune clé Apify : posez-la dans Réglages › Clés d'API",
   "en": "no Apify key: set it in Settings › API keys"
+ },
+ "source ou concurrent illisible": {
+  "fr": "source ou concurrent illisible",
+  "en": "unreadable source or competitor"
+ },
+ "concurrent illisible": {
+  "fr": "concurrent illisible",
+  "en": "unreadable competitor"
  }
 }
