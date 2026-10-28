@@ -19,10 +19,14 @@ export function borner(s, n) {
   return (typeof s === "string" ? s : "").replace(/\s+/g, " ").slice(0, n);
 }
 
-// l'étape en cours à l'instant t (ms) de la vidéo : la dernière qui a commencé (t0 ≤ t), sinon la première
+// l'étape en cours à l'instant t (ms) de la vidéo : la première dont l'intervalle [t0, t1] contient t ; sinon la
+// dernière dont le geste (e.t) est passé ; sinon la première. Les t0 ne sont pas forcément croissants (import).
 export function etapeA(etapes, t) {
+  const l = etapes || [];
+  const dans = l.findIndex((e) => e && Number.isFinite(e.t0) && Number.isFinite(e.t1) && e.t0 <= t && t <= e.t1);
+  if (dans >= 0) return dans;
   let i = 0;
-  (etapes || []).forEach((e, k) => { if (e && Number.isFinite(e.t0) && e.t0 <= t) i = k; });
+  l.forEach((e, k) => { if (e && Number.isFinite(e.t) && e.t <= t) i = k; });
   return i;
 }
 

@@ -80,12 +80,19 @@ if (!window.__dzTutoriels) {
     voile.addEventListener("keydown", (ev) => {
       if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); fermer(); return; }
       if (ev.key !== "Tab") return;
-      const f = Array.from(voile.querySelectorAll("button, input, select, textarea, a[href]")).filter((x) => !x.disabled);
+      const f = Array.from(voile.querySelectorAll("button, input, select, textarea, a[href], [tabindex='0']"))
+        .filter((x) => !x.disabled && x.offsetParent !== null);
       if (!f.length) return;
       const i = f.indexOf(document.activeElement);
       if (ev.shiftKey && i <= 0) { ev.preventDefault(); f[f.length - 1].focus(); }
       else if (!ev.shiftKey && i === f.length - 1) { ev.preventDefault(); f[0].focus(); }
     });
+  }
+  // le focus revient à l'élément qui a ouvert la boîte quand elle se ferme
+  function rendreFocus(v) {
+    const avant = document.activeElement;
+    new MutationObserver((m, o) => { if (!v.isConnected) { o.disconnect(); if (avant && avant.isConnected) avant.focus(); } })
+      .observe(document.body, { childList: true });
   }
   function dialogue(titre, attrs, corps, pied, largeur) {
     return el("div", Object.assign({ class: "dzTuV", "data-dz-tuto-ui": true }, attrs), [
@@ -173,31 +180,27 @@ if (!window.__dzTutoriels) {
     const exporterB = bouton("tuto.brouillon.exporter", { "data-dz-tuto-exporter": true, title: T("tuto.brouillon.exporter_aide") }, "dz-action-exporter");
     const fermerB = bouton("tuto.commun.fermer", { "data-dz-tuto-fermer": true });
     proposerB.addEventListener("click", () => agir(proposerB, async () => {
-      b = (await api(`/api/tutoriels/captures/${cid}/proposer`, { method: "POST" })).brouillon;
+      b = (await api(`/api/tutoriels/captures/${encodeURIComponent(cid)}/proposer`, { method: "POST" })).brouillon;
       peindre(); sale();
     }));
     enregistrerB.addEventListener("click", () => agir(enregistrerB, async () => {
-      b = (await api(`/api/tutoriels/captures/${cid}`, json("PUT", { brouillon: b }))).brouillon;
+      b = (await api(`/api/tutoriels/captures/${encodeURIComponent(cid)}`, json("PUT", { brouillon: b }))).brouillon;
       modifie = false; peindre(); etat.textContent = T("tuto.etat.enregistre");
     }));
     fabriquerB.addEventListener("click", () => agir(fabriquerB, async () => {
       etat.textContent = T("tuto.etat.fabrication");
-      const r = await api(`/api/tutoriels/captures/${cid}/fabriquer`, json("POST", { brouillon: b }));
+      const r = await api(`/api/tutoriels/captures/${encodeURIComponent(cid)}/fabriquer`, json("POST", { brouillon: b }));
       etat.textContent = "";
       resultat.replaceChildren(el("span", { class: "dzTuN", "data-dz-brut": true, "data-dz-tuto-fabrique": true,
         texte: T("tuto.fabrique.resultat", { scenes: r.scenes, fiches: r.fiches, exemples: r.exemples, dossier: r.dossier }) }));
     }));
-    let lien = null;
     exporterB.addEventListener("click", () => agir(exporterB, async () => {
       etat.textContent = T("tuto.etat.export");
-      const r = await fetch(`/api/tutoriels/captures/${cid}/parcours`, json("POST", { brouillon: b }));
-      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(typeof j.detail === "string" ? j.detail : String(r.status)); }
-      const m = /filename="?([A-Za-z0-9._-]+)"?/.exec(r.headers.get("content-disposition") || "");
-      const nom = m ? m[1] : "parcours.dzparcours";
-      if (lien) URL.revokeObjectURL(lien);
-      lien = URL.createObjectURL(await r.blob());
+      const j = await api(`/api/tutoriels/captures/${encodeURIComponent(cid)}/parcours`, json("POST", { brouillon: b }));
+      const nom = /^[A-Za-z0-9._-]+$/.test(j.nom || "") ? j.nom : "parcours.dzparcours";
       etat.textContent = "";
-      // un LIEN que l'utilisateur clique lui-même : rien n'est téléchargé sans son geste
+      // un LIEN que l'utilisateur clique lui-même : rien n'est téléchargé sans son geste, la vidéo ne passe pas en mémoire
+      const lien = `/api/tutoriels/captures/${encodeURIComponent(cid)}/parcours`;
       const a = el("a", { href: lien, download: nom, class: "dzTuB", "data-dz-tuto-telecharger": true, style: "text-decoration:none" });
       a.appendChild(glyphe("dz-action-telecharger"));
       a.appendChild(document.createTextNode(T("tuto.export.telecharger", { nom })));
@@ -216,11 +219,11 @@ if (!window.__dzTutoriels) {
         etat.textContent = T("tuto.etat.fermer_modifie");
         return;
       }
-      if (lien) URL.revokeObjectURL(lien);
       v.remove();
     };
     fermerB.addEventListener("click", () => fermer());
     piege(v, fermer);
+    rendreFocus(v);
     document.body.appendChild(v);
     if (d.propose) etat.textContent = T("tuto.etat.propose", { etapes: b.etapes.length, chapitres: b.chapitres.length });
     peindre();
@@ -255,6 +258,7 @@ if (!window.__dzTutoriels) {
       el("div", {}, [el("div", { class: "dzTuC" }, [el("div", { class: "dzTuN", texte: T("tuto.parcours.intro") }), etat]), corps]), pied, 560);
     fermer = () => v.remove();
     piege(v, fermer);
+    rendreFocus(v);
     document.body.appendChild(v);
     async function charger() {
       corps.replaceChildren(el("div", { class: "dzTuN", texte: T("tuto.parcours.chargement") }));
@@ -266,7 +270,7 @@ if (!window.__dzTutoriels) {
           const retirer = bouton("tuto.parcours.retirer", { "data-dz-tuto-retirer": p.id }, "dz-action-supprimer");
           retirer.addEventListener("click", async () => {
             if (!retirer.hasAttribute("data-confirme")) { retirer.setAttribute("data-confirme", ""); retirer.lastChild.textContent = T("tuto.parcours.retirer_confirmer"); return; }
-            try { await api(`/api/tutoriels/parcours/${p.id}`, { method: "DELETE" }); charger(); }
+            try { await api(`/api/tutoriels/parcours/${encodeURIComponent(p.id)}`, { method: "DELETE" }); charger(); }
             catch (e) { etat.textContent = T("tuto.erreur.action", { msg: e.message }); }
           });
           corps.appendChild(el("div", { class: "dzTuL", style: "justify-content:space-between", "data-dz-tuto-ligne": p.id }, [
@@ -295,15 +299,25 @@ if (!window.__dzTutoriels) {
     pied.querySelector("[data-dz-tuto-fermer]").focus();
   }
 
-  // ── le rejeu : panneau non modal, pointeur de « Demander » ──
-  let panneau = null;
+  // ── le rejeu : panneau non modal, pointeur de « Demander » (UN pour le module) ──
+  let panneau = null, departPointeur = null, jetonRejeu = 0;
+  const pointeur = creerPointeur({
+    depart: () => {
+      const q = departPointeur && departPointeur.isConnected ? departPointeur.getBoundingClientRect() : { x: 0, y: window.innerHeight, width: 0, height: 0 };
+      return { x: q.x + q.width / 2, y: q.y + q.height / 2 };
+    },
+    ignorer: (cible) => !!(panneau && panneau.r.contains(cible)),
+  });
   async function rejouer(pid) {
+    const moiRejeu = ++jetonRejeu;                     // deux « Rejouer » rapprochés : le dernier seul ouvre un panneau
     if (panneau) panneau.fermer();
     let p;
     try { p = await api(`/api/tutoriels/parcours/${encodeURIComponent(pid)}`); }
     catch (e) { return erreurSeule(e.message); }
-    let i = 0, tour = 0;
-    const video = el("video", { src: `/api/tutoriels/parcours/${pid}/video`, controls: true, playsinline: true, preload: "metadata",
+    if (moiRejeu !== jetonRejeu) return;
+    if (panneau) panneau.fermer();
+    let i = 0, tour = 0, auto = false;
+    const video = el("video", { src: `/api/tutoriels/parcours/${encodeURIComponent(pid)}/video`, controls: true, playsinline: true, preload: "metadata",
       "data-dz-tuto-video": true });
     const numero = el("div", { class: "dzTuH", "data-dz-tuto-numero": true });
     const titre = el("div", { "data-dz-brut": true, "data-dz-tuto-etape-titre": true, style: "font-weight:600;color:var(--txt-hi,#e6e9ee)" });
@@ -318,10 +332,7 @@ if (!window.__dzTutoriels) {
       video,
       el("div", { class: "dzTuC" }, [numero, titre, phrase, statut]),
       el("div", { class: "dzTuPied" }, [prec, montrerB, suiv, el("span", { style: "flex:1" }), fermerB])]);
-    const pointeur = creerPointeur({
-      depart: () => { const q = montrerB.getBoundingClientRect(); return { x: q.x + q.width / 2, y: q.y + q.height / 2 }; },
-      ignorer: (cible) => r.contains(cible),
-    });
+    departPointeur = montrerB;
     function aller(k, lire, deplacer = true) {
       pointeur.effacer(); tour++;
       i = Math.max(0, Math.min(p.etapes.length - 1, k));
@@ -332,12 +343,13 @@ if (!window.__dzTutoriels) {
       statut.textContent = e.action ? "" : T("tuto.rejeu.absent");
       montrerB.disabled = !e.action;
       prec.disabled = i === 0; suiv.disabled = i === p.etapes.length - 1;
-      if (deplacer) { try { video.currentTime = fenetreEtape(e).debut; } catch (x) { /* métadonnées pas encore lues */ } }
+      if (deplacer) { try { auto = true; video.currentTime = fenetreEtape(e).debut; } catch (x) { auto = false; /* métadonnées pas encore lues */ } }
       if (lire) video.play().catch(() => {});
     }
-    video.addEventListener("loadedmetadata", () => { try { video.currentTime = fenetreEtape(p.etapes[i]).debut; } catch (x) { /* rien */ } }, { once: true });
+    video.addEventListener("loadedmetadata", () => { try { auto = true; video.currentTime = fenetreEtape(p.etapes[i]).debut; } catch (x) { auto = false; } }, { once: true });
     // la tête de lecture déplacée à la main : l'étape affichée suit (sans déplacer la vidéo)
     video.addEventListener("seeked", () => {
+      if (auto) { auto = false; return; }                // déplacement fait par « Précédente/Suivante »
       const k = etapeA(p.etapes, Math.round(video.currentTime * 1000));
       if (k !== i) aller(k, false, false);
     });
@@ -347,7 +359,11 @@ if (!window.__dzTutoriels) {
     montrerB.addEventListener("click", () => montrerEtape(p.etapes[i]));
     const fermer = () => { tour++; pointeur.effacer(); video.pause(); video.removeAttribute("src"); r.remove(); if (panneau && panneau.r === r) panneau = null; };
     fermerB.addEventListener("click", fermer);
-    r.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && !pointeur.actif()) { ev.preventDefault(); fermer(); } });
+    r.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Escape") return;
+      ev.preventDefault();
+      if (pointeur.actif()) pointeur.effacer(); else fermer();
+    });
     panneau = { r, fermer };
     document.body.appendChild(r);
     aller(0, false);
@@ -439,6 +455,7 @@ if (!window.__dzTutoriels) {
     const dlg = boite.querySelector('[role="dialog"]');
     const pied = dlg && dlg.lastElementChild;
     if (!pied || pied.querySelector("[data-dz-tuto-depuis-depart]")) return;
+    // la boîte « Filmer l'app » se ferme par SON chemin Échap (contrat partagé avec dz-montage-capture.js, t317)
     const b = bouton("tuto.entree.parcours", { "data-dz-tuto-depuis-depart": true, title: T("tuto.entree.parcours_aide"), on: { click: () => {
       boite.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
       parcours(); } } }, "dz-media-lecture");

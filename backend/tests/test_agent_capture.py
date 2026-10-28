@@ -94,13 +94,15 @@ try:
     avant = sorted(p.name for p in d.iterdir())
     r = asyncio.run(ao.executer("proposer_decoupe", {"capture": CID}, ao.Ctx(cid="c1", agent="capture_test")))
     k = r.get("carte") or {}
-    check("4b découpe : une carte proposée (zooms, temps morts, chapitres)", r["ok"] and k.get("genre") == "ouvrir" and k.get("ouvre") == "montage_capture"
-          and k.get("etat") == "proposee" and k.get("capture") == CID and k.get("chapitres") == 2 and k.get("zooms") == 1, r)
+    check("4b découpe : une carte proposée (zooms, temps morts, chapitres)", r["ok"] and k.get("genre") == "ouvrir" and k.get("action") == "ouvrir_montage_capture"
+          and k.get("etat") == "proposee" and k["arguments"]["capture"] == CID and k["arguments"]["chapitres"] == 2
+          and k["arguments"]["zooms"] == 1, r)
     r = asyncio.run(ao.executer("proposer_chapitres_tuto", {"capture": CID}, ao.Ctx(cid="c1", agent="capture_test")))
     k = r.get("carte") or {}
     check("4c chapitres du tutoriel : une carte (2 écrans, 1 étape par geste, clic masqué écarté)", r["ok"]
-          and k.get("genre") == "ouvrir" and k.get("ouvre") == "tutoriel_capture" and [h["ecran"] for h in k["chapitres"]] == ["quick", "studio"]
-          and len(k["etapes"]) == 1 and k["etapes"][0]["t"] != 2000, r)
+          and k.get("genre") == "ouvrir" and k.get("action") == "ouvrir_tutoriel_capture"
+          and [h["ecran"] for h in k["arguments"]["chapitres"]] == ["quick", "studio"]
+          and len(k["arguments"]["etapes"]) == 1 and k["arguments"]["etapes"][0]["t"] != 2000, r)
     check("4d aucune écriture (ni montage ni brouillon)", sorted(p.name for p in d.iterdir()) == avant)
     check("4e refus : id invalide, capture non terminée", asyncio.run(ao.executer("proposer_decoupe", {"capture": "../x"},
           ao.Ctx(cid="c1", agent="capture_test")))["ok"] is False and asyncio.run(ao.executer("proposer_chapitres_tuto",

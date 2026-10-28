@@ -62,7 +62,7 @@ EVTS = [{"type": "ecran", "t": 0, "ecran": "quick"},
         clic(1600, .62, .40, secret=True),
         clic(3500, .80, .20, fiche=None, lu="Bouton inconnu"),
         {"type": "ecran", "t": 4500, "ecran": "vectorlab"},
-        clic(5200, .50, .55, ecran="vectorlab", fiche="vectorlab.calques.descendre_titre"),
+        clic(5200, .50, .55, ecran="vectorlab", fiche="vectorlab.page.raccourcis"),
         {"type": "generation_debut", "t": 5400, "job_id": "job-secret-1", "provider": "fal"},
         {"type": "generation_fin", "t": 5600, "job_id": "job-secret-1", "provider": "fal", "statut": "done"}]
 
@@ -89,10 +89,11 @@ B = T.proposer(DOC)
 check("B1 une étape par zoom non masqué (3 : le clic secret n'en fait pas)", len(B["etapes"]) == 3, B["etapes"])
 check("B2 aucune étape au clic secret", all(abs(e["x"] - .62) > 1e-6 for e in B["etapes"]))
 e1, e2, e3 = B["etapes"]
-check("B3 fiche du clic reprise", e1["fiche"] == "quick.galerie.bouton" and e3["fiche"] == "vectorlab.calques.descendre_titre")
+check("B3 fiche du clic reprise", e1["fiche"] == "quick.galerie.bouton" and e3["fiche"] == "vectorlab.page.raccourcis")
 check("B4 titres FR/EN depuis le catalogue", e1["titre"] == {"fr": "Cliquer « Galerie »", "en": "Click “Gallery”"}, e1["titre"])
-check("B5 repli sur le libellé lu", e2["fiche"] is None and "Bouton inconnu" in e2["titre"]["fr"], e2)
-check("B6 lab : infobulle du catalogue comme nom", "Descendre le calque" in e3["titre"]["fr"], e3["titre"])
+check("B5 fiche inconnue : « Étape n », jamais le texte lu (il peut nommer un fichier)", e2["fiche"] is None
+      and e2["titre"] == {"fr": "Étape 2", "en": "Step 2"} and "Bouton inconnu" not in json.dumps(B), e2)
+check("B6 lab : infobulle du catalogue comme nom", "Raccourcis clavier" in e3["titre"]["fr"], e3["titre"])
 check("B7 phrases ≤ 25 mots, tirées du rôle", all(len(e["phrase"][k].split()) <= 25 for e in B["etapes"] for k in "fr en".split())
       and e1["phrase"]["fr"] != "", e1["phrase"])
 check("B8 trois temps ordonnés autour du clic", all(e["t0"] <= e["t"] <= e["t1"] for e in B["etapes"]) and e1["t"] == 1000)
@@ -155,15 +156,16 @@ check("F9 fragment échappé : un titre <script> reste du texte", "<script>" not
       and 'data-scene="tuto-bbbbbbbb/etape-1"' in FR and '<ol class="etapes">' in FR, FR[:400])
 check("F10 fragment anglais", "Click “Gallery”" in (D / "guide" / "chapitre.en.html").read_text("utf-8"))
 IX = json.loads((D / "aide" / "vectorlab" / "index.json").read_text("utf-8"))
-check("F11 fiche didactique au format de l'index (lab seulement)", len(IX) == 1 and set(IX[0]) >= {
+check("F11 fiche didactique au format de l'index (lab seulement, id DOM du localisateur)", len(IX) == 1
+      and IX[0]["id"] == "btnAide" and IX[0]["fichier"] == "vectorlab.btnAide.webp" and set(IX[0]) >= {
     "id", "titre", "phrase", "fichier", "version", "titre_en", "phrase_en", "fichier_en"} and IX[0]["brouillon"] is True
       and not (D / "aide" / "quick").exists() and len(IX[0]["phrase"].split()) <= 25, IX)
 im = Image.open(D / "aide" / "vectorlab" / IX[0]["fichier"])
 check("F12 WebP 320 × 200 à trois images", im.size == (320, 200) and getattr(im, "n_frames", 1) == 3, (im.size, getattr(im, "n_frames", 1)))
 EX = json.loads((D / "catalogue" / "exemples.json").read_text("utf-8"))
 check("F13 un exemple de parcours réel par fiche", [x["fiche"] for x in EX["exemples"]] == ["quick.galerie.bouton",
-      "vectorlab.calques.descendre_titre"] and EX["exemples"][0]["parcours"] == ["quick.galerie.bouton",
-      "vectorlab.calques.descendre_titre"], EX)
+      "vectorlab.page.raccourcis"] and EX["exemples"][0]["parcours"] == ["quick.galerie.bouton",
+      "vectorlab.page.raccourcis"], EX)
 R2 = T.fabriquer(CID, marge=0.1)
 S2 = json.loads((D / "guide" / "scenes" / f"tuto-{CID[:8]}" / "etape-1" / "scene.json").read_text("utf-8"))
 check("F13b cadre du skin : le clic est ramené dans l'écran réduit de la vidéo", S2["temps"][1]["curseur"] == [
@@ -231,6 +233,15 @@ e = P2["etapes"][0]
 check("P19 fiche inconnue ici : action null ; champs du fichier ignorés", e["action"] is None and "selecteur" not in e
       and "‮" not in e["titre"]["fr"], e)
 check("P20 id de parcours au gabarit", leve(lambda: T.lire_parcours("../x"), 400) and leve(lambda: T.lire_parcours("0" * 16), 404))
+Z4 = fabrique_zip({"parcours.json": BON, "video.webm": WEBM, "clics.json": "{}", "x": b""})
+check("P23 plus de 3 entrées : refusé avant d'ouvrir l'archive", leve(lambda: T.importer(Z4), 400))
+PV = T.video_parcours(PID)
+fh = open(PV, "rb")
+try:
+    check("P24 vidéo en lecture : retrait refusé (409), parcours intact", leve(lambda: T.retirer_parcours(PID), 409)
+          and T.lire_parcours(PID)["id"] == PID)
+finally:
+    fh.close()
 T.retirer_parcours(PID)
 check("P21 retrait", not (T.racine_parcours() / PID).exists() and len(T.liste_parcours()) == 1)
 check("P22 fallback : fiche sans localisateur cherchée par son libellé local", (lambda a: a and a["selecteur"] == T.SELECTEUR_GENERIQUE

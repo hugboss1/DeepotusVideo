@@ -98,9 +98,17 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     check("2.4 aucune étape gardée -> 409", c.post(f"/api/tutoriels/captures/{A}/fabriquer", json={"brouillon": tout_ecarte}).status_code == 409)
 
     print("[3] parcours")
-    x = c.post(f"/api/tutoriels/captures/{A}/parcours", json={})
-    check("3.1 export téléchargé (zip)", x.status_code == 200 and x.content[:2] == b"PK"
-          and "dzparcours" in x.headers.get("content-disposition", ""), (x.status_code, x.headers))
+    x0 = c.post(f"/api/tutoriels/captures/{A}/parcours", json={})
+    x = c.get(f"/api/tutoriels/captures/{A}/parcours")
+    check("3.1 export préparé (nom), puis téléchargé par le lien (zip)", x0.status_code == 200 and x0.json()["nom"].endswith(".dzparcours")
+          and x.status_code == 200 and x.content[:2] == b"PK" and x0.json()["nom"] in x.headers.get("content-disposition", ""),
+          (x0.text, x.status_code, x.headers))
+    TR._EN_COURS.add("x" + A)
+    check("3.1b export concurrent -> 409", c.post(f"/api/tutoriels/captures/{A}/parcours", json={}).status_code == 409)
+    TR._EN_COURS.discard("x" + A)
+    check("3.1c un seul export gardé", len(list((T.racine_brouillons() / f"export-{A}").glob("*.dzparcours"))) == 1
+          or c.post(f"/api/tutoriels/captures/{A}/parcours", json={}).status_code == 200
+          and len(list((T.racine_brouillons() / f"export-{A}").glob("*.dzparcours"))) == 1)
     i = c.post("/api/tutoriels/parcours/importer", content=x.content, headers={"Content-Type": "application/octet-stream"})
     check("3.2 import du corps brut", i.status_code == 200 and T.PID.match(i.json()["id"]), i.text)
     pid = i.json()["id"]
@@ -133,12 +141,13 @@ with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) a
              c2.post(f"/api/tutoriels/captures/{A}/proposer").status_code,
              c2.post(f"/api/tutoriels/captures/{A}/fabriquer", json={}).status_code,
              c2.post(f"/api/tutoriels/captures/{A}/parcours", json={}).status_code,
+             c2.get(f"/api/tutoriels/captures/{A}/parcours").status_code,
              c2.get("/api/tutoriels/parcours").status_code,
              c2.post("/api/tutoriels/parcours/importer", content=b"x").status_code,
              c2.get("/api/tutoriels/parcours/" + "0" * 16).status_code,
              c2.get("/api/tutoriels/parcours/" + "0" * 16 + "/video").status_code,
              c2.delete("/api/tutoriels/parcours/" + "0" * 16).status_code]
-    check("4.1 403 partout", codes == [403] * 10, codes)
+    check("4.1 403 partout", codes == [403] * 11, codes)
 
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)

@@ -8,7 +8,8 @@ Boucle locale SEULEMENT (`routes._require_localhost`), comme /api/capture.
 - `POST /captures/{id}/proposer`    une proposition neuve (rien n'est écrit).
 - `POST /captures/{id}/fabriquer`   {brouillon?} -> {scenes, fiches, exemples, dossier} ; brouillons dans
                                     `tutoriels/<id>/` (rien n'est publié) ; une fabrication à la fois par capture (409).
-- `POST /captures/{id}/parcours`    {brouillon?} -> le fichier `.dzparcours` (téléchargement).
+- `POST /captures/{id}/parcours`    {brouillon?} -> {nom} : le `.dzparcours` préparé (un export à la fois : 409).
+- `GET  /captures/{id}/parcours`    le dernier `.dzparcours` préparé (lien de téléchargement).
 - `GET  /parcours`                  les parcours importés.
 - `POST /parcours/importer`         corps BRUT = le `.dzparcours` (plafonné en lisant : 413) -> {id}.
 - `GET  /parcours/{pid}`            le parcours, chaque étape avec son `action` construite depuis CETTE installation.
@@ -31,6 +32,10 @@ from app.services import capture_montage as M
 from app.services import tutoriels as T
 
 router = APIRouter()
+try:
+    T.purger()                                           # restes d'opérations interrompues (au démarrage)
+except OSError:
+    pass
 
 MAX_CORPS = 2 * 1024 * 1024
 _EN_COURS: set[str] = set()
@@ -42,9 +47,13 @@ def _local(request: Request) -> None:
 
 
 async def _json(request: Request) -> dict:
-    corps = await request.body()
-    if len(corps) > MAX_CORPS:
-        raise HTTPException(413, "Corps de requête trop lourd.")
+    morceaux, lu = [], 0
+    async for m in request.stream():                     # borné EN LISANT (revue finale)
+        lu += len(m)
+        if lu > MAX_CORPS:
+            raise HTTPException(413, "Corps de requête trop lourd.")
+        morceaux.append(m)
+    corps = b"".join(morceaux)
     try:
         d = json.loads(corps or b"{}")
     except ValueError:
@@ -115,13 +124,32 @@ async def fabriquer(cid: str, request: Request):
 
 @router.post("/captures/{cid}/parcours")
 async def exporter(cid: str, request: Request):
+    """Prépare le `.dzparcours` sur disque ; le navigateur le télécharge ensuite par un LIEN (GET ci-dessous) que
+    l'utilisateur clique, sans charger la vidéo en mémoire (revue finale I6). Un export à la fois par capture."""
     _local(request)
     d = await _json(request)
+    if not C.ID.match(cid or ""):
+        raise HTTPException(400, "Identifiant de capture invalide.")
+    if ("x" + cid) in _EN_COURS:
+        raise HTTPException(409, "Un export de ce parcours est déjà en cours.")
+    _EN_COURS.add("x" + cid)
     try:
         f = await asyncio.to_thread(T.exporter, cid, d.get("brouillon"))
     except _REFUS as e:
         raise _refus(e) from None
+    finally:
+        _EN_COURS.discard("x" + cid)
     logger.info(f"tutoriel {cid} : parcours exporté ({f.stat().st_size} octets)")
+    return {"ok": True, "nom": f.name, "octets": f.stat().st_size}
+
+
+@router.get("/captures/{cid}/parcours")
+async def telecharger(cid: str, request: Request):
+    _local(request)
+    try:
+        f = await asyncio.to_thread(T.dernier_export, cid)
+    except T.RefusTutoriel as e:
+        raise _refus(e) from None
     return FileResponse(f, media_type="application/zip", filename=f.name)
 
 

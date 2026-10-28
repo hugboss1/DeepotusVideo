@@ -528,31 +528,33 @@ async def _capture_close(capture: str) -> dict:
 
 async def proposer_decoupe(ctx: Ctx, capture: str = "") -> dict:
     """t319 (28/10/2026) : propose la DÉCOUPE d'une capture (zooms par geste, temps morts, chapitres par écran) sous forme
-    de carte (genre « ouvrir » du format partagé, `ouvre: montage_capture`) ; l'éditeur de montage s'ouvre au clic de
+    de carte (genre « ouvrir » du format partagé, `action: ouvrir_montage_capture`, `arguments.capture`) ; l'éditeur de montage s'ouvre au clic de
     l'utilisateur. Rien n'est écrit ni rendu."""
     from app.services import capture_montage as _cm
     r = await _capture_close(capture)
     m = _cm.proposer(r["clics"])
-    carte = {"type": "carte", "genre": "ouvrir", "ouvre": "montage_capture", "etat": "proposee", "capture": capture,
+    carte = {"type": "carte", "genre": "ouvrir", "etat": "proposee", "action": "ouvrir_montage_capture",
              "libelle": f"Découpe proposée : {len(m['zooms'])} zooms, {len(m['coupes'])} temps morts, "
                         f"{len(m['chapitres'])} chapitres",
-             "zooms": len(m["zooms"]), "coupes": len(m["coupes"]), "chapitres": len(m["chapitres"])}
+             "arguments": {"capture": capture, "zooms": len(m["zooms"]), "coupes": len(m["coupes"]),
+                           "chapitres": len(m["chapitres"])}}
     return _res(True, f"découpe proposée ({len(m['zooms'])} zooms, {len(m['coupes'])} temps morts, "
                       f"{len(m['chapitres'])} chapitres) : en attente du clic de l'utilisateur", None, carte)
 
 
 async def proposer_chapitres_tuto(ctx: Ctx, capture: str = "") -> dict:
     """t319 (28/10/2026) : propose les CHAPITRES ET ÉTAPES du tutoriel d'une capture (un chapitre par écran, une étape par
-    geste, sa fiche du catalogue) sous forme de carte (genre « ouvrir », `ouvre: tutoriel_capture`) ; le brouillon
+    geste, sa fiche du catalogue) sous forme de carte (genre « ouvrir », `action: ouvrir_tutoriel_capture`) ; le brouillon
     s'ouvre au clic de l'utilisateur. Rien n'est
     écrit, fabriqué ni publié."""
     from app.services import tutoriels as _tu
     r = await _capture_close(capture)
     b = _tu.proposer(r["clics"])
-    carte = {"type": "carte", "genre": "ouvrir", "ouvre": "tutoriel_capture", "etat": "proposee", "capture": capture,
+    carte = {"type": "carte", "genre": "ouvrir", "etat": "proposee", "action": "ouvrir_tutoriel_capture",
              "libelle": f"Brouillon de tutoriel : {len(b['chapitres'])} chapitres, {len(b['etapes'])} étapes",
-             "chapitres": [{"t": h["t"], "ecran": h["ecran"]} for h in b["chapitres"]],
-             "etapes": [{"t": e["t"], "ecran": e["ecran"], "fiche": e["fiche"]} for e in b["etapes"]]}
+             "arguments": {"capture": capture,
+                           "chapitres": [{"t": h["t"], "ecran": h["ecran"]} for h in b["chapitres"]],
+                           "etapes": [{"t": e["t"], "ecran": e["ecran"], "fiche": e["fiche"]} for e in b["etapes"]]}}
     return _res(True, f"brouillon de tutoriel proposé ({len(b['chapitres'])} chapitres, {len(b['etapes'])} étapes) : "
                       "en attente du clic de l'utilisateur", None, carte)
 

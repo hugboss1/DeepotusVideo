@@ -57,8 +57,10 @@ import * as L from {json.dumps(URL)};
 const r = {{}};
 r.mots = [L.compterMots("un  deux\\ntrois "), L.compterMots(""), L.compterMots(null)];
 r.borner = L.borner("a\\n\\n b" + "x".repeat(300), 10);
-const E = [{{t0: 1000}}, {{t0: 3000}}, {{t0: 6000}}];
-r.etape = [L.etapeA(E, 0), L.etapeA(E, 1000), L.etapeA(E, 4500), L.etapeA(E, 99999), L.etapeA([], 5)];
+const E = [{{t0: 1000, t: 1500, t1: 2500}}, {{t0: 3000, t: 3500, t1: 5000}}, {{t0: 6000, t: 6500, t1: 8000}}];
+const D = [{{t0: 500, t: 4000, t1: 4500}}, {{t0: 600, t: 1000, t1: 1200}}];   // t0 non croissants (import)
+r.etape = [L.etapeA(E, 0), L.etapeA(E, 1000), L.etapeA(E, 4500), L.etapeA(E, 99999), L.etapeA(E, 2800), L.etapeA([], 5),
+  L.etapeA(D, 1100), L.etapeA(D, 4200)];
 r.langue = [L.dansLangue({{fr: "a", en: "b"}}, "en"), L.dansLangue({{fr: "a", en: ""}}, "en"), L.dansLangue(null, "fr")];
 const bon = {{type: "point", cible: "quick.galerie.bouton", selecteur: "button", texte: {{fr: "Galerie", en: "Gallery"}},
   ecran: "quick", cadre: null, reglages: null, partout: false, libelle: null, fr: "Galerie", en: "Gallery",
@@ -74,7 +76,7 @@ console.log(JSON.stringify(r));
 """)
 check("L1 mots", R["mots"] == [3, 0, 0], R["mots"])
 check("L2 borné, sans retour à la ligne", R["borner"] == "a b" + "x" * 7, R["borner"])
-check("L3 étape à l'instant t", R["etape"] == [0, 0, 1, 2, 0], R["etape"])
+check("L3 étape à l'instant t (intervalle, sinon dernier geste passé)", R["etape"] == [0, 0, 1, 2, 0, 0, 0, 0], R["etape"])
 check("L4 langue avec repli", R["langue"] == ["b", "a", ""], R["langue"])
 S = R["sure"]
 check("L5 action sûre : champs inconnus retirés", S and set(S) == {"type", "cible", "selecteur", "texte", "libelle", "ecran",
@@ -105,7 +107,9 @@ check("P5 aucun clic simulé", not re.search(r"\.click\(\)|new (Mouse|Pointer)Ev
 check("P6 ni eval, ni Function, ni alert/confirm/prompt", not re.search(r"\beval\(|new Function|\balert\(|\bconfirm\(|\bprompt\(", TXT + LOG))
 check("P7 innerHTML réservé au glyphe de l'app", TXT.count("innerHTML") == 1 and "s.innerHTML = typeof window.dzIcone" in TXT)
 check("P8 aucun emoji", not re.search("[\U0001F300-\U0001FAFF☀-➿]", TXT + LOG))
-check("P9 téléchargement : un lien download, pas de clic", 'el("a", { href: lien, download: nom' in TXT)
+check("P9 téléchargement : un lien download vers le serveur, pas de clic ni de blob en mémoire", 'el("a", { href: lien, download: nom' in TXT
+      and "createObjectURL" not in TXT and ".blob()" not in TXT)
+check("P12 un seul pointeur pour le module", TXT.count("creerPointeur(") == 1)
 check("P10 l'action du parcours passe par actionSure avant le pointeur", "const a = actionSure(e && e.action)" in TXT)
 check("P11 navigation seulement depuis montrerEtape (geste « Montrer »)", TXT.count('new CustomEvent("deepotus:navigate"') == 1
       and TXT.index('new CustomEvent("deepotus:navigate"') > TXT.index("async function montrerEtape"))

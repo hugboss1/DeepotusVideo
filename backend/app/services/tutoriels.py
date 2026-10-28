@@ -56,6 +56,7 @@ MAX_CLICS_JSON = 8 * 1024 * 1024
 MAX_VIDEO = 2 * 1024 * 1024 * 1024        # 2 Go
 MAX_ZIP = MAX_VIDEO + 16 * 1024 * 1024
 MAX_EVTS = 20000
+MAX_PARCOURS = 100                        # parcours importés gardés au plus (chacun jusqu'à 2 Go)
 
 _VERROU = threading.Lock()
 
@@ -132,7 +133,7 @@ def nom_fiche(fiche: str | None) -> dict:
 
 def _clic_proche(clics: list, z: dict) -> dict | None:
     dedans = [c for c in clics if z["t0"] <= c["t"] <= z["t1"]]
-    pool = dedans or clics
+    pool = dedans
     if not pool:
         return None
     mil = (z["t0"] + z["t1"]) / 2
@@ -155,10 +156,10 @@ def proposer(clics_doc, montage: dict | None = None) -> dict:
         fiche = _fiche(c.get("fiche"))
         x = _catalogue().get(fiche or "") or {}
         lib, tip = x.get("libelle") or {}, x.get("infobulle") or {}
-        lu = texte(((c.get("cible") or {}).get("t") or (c.get("cible") or {}).get("i") or ""), 60)
-        # le nom : le libellé du catalogue, sinon le texte lu au clic (langue de l'enregistrement), sinon l'infobulle
-        nfr = texte(lib.get("fr") or "", 60) or lu or texte(tip.get("fr") or "", 60)
-        nen = texte(lib.get("en") or "", 60) or texte(tip.get("en") or "", 60) or lu
+        # le nom : le libellé du catalogue, sinon son infobulle ; JAMAIS le texte lu au clic (revue finale I1 : un
+        # title ou un aria-label peut nommer un fichier ou un chemin, et le titre part dans le parcours exporté)
+        nfr = texte(lib.get("fr") or "", 60) or texte(tip.get("fr") or "", 60)
+        nen = texte(lib.get("en") or "", 60) or texte(tip.get("en") or "", 60)
         n = len(etapes) + 1
         titre = {"fr": f"Cliquer « {nfr} »" if nfr else f"Étape {n}", "en": f"Click “{nen}”" if nen else f"Step {n}"}
         role = x.get("role") or {}
@@ -262,9 +263,13 @@ def ecrire_brouillon(cid: str, doc) -> dict:
     b["capture_id"] = cid
     d = C._dossier(cid)
     fd, nom = tempfile.mkstemp(prefix="tutoriel.", suffix=".json.tmp", dir=d)
-    with os.fdopen(fd, "w", encoding="utf-8") as fh:
-        json.dump(b, fh, ensure_ascii=False, indent=1)
-    Path(nom).replace(d / "tutoriel.json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            json.dump(b, fh, ensure_ascii=False, indent=1)
+        Path(nom).replace(d / "tutoriel.json")
+    except BaseException:
+        Path(nom).unlink(missing_ok=True)
+        raise
     return b
 
 
@@ -320,14 +325,13 @@ def _vignette(im, x: float, y: float, l: int = 320, h: int = 200):
     return im.crop((x0, y0, x0 + w, y0 + hh)).resize((l, h), Image.LANCZOS)
 
 
-def _ident_fiche(fiche: str | None, n: int) -> str:
-    """L'id d'une fiche didactique : l'id DOM du localisateur local (« #outil »), sinon le dernier segment de la fiche."""
+def _ident_fiche(fiche: str | None, n: int) -> str | None:
+    """L'id DOM d'une fiche didactique : celui du localisateur local (« #outil ») ; None sinon (pas de fiche : l'encart
+    des labs la cherche par l'id de l'option)."""
     x = _catalogue().get(fiche or "") or {}
     sel = ((x.get("localisateur") or {}).get("selecteur") or "") if isinstance(x.get("localisateur"), dict) else ""
     m = re.fullmatch(r"#([A-Za-z][A-Za-z0-9_-]{0,40})", sel or "")
-    if m:
-        return m.group(1)
-    return (fiche.split(".")[-1] if fiche else f"etape{n}")[:40]
+    return m.group(1) if m else None
 
 
 def _chapitre_html(b: dict, gardees: list, dossier_scene: str, lang: str) -> str:
@@ -429,8 +433,8 @@ def fabriquer(cid: str, doc=None, marge: float | None = None) -> dict:
                                {"capture": 2, "duree": 2.0, "bulle": bulle2}],
                      "brouillon": True, "source": {"capture": cid, "t": e["t"], "fiche": e["fiche"]}}
             (ds / "scene.json").write_text(json.dumps(scene, ensure_ascii=False, indent=2), "utf-8")
-            if e["ecran"] in LABS:
-                ident = _ident_fiche(e["fiche"], n)
+            ident = _ident_fiche(e["fiche"], n) if e["ecran"] in LABS else None
+            if ident:
                 da = tmp / "aide" / e["ecran"]
                 da.mkdir(parents=True, exist_ok=True)
                 nomf = f"{e['ecran']}.{ident}.webp"
@@ -520,8 +524,13 @@ def exporter(cid: str, doc=None) -> Path:
         raise RefusTutoriel("Vidéo trop lourde pour un parcours.", 413)
     d = racine_brouillons() / f"export-{cid}"
     d.mkdir(parents=True, exist_ok=True)
-    final = d / f"parcours-{cid[:8]}.dzparcours"
-    fd, nom = tempfile.mkstemp(prefix="parcours.", suffix=".tmp", dir=d)
+    for vieux in d.glob("*"):                                 # un seul export gardé : les précédents partent
+        try:
+            vieux.unlink()
+        except OSError:
+            pass                                              # encore servi : il partira au prochain export
+    final = d / f"parcours-{cid[:8]}-{secrets.token_hex(3)}.dzparcours"
+    fd, nom = tempfile.mkstemp(prefix=".parcours.", suffix=".tmp", dir=d)
     os.close(fd)
     try:
         with zipfile.ZipFile(nom, "w") as z:
@@ -534,20 +543,42 @@ def exporter(cid: str, doc=None) -> Path:
                                   ensure_ascii=False), compress_type=zipfile.ZIP_DEFLATED)
             z.write(src, video, compress_type=zipfile.ZIP_STORED)
         Path(nom).replace(final)
+    except OSError:
+        Path(nom).unlink(missing_ok=True)
+        raise RefusTutoriel("Export du parcours impossible pour l'instant : réessayez.", 409) from None
     except BaseException:
         Path(nom).unlink(missing_ok=True)
         raise
     return final
 
 
+def dernier_export(cid: str) -> Path:
+    """Le dernier `.dzparcours` préparé pour cette capture (lien de téléchargement)."""
+    if not isinstance(cid, str) or not C.ID.match(cid):
+        raise RefusTutoriel("Identifiant de capture invalide.", 400)
+    d = racine_brouillons() / f"export-{cid}"
+    l = sorted(d.glob("parcours-*.dzparcours"), key=lambda p: p.stat().st_mtime) if d.is_dir() else []
+    if not l:
+        raise RefusTutoriel("Parcours introuvable.", 404)
+    return l[-1]
+
+
+def _signature_ok(nom: str, tete: bytes) -> bool:
+    magie = VIDEOS[nom]
+    return tete.startswith(magie) if magie != b"ftyp" else tete[4:8] == magie
+
+
 def _lire_entree(z: zipfile.ZipFile, info: zipfile.ZipInfo, limite: int, dest=None) -> bytes | None:
-    """Lit une entrée en s'arrêtant à `limite` octets RÉELS (la taille déclarée peut mentir) ; vers `dest` si donné."""
+    """Lit une entrée en s'arrêtant à `limite` octets RÉELS (la taille déclarée peut mentir) ; vers `dest` si donné.
+    Une vidéo est reconnue à ses octets magiques sur le premier bloc, avant d'écrire la suite."""
     lu, morceaux = 0, []
     with z.open(info) as f:
         while True:
             b = f.read(1024 * 1024)
             if not b:
                 break
+            if dest is not None and lu == 0 and info.filename in VIDEOS and not _signature_ok(info.filename, b[:12]):
+                raise RefusTutoriel("Parcours refusé : la vidéo n'est pas une vidéo WebM ou MP4.", 415)
             lu += len(b)
             if lu > limite:
                 raise RefusTutoriel("Parcours trop lourd.", 413)
@@ -565,8 +596,32 @@ def _json(octets: bytes):
         raise RefusTutoriel("Parcours illisible.", 400) from None
 
 
+def _repertoire_sain(chemin: Path) -> None:
+    """Revue finale I2 : lit la fin de l'archive (EOCD) et refuse plus de 3 entrées ou un répertoire central de plus de
+    4 Ko AVANT que zipfile ne le charge en mémoire."""
+    try:
+        with open(chemin, "rb") as f:
+            f.seek(0, 2)
+            n = f.tell()
+            f.seek(max(0, n - 65557))
+            fin = f.read()
+    except OSError:
+        raise RefusTutoriel("Parcours illisible.", 400) from None
+    i = fin.rfind(b"PK\x05\x06")
+    if i < 0 or len(fin) - i < 22:
+        raise RefusTutoriel("Parcours illisible.", 400)
+    entrees = int.from_bytes(fin[i + 10:i + 12], "little")
+    taille = int.from_bytes(fin[i + 12:i + 16], "little")
+    if entrees > 3 or taille > 4096:
+        raise RefusTutoriel("Parcours refusé : entrée inattendue dans l'archive.", 400)
+
+
 def importer(chemin: Path) -> str:
     """Importe un `.dzparcours` (fichier local reçu par la route) : rend l'id du parcours. Liste blanche stricte."""
+    _repertoire_sain(chemin)
+    base = racine_parcours()
+    if base.is_dir() and sum(1 for d in base.iterdir() if PID.match(d.name)) >= MAX_PARCOURS:
+        raise RefusTutoriel("Trop de parcours importés : retirez-en avant d'importer.", 409)
     try:
         z = zipfile.ZipFile(chemin)
     except (zipfile.BadZipFile, OSError):
@@ -608,8 +663,7 @@ def importer(chemin: Path) -> str:
                     raise RefusTutoriel("Parcours illisible.", 400) from None
             with open(tmp / vids[0], "rb") as f:
                 tete = f.read(12)
-            magie = VIDEOS[vids[0]]
-            if not (tete.startswith(magie) if magie != b"ftyp" else tete[4:8] == magie):
+            if not _signature_ok(vids[0], tete):              # entrée vide
                 raise RefusTutoriel("Parcours refusé : la vidéo n'est pas une vidéo WebM ou MP4.", 415)
             (tmp / NOM_PARCOURS).write_text(json.dumps(doc, ensure_ascii=False, indent=1), "utf-8")
             (tmp / NOM_CLICS).write_text(json.dumps({"version": 1, "duree_ms": d_ms, "evenements": evts},
@@ -697,5 +751,21 @@ def video_parcours(pid: str) -> Path:
 
 
 def retirer_parcours(pid: str) -> None:
+    """Revue finale I9 : le dossier est d'abord renommé (`.suppr.*`, invisible de la liste), puis effacé ; si la vidéo
+    est tenue (lecture en cours sous Windows), rien n'est touché et c'est un 409."""
     d = _dossier_parcours(pid)
-    shutil.rmtree(d)
+    corbeille = d.with_name(f".suppr.{pid}.{secrets.token_hex(3)}")
+    try:
+        d.replace(corbeille)
+    except OSError:
+        raise RefusTutoriel("Ce parcours est en cours de lecture : fermez-le avant de le retirer.", 409) from None
+    shutil.rmtree(corbeille, ignore_errors=True)
+
+
+def purger() -> None:
+    """Restes d'opérations interrompues (`.suppr.*`, `.vieux.*`, temporaires) : effacés au premier usage."""
+    for base in (racine_parcours(), racine_brouillons()):
+        if base.is_dir():
+            for x in base.iterdir():
+                if x.name.startswith("."):
+                    shutil.rmtree(x, ignore_errors=True) if x.is_dir() else x.unlink(missing_ok=True)

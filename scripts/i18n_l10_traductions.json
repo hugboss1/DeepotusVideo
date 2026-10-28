@@ -11817,5 +11817,21 @@
  "Parcours refusé : la vidéo n'est pas une vidéo WebM ou MP4.": {
   "fr": "Parcours refusé : la vidéo n'est pas une vidéo WebM ou MP4.",
   "en": "Walkthrough refused: the video is not a WebM or MP4 video."
+ },
+ "Un export de ce parcours est déjà en cours.": {
+  "fr": "Un export de ce parcours est déjà en cours.",
+  "en": "An export of this walkthrough is already running."
+ },
+ "Trop de parcours importés : retirez-en avant d'importer.": {
+  "fr": "Trop de parcours importés : retirez-en avant d'importer.",
+  "en": "Too many imported walkthroughs: remove some before importing."
+ },
+ "Export du parcours impossible pour l'instant : réessayez.": {
+  "fr": "Export du parcours impossible pour l'instant : réessayez.",
+  "en": "The walkthrough cannot be exported right now: try again."
+ },
+ "Ce parcours est en cours de lecture : fermez-le avant de le retirer.": {
+  "fr": "Ce parcours est en cours de lecture : fermez-le avant de le retirer.",
+  "en": "This walkthrough is playing: close it before removing it."
  }
 }
