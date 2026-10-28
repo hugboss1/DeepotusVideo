@@ -104,7 +104,7 @@ if (!window.__dzTutoriels) {
     ouverture = false;
     let b = d.brouillon, modifie = false, occupe = false;
     let fermer = () => {};
-    const etat = el("span", { class: "dzTuN", "data-dz-tuto-etat": true, style: "flex:1;min-width:160px" });
+    const etat = el("span", { class: "dzTuN", "data-dz-tuto-etat": true, style: "flex:1 0 100%" });
     const resultat = el("div", { class: "dzTuL", "data-dz-tuto-resultat": true });
     const sale = () => { modifie = true; etat.textContent = T("tuto.etat.modifie"); };
     const titreFr = el("input", { class: "dzTuI", "data-dz-tuto-titre": "fr", maxlength: MAX_TITRE, placeholder: T("tuto.brouillon.titre_fr"),
@@ -203,7 +203,7 @@ if (!window.__dzTutoriels) {
       a.appendChild(document.createTextNode(T("tuto.export.telecharger", { nom })));
       resultat.replaceChildren(a, el("span", { class: "dzTuN", texte: T("tuto.export.note") }));
     }));
-    const pied = el("div", { class: "dzTuPied" }, [etat, proposerB, enregistrerB, exporterB, fermerB, fabriquerB]);
+    const pied = el("div", { class: "dzTuPied", style: "justify-content:flex-end" }, [etat, proposerB, enregistrerB, exporterB, fermerB, fabriquerB]);
     const corps = el("div", { class: "dzTuC" }, [
       el("div", { class: "dzTuN", texte: T("tuto.brouillon.intro") }),
       el("div", { class: "dzTuL" }, [titreFr, titreEn]), chapitres,
@@ -374,7 +374,7 @@ if (!window.__dzTutoriels) {
       const libelle = a[lang()] || a.fr || a.en;
       if (a.cadre) {
         let t = null;
-        for (const fin = Date.now() + 4000; !t && Date.now() < fin;) {
+        for (const fin = Date.now() + 8000; !t && Date.now() < fin;) {     // un lab met quelques secondes à s'ouvrir
           t = await demanderAuCadre(a);
           if (moi !== tour) return;
           if (!t) await attendre(250);

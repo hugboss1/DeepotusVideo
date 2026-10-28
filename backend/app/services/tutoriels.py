@@ -153,12 +153,15 @@ def proposer(clics_doc, montage: dict | None = None) -> dict:
         if c is None:
             continue
         fiche = _fiche(c.get("fiche"))
-        nom = nom_fiche(fiche)
+        x = _catalogue().get(fiche or "") or {}
+        lib, tip = x.get("libelle") or {}, x.get("infobulle") or {}
         lu = texte(((c.get("cible") or {}).get("t") or (c.get("cible") or {}).get("i") or ""), 60)
+        # le nom : le libellé du catalogue, sinon le texte lu au clic (langue de l'enregistrement), sinon l'infobulle
+        nfr = texte(lib.get("fr") or "", 60) or lu or texte(tip.get("fr") or "", 60)
+        nen = texte(lib.get("en") or "", 60) or texte(tip.get("en") or "", 60) or lu
         n = len(etapes) + 1
-        titre = {"fr": f"Cliquer « {nom['fr'] or lu} »" if (nom["fr"] or lu) else f"Étape {n}",
-                 "en": f"Click “{nom['en'] or lu}”" if (nom["en"] or lu) else f"Step {n}"}
-        role = (_catalogue().get(fiche or "") or {}).get("role") or {}
+        titre = {"fr": f"Cliquer « {nfr} »" if nfr else f"Étape {n}", "en": f"Click “{nen}”" if nen else f"Step {n}"}
+        role = x.get("role") or {}
         phrase = {k: mots(texte(role.get(k) or "", MAX_PHRASE)) for k in ("fr", "en")}
         t = int(c["t"])
         etapes.append({"id": f"e{n}", "garde": True, "t0": int(min(z["t0"], t)), "t": t, "t1": int(max(z["t1"], t)),
@@ -350,15 +353,54 @@ def _chapitre_html(b: dict, gardees: list, dossier_scene: str, lang: str) -> str
     return "\n".join(out) + "\n"
 
 
-def fabriquer(cid: str, doc=None) -> dict:
+def marge_skin() -> float:
+    """La marge du cadre du skin actif de l'espace courant (0..0,12) : la piste `scene` montre l'écran RÉDUIT dans ce
+    cadre (t316), les clics, eux, sont en coordonnées de l'app. Même choix que le niveau de zoom de t317 (la session ne
+    garde pas l'id du skin)."""
+    try:
+        from app.services import espaces, skins
+        s = skins.actif(espaces.espace_courant()) or {}
+        return float(_borne(_nb((s.get("cadre") or {}).get("marge")) or 0, 0, 0.12))
+    except Exception:  # noqa: BLE001 — sans skin lisible : pas de cadre
+        return 0.0
+
+
+def _remplacer_dossier(tmp: Path, final: Path) -> None:
+    """Met `tmp` à la place de `final`. Sous Windows, un fichier ouvert ailleurs (aperçu, explorateur) empêche de
+    renommer le dossier : on vide alors l'ancien autant que possible et on y recopie le neuf (aucun reste périmé :
+    ce qui n'a pas pu être effacé est écrasé ou, s'il n'existe plus dans le neuf, laissé tel quel et signalé)."""
+    vieux = None
+    try:
+        if final.exists():
+            vieux = final.with_name(f".{final.name}.vieux.{secrets.token_hex(3)}")
+            final.replace(vieux)
+        tmp.replace(final)
+    except OSError:
+        if vieux is not None and not final.exists():
+            try:
+                vieux.replace(final)
+                vieux = None
+            except OSError:
+                pass
+        shutil.rmtree(final, ignore_errors=True)
+        shutil.copytree(tmp, final, dirs_exist_ok=True)
+        shutil.rmtree(tmp, ignore_errors=True)
+    if vieux is not None:
+        shutil.rmtree(vieux, ignore_errors=True)
+
+
+def fabriquer(cid: str, doc=None, marge: float | None = None) -> dict:
     """Écrit les brouillons de la capture dans `tutoriels/<cid>/` (dossier refait) : {scenes, fiches, exemples,
-    dossier}. Rien n'est publié : le guide, les labs et le catalogue de l'application ne sont pas touchés."""
+    dossier}. Rien n'est publié : le guide, les labs et le catalogue de l'application ne sont pas touchés.
+    `marge` : la marge du cadre du skin (défaut : celle du skin actif) ; le clic (app) est ramené dans la vidéo."""
     r = _close(cid)
     b = valider(doc, duree(r)) if doc is not None else lire_brouillon(cid)[0]
     b["capture_id"] = cid
     gardees = [(n + 1, e) for n, e in enumerate([e for e in b["etapes"] if e["garde"]])]
     if not gardees:
         raise RefusTutoriel("Aucune étape gardée dans ce brouillon.", 409)
+    m = marge_skin() if marge is None else float(_borne(_nb(marge) or 0, 0, 0.12))
+    dans = lambda v: m + (1 - 2 * m) * v                     # noqa: E731 — app (0..1) -> vidéo de la scène (0..1)
     src = M.remuxer(cid)
     base = racine_brouillons()
     base.mkdir(parents=True, exist_ok=True)
@@ -370,7 +412,8 @@ def fabriquer(cid: str, doc=None) -> dict:
         parcours = [e["fiche"] for _, e in gardees if e["fiche"]]
         for n, e in gardees:
             avant, geste, apres = (_reduire(_image(src, t)) for t in (e["t0"], e["t"], e["t1"]))
-            geste_h = _halo(geste, e["x"], e["y"])
+            vx, vy = dans(e["x"]), dans(e["y"])
+            geste_h = _halo(geste, vx, vy)
             ds = tmp / "guide" / "scenes" / sc / f"etape-{n}"
             ds.mkdir(parents=True)
             for nom, im in (("avant", avant), ("geste", geste_h), ("apres", apres)):
@@ -380,8 +423,8 @@ def fabriquer(cid: str, doc=None) -> dict:
                      "captures": [{"fr": f"{k}.webp", "en": f"{k}.webp"} for k in ("avant", "geste", "apres")],
                      "taille": [geste.width, geste.height],
                      "temps": [{"capture": 0, "duree": 1.4},
-                               {"capture": 1, "duree": 1.6, "curseur": [round(e["x"] * geste.width),
-                                                                        round(e["y"] * geste.height)],
+                               {"capture": 1, "duree": 1.6, "curseur": [round(vx * geste.width),
+                                                                        round(vy * geste.height)],
                                 "clic": True, "bulle": e["titre"]},
                                {"capture": 2, "duree": 2.0, "bulle": bulle2}],
                      "brouillon": True, "source": {"capture": cid, "t": e["t"], "fiche": e["fiche"]}}
@@ -392,8 +435,7 @@ def fabriquer(cid: str, doc=None) -> dict:
                 da.mkdir(parents=True, exist_ok=True)
                 nomf = f"{e['ecran']}.{ident}.webp"
                 if not any(x["id"] == ident for x in fiches.get(e["ecran"], [])):
-                    ims = [_vignette(avant, e["x"], e["y"]), _vignette(geste_h, e["x"], e["y"]),
-                           _vignette(apres, e["x"], e["y"])]
+                    ims = [_vignette(avant, vx, vy), _vignette(geste_h, vx, vy), _vignette(apres, vx, vy)]
                     ims[0].save(da / nomf, "WEBP", save_all=True, append_images=ims[1:], duration=[1200, 1400, 1800],
                                 loop=0, quality=85)
                     fiches.setdefault(e["ecran"], []).append({
@@ -417,14 +459,7 @@ def fabriquer(cid: str, doc=None) -> dict:
             (tmp / "guide" / f"chapitre.{lang}.html").write_text(_chapitre_html(b, gardees, sc, lang), "utf-8")
         (tmp / "brouillon.json").write_text(json.dumps(b, ensure_ascii=False, indent=1), "utf-8")
         with _VERROU:
-            final = base / cid
-            vieux = None
-            if final.exists():
-                vieux = base / f".{cid}.vieux.{secrets.token_hex(3)}"
-                final.replace(vieux)
-            tmp.replace(final)
-            if vieux is not None:
-                shutil.rmtree(vieux, ignore_errors=True)
+            _remplacer_dossier(tmp, base / cid)
     except BaseException:
         shutil.rmtree(tmp, ignore_errors=True)
         raise

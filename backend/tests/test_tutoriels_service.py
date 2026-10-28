@@ -136,7 +136,7 @@ check("F2 brouillon abîmé : proposé à nouveau", T.lire_brouillon(CID)[1] is 
 T.ecrire_brouillon(CID, b0)
 (T.racine_brouillons() / CID).mkdir(parents=True)
 (T.racine_brouillons() / CID / "reste.txt").write_text("vieux", "utf-8")
-R = T.fabriquer(CID)
+R = T.fabriquer(CID, marge=0)
 D = T.racine_brouillons() / CID
 check("F3 résultat : 2 scènes (étape écartée absente), 1 fiche de lab, 2 exemples",
       R == {"scenes": 2, "fiches": 1, "exemples": 2, "dossier": f"tutoriels/{CID}"}, R)
@@ -164,6 +164,10 @@ EX = json.loads((D / "catalogue" / "exemples.json").read_text("utf-8"))
 check("F13 un exemple de parcours réel par fiche", [x["fiche"] for x in EX["exemples"]] == ["quick.galerie.bouton",
       "vectorlab.calques.descendre_titre"] and EX["exemples"][0]["parcours"] == ["quick.galerie.bouton",
       "vectorlab.calques.descendre_titre"], EX)
+R2 = T.fabriquer(CID, marge=0.1)
+S2 = json.loads((D / "guide" / "scenes" / f"tuto-{CID[:8]}" / "etape-1" / "scene.json").read_text("utf-8"))
+check("F13b cadre du skin : le clic est ramené dans l'écran réduit de la vidéo", S2["temps"][1]["curseur"] == [
+    round((0.1 + 0.8 * 0.3) * 1440), round((0.1 + 0.8 * 0.3) * 900)], S2["temps"][1])
 check("F14 aucune étape gardée : refus 409", leve(lambda: T.fabriquer(CID, dict(b0, etapes=[dict(e, garde=False) for e in b0["etapes"]])), 409))
 check("F15 rien d'écrit hors de tutoriels/ et de la capture", sorted(p.name for p in _tmp.iterdir() if p.is_dir()) == [
     "captures", "images", "outputs", "tutoriels"], sorted(p.name for p in _tmp.iterdir()))
