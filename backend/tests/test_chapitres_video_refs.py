@@ -2,7 +2,7 @@
 """Plan chapitres T9 (tache #62 du suivi, 02/10/2026) — le constructeur video MULTI-REFERENCES (Veo 3.1
 reference-to-video, elements de Kling v3), PUR.
 DECISION DE L'UTILISATEUR (02/10) : « constructeur, registre a part » — hors de VIDEO_MODELS (aucun selecteur ne le
-montre), aucun client reseau importe, aucune route ne l'appelle.
+montre), aucun client reseau importe. t335 (28/10) : les routes « previs → plan » l'appellent (G3).
 Champs relus sur fal.ai le 02/10 : le plan en avait DEUX faux (`reference_image_urls` pour Veo, `{image_url}` pour les
 elements de Kling) ; ce banc les asserte faux.
 Temoin positif : la base (b8dd9cab) n'a ni le module ni aucun `elements` dans fal_service.
@@ -50,8 +50,11 @@ if VR:
                if isinstance(n, (ast.Import, ast.ImportFrom)) for a in (n.names if isinstance(n, ast.Import) else [None])]
     check("G2 aucun client reseau importe (fal_client, httpx, requests, urllib…)",
           not any(i and i.split(".")[0] in ("fal_client", "httpx", "requests", "urllib", "aiohttp") for i in imports), str(imports))
-    hors = [p for p in (_ICI.parent / "app").rglob("*.py") if p.name != "video_refs.py" and "video_refs" in p.read_text(encoding="utf-8", errors="replace")]
-    check("G3 aucun code de l'application ne l'appelle (pas de route, pas de selecteur)", hors == [], str(hors))
+    hors = sorted(p.relative_to(_ICI.parent).as_posix() for p in (_ICI.parent / "app").rglob("*.py") if p.name != "video_refs.py" and "video_refs" in p.read_text(encoding="utf-8", errors="replace"))
+    # t335 (28/10/2026) : BRANCHE — les routes /shots/{id}/previs (via services/previs_plan.py) et le kind « video_refs »
+    # de pricing l'appellent ; toujours aucun selecteur (hors de VIDEO_MODELS, G1). Banc : test_chapitres_previs_plan.
+    check("G3 t335 : appele par les seules routes previs (routes.py, previs_plan.py) et par pricing, aucun selecteur",
+          hors == ["app/api/routes.py", "app/services/previs_plan.py", "app/services/pricing.py"], str(hors))
     check("G4 la date de verification est ecrite", VR.VERIFIE_LE == "2026-10-02")
 
     print("\n[V] Veo 3.1 reference-to-video")

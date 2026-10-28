@@ -20,6 +20,12 @@ _PRICING_FILE = DATA_ROOT / "pricing.json"
 # Directional defaults (USD). Editable in Settings -> Pricing & budget.
 DEFAULTS = {
     "flux_image_usd": 0.003,          # fal.ai FLUX schnell, per image
+    # t339 : fal-ai/flux-kontext/dev (vues de directions chaînées sur la planche). Relevé le 29/10/2026 sur
+    # fal.ai/models/fal-ai/flux-kontext/dev : « $0.025 per megapixel », « billed by rounding up to the nearest
+    # megapixel ». La page ne dit pas si le mégapixel vaut 10⁶ px ou 1024 × 1024 : HYPOTHÈSE PRUDENTE (un devis ne
+    # sous-estime jamais), 10⁶ px arrondi au supérieur — le cadre 9:16 de Kontext (752 × 1392 = 1 046 784 px) compte
+    # 2 Mpx, soit 0,05 $ par vue.
+    "flux_kontext_usd_mpx": 0.025,
     # fal.ai nano-banana (Gemini), per image — text-to-image AND /edit share
     # the same rate. Re-verified 2026-08-24 on fal.ai/models/fal-ai/nano-banana:
     # "Your request will cost $0.039 per image. For $1.00, you can run this
@@ -314,6 +320,15 @@ _IMAGE_MODELS_VECTEUR = {
     "recraft-4.1-vecteur": ("Recraft 4.1 vecteur SVG (via fal)", "fal",
                             "recraft41_vecteur_usd"),
 }
+
+
+# t339 : le cadre de sortie de Kontext en resolution_mode 9:16, et le mégapixel facturé compté PRUDEMMENT (10⁶ px,
+# arrondi au supérieur — voir flux_kontext_usd_mpx)
+KONTEXT_9_16 = (752, 1392)
+
+
+def kontext_mpx(w: int, h: int) -> int:
+    return max(1, math.ceil(w * h / 1_000_000))
 
 
 def image_model_spec(model: str) -> tuple:
@@ -834,6 +849,8 @@ def estimate(op: dict, p: dict | None = None) -> dict:
       {"kind":"objets3d","modele":"sam-3-3d-objects","n":1}   (t189 : storyboard 3D SAM 3, par requête)
       {"kind":"atelier_ia","modele":"sa3-regenerer","secondes":34}   (t272 : nœud IA de l'Atelier sonore)
       {"kind":"post_ia","modele":"restyle-decart","secondes":5}   (t277 : générateur IA du Post-traitement)
+      {"kind":"video_refs","modele":"seedance-2.5-v2v","secondes_sortie":5,"secondes_entree":5,"resolution":"720p"}
+                                                  (t335 : previs → plan, registre video_refs)
       {"kind":"whatsapp","categorie":"marketing","marche":"33","service_deja_mois":0}   (t310 : message Meta ;
                                                   ValueError si le prix n'est pas dans la grille saisie)
     Returns {breakdown:[line...], total_usd, credits:{provider:n}}.
@@ -848,6 +865,13 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         label, prov, key = image_model_spec(model)
         unit = p.get(key, p["flux_image_usd"])
         lines.append(_line(prov, f"{label} x{n}", n, "image", n * unit))
+    elif kind == "flux_kontext":
+        # t339 : fal-ai/flux-kontext/dev, édition chaînée sur une image de référence (vues de directions du
+        # Spritelab) — un op à part : ce n'est pas un générateur choisissable du registre des images
+        n = int(op.get("n", 1))
+        mpx = kontext_mpx(int(op.get("w") or KONTEXT_9_16[0]), int(op.get("h") or KONTEXT_9_16[1]))
+        taux = p.get("flux_kontext_usd_mpx", DEFAULTS["flux_kontext_usd_mpx"])
+        lines.append(_line("fal", f"FLUX Kontext (édition) x{n} · {mpx} Mpx", n, "image", n * mpx * taux))
     elif kind == "seedance":
         n = int(op.get("n", 1))
         dur = float(op.get("duration_s", 10)) * n
@@ -1222,6 +1246,9 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         lines.append(_pi.ligne(op))
     elif kind == "vfx_ia":
         lines.append(_ligne_vfx(op, p))   # t188 (G6) : un geste VFX IA (registre vfx_ia)
+    elif kind == "video_refs":
+        from app.services import video_refs as _vr   # t335 : previs → plan (Seedance v2v, Veo références)
+        lines.append(_vr.ligne(op))
     elif kind == "objets3d":
         lines.append(_ligne_objets3d(op, p))   # t189 (G7) : le storyboard 3D (SAM 3 objets / corps)
     elif kind == "sfx_video":

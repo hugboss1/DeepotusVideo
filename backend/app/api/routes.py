@@ -2728,20 +2728,59 @@ async def reassemble_sprite(job: str, body: dict):
 _EXT_PLANCHE = (".png", ".jpg", ".jpeg", ".webp")
 
 
-@router.post("/assets/sprite/from-board")
-async def sprite_from_board(body: dict, background_tasks: BackgroundTasks):
-    """t111 (plan-sprites T9, partie serveur) — 4 directions DÉCOUPÉES dans la planche d'un personnage de la bible.
-
-    Deux entrées, une sortie : `entity_id` (on lit `ref_image` et `kind`) ou `board` (un nom NU d'image de la
-    Library, lu comme un personnage). Les vues viennent du découpeur de #62 (`board_service.decouper_planche`, via
-    `sprite_directions`), puis le job passe par `assets_sprite` — LA même porte que le reste du Sprite Lab, avec la
-    source `images` de T0 : une seule machinerie de job. Gratuit : fond papier uni, clé chroma locale par défaut.
-
-    Les vues restent indexées « atelier » : ce sont celles que #62 partage avec les générateurs multi-références, et
-    LI.noter ÉCRASE la provenance — le plan les notait « sprites », ce qui les aurait reclassées."""
+def _sprite_plan_directions(body: dict):
+    """t339 — (nombre de directions, plan des 8 ou None, objet asymétrique) lus dans le corps ; 400 dit sinon."""
     from app.services import sprite_directions as SD
-    from app.services.storage import BibleEntity, async_session_factory
+    n = body.get("directions", 4)
+    if isinstance(n, bool) or n not in (4, 8):
+        raise HTTPException(400, f"directions : 4 ou 8, reçu {n!r}")
+    asym = body.get("objet_asymetrique", False)
+    if not isinstance(asym, bool):
+        raise HTTPException(400, "objet_asymetrique : vrai ou faux attendu")
+    if n == 4:
+        return 4, None, asym
+    miroirs = body.get("miroirs")
+    if miroirs is not None and (not isinstance(miroirs, list) or not all(isinstance(m, str) for m in miroirs)):
+        raise HTTPException(400, "miroirs : une liste de directions attendue (southwest, west, northwest)")
+    try:
+        return 8, SD.plan_huit(miroirs, asym), asym
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
+
+async def _sprite_fournisseur_directions() -> str:
+    """Le générateur des vues de directions : celui des planches du projet (réglage DA `image_provider`), pour que
+    les diagonales ressemblent à la planche dont elles prolongent l'identité."""
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as s:
+        return (await _atelier_setting(s, "image_provider")) or "flux"
+
+
+# t339 : (endpoint fal appelé pour une vue de direction quand le fournisseur est FLUX, id de la grille de prix qui le
+# chiffre) — UNE table pour le tir et le devis : le banc fige que l'un est l'autre.
+_SPRITE_VUE_FLUX = ("fal-ai/flux-kontext/dev", "flux_kontext")
+
+
+async def _generer_vue_direction(prompt: str, ref: Path, provider: str) -> str:
+    """t339 — UNE vue de direction, chaînée sur la vue découpée `ref` (même machinerie que les corps de la planche :
+    Kontext pour FLUX, sinon le fournisseur du projet avec l'image de référence). Rend le nom écrit dans la Library.
+    Remplacé par un générateur simulé dans les bancs."""
+    from app.services import image_providers as IP
+    taille = "portrait_16_9"
+    if provider == "flux":
+        out = await _flux_generate(prompt, taille, 1, model=_SPRITE_VUE_FLUX[0], image_path=ref,
+                                   ratio=_EDIT_RATIO.get(taille), guidance=3.5)
+    else:
+        try:
+            out = await IP.generate(provider, prompt, taille, 1, image_path=ref, ratio=_EDIT_RATIO.get(taille))
+        except RuntimeError as pe:
+            raise HTTPException(502, str(pe))
+    return out["images"][0]
+
+
+async def _sprite_planche_du_corps(body: dict):
+    """(planche, kind, nom de l'entité) d'après `entity_id` ou `board` ; 400 / 404 dits sinon."""
+    from app.services.storage import BibleEntity, async_session_factory
     eid = str(body.get("entity_id") or "").strip()
     nom_entite = None
     if eid:
@@ -2760,21 +2799,128 @@ async def sprite_from_board(body: dict, background_tasks: BackgroundTasks):
             raise HTTPException(400, f"board : un nom NU d'image de la Library est attendu, reçu {brut!r}")
     if not (settings.images_path / planche).is_file():
         raise HTTPException(400, f"Planche introuvable dans la Library : {planche!r}")
+    return planche, kind, nom_entite
+
+
+@router.post("/assets/sprite/from-board/devis")
+async def sprite_from_board_devis(body: dict):
+    """t339 — le DEVIS d'une feuille de directions, sans rien dépenser ni écrire : le plan des 8 (d'où vient chaque
+    direction), le nombre de vues à générer, leur coût au fournisseur du projet. Lu par le Spritelab avant le clic et
+    par l'assistant. 4 directions : 0 génération, 0 $."""
+    from app.services import image_providers as IP, pricing as _pricing, sprite_directions as SD
+    n, plan, asym = _sprite_plan_directions(body)
+    a_generer = SD.generations(plan) if plan else []
+    provider = await _sprite_fournisseur_directions()
+    usd = (float(_pricing.estimate(_sprite_op_directions(provider, len(a_generer)))["total_usd"])
+           if a_generer else 0.0)
+    if plan is None:
+        plan = [{"direction": d, "source": "planche", "de": c} for d, c in zip(SD.directions(), SD.COLONNES)]
+    return {"directions": n, "plan": plan, "generations": len(a_generer), "a_generer": a_generer,
+            "usd": round(usd, 4), "provider": provider, "objet_asymetrique": asym,
+            "cle_manquante": _sprite_cle_manquante(provider) if a_generer else None}
+
+
+def _sprite_op_directions(provider: str, n: int) -> dict:
+    """t339 — l'op des vues générées, au tarif du modèle RÉELLEMENT appelé par `_generer_vue_direction` : FLUX passe
+    par fal-ai/flux-kontext/dev (édition chaînée sur la vue découpée), pas par FLUX schnell."""
+    if provider == "flux":
+        return {"kind": _SPRITE_VUE_FLUX[1], "n": n}
+    return {"kind": "image", "n": n, "model": provider}
+
+
+def _sprite_cle_manquante(provider: str) -> str | None:
+    from app.services import image_providers as IP
+    return IP.missing_key(provider)
+
+
+@router.post("/assets/sprite/from-board")
+async def sprite_from_board(body: dict, background_tasks: BackgroundTasks, http: Request = None):
+    """t111 (plan-sprites T9, partie serveur) — 4 directions DÉCOUPÉES dans la planche d'un personnage de la bible.
+
+    Deux entrées, une sortie : `entity_id` (on lit `ref_image` et `kind`) ou `board` (un nom NU d'image de la
+    Library, lu comme un personnage). Les vues viennent du découpeur de #62 (`board_service.decouper_planche`, via
+    `sprite_directions`), puis le job passe par `assets_sprite` — LA même porte que le reste du Sprite Lab, avec la
+    source `images` de T0 : une seule machinerie de job. Gratuit : fond papier uni, clé chroma locale par défaut.
+
+    Les vues restent indexées « atelier » : ce sont celles que #62 partage avec les générateurs multi-références, et
+    LI.noter ÉCRASE la provenance — le plan les notait « sprites », ce qui les aurait reclassées.
+
+    t339 (B3) — `directions: 8` : 5 dessinées (S, E, N découpées ; SE, NE générées) + 3 miroirs (`miroirs`, les trois
+    par défaut ; décochés, SW / NW sont générés et W découpé). `objet_asymetrique: true` : aucun miroir (400 sinon),
+    l'est est généré aussi. Ordre des refus : corps 400 → planche 400 / 404 → générateur vectoriel 400 → clé absente
+    503 → `confirme_cout` absent 409 (avec le devis) → plafonds 402 → génération (une vue par direction, chaînée sur
+    la face ou le dos découpés) → miroirs logiciels → `assets_sprite`. Rien n'est généré sans les trois portes."""
+    from app.services import board_service as BS, image_providers as IP, pricing as _pricing
+    from app.services import sprite_directions as SD
+
+    n_dir, plan, asym = _sprite_plan_directions(body)
+    planche, kind, nom_entite = await _sprite_planche_du_corps(body)
     try:
         noms = await asyncio.to_thread(SD.vues_de_planche, settings.images_path, planche, kind)
     except ValueError as e:
         raise HTTPException(400, str(e))
     await LI.noter(noms, "atelier")
 
-    directions = SD.directions()
-    corps = {k: v for k, v in body.items() if k not in ("entity_id", "board")}
+    corps = {k: v for k, v in body.items()
+             if k not in ("entity_id", "board", "directions", "miroirs", "objet_asymetrique", "confirme_cout")}
+    if plan is None:
+        directions = SD.directions()
+        meta = {"board": planche, "directions": f"{len(directions)}/{len(SD.HUIT)}"}
+    else:
+        vue = dict(zip(SD.COLONNES, noms))
+        a_generer = SD.generations(plan)
+        provider = None
+        if a_generer:
+            provider = await _sprite_fournisseur_directions()
+            if IP.est_vectoriel(provider):
+                raise HTTPException(400, f"{provider} rend du SVG : une vue de sprite est une image raster. "
+                                         "Choisissez un autre générateur dans la direction artistique.")
+            manque = _sprite_cle_manquante(provider)
+            if manque:
+                raise _refus_cle(manque, provider, http)
+            op = _sprite_op_directions(provider, len(a_generer))
+            if body.get("confirme_cout") is not True:
+                usd = float(_pricing.estimate(op)["total_usd"])
+                raise HTTPException(409, {"message": "des vues sont à générer (payant) : confirmez le devis",
+                                          "usd": round(usd, 4), "generations": len(a_generer),
+                                          "a_generer": a_generer, "provider": provider})
+            await _plafond(op, "sprites")
+        # dans cet ordre : les découpées, puis les générées, puis les miroirs (qui lisent leur source)
+        fichiers, neufs = {}, []
+        for p in plan:
+            if p["source"] == "planche":
+                fichiers[p["direction"]] = vue[p["de"]]
+        for p in plan:
+            if p["source"] == "generee":
+                p["prompt"] = SD.prompt_vue(p["direction"], asym)
+                ref = settings.images_path / vue[SD.reference_vue(p["direction"])]
+                fichiers[p["direction"]] = await _generer_vue_direction(p["prompt"], ref, provider)
+                neufs.append(fichiers[p["direction"]])
+        for p in plan:
+            if p["source"] == "miroir":
+                fichiers[p["direction"]] = await asyncio.to_thread(BS.mirror_panel, settings.images_path,
+                                                                   fichiers[p["de"]])
+                neufs.append(fichiers[p["direction"]])
+        for p in plan:
+            p["fichier"] = fichiers[p["direction"]]
+        if neufs:
+            await LI.noter(neufs, "sprites")
+        noms = [fichiers[d] for d in SD.HUIT]
+        directions = list(SD.HUIT)
+        corps["max_frames"] = len(noms)                  # le défaut serveur échantillonnerait : 8 vues, 8 cases
+        corps.setdefault("columns", 4)
+        meta = {"board": planche, "directions": f"8/{len(SD.HUIT)}", "plan": plan, "generations": len(a_generer),
+                "objet_asymetrique": asym}
+        if provider:
+            meta["provider"] = provider
     corps["source"] = {"kind": "images", "filenames": noms}
     corps.setdefault("remove_bg", "chroma")
     corps.setdefault("columns", len(noms))
     corps["anim"] = {"tags": SD.tags_directions(directions)}
-    corps.setdefault("title", "Sprites · directions · " + (nom_entite or planche))
+    corps.setdefault("title", ("Sprites · 8 directions · " if plan else "Sprites · directions · ")
+                     + (nom_entite or planche))
     # clé INTERNE (soulignée) : posée par cette route, lue par generate_sprites dans `source` ; normalize_opts l'ignore
-    corps["_board_meta"] = {"board": planche, "directions": f"{len(directions)}/{len(SD.HUIT)}"}
+    corps["_board_meta"] = meta
     return await assets_sprite(corps, background_tasks)
 
 
@@ -13100,6 +13246,323 @@ async def shot_video(shot_id: str, body: dict, background_tasks: BackgroundTasks
         except Exception as e:  # noqa: BLE001
             logger.error(f"vidéo du plan {shot_id} ({job_id}) : {e}")
             await Pipeline.echouer_si_en_attente(job_id, str(e))   # jamais de job fantôme en QUEUED
+
+    background_tasks.add_task(_run)
+    return out
+
+
+# ── t335 (A5 du lot Scenario, 28/10/2026) : « Previs → plan » — le clip de previs (@Video1) + des style frames (@Image1…)
+# → la vidéo du plan, par Seedance 2.5 reference-to-video (fal), ou les style frames seules par Veo 3.1 références.
+# Le registre et l'argument viennent de services/video_refs.py (PUR), la sonde, le prompt, le devis et le tir de
+# services/previs_plan.py. Règle de la maison, dans CET ordre : 404 plan / 400 modèle → 503 clé absente (AVANT toute
+# garde) → 400/404 clip, style frames, prompt, tâche, résolution → 409 sans `confirme_cout` (le devis joint) → garde
+# des plafonds « chapitres » (402) → job. Devis gratuit = garde = usd rendu (le même op).
+
+_PREVIS_FRAMES_MAX = 10          # noms acceptés dans le corps (le registre en garde 4, et le DIT dans les notes)
+_PREVIS_CLIPS_MAX = 40           # clips proposés par /previs/sources
+
+
+async def _previs_calc(s, body: dict | None, http=None) -> dict:
+    """t335 — LE calcul de « previs → plan », partagé par le devis GRATUIT (POST /shots/{id}/previs/devis) et la route
+    payante (POST /shots/{id}/previs). Sans réseau ni dépense. Rend aussi le PREMIER refus de la route payante
+    (`refus`, `refus_code`, `refus_etape` « modele » ou « champs ») — sauf la clé absente, rendue à part
+    (`cle_absente`) : un modèle sans clé reste choisissable et son prix se montre."""
+    from app.services import video_refs as VR, previs_plan as PV
+    from app.services.storage import async_session_factory
+    body = body if isinstance(body, dict) else {}
+    mid = str(body.get("modele") or VR.DEFAUT_PREVIS).strip()
+    out = {"modele": mid, "label": None, "endpoint": None, "tache": None, "resolution": None, "clip": None,
+           "clip_chemin": None, "style_frames": [], "prompt": "", "prompt_defaut": "", "notes": [], "usd": None,
+           "op": None, "secondes_entree": None, "secondes_sortie": None, "cle_absente": None, "refus": None,
+           "refus_code": None, "refus_etape": None, "conform": None, "clip_infos_previs": None}
+
+    def _refus(code, msg, etape="champs"):
+        if out["refus"] is None:
+            out.update(refus=msg, refus_code=code, refus_etape=etape)
+
+    m = VR.REGISTRE_REFS.get(mid)
+    if m is None:
+        _refus(400, _msg_g("previs.modele_inconnu", http, modele=mid[:48], ids=", ".join(VR.MODELES_PREVIS)), "modele")
+        return out
+    out.update(label=m["label"], endpoint=m["endpoint"])
+    if mid not in VR.MODELES_PREVIS:
+        _refus(400, _msg_g("previs.prix_non_publie", http, modele=m["label"]), "modele")
+        return out
+    out["cle_absente"] = None if settings.FAL_KEY else "FAL_KEY"
+    video = m["grammaire"] == "video"
+    clip_infos = None
+    if video:
+        if not (body.get("clip_id") or body.get("job_id") or body.get("video_filename")):
+            _refus(400, _msg_g("previs.clip_requis", http))
+        else:
+            try:
+                chemin = await _sfx_video_source(body, "de previs", http)
+            except HTTPException as e:
+                _refus(e.status_code, e.detail)
+            else:
+                infos_previs = await asyncio.to_thread(PV.infos_clip, chemin)
+                # t336 (A6) : le conform PRÉVU (rien n'est écrit au devis) — durée mini du modèle, cadence, format ;
+                # `conform` = « etirer » | « noir » choisi dans la boîte, sinon automatique
+                choix = body.get("conform")
+                if choix is not None and choix not in PV.MODES_CONFORM:
+                    _refus(400, _msg_g("previs.conform_refuse", http, choix=str(choix)[:20],
+                                       liste=", ".join(PV.MODES_CONFORM)))
+                    choix = None
+                chemin, infos, notes_c = PV.conformer_clip(chemin, infos_previs, mid, float(s.duration_s or 4.0),
+                                                           choix=choix)
+                out["notes_conform"] = notes_c      # FR, pour la recette : la boîte dit le conform en FR/EN
+                out["clip_chemin"] = chemin
+                out["conform"] = infos.get("conform")
+                out["clip_infos_previs"] = infos_previs
+                clip_infos = infos
+                out["clip"] = {"nom": chemin.name, "job_id": str(body.get("clip_id") or body.get("job_id") or "") or None,
+                               **{k: infos_previs.get(k) for k in ("secondes", "largeur", "hauteur", "fps", "images")}}
+                raison = VR.clip_refuse(mid, nom=infos.get("nom_envoye") or chemin.name, secondes=infos.get("secondes"),
+                                        largeur=infos.get("largeur"), hauteur=infos.get("hauteur"),
+                                        fps=infos.get("fps"), octets=infos.get("octets"))
+                if raison:
+                    _refus(400, _msg_g("previs.clip_hors_bornes", http, nom=chemin.name, raison=raison))
+    noms = body.get("style_frames")
+    if noms is None:      # par défaut : l'image de PRODUCTION du plan (le look), jamais la capture grise du Plateau
+        noms = [s.image] if getattr(s, "image", None) and (settings.images_path / Path(s.image).name).is_file() else []
+    if not isinstance(noms, list) or len(noms) > _PREVIS_FRAMES_MAX:
+        _refus(400, _msg_g("previs.frames_trop", http, n=len(noms) if isinstance(noms, list) else "?",
+                           max=_PREVIS_FRAMES_MAX))
+        noms = []
+    frames = []
+    for nom in noms:
+        try:
+            f = _nom_nu(str(nom or "").strip(), settings.images_path, PV.EXT_IMAGE, "style_frames", "d'image",
+                        "image", http)
+        except HTTPException as e:
+            _refus(e.status_code, e.detail)
+            continue
+        if f not in frames:
+            frames.append(f)
+    out["style_frames"] = [f.name for f in frames]
+    out["frames_chemins"] = frames
+    if not frames:
+        _refus(400, _msg_g("previs.frames_requises", http))
+    async with async_session_factory() as session:
+        style = await _atelier_setting(session, "global_style")
+    action = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
+    out["prompt_defaut"] = PV.prompt_defaut(mid, action, max(1, min(len(frames), m["refs"][1])), style)
+    prompt = body.get("prompt")
+    prompt = out["prompt_defaut"] if prompt is None or not str(prompt).strip() else " ".join(str(prompt).split())
+    if len(prompt) > PV.PROMPT_MAX:
+        _refus(400, _msg_g("previs.prompt_trop_long", http, n=len(prompt), max=PV.PROMPT_MAX))
+        prompt = prompt[:PV.PROMPT_MAX]
+    out["prompt"] = prompt
+    tache = body.get("tache")
+    if video and tache is not None and tache not in m["taches"]:
+        _refus(400, _msg_g("previs.tache_refusee", http, tache=str(tache)[:20], liste=", ".join(m["taches"])))
+        tache = None
+    res = body.get("resolution")
+    permises = m["resolutions"] or ()
+    if res is not None and res not in permises:
+        _refus(400, _msg_g("previs.resolution_refusee", http, res=str(res)[:12], liste=", ".join(permises)))
+        res = None
+    calc = PV.calculer(mid, clip=clip_infos, n_frames=len(frames), tache=tache, resolution=res,
+                       duree_plan=float(s.duration_s or 4.0))
+    out.update({k: calc[k] for k in ("secondes_entree", "secondes_sortie", "resolution", "tache", "op", "usd")})
+    if frames and (clip_infos or not video):
+        try:
+            _ep, _args, notes = VR.construire(mid, prompt, [{"nom": f.name, "face": f"ref:{f.name}"} for f in frames],
+                                              video_url="ref:clip" if video else None, tache=calc["tache"],
+                                              duree=int(round(calc["secondes_sortie"] or 4)),
+                                              resolution=calc["resolution"], aspect_ratio="9:16")
+            out["notes"] += notes
+        except ValueError as e:
+            _refus(400, _txt_g(e, http))
+    return out
+
+
+def _previs_public(calc: dict) -> dict:
+    return {k: calc[k] for k in ("modele", "label", "endpoint", "tache", "resolution", "clip", "style_frames", "prompt",
+                                 "prompt_defaut", "notes", "usd", "secondes_entree", "secondes_sortie", "cle_absente",
+                                 "refus", "conform")}
+
+
+@router.get("/shots/{shot_id}/previs/sources")
+async def shot_previs_sources(shot_id: str):
+    """t335 — ce que la fiche « Previs → plan » propose (lecture seule, gratuit) : les modèles (sans clé : listés,
+    `dispo` False et la clé nommée), les CLIPS de previs (la vidéo du plan d'abord, puis les rendus vidéo finis de la
+    Bibliothèque), les IMAGES du plan (production, croquis, bornes du Plateau) et le prompt proposé."""
+    from sqlalchemy import select as _sel
+    from app.services import video_refs as VR, previs_plan as PV
+    from app.services.storage import Shot, JobRecord, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        jobs = (await session.execute(_sel(JobRecord).where(JobRecord.status == "done")
+                                      .where(JobRecord.final_video_path.is_not(None))
+                                      .order_by(JobRecord.created_at.desc()).limit(_PREVIS_CLIPS_MAX * 2))).scalars().all()
+        style = await _atelier_setting(session, "global_style")
+        jv = await session.get(JobRecord, s.video) if getattr(s, "video", None) else None
+    # t336 : le RECALAGE du dernier rendu « previs » du plan (dérive mesurée en images), que la boîte affiche
+    dernier = None
+    if jv is not None and jv.provider == "previs":
+        try:
+            meta = json.loads(jv.cost_meta or "{}")
+        except (TypeError, ValueError):
+            meta = {}
+        dernier = {"job_id": jv.id, "status": jv.status, "recalage": meta.get("recalage"),
+                   "conform": meta.get("conform")}
+    clips, vus = [], set()
+    for j in sorted(jobs, key=lambda j: j.id != getattr(s, "video", None)):
+        p = Path(str(j.final_video_path or ""))
+        if j.id in vus or p.suffix.lower() not in PV.EXT_CLIP or not p.is_file():
+            continue
+        vus.add(j.id)
+        clips.append({"job_id": j.id, "nom": p.name, "titre": (j.title or p.stem)[:120], "secondes": j.duration_s,
+                      "origine": "plan" if j.id == getattr(s, "video", None) else "bibliotheque"})
+        if len(clips) >= _PREVIS_CLIPS_MAX:
+            break
+    images = []
+    for origine, nom in (("production", getattr(s, "image", None)), ("croquis", s.sketch_image),
+                         ("plateau_debut", getattr(s, "keyframe_image", None)),
+                         ("plateau_fin", getattr(s, "keyframe_end", None))):
+        if nom and (settings.images_path / Path(nom).name).is_file() and all(i["nom"] != Path(nom).name for i in images):
+            images.append({"nom": Path(nom).name, "origine": origine})
+    action = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
+    modeles = []
+    for mid in VR.MODELES_PREVIS:
+        m = VR.REGISTRE_REFS[mid]
+        modeles.append({"id": mid, "label": m["label"], "endpoint": m["endpoint"], "clip": m["grammaire"] == "video",
+                        "taches": list(m.get("taches") or ()), "resolutions": list(m["resolutions"] or ()),
+                        "refs_max": m["refs"][1], "dispo": bool(settings.FAL_KEY),
+                        "cle": None if settings.FAL_KEY else "FAL_KEY",
+                        "prompt_defaut": PV.prompt_defaut(mid, action, 1, style)})
+    return {"defaut": VR.DEFAUT_PREVIS, "modeles": modeles, "clips": clips, "images": images,
+            "duree_plan": s.duration_s, "dernier_rendu": dernier}
+
+
+@router.post("/shots/{shot_id}/previs/devis")
+async def shot_previs_devis(shot_id: str, body: dict | None = None, http: Request = None):
+    """t335 — le devis GRATUIT de « Previs → plan » : exactement ce que POST /shots/{id}/previs facturerait (même
+    calcul, _previs_calc). Aucune garde, aucune dépense, rien d'envoyé. La clé absente ne bloque pas le devis
+    (`cle_absente`) ; `refus` = le message que la route payante rendrait, sinon null.
+    Body : {modele?, clip_id? | video_filename?, style_frames?, prompt?, tache?, resolution?}."""
+    from app.services.storage import Shot, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+    if not s:
+        raise HTTPException(404, "Shot not found")
+    return _previs_public(await _previs_calc(s, body, http))
+
+
+@router.post("/shots/{shot_id}/previs", dependencies=[Depends(_require_local_depense)])
+async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTasks, http: Request = None):
+    """t335 — « Previs → plan » : PAYANT. Body : celui du devis + `confirme_cout: true` (sinon 409 avec le devis).
+    Le job (provider « previs ») est rattaché AU PLAN avant la fin du rendu (`shot.video`, la vignette le suit) ; la
+    vidéo rendue entre dans la Bibliothèque (source « atelier », relation « previs », mère = le clip de previs, ou la
+    1re style frame sans clip ; recette = modèle, endpoint, prompt exact, tâche, résolution, clip, style frames,
+    notes, usd, graine) -> le plan | {job_id, usd}."""
+    from app.services import previs_plan as PV, video_refs as VR
+    from app.services.storage import Shot, JobRecord, async_session_factory
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:     # LECTURE seule, fermée avant les gardes
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        calc = await _previs_calc(s, body, http)
+    mid = calc["modele"]
+    if calc["refus_etape"] == "modele":
+        raise HTTPException(calc["refus_code"], calc["refus"])
+    if calc["cle_absente"]:                            # 503 AVANT toute garde de dépense (zéro ligne `depenses`)
+        raise _refus_cle(calc["cle_absente"], _nom_g(mid, calc["label"]), http)
+    if calc["refus"]:
+        raise HTTPException(calc["refus_code"], calc["refus"])
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": _msg_g("previs.confirmer", http), "usd": calc["usd"],
+                                  "devis": _previs_public(calc)})
+    clip, frames = calc["clip_chemin"], list(calc["frames_chemins"])
+    conf, envoi = calc["conform"], clip
+    if clip is not None and conf:      # t336 : le conform FABRIQUÉ avant toute dépense (un échec ffmpeg = rien payé)
+        import subprocess as _sp
+        try:
+            envoi, _inf, _n = await asyncio.to_thread(
+                PV.conformer_clip, clip, calc["clip_infos_previs"], mid, float(s.duration_s or 4.0),
+                conf["mode"] if conf["mode"] in PV.MODES_CONFORM else None, True)
+        except (RuntimeError, OSError, _sp.TimeoutExpired) as e:
+            raise HTTPException(500, _msg_g("previs.conform_echec", http, msg=str(e)[:300]))
+    try:
+        await _plafond(calc["op"], "chapitres", shot_id)    # avant la dépense
+    except BaseException:
+        if envoi is not clip:
+            Path(envoi).unlink(missing_ok=True)
+        raise
+    job_id = str(uuid4())
+    titre = f"Previs → plan · {(s.action or '').strip()[:60] or shot_id[:8]}"
+    async with async_session_factory() as session:     # le job et shot.video, d'UN seul commit
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        session.add(JobRecord(id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=5, title=titre[:120],
+                              image_filename=frames[0].name, final_prompt=calc["prompt"], video_model=mid,
+                              aspect_ratio="9:16", duration_s=int(round(calc["secondes_sortie"] or 0)) or None,
+                              provider="previs", current_step="Previs → plan",
+                              cost_meta=json.dumps({"usd": calc["usd"], "kind": "video_refs", "modele": mid,
+                                                    "conform": conf})))
+        s.video = job_id
+        s.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(s)
+        out = _shot_dict(s) | {"job_id": job_id, "usd": calc["usd"]}
+
+    async def _run():
+        try:
+            try:
+                res = await PV.tirer_previs(mid, clip=envoi, frames=frames, prompt=calc["prompt"],
+                                            tache=calc["tache"], resolution=calc["resolution"],
+                                            duree=int(round(calc["secondes_sortie"] or 4)))
+            finally:
+                if envoi is not clip and envoi is not None:   # le clip conformé n'a servi qu'à l'envoi
+                    Path(envoi).unlink(missing_ok=True)
+            v = res["video"]
+            # t336 : le RECALAGE — conform défait, dérive mesurée en images contre la previs, nombre d'images exact.
+            # Un échec ici ne perd pas le rendu payé : la vidéo brute reste, la raison est rangée dans la recette.
+            recalage = None
+            if clip is not None:
+                try:
+                    rc = await asyncio.to_thread(PV.recaler, v, clip, calc["clip_infos_previs"], conf)
+                    Path(rc["video"]).replace(v)
+                    recalage = {k: rc[k] for k in ("derive_images", "fiable", "images", "fps", "score", "phrase")}
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"previs → plan {shot_id} : recalage impossible ({e})")
+                    recalage = {"erreur": str(e)[:300]}
+            dur = await asyncio.to_thread(_probe_seconds, str(v))
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                jr.status, jr.progress, jr.current_step = JobStatus.DONE.value, 100, "Complete"
+                jr.final_video_path = jr.video_path = str(v)
+                jr.seed = res.get("seed")
+                jr.duration_s = int(round(dur)) if dur else jr.duration_s
+                jr.completed_at = datetime.utcnow()
+                try:
+                    meta = json.loads(jr.cost_meta or "{}")
+                except (TypeError, ValueError):
+                    meta = {}
+                jr.cost_meta = json.dumps(meta | {"recalage": recalage})
+                await session.commit()
+            await LI.noter([v.name], "atelier", kind="video", job_id=job_id,
+                           parent=clip.name if clip is not None else frames[0].name, relation="previs",
+                           recette={"modele": mid, "endpoint": res["endpoint"], "prompt": calc["prompt"],
+                                    "tache": calc["tache"], "resolution": calc["resolution"],
+                                    "clip": clip.name if clip is not None else None,
+                                    "style_frames": [f.name for f in frames], "plan": shot_id,
+                                    "arguments": res["arguments"],
+                                    "notes": calc["notes"] + calc.get("notes_conform", []) + res["notes"],
+                                    "usd": calc["usd"], "seed": res.get("seed"), "conform": conf,
+                                    "recalage": recalage})
+        except Exception as e:  # noqa: BLE001 — l'échec reste lisible dans le job, jamais de job fantôme
+            logger.error(f"previs → plan {shot_id} ({job_id}) : {e}")
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.error, jr.current_step = JobStatus.FAILED.value, str(e)[:500], "Failed"
+                    await session.commit()
 
     background_tasks.add_task(_run)
     return out

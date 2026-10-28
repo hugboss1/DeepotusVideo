@@ -826,6 +826,7 @@ function renderBoard() {
         <button class="btn ghost act-objets3d" title="${dzT("atelier.at2_obj3d.bouton_t")}" aria-label="${dzT("atelier.plan.reconstruire3d")}">${ico("dz-lab3d-generer-modele")}</button>
         <button class="btn ghost act-video" title="${dzT("atelier.at2_video.bouton_t")}" aria-label="${dzT("atelier.plan.video")}">${ico("dz-media-generer-video")}</button>
         <button class="btn ghost act-plateau" title="${dzT("atelier.at2_sb.plateau_t")}" aria-label="${dzT("atelier.at2_sb.plateau")}">${ico("dz-nav-plateau")}</button>
+        <button class="btn ghost act-previs" title="${dzT("atelier.t335_previs.bouton_t")}" aria-label="${dzT("atelier.t335_previs.bouton")}">${ico("dz-media-film")}</button>
       </div>
       ${s.image ? `<div class="shot-prod"><img src="/api/images/${encodeURIComponent(s.image)}" alt="${dzT("atelier.at2_sb.prod_alt")}"
         title="${dzT("atelier.at2_sb.prod_refs", { n: s.image_refs || 0 })}"><span>${ico("dz-media-image")} ${s.image_refs || 0} ${dzT("atelier.at2_sb.ref_abr")}</span>
@@ -902,6 +903,12 @@ function renderBoard() {
     suivreVideo(card, sh());
     // t127 : le Plateau 3D du plan (la scène du plan est retrouvée, ou créée, par la page ; « ← Atelier » y ramène)
     card.querySelector(".act-plateau").addEventListener("click", () => { location.href = "/plateau/?shot=" + encodeURIComponent(id); });
+    // t335 : « Previs → plan » — clip de previs + style frames → la vidéo du plan (boîte /shared/dz-previs-plan.js)
+    card.querySelector(".act-previs").addEventListener("click", () => {
+      if (!window.__dzPrevisPlan) { toast(dzT("atelier.t335_previs.absent"), true); return; }
+      const s = sh();
+      window.__dzPrevisPlan.ouvrir({ shot: s, numero: (s.idx || 0) + 1, toast, apres: () => loadShots(true) });
+    });
     card.querySelector(".act-derive")?.addEventListener("click", () => deriveProduction(id, card));
     card.querySelector(".act-resketch").addEventListener("click", () => sketchShot(id, null));
     card.querySelector(".act-insert").addEventListener("click", async () => {

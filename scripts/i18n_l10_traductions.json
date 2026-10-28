@@ -2767,6 +2767,34 @@
   "fr": "Planche inconnue : {sheet}. Valeurs admises : {v}",
   "en": "Unknown sheet: {sheet}. Allowed values: {v}"
  },
+ "directions : 4 ou 8, reçu {n}": {
+  "fr": "directions : 4 ou 8, reçu {n}",
+  "en": "directions: 4 or 8, got {n}"
+ },
+ "objet_asymetrique : vrai ou faux attendu": {
+  "fr": "objet_asymetrique : vrai ou faux attendu",
+  "en": "objet_asymetrique: true or false expected"
+ },
+ "miroirs : une liste de directions attendue (southwest, west, northwest)": {
+  "fr": "miroirs : une liste de directions attendue (southwest, west, northwest)",
+  "en": "miroirs: a list of directions expected (southwest, west, northwest)"
+ },
+ "{provider} rend du SVG : une vue de sprite est une image raster. Choisissez un autre générateur dans la direction artistique.": {
+  "fr": "{provider} rend du SVG : une vue de sprite est une image raster. Choisissez un autre générateur dans la direction artistique.",
+  "en": "{provider} renders SVG: a sprite view is a raster image. Choose another generator in the art direction."
+ },
+ "miroirs : {v} — seules {v2} se tirent en miroir (les 5 autres directions sont dessinées)": {
+  "fr": "miroirs : {v} — seules {v2} se tirent en miroir (les 5 autres directions sont dessinées)",
+  "en": "miroirs: {v} — only {v2} can be mirrored (the other 5 directions are drawn)"
+ },
+ "objet tenu asymétrique : ne jamais miroiter — décoche les miroirs ({v}), ils seront générés": {
+  "fr": "objet tenu asymétrique : ne jamais miroiter — décoche les miroirs ({v}), ils seront générés",
+  "en": "asymmetric held object: never mirror — untick the mirrors ({v}), they will be generated"
+ },
+ "{direction} : cette direction ne se génère pas (découpée dans la planche)": {
+  "fr": "{direction} : cette direction ne se génère pas (découpée dans la planche)",
+  "en": "{direction}: this direction is not generated (cut from the board)"
+ },
  "Planche introuvable dans la Library : {planche}": {
   "fr": "Planche introuvable dans la Library : {planche}",
   "en": "Board not found in the Library: {planche}"
@@ -2802,6 +2830,10 @@
  "Preview failed: {e}": {
   "fr": "Échec de l'aperçu : {e}",
   "en": "Preview failed: {e}"
+ },
+ "Previs → plan": {
+  "fr": "Previs → plan",
+  "en": "Previs → shot"
  },
  "Prise trop courte ({dur} s).": {
   "fr": "Prise trop courte ({dur} s).",
@@ -4635,6 +4667,10 @@
   "fr": "confirm:true exige max_usd : le coût annoncé que vous avez accepté (nombre ≥ 0) — rien n'est lancé.",
   "en": "confirm:true requires max_usd: the quoted cost you accepted (number ≥ 0) — nothing was started."
  },
+ "conform « {choix} » inconnu ({v}).": {
+  "fr": "conform « {choix} » inconnu ({v}).",
+  "en": "conform \"{choix}\" unknown ({v})."
+ },
  "connecteur : `a` et `b` attendent les index de nœud des DEUX moitiés, distincts": {
   "fr": "connecteur : `a` et `b` attendent les index de nœud des DEUX moitiés, distincts",
   "en": "connector: `a` and `b` expect the node indices of the TWO halves, distinct"
@@ -5002,6 +5038,14 @@
  "fav doit être un booléen": {
   "fr": "fav doit être un booléen",
   "en": "fav must be a boolean"
+ },
+ "ffmpeg (mesure) : {v}": {
+  "fr": "ffmpeg (mesure) : {v}",
+  "en": "ffmpeg (measure): {v}"
+ },
+ "ffmpeg ({quoi}) : {v}": {
+  "fr": "ffmpeg ({quoi}) : {v}",
+  "en": "ffmpeg ({quoi}): {v}"
  },
  "ffmpeg a dépassé {v} min — rendu interrompu.": {
   "fr": "ffmpeg a dépassé {v} min — rendu interrompu.",
@@ -7015,6 +7059,10 @@
   "fr": "rayon d'orbite hors bornes.",
   "en": "orbit radius out of range."
  },
+ "recalage : {images} images au lieu de {n}": {
+  "fr": "recalage : {images} images au lieu de {n}",
+  "en": "realignment: {images} frames instead of {n}"
+ },
  "redressement : chaque coin est une paire de nombres [x, y]": {
   "fr": "redressement : chaque coin est une paire de nombres [x, y]",
   "en": "straighten: each corner is a pair of numbers [x, y]"
@@ -7438,6 +7486,10 @@
  "typographies : {MAX_TYPOS} au plus": {
   "fr": "typographies : {MAX_TYPOS} au plus",
   "en": "typefaces: {MAX_TYPOS} at most"
+ },
+ "tâche « {t} » refusée ({v}).": {
+  "fr": "tâche « {t} » refusée ({v}).",
+  "en": "task \"{t}\" refused ({v})."
  },
  "téléchargement refusé : plus de {v} Mo ({max_octets} octets au plus)": {
   "fr": "téléchargement refusé : plus de {v} Mo ({max_octets} octets au plus)",
@@ -8219,6 +8271,10 @@
   "fr": "{label} demande au moins {lo} image(s) de référence ({urls} fournie(s)).",
   "en": "{label} requires at least {lo} reference image(s) ({urls} provided)."
  },
+ "{label} demande au moins {lo} style frame(s) ({urls} fournie(s)).": {
+  "fr": "{label} demande au moins {lo} style frame(s) ({urls} fournie(s)).",
+  "en": "{label} needs at least {lo} style frame(s) ({urls} given)."
+ },
  "{label} demande au moins {lo} élément complet de référence.": {
   "fr": "{label} demande au moins {lo} élément complet de référence.",
   "en": "{label} requires at least {lo} complete reference element."
@@ -8226,6 +8282,10 @@
  "{label} est un détourage LOCAL : aucune requête fal": {
   "fr": "{label} est un détourage LOCAL : aucune requête fal",
   "en": "{label} is a LOCAL cut-out: no fal request"
+ },
+ "{label} exige un clip de previs (@Video1).": {
+  "fr": "{label} exige un clip de previs (@Video1).",
+  "en": "{label} requires a previs clip (@Video1)."
  },
  "{label} exige une image de départ (start_image_url).": {
   "fr": "{label} exige une image de départ (start_image_url).",

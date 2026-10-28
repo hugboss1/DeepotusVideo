@@ -105,6 +105,16 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Scanner une page** (t312) : Atelier de Chapitres, « Scanner une page » ; 1 à 10 images ou PDF, « Lire » (sur le
   PC, gratuit, mots douteux surlignés). « Essayer avec Claude » : devis, confirmation, catégorie « atelier », lecture
   gardée. Envois : Insérer dans le chapitre, Créer les chapitres, Importer comme manuscrit. → [ALLER:episodes] [GUIDE:scan]
+- **Transformer une previs en plan fini** (t335) : Atelier de Chapitres, storyboard, bouton film « Previs → plan » de
+  la carte (après Plateau 3D). Choisir le clip de previs (rendu de la Bibliothèque, MP4/MOV de 1,8 à 30,2 s : le
+  mouvement et la caméra) et 1 à 4 style frames (le look ; l'image de production par défaut). Seedance 2.5 le rend
+  (« Garder le mouvement » ou « S'inspirer du clip ») ; sans clip, Veo 3.1 références (8 s). Payant : devis affiché
+  (clip d'entrée + sortie facturés), confirmation, catégorie « chapitres ». La vidéo devient celle du plan et entre
+  dans la Bibliothèque avec sa recette. Durée minimale (t336) : un clip plus court que ce que le modèle rend
+  (Seedance 4 s, MiniMax 5 s) est conformé avant l'envoi — « Étirer puis ré-accélérer » (automatique jusqu'à ×2)
+  ou « Compléter au noir puis couper » ; la boîte dit ce qui sera fait et la durée facturée (le clip conformé). Après
+  le rendu, la dérive en images est mesurée contre la previs et le rendu recalé à son nombre d'images exact ; la
+  boîte affiche « Dernier rendu de ce plan : dérive : +2 images, recalée ». → [ALLER:episodes] [GUIDE:chapitres]
 - **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles
   payants, devis, brouillon ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:scan]
 - **Filmer l'app, l'habiller, la monter** (t315-t317) : barre du haut, « Filmer l'app » (CET onglet, secrets masqués,
@@ -163,13 +173,14 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   de l'espace de la campagne (« Activer l'espace … et ouvrir le calendrier »). Porte 2 : l'utilisateur programme
   lui-même. L'agent ne publie, ne programme, ne supprime rien et ne touche ni clés ni Réglages. Catégorie
   « campagnes ». → [GUIDE:agent-campagnes]
-- **Préparer un modèle 3D pour un jeu** (t342) : dans l'Établi (07 du 3D Studio), ouvrir une version. Onglet
-  Parties › « Pièces mobiles » : « Chercher les pièces · gratuit » propose les îlots nommés (corps, roues, couvercle),
-  on les renomme, puis « Séparer en N pièces » écrit une version où chaque pièce pivote sur son axe ; pièces soudées :
-  « Segmenter par IA » (Tripo sur fal, payant, prix sur le bouton, confirmé, catégorie « moteurs3d », clé fal). Un
-  modèle riggé se découpe AVANT le rig. Onglet Export › « Budgets de triangles » : choisir le rôle (héros 50 k / 8 k /
-  2 k, accessoire, décor, web, Roblox), « Générer les 3 densités » (gratuit) ; le tableau dit triangles, taille et
-  fidélité, les pièces sont gardées. → [ALLER:assets3d] [GUIDE:etabli]
+- **Pièces mobiles et budgets 3D** (t342) : Établi, Parties › « Pièces mobiles » (« Chercher les pièces », gratuit ;
+  IA Tripo payante, catégorie « moteurs3d ») ; Export › « Budgets de triangles » (rôle, 3 densités, gratuit).
+  → [ALLER:assets3d] [GUIDE:etabli]
+- **Sprites d'un personnage en 8 directions** (t339) : Game Assets › Sprite Lab › onglet Bible, choisir le personnage
+  puis « 8 » (sélecteur Directions). 5 directions dessinées : S, E et N découpées dans la planche (gratuit), SE et NE
+  générées (payant, catégorie « sprites », devis affiché à côté du bouton puis confirmation) ; SO, O et NO en miroir,
+  cochés par défaut — décocher un miroir génère la vraie vue (O se découpe, gratuit). « 4 » découpe seulement la
+  planche, gratuit ; « 8 directions (modèle 3D) » rend le modèle 3D, gratuit. → [ALLER:assets3d] [GUIDE:spritelab]
 - **Raccourcis clavier**. → [GUIDE:raccourcis]
 - **Ça ne marche pas**. → [GUIDE:depannage]
 
@@ -202,6 +213,10 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Les brouillons de la campagne ne sont pas au calendrier** : ils sont rangés dans l'espace de la campagne, et le
   calendrier ne montre que l'espace actif. Sur la carte des brouillons, « Activer l'espace … et ouvrir le
   calendrier » l'active (sur ce clic seulement). → [GUIDE:agent-campagnes]
+- **Personnage qui tient une épée, un bouclier, un sac en bandoulière** (sprites en 8 directions) : ne jamais
+  miroiter — un miroir changerait l'objet de main. Cocher « Le personnage tient un objet asymétrique » : les miroirs
+  se décochent, et SO, O, NO et l'est sont générés (l'est de la planche est lui-même le miroir du profil gauche) :
+  5 générations au lieu de 2. → [GUIDE:spritelab]
 
 ## Comment répondre
 1. Réponds dans la langue de la question, en 5 étapes au plus, phrases courtes, sans jargon technique.

@@ -68,5 +68,26 @@ const pu = D.puces(p);
 ok("puces : 12 mots-clés au plus, puis une puce par couleur de marque", pu.length === 14 && pu[0].v === "k0" && pu[12].v === "palette accent #112233" && pu[12].couleur === true);
 ok("puces : persona vide → aucune", J(D.puces({})) === "[]" && J(D.puces(null)) === "[]");
 
+// t339 (lot Scenario, B3) : 4 ou 8 directions depuis la planche — les MIROIRS de l'écran sont ceux du backend
+const mir = py.match(/MIROIRS = \{([^}]*)\}/)[1];
+const MIR = Object.fromEntries([...mir.matchAll(/"(\w+)": "(\w+)"/g)].map((m) => [m[1], m[2]]));
+ok("MIROIRS : la table du backend (sprite_directions.MIROIRS)", J(D.MIROIRS) === J(MIR), J(MIR));
+ok("ROSE : les 8 directions de HUIT, une fois chacune, le centre vide", J(D.ROSE.flat().filter(Boolean).sort()) === J([...HUIT].sort()) && D.ROSE[1][1] === null);
+ok("ROSE : nord en haut, sud en bas, est à droite", D.ROSE[0][1] === "north" && D.ROSE[2][1] === "south" && D.ROSE[1][2] === "east" && D.ROSE[1][0] === "west");
+ok("miroirsEffectifs : les cases cochées, dans l'ordre de la table", J(D.miroirsEffectifs(["northwest", "west", "zz"], false)) === J(["west", "northwest"]));
+ok("miroirsEffectifs : objet asymétrique → AUCUN miroir (ne jamais miroiter)", J(D.miroirsEffectifs(Object.keys(D.MIROIRS), true)) === "[]");
+const c4 = D.corpsDirections(4, ["west"], true, { entity_id: "e1", cell: { size: 64 } });
+ok("corpsDirections 4 : ni miroirs ni confirmation", J(c4) === J({ directions: 4, entity_id: "e1", cell: { size: 64 } }), J(c4));
+const c8 = D.corpsDirections(8, ["southwest", "west", "northwest"], false, { entity_id: "e1", trim: "auto", pixel: null });
+ok("corpsDirections 8 : miroirs et case transmis, rien de payé sans `confirme`", J(c8) === J({ directions: 8, miroirs: ["southwest", "west", "northwest"], objet_asymetrique: false, entity_id: "e1", trim: "auto" }) && !("confirme_cout" in c8), J(c8));
+ok("corpsDirections 8 asymétrique : miroirs vidés", J(D.corpsDirections(8, ["west"], true, {}).miroirs) === "[]" && D.corpsDirections(8, [], true, {}).objet_asymetrique === true);
+ok("corpsDirections : `confirme_cout` seulement après le dialogue", D.corpsDirections(8, [], false, { confirme: true }).confirme_cout === true);
+const plan = HUIT.map((d) => ({ direction: d, source: d in MIR ? "miroir" : ["southeast", "northeast"].includes(d) ? "generee" : "planche", de: MIR[d] || null }));
+const r = D.rose(plan);
+ok("rose : le plan posé sur 3 × 3", r[0][1].direction === "north" && r[1][1] === null && r[2][2].source === "generee" && r[1][0].source === "miroir");
+ok("rose : plan absent → cases vides", J(D.rose(null)) === J([[null, null, null], [null, null, null], [null, null, null]]));
+ok("abrev : rose française sous node (S, SO, O, NO…)", HUIT.map(D.abrev).join(" ") === "S SO O NO N NE E SE");
+ok("libelleSource : découpée / générée / miroir · source", D.libelleSource(plan[0]) === "découpée" && D.libelleSource(r[2][2]) === "générée" && D.libelleSource(r[1][0]) === "miroir · E" && D.libelleSource(null) === "");
+
 if (echecs.length) { console.log("ÉCHECS :\n  " + echecs.join("\n  ")); process.exit(1); }
 console.log("PASS directions.test.mjs");
