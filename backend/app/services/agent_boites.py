@@ -45,6 +45,13 @@ BOITES: dict[str, dict] = {
         "agents": [],
         "mobile": False,
     },
+    # t317 : lire la piste des clics d'une capture ; aucun agent ne la déclare encore (§11 bis : le Tutoriel est « Demander »)
+    "capture": {
+        "libelle": "agent.boites.capture",
+        "outils": ["lire_piste_clics"],
+        "agents": [],
+        "mobile": False,
+    },
 }
 
 

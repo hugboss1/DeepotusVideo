@@ -8,6 +8,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "agent.action.introuvable": {"fr": "Je ne trouve pas ce bouton sur cet écran. Le chapitre du guide t'aidera.", "en": "I can't find this button on this screen. The guide chapter will help."},
   "agent.action.montrer": {"fr": "Montre-moi : {libelle}", "en": "Show me: {libelle}"},
   "agent.boites.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
+  "agent.boites.capture": {"fr": "Capture de l'app", "en": "App recording"},
   "agent.boites.prospects": {"fr": "Prospects", "en": "Prospects"},
   "agent.boites.scan": {"fr": "Scan", "en": "Scan"},
   "agent.boites.veille": {"fr": "Veille", "en": "Watch"},
