@@ -177,9 +177,8 @@ if (!window.__dzLive) {
     }
     async function retirer(c) {
       const d = window.__dzDialogue;
-      const oui = d && typeof d.confirmer === "function"
-        ? await d.confirmer(T("live.dest.retirer_q", { nom: c.libelle }), { titre: T("live.dest.retirer"), ok: T("live.dest.retirer") })
-        : window.confirm(T("live.dest.retirer_q", { nom: c.libelle }));
+      if (!d || typeof d.confirmer !== "function") return;           // jamais de boîte native (test_dialogues_partout)
+      const oui = await d.confirmer(T("live.dest.retirer_q", { nom: c.libelle }), { titre: T("live.dest.retirer"), ok: T("live.dest.retirer") });
       if (!oui) return;
       try { await api("/api/comptes/" + encodeURIComponent(c.id), { method: "DELETE" }); }
       catch (e) { erreur.textContent = e.message; }

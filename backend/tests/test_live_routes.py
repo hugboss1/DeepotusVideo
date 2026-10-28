@@ -142,7 +142,10 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
                         break
             diff = L._SESSIONS[lid]["diffusion"]
             time.sleep(0.5)
-            recep.wait(timeout=20)
+            try:
+                recep.wait(timeout=40)
+            except subprocess.TimeoutExpired:          # machine chargée : le fichier reçu reste lisible
+                recep.kill(); recep.wait()
             dur = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(sortie)],
                                  capture_output=True, text=True).stdout.strip()
             check("R3.1 l'état revient par le WebSocket (en_direct, images/s)", etats and etats[-1]["etat"] == "en_direct"

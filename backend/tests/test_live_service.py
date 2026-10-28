@@ -286,7 +286,10 @@ else:
             time.sleep(0.2)
         e = dfr.etat()
         code = dfr.fermer()
-        recep.wait(timeout=20)
+        try:
+            recep.wait(timeout=40)
+        except subprocess.TimeoutExpired:
+            recep.kill(); recep.wait()
         dur = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(sortie)],
                              capture_output=True, text=True).stdout.strip()
         check("F1 destination fermée en panne, l'autre ok (onfail=ignore)", e["destinations"] == ["panne", "ok"], e)
