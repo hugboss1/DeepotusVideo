@@ -1127,8 +1127,13 @@ async def prospects_qualifier(ctx: Ctx, pid: str, offre: str, ajustement: int = 
 async def sequence_proposer(ctx: Ctx, pid: str, canal: str, etapes: list) -> dict:
     """t355 : une séquence (1er message + 2 relances au plus) pour un prospect qualifié, sur un canal possible, sans les
     mots interdits de l'espace ; rend la carte « sequence » de la porte 2 : l'utilisateur valide, rien ne part ici."""
-    from app.services import prospects_sequences as S
+    from app.services import prospects as P, prospects_sequences as S
     eid = _espace(ctx)
+    try:
+        if (await asyncio.to_thread(P.lire, eid, pid)).get("a_l_humain"):
+            raise _Refus("cette fiche est à reprendre par l'utilisateur : ne lui propose rien")
+    except P.RefusProspect as e:
+        raise _Refus(e.message) from None
     mots_p, mots_b = await _mots_interdits(eid)
     try:
         s = await asyncio.to_thread(S.proposer, eid, pid, canal, etapes, mots_p + mots_b, "agent")
@@ -1211,9 +1216,18 @@ async def relance_proposer(ctx: Ctx, pid: str, decision: str, motif: str = "", r
     suivi = next((x for x in await asyncio.to_thread(U.reponses, eid) if x["pid"] == pid), None)
     if suivi is None:
         raise _Refus("ce prospect n'a pas répondu : une séquence se propose avec sequence_proposer")
+    if suivi.get("a_l_humain"):
+        raise _Refus("cette fiche est à reprendre par l'utilisateur : ne lui propose rien")
     if suivi["garde"]:
         raise _Refus(f"passage à l'humain obligatoire : la réponse parle de {suivi['garde']} ; appelle relance_proposer "
                      "avec decision humain et ce motif, sans répondre au prospect")
+    if canal != suivi.get("canal_reponse"):
+        raise _Refus(f"réponds sur le canal de sa dernière réponse ({suivi.get('canal_reponse')}), pas sur {canal or 'aucun'}")
+    deja = [s for s in await asyncio.to_thread(S.lister, eid, pid) if s.get("reponse") and s.get("motif") != "remplacee"
+            and U._dt(s.get("cree_le")) and suivi.get("derniere_reponse")
+            and U._dt(s.get("cree_le")) >= U._dt(suivi["derniere_reponse"])]
+    if deja:
+        raise _Refus("une réponse à ce message est déjà proposée ou partie : une seule par message reçu")
     mots_p, mots_b = await _mots_interdits(eid)
     etape = {"objet": objet, "texte": texte, "delai_jours": 0, **({"modele": modele} if modele else {})}
     try:
@@ -1364,7 +1378,8 @@ OUTILS: dict[str, dict] = {
                                         "la fiche revient à l'utilisateur (motif prix, devis, plainte, stop ou autre, et "
                                         "une raison). Jamais de prix, de délai ni de remise promis.",
                          "schema": _o({"pid": _T, "decision": {"type": "string", "enum": ["repondre", "humain"]},
-                                       "motif": {"type": "string", "enum": ["prix", "devis", "plainte", "stop", "autre"]},
+                                       "motif": {"type": "string", "enum": ["prix", "devis", "plainte", "stop", "refus", "engagement",
+                                                                           "illisible", "autre"]},
                                        "raison": dict(_T, maxLength=300),
                                        "canal": {"type": "string", "enum": ["email", "whatsapp", "x", "instagram", "linkedin"]},
                                        "objet": dict(_T, maxLength=150), "texte": _T,

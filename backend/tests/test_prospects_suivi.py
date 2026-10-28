@@ -125,5 +125,44 @@ check("4d répondre : la carte « sequence » (porte 2), séquence réponse", r[
 r = asyncio.run(ao.executer("relance_proposer", {"pid": p6, "decision": "humain"}, ctx))
 check("4e humain sans motif : refus", not r["ok"])
 
+print("[5] relecture t358")
+for t, m in (("Non merci, pas intéressé", "refus"), ("No thanks, not interested", "refus"), ("Ne me contactez plus", "refus"),
+             ("Please stop emailing me", "refus"), ("opt out", "refus"), ("What are your rates and fees?", "prix"),
+             ("Quels sont vos délais et conditions du contrat ?", "engagement")):
+    check(f"5a garde « {t} » → {m}", U.garde(t) == m, U.garde(t))
+p7 = fiche("Studio Sept", "contact@studio-sept.fr")
+M.ajouter_reponse(A, {"pid": p7, "de": "contact@studio-sept.fr", "sujet": "Re", "extrait": "Combien pour 10 vidéos ?", "stop": False})
+M.ajouter_reponse(A, {"pid": p7, "de": "contact@studio-sept.fr", "sujet": "Re", "extrait": "Et une démo possible ?", "stop": False})
+check("5b garde sur TOUTES les réponses depuis le dernier envoi (prix dans l'avant-dernière)", {x["pid"]: x for x in U.reponses(A)}[p7]["garde"] == "prix")
+p8 = fiche("Studio Huit", "contact@studio-huit.fr")
+P.noter_contact(A, p8, "entrant", "whatsapp : message reçu", "systeme")
+check("5c dernière réponse WhatsApp (texte inconnu) : garde « illisible »", {x["pid"]: x for x in U.reponses(A)}[p8]["garde"] == "illisible")
+p9 = fiche("Studio Neuf", "contact@studio-neuf.fr")
+M.ajouter_reponse(A, {"pid": p9, "de": "contact@studio-neuf.fr", "sujet": "Re", "extrait": "Avec plaisir, une démo ?", "stop": False})
+r = asyncio.run(ao.executer("relance_proposer", {"pid": p9, "decision": "repondre", "canal": "whatsapp", "texte": "x"}, ctx))
+check("5d répondre sur un autre canal que la réponse : refus", not r["ok"] and "canal" in r["resume"], r["resume"])
+k9 = asyncio.run(ao.executer("relance_proposer", {"pid": p9, "decision": "repondre", "canal": "email", "objet": "Re", "texte": "Mardi ?"}, ctx))
+s9 = k9["carte"]["arguments"]["sid"]
+S.valider(A, s9); S.planifier(A, s9)
+import time as _time                                                # noqa: E402
+_time.sleep(1.1)
+P.noter_contact(A, p9, "entrant", "e-mail : Re", "systeme")
+M.ajouter_reponse(A, {"pid": p9, "de": "contact@studio-neuf.fr", "sujet": "Re", "extrait": "Non merci finalement", "stop": False})
+x = [y for y in S.lister(A, p9) if y["id"] == s9][0]
+check("5e une nouvelle réponse arrive : la réponse préparée s'arrête (motif nouvelle_reponse)", x["statut"] == "annulee" and x["motif"] == "nouvelle_reponse", (x["statut"], x.get("motif")))
+r = asyncio.run(ao.executer("relance_proposer", {"pid": p9, "decision": "repondre", "canal": "email", "objet": "Re", "texte": "Dommage"}, ctx))
+check("5f un refus (« non merci ») : l'agent ne répond pas", not r["ok"] and "humain" in r["resume"], r["resume"])
+p10 = fiche("Studio Dix", "contact@studio-dix.fr")
+M.ajouter_reponse(A, {"pid": p10, "de": "contact@studio-dix.fr", "sujet": "Re", "extrait": "Intéressés, parlons-en", "stop": False})
+k10 = asyncio.run(ao.executer("relance_proposer", {"pid": p10, "decision": "repondre", "canal": "email", "objet": "Re", "texte": "Mardi ?"}, ctx))
+r = asyncio.run(ao.executer("relance_proposer", {"pid": p10, "decision": "repondre", "canal": "email", "objet": "Re", "texte": "Et mercredi ?"}, ctx))
+check("5g une seule réponse par message reçu : la deuxième est refusée", k10["ok"] and not r["ok"], r["resume"])
+P.passer_a_l_humain(A, p10, "autre", "à voir")
+x = [y for y in S.lister(A, p10) if y["id"] == k10["carte"]["arguments"]["sid"]][0]
+check("5h passer à l'humain : les séquences en cours de la fiche s'arrêtent (motif humain)", x["statut"] == "annulee" and x["motif"] == "humain", (x["statut"], x.get("motif")))
+r = asyncio.run(ao.executer("relance_proposer", {"pid": p10, "decision": "repondre", "canal": "email", "objet": "Re", "texte": "x"}, ctx))
+r2 = asyncio.run(ao.executer("sequence_proposer", {"pid": p10, "canal": "email", "etapes": [{"objet": "x", "texte": "x", "delai_jours": 0}]}, ctx))
+check("5i fiche « à reprendre » : l'agent ne propose plus rien", not r["ok"] and not r2["ok"], (r["resume"], r2["resume"]))
+
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

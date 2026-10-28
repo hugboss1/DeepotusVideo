@@ -169,6 +169,9 @@ def _arreter(eid, doc: dict) -> bool:
             continue
         if f is None or st in (ARRET_REPONSE if s.get("reponse") else ARRET):
             _stopper(s, f"fiche:{st}" if st else "effacee", effacer=(f is None or st == "oppose"))
+        elif s.get("reponse") and any(h["quoi"] == "contact_entrant" and h["quand"] > (s.get("cree_le") or "")
+                                      for h in f["historique"]):
+            _stopper(s, "nouvelle_reponse")      # relecture t358 (1) : le prospect a encore écrit, la réponse est périmée
         elif s["canal"] not in [c["canal"] for c in _sc.canaux_possibles(f)]:
             _stopper(s, "canal")
         else:
@@ -184,6 +187,17 @@ def pour_export(eid, pid) -> list:
             return [json.loads(json.dumps(s)) for s in _lire(eid)["sequences"] if s.get("pid") == pid]
         except RefusSequence:
             return []
+
+
+def arreter_fiche(eid, pid, motif: str) -> None:
+    """Toutes les séquences EN COURS d'une fiche s'arrêtent (passage à l'humain). N'appelle jamais `prospects`."""
+    with _verrou:
+        doc = _lire(eid)
+        touchees = [s for s in doc["sequences"] if s.get("pid") == pid and s.get("statut") in EN_COURS]
+        for s in touchees:
+            _stopper(s, motif)
+        if touchees:
+            _poser(eid, doc)
 
 
 def oublier(eid, pid) -> None:

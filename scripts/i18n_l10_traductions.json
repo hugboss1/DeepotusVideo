@@ -11707,12 +11707,12 @@
   "fr": "une relance WhatsApp est un modèle approuvé (nom, langue, paramètres)",
   "en": "a WhatsApp follow-up is an approved template (name, language, parameters)"
  },
- "motif inconnu (prix, devis, plainte, stop ou autre)": {
-  "fr": "motif inconnu (prix, devis, plainte, stop ou autre)",
-  "en": "unknown reason (prix, devis, plainte, stop or autre)"
- },
  "une réponse est un seul message": {
   "fr": "une réponse est un seul message",
   "en": "a reply is a single message"
+ },
+ "motif inconnu (prix, devis, plainte, stop, refus, engagement, illisible ou autre)": {
+  "fr": "motif inconnu (prix, devis, plainte, stop, refus, engagement, illisible ou autre)",
+  "en": "unknown reason (prix, devis, plainte, stop, refus, engagement, illisible or autre)"
  }
 }
