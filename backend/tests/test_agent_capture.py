@@ -74,7 +74,7 @@ try:
           and r["resume"].startswith("3 clics (1 reconnus), 2 écrans, 1 générations")
           and D["ecrans"] == [{"t": 0, "ecran": "quick"}, {"t": 10000, "ecran": "studio"}] and D["generations"] == 1, r)
     check("2b libellés encadrés, zone masquée sans libellé, fiche donnée", D["clics"].count("<<<PREUVE") == 1
-          and D["clics"].rstrip().endswith("PREUVE>>>") and "(zone masquée)" in D["clics"]
+          and D["clics"].rstrip().endswith("PREUVE>>>") and "[masqué]" in D["clics"]
           and "quick.generer | Générer" in D["clics"], D.get("clics"))
     check("2c texte hostile neutralisé (ne referme pas le cadre)", D["clics"].count("PREUVE>>>") == 1, D.get("clics"))
     check("2d id invalide refusé", lancer({"capture": "../x"})["ok"] is False)

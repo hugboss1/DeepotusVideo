@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import asyncio
 import math
+import subprocess
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
@@ -115,8 +117,11 @@ async def lire(cid: str, request: Request):
     except C.RefusCapture as e:
         raise _refus(e) from None
     propose = m is None
-    if propose:
-        m = M.valider(M.proposer(r["clics"], k=_k_skin()), _duree(r), cid)
+    try:
+        # revue finale (I4) : un montage enregistré est relu par le serveur avant d'aller à l'écran
+        m = M.valider(M.proposer(r["clics"], k=_k_skin()) if propose else m, _duree(r), cid)
+    except M.RefusMontage:
+        propose, m = True, M.valider(M.proposer(r["clics"], k=_k_skin()), _duree(r), cid)
     s = r["session"]
     return {"capture": {"id": cid, "cree_utc": s.get("cree_utc"), "duree_ms": _duree(r), "cadre": r["clics"].get("cadre"),
                         "pistes": sorted(s.get("pistes") or {})},
@@ -165,16 +170,36 @@ def _scene_biblio(cid: str) -> str | None:
     return None
 
 
-def _sous_titres(fichier, m: dict, fournisseur: str) -> dict:
-    """Grave les sous-titres sur le rendu (quick_finish, le chemin de Quick). Ne lève jamais : {etat, repliques}."""
+def _audio_seul(fichier) -> Path | None:
+    """La voix du rendu seule (AAC mono 64 kb/s, .m4a) : ce qu'on transcrit ou cale, jamais la vidéo 1080p entière
+    (revue finale I3 : plafond de taille des fournisseurs). None si le rendu n'a pas de son lisible."""
+    from app.services import capture_montage as _M
+    out = Path(fichier).with_suffix(".voix.m4a")
+    try:
+        r = subprocess.run([_M._ffmpeg(), "-y", "-v", "error", "-i", str(fichier), "-vn", "-ac", "1", "-c:a", "aac",
+                            "-b:a", "64k", str(out)], capture_output=True, timeout=1800)
+    except subprocess.TimeoutExpired:
+        r = None
+    if r is None or r.returncode != 0 or not out.is_file() or out.stat().st_size == 0:
+        out.unlink(missing_ok=True)
+        return None
+    return out
+
+
+def _sous_titres(fichier, audio: Path, m: dict, fournisseur: str) -> dict:
+    """Grave les sous-titres sur le rendu (quick_finish, le chemin de Quick) d'après la voix seule `audio` (effacée à la
+    fin). Ne lève jamais : {etat, repliques}."""
     from app.services import quick_finish as Q
     st = m["sous_titres"]
-    if st["source"] == "aucun":
-        return {"etat": "aucun"}
-    if st["source"] == "texte" and not st["texte"].strip():
-        return {"etat": "sans_texte"}
     try:
-        segs = Q.segments_for(fichier, st["texte"], lang=st["langue"],
+        return _graver(Q, fichier, audio, st, m, fournisseur)
+    finally:
+        Path(audio).unlink(missing_ok=True)
+
+
+def _graver(Q, fichier, audio, st: dict, m: dict, fournisseur: str) -> dict:
+    try:
+        segs = Q.segments_for(audio, st["texte"], lang=st["langue"],
                               source="transcribe" if st["source"] == "transcrire" else "align", provider=fournisseur)
         if not segs:
             return {"etat": "sans_voix"}
@@ -202,35 +227,52 @@ async def rendre(cid: str, request: Request):
         raise _refus(e) from None
     if cid in _EN_COURS:
         raise HTTPException(409, "Un rendu de cette capture est déjà en cours.")
-    fournisseur = str(d.get("fournisseur") or "")[:20]
-    if m["sous_titres"]["source"] == "transcrire":
-        from app.services import transcribe_service as T
-        segs = M.segments(m, _duree(r))
-        dur = sum((b - a) / v for a, b, v in segs) / 1000
-        try:
-            est = T.estimate_transcription(dur, fournisseur or None)
-        except ValueError as e:
-            raise HTTPException(400, str(e)) from None
-        if d.get("confirme_cout") is not True or not est.get("ok"):
-            return {"ok": False, "devis": est}
-        max_usd = d.get("max_usd")
-        if isinstance(max_usd, bool) or not isinstance(max_usd, (int, float)) or not math.isfinite(max_usd) or max_usd < 0:
-            raise HTTPException(400, "La confirmation exige le coût accepté (max_usd).")
-        if float(est.get("usd") or 0) > float(max_usd) + _USD_TOL:
-            return JSONResponse(status_code=409, content={
-                "detail": "Le coût de la transcription a changé : confirmez le nouveau devis.", "devis": est})
-        from app.services import plafonds
-        await plafonds.verifier({"kind": "transcribe", "provider": est.get("provider"), "duration_s": dur}, "montage",
-                                ref=f"capture_montage:{cid}")
-        fournisseur = str(est.get("provider") or fournisseur)
+    # revue finale (I1) : réservé AVANT tout await, devis compris : deux confirmations simultanées ne paient pas deux fois
     _EN_COURS.add(cid)
     try:
+        fournisseur = str(d.get("fournisseur") or "")[:20]
+        op = None
+        if m["sous_titres"]["source"] == "transcrire":
+            from app.services import transcribe_service as T
+            segs = M.segments(m, _duree(r))
+            dur = sum((b - a) / v for a, b, v in segs) / 1000
+            try:
+                est = T.estimate_transcription(dur, fournisseur or None)
+            except ValueError as e:
+                raise HTTPException(400, str(e)) from None
+            if d.get("confirme_cout") is not True or not est.get("ok"):
+                return {"ok": False, "devis": est}
+            max_usd = d.get("max_usd")
+            if (isinstance(max_usd, bool) or not isinstance(max_usd, (int, float)) or not math.isfinite(max_usd)
+                    or max_usd < 0):
+                raise HTTPException(400, "La confirmation exige le coût accepté (max_usd).")
+            if float(est.get("usd") or 0) > float(max_usd) + _USD_TOL:
+                return JSONResponse(status_code=409, content={
+                    "detail": "Le coût de la transcription a changé : confirmez le nouveau devis.", "devis": est})
+            fournisseur = str(est.get("provider") or fournisseur)
+            op = {"kind": "transcribe", "provider": est.get("provider"), "duration_s": dur}
         await asyncio.to_thread(M.ecrire_montage, cid, m)
         try:
             rendu = await asyncio.to_thread(M.rendre, cid, m, settings.outputs_path / "captures")
         except M.RefusMontage as e:
             raise _refus(e) from None
-        st = await asyncio.to_thread(_sous_titres, rendu["fichier"], m, fournisseur)
+        # revue finale (I2, I3) : la dépense n'est inscrite qu'APRÈS un rendu réussi et une piste audio extraite,
+        # juste avant l'appel payant ; un plafond atteint garde le rendu, sans sous-titres
+        sst = m["sous_titres"]
+        st = ({"etat": "aucun"} if sst["source"] == "aucun"
+              else {"etat": "sans_texte"} if sst["source"] == "texte" and not sst["texte"].strip() else None)
+        audio = await asyncio.to_thread(_audio_seul, rendu["fichier"]) if st is None else None
+        if st is None and audio is None:
+            st = {"etat": "echec"}
+        if st is None and op is not None:
+            from app.services import plafonds
+            try:
+                await plafonds.verifier(op, "montage", ref=f"capture_montage:{cid}")
+            except HTTPException:
+                audio.unlink(missing_ok=True)
+                st = {"etat": "plafond"}
+        if st is None:
+            st = await asyncio.to_thread(_sous_titres, rendu["fichier"], audio, m, fournisseur)
     finally:
         _EN_COURS.discard(cid)
     dest = rendu["fichier"]

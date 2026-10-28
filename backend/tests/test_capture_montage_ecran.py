@@ -75,8 +75,11 @@ const cf = [["16:9", 1440, 900], ["9:16", 1440, 900], ["1:1", 1440, 900], ["9:16
 const lec = [L.lecture(m, 7000), L.lecture(m, 10000), L.lecture(m, 500)];
 let n = {zooms: [{id: "x", t0: 0, t1: 3000, k: 2, x: .5, y: .5}, {id: "y", t0: 3500, t1: 6000, k: 2, x: .5, y: .5}]};
 n = L.ajouterZoom(n, 3200, 0.3, 0.3, 9, 12000);
+const nz = L.normaliserZooms({zooms: [{id: "a", t0: 5000, t1: 2000, k: 2, x: .5, y: .5}, {id: "b", t0: 1000, t1: 4000, k: 9, x: .5, y: .5},
+  {id: "c", t0: 3000, t1: 6000, k: 2, x: .5, y: .5}, {id: "d", t0: 11500, t1: 99000, k: 2, x: .5, y: .5}]}, 12000).zooms;
+const nan = L.zoomA({zooms: [{t0: 1000, t1: 1000, k: 2, x: .5, y: .5}]}, 1000);
 const br = L.brouillon({job_id: "J", chapitres_texte: "00:00 A"}, "Tuto", "9:16", Date.UTC(2026, 9, 28, 8, 0, 0));
-console.log(JSON.stringify({z, segs, vs, plein, vert, bord, cf, lec, n: n.zooms, br,
+console.log(JSON.stringify({nz, nan, z, segs, vs, plein, vert, bord, cf, lec, n: n.zooms, br,
   proche: L.clicProche([{type:"clic", t: 100, x: .1, y: .2}, {type:"clic", t: 200, x: .7, y: .7, secret: true}], 900),
   ecran: L.ecranA([{type:"ecran", t:0, ecran:"quick"}, {type:"ecran", t:500, ecran:"studio"}], 400),
   lib: [L.libelleChapitre({titre:"", ecran:"sonvfx_hub"}, 0), L.libelleChapitre({titre:"", ecran:""}, 2),
@@ -103,6 +106,10 @@ check("L7 lecture : accéléré ×8, coupe sautée, normal", L["lec"] == [{"saut
 zs = sorted(L["n"], key=lambda z: z["t0"])
 check("L8 zoom ajouté : borné (k 2,5), voisins rognés, jamais de chevauchement", len(zs) == 3
       and all(a["t1"] <= b["t0"] for a, b in zip(zs, zs[1:])) and any(z["k"] == 2.5 and z["t0"] == 2700 for z in zs), zs)
+check("L11 zooms normalisés comme le serveur (t1 > t0, bornés, rognés, k ≤ 2,5) ; zoom de durée nulle sans NaN",
+      [(z["id"], z["t0"], z["t1"], z["k"]) for z in L["nz"]] == [("b", 1000, 4000, 2.5), ("c", 4000, 6000, 2),
+                                                                 ("d", 11500, 12000, 2)]
+      and L["nan"] == {"z": 1, "cx": 0.5, "cy": 0.5}, (L["nz"], L["nan"]))
 check("L9 brouillon : draft, sans canaux, demain 10 h, job et chapitres", L["br"]["status"] == "draft"
       and "channels" not in L["br"] and "comptes" not in L["br"] and L["br"]["job_id"] == "J"
       and L["br"]["caption"] == "00:00 A" and L["br"]["run_at"].startswith("2026-10-29T") and L["br"]["format"] == "9:16",
@@ -135,7 +142,7 @@ check("P8 FR/EN mêmes variables, non vides", all(v["fr"].strip() and v["en"].st
                                                  for v in DICO.values()))
 emploi = set(re.findall(r'"(montagecap\.[a-z_]+\.[a-z0-9_]+)"(?!\s*\+)', TXT))
 dyn = {"montagecap.coupe." + x for x in ("accelerer", "couper")} | {"montagecap.st." + x for x in
-       ("aucun", "texte", "transcrire")} | {"montagecap.st_etat." + x for x in ("graves", "echec", "sans_voix",
+       ("aucun", "texte", "transcrire")} | {"montagecap.st_etat." + x for x in ("graves", "echec", "plafond", "sans_voix",
                                                                                     "sans_texte")} \
     | {"montagecap.format.f" + x for x in ("16x9", "9x16", "1x1")}
 check("P9 toutes les clés employées, aucune clé employée absente", (emploi | dyn) == cles,

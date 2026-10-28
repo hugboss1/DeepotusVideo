@@ -166,7 +166,7 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     T.estimate_transcription = lambda d, p=None: {"ok": True, "provider": "elevenlabs", "usd": 0.0123,
                                                   "duration_s": d, "label": "ElevenLabs"}
     def faux_transcribe(path, provider=None, language=None, timeout=600.0):
-        appels.append(provider)
+        appels.append((provider, pathlib.Path(path).suffix))
         w = T._norm_words([{"text": "Bonjour", "start": 0.2, "end": 0.7}, {"text": "monde", "start": 0.8, "end": 1.3}], "text")
         return {"ok": True, "words": w, "text": "Bonjour monde"}
     T.transcribe = faux_transcribe
@@ -183,11 +183,40 @@ with TestClient(app, client=("127.0.0.1", 50000)) as c:
     check("4.3 confirmation sans max_usd -> 400", d3.status_code == 400 and appels == [])
     d4 = c.post(f"/api/capture-montage/{B}/rendre", json={"montage": mt, "confirme_cout": True, "max_usd": 0.0123})
     check("4.4 confirmée : un appel, sous-titres gravés, dépense écrite", d4.status_code == 200 and d4.json()["ok"]
-          and appels == ["elevenlabs"] and d4.json()["sous_titres"] == {"etat": "graves", "repliques": 1}
+          and appels == [("elevenlabs", ".m4a")] and d4.json()["sous_titres"] == {"etat": "graves", "repliques": 1}
           and len(depenses()) == n0 + 1, (d4.text, appels, len(depenses()), n0))
     T.estimate_transcription = lambda d, p=None: {"ok": False, "provider": None, "usd": 0.0, "reason": "sans clé"}
     d5 = c.post(f"/api/capture-montage/{B}/rendre", json={"montage": mt, "confirme_cout": True, "max_usd": 1})
-    check("4.5 sans clé : devis ok:false, rien de lancé", d5.json()["ok"] is False and appels == ["elevenlabs"], d5.text)
+    check("4.5 sans clé : devis ok:false, rien de lancé", d5.json()["ok"] is False and len(appels) == 1, d5.text)
+    T.estimate_transcription = lambda d, p=None: {"ok": True, "provider": "elevenlabs", "usd": 0.0123,
+                                                  "duration_s": d, "label": "ElevenLabs"}
+    vrai_rendre = M.rendre
+    def rendu_en_panne(*a, **k):
+        raise M.RefusMontage("Le rendu du montage a échoué.", 500)
+    M.rendre = rendu_en_panne
+    n1 = len(depenses())
+    d6 = c.post(f"/api/capture-montage/{B}/rendre", json={"montage": mt, "confirme_cout": True, "max_usd": 0.0123})
+    M.rendre = vrai_rendre
+    check("4.6 rendu en échec : aucune dépense inscrite, aucun appel, verrou rendu", d6.status_code == 500
+          and len(depenses()) == n1 and len(appels) == 1 and B not in CR._EN_COURS, (d6.status_code, len(depenses()), n1))
+    from app.services import plafonds as PL
+    vrai_verifier = PL.verifier
+    async def plafond_atteint(*a, **k):
+        from fastapi import HTTPException
+        raise HTTPException(402, {"dz_plafond": True})
+    PL.verifier = plafond_atteint
+    d7 = c.post(f"/api/capture-montage/{B}/rendre", json={"montage": mt, "confirme_cout": True, "max_usd": 0.0123})
+    PL.verifier = vrai_verifier
+    check("4.7 plafond atteint : rendu gardé, sous-titres « plafond », aucun appel", d7.status_code == 200
+          and d7.json()["ok"] and d7.json()["sous_titres"] == {"etat": "plafond"} and len(appels) == 1, d7.text)
+    (C.racine() / A / "montage.json").write_text("{pas du json", "utf-8")
+    r8 = c.get(f"/api/capture-montage/{A}")
+    check("4.8 montage.json abîmé : capture toujours montable (proposition)", r8.status_code == 200
+          and r8.json()["propose"] is True, r8.text)
+    (C.racine() / A / "montage.json").write_text(json.dumps({"format": "1:1"}), "utf-8")
+    r9 = c.get(f"/api/capture-montage/{A}").json()
+    check("4.9 montage incomplet relu par le serveur (listes présentes)", r9["montage"]["format"] == "1:1"
+          and r9["montage"]["zooms"] == [] and r9["propose"] is False, r9)
 
     print("[6] L10")
     r6 = c.get(f"/api/capture-montage/{EC}", headers={"Accept-Language": "en"})

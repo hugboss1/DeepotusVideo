@@ -178,6 +178,22 @@ Fiches `montagecap.*` (connaissance-agent, `catalogue.py --check`), AGENT.md ; L
 (capture factice → éditeur → zooms, coupe, chapitres, 9:16 → rendu → brouillon) dans
 `docs/superpowers/specs/captures/t317/` ; relecture finale indépendante, une vague de corrections ; bancs base/HEAD.
 
+## Écarts datés (exécution et revue finale, 28/10)
+
+- Clés `montagecap.*` (le banc l0 refuse `_` dans la zone), dictionnaire `i18n/montagecap.json`.
+- Dépense de transcription : catégorie `montage` des plafonds (la liste `CATEGORIES` n'a pas `capture`), inscrite
+  APRÈS un rendu réussi et l'extraction de la voix (`.m4a` mono 64 kb/s, jamais le mp4 1080p), juste avant l'appel ;
+  un plafond atteint garde le rendu sans sous-titres (`st_etat.plafond`). Le verrou de rendu est pris avant le devis.
+- Niveau de zoom : celui du skin ACTIF de l'espace courant (la session t315 ne garde pas l'id du skin : `options_lues`
+  le retire) ; `zoom.duree_ms` du skin n'est pas repris (fenêtre fixe −500/+1500 ms).
+- `GET /captures` ne liste pas les rendus et `GET /{id}` ne rend pas le skin (inutiles à l'éditeur).
+- Coupes chevauchantes : fondues seulement à mode et vitesse égaux, sinon la seconde est rognée. Premier chapitre de
+  sortie toujours à 00:00. Montage enregistré abîmé : relu par `valider`, sinon proposition.
+- Bancs : l'éditeur n'est pas joué sous faux DOM (logique et livraison seulement) ; son comportement est prouvé dans
+  Chrome sur 8797.
+- Restes de la revue (suites) : expressions de zoom recopiées dans `crop` (taille du graphe et coût par image pour
+  des centaines de zooms) ; détail du 409 « coût changé » non traduit (JSONResponse, l'écran a sa propre clé).
+
 ## Contrat pour t319
 
 - **Piste → étapes** : `capture_montage.proposer(clics)` rend déjà les CHAPITRES (écran par écran) et les ZOOMS (un par

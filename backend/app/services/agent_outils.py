@@ -500,7 +500,7 @@ async def lire_piste_clics(ctx: Ctx, capture: str = "") -> dict:
     lignes = []
     for e in clics[:MAX_CLICS_AGENT]:
         c = e.get("cible") or {}
-        lib = "(zone masquée)" if e.get("secret") else (c.get("t") or c.get("i") or "")
+        lib = "[masqué]" if e.get("secret") else (c.get("t") or c.get("i") or "")
         lignes.append(f"{int(e.get('t') or 0)} ms | {e.get('ecran') or '-'} | {e.get('fiche') or '-'} | {lib}")
     prop = _cm.proposer(doc)
     gens = sum(1 for e in evts if e.get("type") == "generation_debut")

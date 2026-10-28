@@ -8406,6 +8406,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "montagecap.st.transcrire": {"fr": "Transcrire la voix (payant, devis d'abord)", "en": "Transcribe the voice (paid, quote first)"},
   "montagecap.st_etat.echec": {"fr": "Sous-titres non gravés (voix muette ou calage impossible) : la vidéo est rendue sans eux.", "en": "Subtitles not burned (silent voice or sync failed): the video was rendered without them."},
   "montagecap.st_etat.graves": {"fr": "Sous-titres gravés : {n} répliques.", "en": "Subtitles burned in: {n} lines."},
+  "montagecap.st_etat.plafond": {"fr": "Plafond de dépense atteint : la vidéo est rendue sans sous-titres, rien n'est payé.", "en": "Spend cap reached: the video was rendered without subtitles, nothing was paid."},
   "montagecap.st_etat.sans_texte": {"fr": "Aucun texte à caler : la vidéo est rendue sans sous-titres.", "en": "No text to sync: the video was rendered without subtitles."},
   "montagecap.st_etat.sans_voix": {"fr": "Aucune parole trouvée : la vidéo est rendue sans sous-titres.", "en": "No speech found: the video was rendered without subtitles."},
   "montagecap.zoom.ajouter": {"fr": "Zoomer à cet instant", "en": "Zoom at this moment"},

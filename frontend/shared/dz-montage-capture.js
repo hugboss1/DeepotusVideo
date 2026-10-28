@@ -12,7 +12,7 @@
 //   canaux : ceux du projet actif de l'espace, t307). Rien n'est publié.
 // API : window.__dzMontageCapture = {ouvrir(id), liste()}. Banc : backend/tests/test_capture_montage_ecran.py.
 import { FORMATS, VITESSES, K_MIN, K_MAX, segments, versSortie, horloge, fenetre, lecture, ajouterZoom, ajouterChapitre,
-  retirer, modifier, ecranA, clicProche, libelleChapitre, titresRemplis, brouillon } from "./dz-montage-capture-logique.js";
+  retirer, modifier, normaliserZooms, ecranA, clicProche, libelleChapitre, titresRemplis, brouillon } from "./dz-montage-capture-logique.js";
 
 if (!window.__dzMontageCapture) {
   const T = (cle, vars) => (typeof window.dzT === "function" ? window.dzT(cle, vars) : cle);
@@ -119,11 +119,14 @@ if (!window.__dzMontageCapture) {
   }
 
   // ── l'éditeur ──
+  let ouverture = false;            // revue finale : deux « Monter » rapides n'ouvrent qu'un éditeur
   async function ouvrir(id) {
-    if (document.querySelector("[data-dz-montage-editeur]")) return;
+    if (ouverture || document.querySelector("[data-dz-montage-editeur]")) return;
+    ouverture = true;
     let d;
     try { d = (await api(`/api/capture-montage/${encodeURIComponent(id)}`)).j; }
-    catch (e) { return erreurSeule(e.message); }
+    catch (e) { ouverture = false; return erreurSeule(e.message); }
+    ouverture = false;
     const duree = d.capture.duree_ms, evts = d.evenements;
     let m = d.montage, modifie = false, sale = () => { modifie = true; etat.textContent = T("montagecap.etat.modifie"); };
     let fermer = () => {};
@@ -160,10 +163,11 @@ if (!window.__dzMontageCapture) {
       video.playbackRate = Math.min(16, l.vitesse);
       video.muted = l.vitesse > 1;
       peindreApercu();
+      cancelAnimationFrame(boucle);
       boucle = video.paused ? 0 : requestAnimationFrame(tourner);
     }
     lire.addEventListener("click", () => {
-      if (video.paused) { video.play().catch(() => {}); boucle = requestAnimationFrame(tourner); }
+      if (video.paused) { video.play().catch(() => {}); cancelAnimationFrame(boucle); boucle = requestAnimationFrame(tourner); }
       else video.pause();
     });
     video.addEventListener("play", () => lire.replaceChildren(glyphe("dz-media-pause"), document.createTextNode(T("montagecap.apercu.pause"))));
@@ -222,8 +226,8 @@ if (!window.__dzMontageCapture) {
         niveau.addEventListener("change", () => { m = modifier(m, "zooms", z.id, { k: Number(niveau.value) }); sale(); tout(); });
         return el("div", { class: "dzMcL", "data-dz-montage-zoom": z.id }, [
           el("span", { texte: T("montagecap.zoom.ligne", { n: i + 1 }) }),
-          secondes(z.t0, (v) => { m = modifier(m, "zooms", z.id, { t0: v }); sale(); tout(); }, "montagecap.zoom.debut"),
-          secondes(z.t1, (v) => { m = modifier(m, "zooms", z.id, { t1: v }); sale(); tout(); }, "montagecap.zoom.fin"),
+          secondes(z.t0, (v) => { m = normaliserZooms(modifier(m, "zooms", z.id, { t0: v }), duree); sale(); tout(); }, "montagecap.zoom.debut"),
+          secondes(z.t1, (v) => { m = normaliserZooms(modifier(m, "zooms", z.id, { t1: v }), duree); sale(); tout(); }, "montagecap.zoom.fin"),
           niveau, val, supprimer("zooms", z.id)]);
       }) : [el("div", { class: "dzMcN", texte: T("montagecap.zoom.aucun") })]));
       coupes.replaceChildren(...(m.coupes.length ? m.coupes.map((c) => {

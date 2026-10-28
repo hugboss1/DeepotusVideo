@@ -18,6 +18,7 @@ export function zoomA(m, t) {
   for (const k of (m && m.zooms) || []) {
     if (!(k.t0 <= t && t <= k.t1)) continue;
     const r = Math.min(RAMPE, (k.t1 - k.t0) / 2);
+    if (!(r > 0)) continue;
     const e = ss(borne((t - k.t0) / r, 0, 1)) * ss(borne((k.t1 - t) / r, 0, 1));
     z += (k.k - 1) * e; cx += (k.x - 0.5) * e; cy += (k.y - 0.5) * e;
   }
@@ -97,6 +98,20 @@ export function ajouterZoom(m, t, x, y, k, duree) {
     else if (o.t1 > t1 && o.t1 - t1 > 200) autres.push(Object.assign({}, o, { t0: t1 }));
   }
   return Object.assign({}, m, { zooms: autres.concat([z]).sort((a, b) => a.t0 - b.t0) });
+}
+
+// les zooms comme le serveur les garde (capture_montage.valider) : bornés à la durée, t1 > t0 + 200, triés, jamais
+// chevauchés (le suivant commence à la fin du précédent) ; l'aperçu montre ainsi ce qui sera rendu
+export function normaliserZooms(m, duree) {
+  const zs = (m.zooms || []).map((z) => Object.assign({}, z, { t0: borne(Math.round(z.t0), 0, duree),
+    t1: borne(Math.round(z.t1), 0, duree), k: borne(z.k, K_MIN, K_MAX) }))
+    .filter((z) => isFinite(z.t0) && isFinite(z.t1) && z.t1 > z.t0 + 200).sort((a, b) => a.t0 - b.t0);
+  const out = [];
+  for (const z of zs) {
+    if (out.length && z.t0 < out[out.length - 1].t1) { z.t0 = out[out.length - 1].t1; if (z.t1 <= z.t0 + 200) continue; }
+    out.push(z);
+  }
+  return Object.assign({}, m, { zooms: out });
 }
 
 export function ajouterChapitre(m, t, ecran) {

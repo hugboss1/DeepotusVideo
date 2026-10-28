@@ -17,11 +17,13 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import secrets
 import shutil
 import subprocess
 import tempfile
+import threading
 import unicodedata
 from datetime import datetime
 from pathlib import Path
@@ -232,9 +234,14 @@ def valider(m, duree_ms, capture_id: str) -> dict:
     fusion: list[dict] = []
     for c in coupes:
         if fusion and c["t0"] <= fusion[-1]["t1"]:
-            fusion[-1]["t1"] = max(fusion[-1]["t1"], c["t1"])
-        else:
-            fusion.append(c)
+            p = fusion[-1]
+            if (c["mode"], c["vitesse"]) == (p["mode"], p["vitesse"]):
+                p["t1"] = max(p["t1"], c["t1"])
+                continue
+            c["t0"] = p["t1"]                          # revue finale : deux modes différents ne se fondent pas
+            if c["t1"] <= c["t0"] + 200:
+                continue
+        fusion.append(c)
     gardee = duree - sum(c["t1"] - c["t0"] for c in fusion if c["mode"] == "couper")
     if duree and gardee < 500:
         raise RefusMontage("Les coupes retirent toute la vidéo.", 400)
@@ -305,6 +312,8 @@ def chapitres_sortie(m: dict, segs) -> list[dict]:
             out[-1] = {"t": t, "titre": _libelle(h, i)}       # deux chapitres au même instant : le dernier
         else:
             out.append({"t": t, "titre": _libelle(h, i)})
+    if out:
+        out[0]["t"] = 0                                 # YouTube ignore des chapitres qui ne commencent pas à 00:00
     return out
 
 
@@ -404,24 +413,40 @@ def _ffprobe() -> str:
     return str(cand) if cand.is_file() else (shutil.which("ffprobe") or "ffprobe")
 
 
+_VERROUS: dict[str, threading.Lock] = {}
+_VERROUS_GARDE = threading.Lock()
+
+
+def _verrou(cid: str) -> threading.Lock:
+    with _VERROUS_GARDE:
+        return _VERROUS.setdefault(cid, threading.Lock())
+
+
 def remuxer(cid: str, piste: str = "scene") -> Path:
     """Une piste WebM de MediaRecorder (ni durée ni index) remuxée sans réencodage dans `<piste>.remux.webm`, gardée
-    tant que le brut ne change pas. Une piste MP4 est rendue telle quelle."""
+    tant que le brut ne change pas. Une piste MP4 est rendue telle quelle. Un remux à la fois par capture (revue
+    finale I5 : l'aperçu et le rendu peuvent le demander ensemble), temporaire unique."""
     src = C.chemin_piste(cid, piste)
     if src is None or src.stat().st_size == 0:
         raise RefusMontage("La capture n'a reçu aucune image.", 409)
     if src.suffix != ".webm":
         return src
     out = src.with_name(f"{piste}.remux.webm")
-    if out.is_file() and out.stat().st_mtime_ns >= src.stat().st_mtime_ns and out.stat().st_size > 0:
-        return out
-    tmp = src.with_name(f"{piste}.remux.tmp.webm")
-    r = subprocess.run([_ffmpeg(), "-y", "-v", "error", "-fflags", "+genpts", "-i", str(src), "-c", "copy", "-f", "webm",
-                        str(tmp)], capture_output=True, timeout=1800)
-    if r.returncode != 0 or not tmp.is_file() or tmp.stat().st_size == 0:
-        tmp.unlink(missing_ok=True)
-        raise RefusMontage("La piste de la capture est illisible.", 422)
-    tmp.replace(out)
+    with _verrou(cid):
+        if out.is_file() and out.stat().st_mtime_ns >= src.stat().st_mtime_ns and out.stat().st_size > 0:
+            return out
+        fd, nom = tempfile.mkstemp(prefix=f"{piste}.remux.", suffix=".tmp.webm", dir=src.parent)
+        os.close(fd)
+        tmp = Path(nom)
+        try:
+            r = subprocess.run([_ffmpeg(), "-y", "-v", "error", "-fflags", "+genpts", "-i", str(src), "-c", "copy",
+                                "-f", "webm", str(tmp)], capture_output=True, timeout=1800)
+        except subprocess.TimeoutExpired:
+            r = None
+        if r is None or r.returncode != 0 or tmp.stat().st_size == 0:
+            tmp.unlink(missing_ok=True)
+            raise RefusMontage("La piste de la capture est illisible.", 422)
+        tmp.replace(out)
     return out
 
 
@@ -454,11 +479,11 @@ def graphe(m: dict, segs, src: dict, fmt: str) -> str:
     cx, cy = u(et["cx"], W), u(et["cy"], H)
     crop = (f"crop=w={cw}:h={ch}:x='clip({cx}*iw-{cw}/2,0,iw-{cw})':y='clip({cy}*ih-{ch}/2,0,ih-{ch})'")
     n = len(segs)
-    parts = [f"[0:v]fps={FPS},{zp},{crop},scale={ol}:{oh},setsar=1,format=yuv420p,split={n}"
+    parts = [f"[0:v]setpts=PTS-STARTPTS,fps={FPS},{zp},{crop},scale={ol}:{oh},setsar=1,format=yuv420p,split={n}"
              + "".join(f"[v{i}]" for i in range(n))]
     normaux = [i for i, s in enumerate(segs) if s[2] == 1] if src.get("audio") else []
     if normaux:
-        parts.append(f"[0:a]aresample=48000,aformat=channel_layouts=stereo,asplit={len(normaux)}"
+        parts.append(f"[0:a]asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,asplit={len(normaux)}"
                      + "".join(f"[a{i}]" for i in normaux))
     fin = ""
     for i, (a, b, v) in enumerate(segs):
@@ -500,11 +525,15 @@ def rendre(cid: str, m: dict, dest_dossier: Path) -> dict:
         g.write_text(graphe(m, segs, info, m.get("format") or "16:9"), "utf-8")
         meta.write_text(ffmetadata(ch, int(total)), "utf-8")
         tmp = dest.with_name(dest.stem + ".tmp.mp4")
-        r = subprocess.run([_ffmpeg(), "-y", "-v", "error", "-i", str(src), "-i", str(meta), "-/filter_complex", str(g),
-                            "-map", "[v]", "-map", "[a]", "-map_metadata", "1", "-map_chapters", "1",
-                            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
-                            "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(tmp)],
-                           capture_output=True, timeout=7200)
+        try:
+            r = subprocess.run([_ffmpeg(), "-y", "-v", "error", "-i", str(src), "-i", str(meta), "-/filter_complex",
+                                str(g), "-map", "[v]", "-map", "[a]", "-map_metadata", "1", "-map_chapters", "1",
+                                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+                                "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(tmp)],
+                               capture_output=True, timeout=7200)
+        except subprocess.TimeoutExpired:
+            tmp.unlink(missing_ok=True)
+            raise RefusMontage("Le rendu du montage a échoué.", 500) from None
         if r.returncode != 0 or not tmp.is_file() or tmp.stat().st_size < 1024:
             tmp.unlink(missing_ok=True)
             from loguru import logger
@@ -518,12 +547,18 @@ def rendre(cid: str, m: dict, dest_dossier: Path) -> dict:
 # ── montage enregistré ──
 
 def lire_montage(cid: str) -> dict | None:
+    """Le montage enregistré, None s'il manque ou s'il est illisible (revue finale I4 : la capture reste montable)."""
     f = C._dossier(cid) / "montage.json"
-    return json.loads(f.read_text("utf-8")) if f.is_file() else None
+    try:
+        m = json.loads(f.read_text("utf-8")) if f.is_file() else None
+    except (ValueError, OSError):
+        return None
+    return m if isinstance(m, dict) else None
 
 
 def ecrire_montage(cid: str, m: dict) -> None:
     d = C._dossier(cid)
-    tmp = d / "montage.json.tmp"
-    tmp.write_text(json.dumps(m, ensure_ascii=False, indent=1), "utf-8")
-    tmp.replace(d / "montage.json")
+    fd, nom = tempfile.mkstemp(prefix="montage.", suffix=".json.tmp", dir=d)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(m, f, ensure_ascii=False, indent=1)
+    Path(nom).replace(d / "montage.json")

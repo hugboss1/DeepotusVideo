@@ -111,10 +111,15 @@ check("V4 temps bornés à la durée, t1 > t0 + 200 sinon retiré", M.valider(di
       == [{"id": "a", "t0": 59000, "t1": 60000, "k": 2.0, "x": 0.5, "y": 0.5}])
 check("V5 coupe qui couvre toute la durée -> 400", refus(dict(P, coupes=[{"id": "c", "t0": 0, "t1": 60000,
                                                                           "mode": "couper", "vitesse": 8}])) == 400)
-check("V6 coupes chevauchantes fusionnées ; vitesse hors liste -> 8 ; mode inconnu -> accelerer",
+check("V6 coupes chevauchantes de même mode fusionnées ; vitesse hors liste -> 8 ; mode inconnu -> accelerer",
       M.valider(dict(P, coupes=[{"id": "c1", "t0": 1000, "t1": 5000, "mode": "x", "vitesse": 3},
-                                {"id": "c2", "t0": 4000, "t1": 6000, "mode": "couper", "vitesse": 4}]),
+                                {"id": "c2", "t0": 4000, "t1": 6000, "mode": "accelerer", "vitesse": 8}]),
                 60000, "a" * 16)["coupes"] == [{"id": "c1", "t0": 1000, "t1": 6000, "mode": "accelerer", "vitesse": 8}])
+check("V12 coupes chevauchantes de modes différents : la seconde rognée, jamais fondue",
+      M.valider(dict(P, coupes=[{"id": "c1", "t0": 1000, "t1": 5000, "mode": "accelerer", "vitesse": 8},
+                                {"id": "c2", "t0": 4000, "t1": 9000, "mode": "couper", "vitesse": 8}]),
+                60000, "a" * 16)["coupes"] == [{"id": "c1", "t0": 1000, "t1": 5000, "mode": "accelerer", "vitesse": 8},
+                                               {"id": "c2", "t0": 5000, "t1": 9000, "mode": "couper", "vitesse": 8}])
 check("V7 titre nettoyé (contrôles ôtés, 80 car.)", M.valider(dict(P, chapitres=[{"id": "h", "t": 0,
       "titre": "A\x00\x1b" + "b" * 200, "ecran": "Quick!"}]), 60000, "a" * 16)["chapitres"][0]
       == {"id": "h", "t": 0, "titre": "A" + "b" * 79, "ecran": ""})
@@ -150,6 +155,9 @@ FM = M.ffmetadata(CS, 43000)
 check("T5 FFMETADATA : 3 chapitres, fins jointives, échappement", FM.startswith(";FFMETADATA1")
       and FM.count("[CHAPTER]") == 3 and "START=23000\nEND=33000" in FM and "END=43000" in FM
       and "title=a\\=b\\;c" in M.ffmetadata([{"t": 0, "titre": "a=b;c"}], 1000), FM)
+check("T7 premier chapitre de sortie toujours à 00:00 (chapitre à 0 retiré)",
+      M.chapitres_sortie({"chapitres": [{"id": "b", "t": 5000, "titre": "B", "ecran": ""}]}, [(0, 9000, 1)])
+      == [{"t": 0, "titre": "B"}])
 check("T6 sans coupe : un segment", M.segments(M.valider(dict(P, coupes=[]), 60000, "a" * 16), 60000) == [(0, 60000, 1)])
 
 print("[Z] zoom")
@@ -250,5 +258,14 @@ check("R9 source muette -> rendu avec une piste audio (silence)", sonde(r2["fich
 check("R10 montage écrit puis relu", (M.ecrire_montage(cid, base) or True) and M.lire_montage(cid) == base
       and M.lire_montage(cid2) is None)
 
+(M.racine() / cid / "montage.json").write_text("{abîmé", "utf-8")
+check("R11 montage.json abîmé -> None", M.lire_montage(cid) is None)
+import threading                                                  # noqa: E402
+(M.racine() / cid / "scene.remux.webm").unlink()
+res = []
+fils = [threading.Thread(target=lambda: res.append(M.remuxer(cid, "scene").name)) for _ in range(3)]
+[f.start() for f in fils]; [f.join() for f in fils]
+check("R12 trois remux simultanés : un seul fichier, aucun temporaire laissé", res == ["scene.remux.webm"] * 3
+      and not list((M.racine() / cid).glob("*.tmp*")), (res, list((M.racine() / cid).iterdir())))
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)
