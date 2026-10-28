@@ -166,6 +166,75 @@ try:
 finally:
     S.sys.platform = _plat
 
+print("\n[2b] revue t312 : ecriture temporaire, suppression, facteurs x/y")
+S._executer = faux(NOMINAL)
+_mkstemp = S.tempfile.mkstemp
+def _mk_refus(*a, **k):
+    raise OSError(28, "No space left on device", os.path.join(tempfile.gettempdir(), "dzscan_secret.png"))
+S.tempfile.mkstemp = _mk_refus
+try:
+    n = len(appels)
+    try:
+        S.lire_page(png(600, 300)); check("2ba mkstemp en echec -> ScanErreur", False, "aucune erreur")
+    except S.ScanErreur as e:
+        check("2ba mkstemp en echec -> ScanErreur sans chemin, sans lancement",
+              tempfile.gettempdir().lower() not in str(e).lower() and "dzscan" not in str(e)
+              and e.__suppress_context__ and len(appels) == n, str(e))
+    except Exception as e:  # noqa: BLE001
+        check("2ba mkstemp en echec -> ScanErreur", False, f"{type(e).__name__}: {e}")
+finally:
+    S.tempfile.mkstemp = _mkstemp
+cree = []
+def _mk_note(*a, **k):
+    fd, ch = _mkstemp(*a, **k); cree.append(ch); return fd, ch
+_fdopen = S.os.fdopen
+def _fdopen_refus(fd, *a, **k):
+    os.close(fd); raise OSError(28, "No space left on device")
+S.tempfile.mkstemp, S.os.fdopen = _mk_note, _fdopen_refus
+try:
+    try:
+        S.lire_page(png(600, 300)); check("2bb ecriture en echec -> ScanErreur", False, "aucune erreur")
+    except S.ScanErreur as e:
+        check("2bb ecriture en echec -> ScanErreur, fichier retire", cree and not os.path.exists(cree[-1]), str(e))
+    except Exception as e:  # noqa: BLE001
+        check("2bb ecriture en echec -> ScanErreur", False, f"{type(e).__name__}: {e}")
+finally:
+    S.tempfile.mkstemp, S.os.fdopen = _mkstemp, _fdopen
+journal = []
+_sink = logger.add(lambda m: journal.append(str(m)), level="WARNING")
+_unlink, essais = S.os.unlink, []
+reste = None
+def _unlink_une_fois(ch):
+    essais.append(ch)
+    if len(essais) == 1:
+        raise PermissionError(32, "tenu par un autre programme")
+    _unlink(ch)
+def _unlink_jamais(ch):
+    essais.append(ch)
+    raise PermissionError(32, "tenu")
+S.os.unlink = _unlink_une_fois
+try:
+    S.lire_page(png(600, 300))
+    check("2bc suppression reessayee une fois puis reussie", len(essais) == 2 and not os.path.exists(essais[0]), essais)
+    essais.clear()
+    S.os.unlink = _unlink_jamais
+    r = S.lire_page(png(600, 300))
+    reste = essais[0]
+    check("2bd suppression impossible : lecture rendue quand meme, deux essais", bool(r["lignes"]) and len(essais) == 2)
+    check("2be journal 'non supprime' sans chemin", any("non supprim" in j for j in journal)
+          and not any(reste in j or os.path.basename(reste) in j for j in journal), journal)
+finally:
+    S.os.unlink = _unlink
+    logger.remove(_sink)
+    if reste and os.path.exists(reste):
+        os.unlink(reste)
+S._executer = faux({"langue": "fr-FR", "angle": 0, "lignes": [{"texte": "x", "mots": [
+    {"texte": "x", "x": 1000, "y": 1, "l": 1000, "h": 4}]}]})
+r = S.lire_page(png(12000, 7))
+m = r["lignes"][0]["mots"][0]
+check("2bf bande 12000x7 preparee en 10000x5", appels[-1]["taille"] == (10000, 5), appels[-1]["taille"])
+check("2bg facteurs x et y separes (y = 1 * 7/5 = 1.4, h = 5.6)", (m["x"], m["l"], m["y"], m["h"]) == (1200, 1200, 1.4, 5.6), m)
+
 print("\n[3] disponible")
 S._dispo = None
 S._executer = faux('{"langues": ["en-US", "fr-FR"]}')
@@ -188,6 +257,21 @@ check("3f code 1 -> ok False, raison sans stderr", d["ok"] is False and "secret"
 S._dispo = None
 S._executer = faux(exc=subprocess.TimeoutExpired(["powershell"], 20))
 check("3g delai -> ok False", S.disponible()["ok"] is False)
+S._dispo = None
+S._executer = faux(exc=subprocess.TimeoutExpired(["powershell"], 20))
+d = S.disponible()
+n = len(appels)
+S._executer = faux('{"langues": ["fr-FR"]}')
+d2 = S.disponible()
+check("3i delai non retenu : l'appel suivant relance et reussit", d["ok"] is False and d2["ok"] is True and len(appels) == n + 1, (d, d2))
+S._dispo = None
+S._executer = faux(exc=PermissionError(13, "refuse"))
+d = S.disponible()
+check("3j OSError non retenue", d["ok"] is False and S._dispo is None, S._dispo)
+S._dispo = None
+S._executer = faux(rc=1)
+S.disponible()
+check("3k echec franc (code 1) retenu", S._dispo is not None and S._dispo["ok"] is False)
 S._dispo = None
 _plat = S.sys.platform
 try:

@@ -57,7 +57,8 @@ def _commande(*extra: str) -> list[str]:
 def _executer_reel(args: list[str], timeout: float) -> tuple[int, str, str]:
     """Lance la commande sans fenêtre ; (code, stdout, stderr) décodés en UTF-8. Délai -> subprocess.TimeoutExpired,
     exécutable absent -> FileNotFoundError (laissés à l'appelant)."""
-    r = subprocess.run(args, capture_output=True, timeout=timeout, creationflags=_SANS_FENETRE)
+    r = subprocess.run(args, capture_output=True, timeout=timeout, stdin=subprocess.DEVNULL,
+                       creationflags=_SANS_FENETRE)
     sortie = (r.stdout or b"").decode("utf-8", "replace").lstrip("\ufeff")
     return r.returncode, sortie, (r.stderr or b"").decode("utf-8", "replace")
 
@@ -67,25 +68,30 @@ _executer = _executer_reel
 
 def disponible() -> dict:
     """{"ok", "langues", "raison"} : les langues installées pour Windows.Media.Ocr (« fr-FR », « en-US »…).
-    Calculé une fois par processus (succès comme échec)."""
+    Calculé une fois par processus, sauf un échec passager (délai, PowerShell non lancé : PC chargé, antivirus au
+    démarrage) qui n'est pas retenu, pour que l'appel suivant réessaie."""
     global _dispo
     if _dispo is not None:
         return _dispo
     if sys.platform != "win32":
         _dispo = {"ok": False, "langues": [], "raison": "La lecture de texte locale n'existe que sous Windows."}
         return _dispo
+    passager = False
     try:
         code, sortie, _err = _executer(_commande("-Langues"), DELAI_LANGUES)
         langues = json.loads(sortie)["langues"] if code == 0 else None
         if langues is not None and (not isinstance(langues, list) or not all(isinstance(x, str) for x in langues)):
             langues = None
-    except subprocess.TimeoutExpired:
-        langues = None
-    except (OSError, ValueError, KeyError, TypeError):
+    except (subprocess.TimeoutExpired, OSError):
+        langues, passager = None, True
+    except (ValueError, KeyError, TypeError):
         langues = None
     if langues is None:
-        _dispo = {"ok": False, "langues": [],
-                  "raison": "La lecture de texte de Windows ne répond pas (PowerShell absent ou bloqué)."}
+        refus = {"ok": False, "langues": [],
+                 "raison": "La lecture de texte de Windows ne répond pas (PowerShell absent ou bloqué)."}
+        if passager:
+            return refus
+        _dispo = refus
     elif not langues:
         _dispo = {"ok": False, "langues": [],
                   "raison": "Aucune langue de lecture de texte n'est installée dans Windows."}
@@ -94,8 +100,9 @@ def disponible() -> dict:
     return _dispo
 
 
-def _preparer(octets: bytes) -> tuple[bytes, float, tuple[int, int]]:
-    """(PNG préparé, facteur appliqué, (largeur, hauteur) d'origine après rotation EXIF)."""
+def _preparer(octets: bytes) -> tuple[bytes, tuple[float, float], tuple[int, int]]:
+    """(PNG préparé, facteurs (fx, fy) appliqués, (largeur, hauteur) d'origine après rotation EXIF). Deux facteurs :
+    l'arrondi entier d'une bande très mince (12 000 × 7 px) fausserait y si l'on prenait celui de x."""
     try:
         im = Image.open(io.BytesIO(octets))
         im.load()
@@ -114,12 +121,13 @@ def _preparer(octets: bytes) -> tuple[bytes, float, tuple[int, int]]:
     f = 2.0 if w < LARGEUR_MIN else 1.0
     if max(w, h) * f > COTE_MAX:
         f = COTE_MAX / max(w, h)
+    fx = fy = f
     if f != 1.0:
         im = im.resize((max(1, min(COTE_MAX, int(w * f))), max(1, min(COTE_MAX, int(h * f)))), Image.LANCZOS)
-        f = im.size[0] / w
+        fx, fy = im.size[0] / w, im.size[1] / h
     b = io.BytesIO()
     im.save(b, "PNG")
-    return b.getvalue(), f, (w, h)
+    return b.getvalue(), (fx, fy), (w, h)
 
 
 def preparer(octets: bytes) -> bytes:
@@ -139,7 +147,8 @@ def _ramener(v: float, f: float) -> float:
     return int(r) if r == int(r) else r
 
 
-def _normaliser(brut, f: float) -> tuple[float, list]:
+def _normaliser(brut, facteurs: tuple[float, float]) -> tuple[float, list]:
+    fx, fy = facteurs
     if not isinstance(brut, dict) or not isinstance(brut.get("lignes", []), list):
         raise TypeError("forme inattendue")
     lignes = []
@@ -150,12 +159,27 @@ def _normaliser(brut, f: float) -> tuple[float, list]:
         for m in li.get("mots") or []:
             if not isinstance(m, dict) or not isinstance(m.get("texte"), str):
                 raise TypeError("mot inattendu")
-            mots.append({"texte": m["texte"], **{k: _ramener(_nombre(m.get(k)), f) for k in ("x", "y", "l", "h")}})
+            mots.append({"texte": m["texte"], **{k: _ramener(_nombre(m.get(k)), fx if k in "xl" else fy)
+                                                 for k in ("x", "y", "l", "h")}})
         texte = li.get("texte")
         lignes.append({"texte": texte if isinstance(texte, str) else " ".join(m["texte"] for m in mots), "mots": mots})
     angle = brut.get("angle")
     angle = 0 if angle is None else _nombre(angle)
     return angle, lignes
+
+
+def _supprimer(chemin: str) -> None:
+    """Retire le PNG temporaire ; un second essai si un antivirus le tient encore. Journal sans le chemin."""
+    for essai in (0, 1):
+        try:
+            os.unlink(chemin)
+            return
+        except FileNotFoundError:
+            return
+        except OSError:
+            if essai == 0:
+                time.sleep(0.2)
+    logger.warning("scan_ocr : PNG temporaire dzscan non supprimé (fichier tenu par un autre programme)")
 
 
 def lire_page(octets: bytes, langue: str = "fr") -> dict:
@@ -167,11 +191,17 @@ def lire_page(octets: bytes, langue: str = "fr") -> dict:
     png, f, (w, h) = _preparer(octets)
     if sys.platform != "win32":
         raise ScanIndisponible("La lecture de texte locale n'existe que sous Windows.")
-    fd, chemin = tempfile.mkstemp(prefix="dzscan_", suffix=".png")
+    try:
+        fd, chemin = tempfile.mkstemp(prefix="dzscan_", suffix=".png")
+    except OSError:
+        raise ScanErreur("Impossible d'écrire l'image temporaire de la lecture (disque plein ?).") from None
     t0 = time.perf_counter()
     try:
-        with os.fdopen(fd, "wb") as fh:
-            fh.write(png)
+        try:
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(png)
+        except OSError:
+            raise ScanErreur("Impossible d'écrire l'image temporaire de la lecture (disque plein ?).") from None
         try:
             code, sortie, _err = _executer(_commande("-Image", chemin, "-Langue", tag), DELAI)
         except subprocess.TimeoutExpired:
@@ -179,10 +209,7 @@ def lire_page(octets: bytes, langue: str = "fr") -> dict:
         except OSError:
             raise ScanIndisponible("La lecture de texte de Windows ne répond pas (PowerShell absent ou bloqué).") from None
     finally:
-        try:
-            os.unlink(chemin)
-        except OSError:
-            pass
+        _supprimer(chemin)
     if code == 2:
         raise ScanIndisponible("Cette langue de lecture n'est pas installée dans Windows.")
     if code != 0:

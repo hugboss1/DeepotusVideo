@@ -765,6 +765,7 @@
   "erreur.452bbe2982": {"fr": "décrivez le look voulu en une phrase", "en": "describe the look you want in one sentence", "src": "fr"},
   "erreur.4564805d4d": {"fr": "Job introuvable : {job_id}", "en": "Job not found: {job_id}", "src": "en"},
   "erreur.456689a379": {"fr": "{cid} : name : 1 à {MAX_NOM_INSTANTANE} caractères, sur une ligne", "en": "{cid}: name: 1 to {MAX_NOM_INSTANTANE} characters, on one line", "src": "fr"},
+  "erreur.458003cce9": {"fr": "Impossible d'écrire l'image temporaire de la lecture (disque plein ?).", "en": "Could not write the temporary image for reading (disk full?).", "src": "fr"},
   "erreur.458f6d8942": {"fr": "Aucun champ éditable dans le corps (attendus : {CHAMPS_EDITABLES})", "en": "No editable field in the body (expected: {CHAMPS_EDITABLES})", "src": "fr"},
   "erreur.45cb0dd146": {"fr": "Géométrie non approuvée : valide le volume (POST .../approve) avant de payer un rig.", "en": "Geometry not approved: approve the volume (POST .../approve) before paying for a rig.", "src": "fr"},
   "erreur.45e31a044f": {"fr": "tâche meshy {task_id} non enregistrée", "en": "meshy task {task_id} not recorded", "src": "en"},
