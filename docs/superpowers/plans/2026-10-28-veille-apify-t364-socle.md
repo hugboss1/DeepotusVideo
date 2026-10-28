@@ -22,7 +22,9 @@ l'onglet Prospects ; une **carte « collecte »** de l'agent, acceptée, déclen
 3. **Liste blanche** `ACTEURS` (dans `apify.py`) : {clé → acteur, build épinglé, usage `veille`|`leads`, entrée
    autorisée (champs et bornes), champ « nombre de résultats »}. Un acteur hors liste : refus. Les entrées sont
    filtrées champ par champ (aucun champ libre transmis tel quel). La liste du socle : `google_maps` (t365),
-   `contacts_site` (t365), `reddit`, `avis_google_maps`, `google_play`, `trustpilot`, `g2`, `x`, `instagram` (t366),
+   `contacts_site` (t365), `reddit`, `avis_google_maps`, `google_play`, `trustpilot`, `g2`, `x`, `instagram`,
+   `tiktok`, `tiktok_commentaires`, `instagram_posts` (t366 ; ajoutés au skill le 28/10, avec `evenements` : seuls les
+   événements payants permis comptent au devis, les entrées imposées coupent transcription, téléchargements et IA),
    chaque entrée remplie au relevé de t363 (identifiant, build, prix) — au socle, deux entrées réelles suffisent aux
    bancs (`google_maps`, `reddit`), les autres arrivent avec leur lot.
 4. **Devis** : `GET /v2/acts/{acteur}` → `pricingInfos` (l'enregistrement en vigueur) ; `PAY_PER_EVENT` : somme des
@@ -32,9 +34,16 @@ l'onglet Prospects ; une **carte « collecte »** de l'agent, acceptée, déclen
    de l'usage, sinon refus avant tout run. Kind de pricing `apify` (op `{"kind": "apify", "usd": devis}`).
 5. **Durée** : 10 min au plus par run (`timeout=600`) ; au-delà de l'attente, le run est abandonné (`abort`) et ce qui
    est déjà dans le dataset est rendu, marqué partiel.
-6. **Clé** : `APIFY_TOKEN` au coffre (SECRETES), posée par `POST /api/prospects/recherche/cle` (fournisseur `apify`,
-   comme Tavily ; pas dans Réglages › Clés, même raison qu'en t354). Le panneau « Recherche web » montre « Apify :
-   prêt / clé à poser ».
+6. **Clé** (révisé le 28/10/2026 à la demande de l'utilisateur : « comme les autres clés ») : `APIFY_TOKEN` se pose dans
+   **Réglages › Clés d'API**, comme Kapso (t310) — `config.py`, `coffre.SECRETES`, `_ALLOWED_ENV_KEYS` et
+   `RUBRIQUE_DE_CLE` (« keys ») de `settings_routes`, `appairage.CONSOLES` (lien vers la console Apify),
+   `guides_fournisseurs` (FR/EN), test de la clé au Diagnostic (`GET /v2/users/me`, jeton en en-tête) ; la ligne
+   d'écran entre dans `dzFuNeuves()` par un **maillon de queue neuf `dzapify`** (après dzwhatsapp, inverse
+   `avant_dzapify` dans `_i18n_l1_aide.py`, clés `reglages.cles.apify` / `apify_why` dans `menus.json`). Une variable
+   d'environnement utilisateur `APIFY_TOKEN` est lue aussi (même règle que les autres clés). **Transferts** : une clé de
+   `coffre.SECRETES` voyage dans l'archive chiffrée du coffre (seul transport des clés entre machines ; `transfert.py`
+   n'emporte jamais `.env` ni le coffre) ; banc : l'export du coffre contient `APIFY_TOKEN`. Le panneau « Recherche web »
+   de Prospects montre seulement « Apify : prêt / clé à poser » avec un lien vers Réglages.
 7. **Carte « collecte »** (genre neuf du format v1) : `{acteur, usage, entree, max, devis_usd}` ; acceptée, la route
    réserve (clé 503, plafond 402) sous le verrou, écrit la décision, puis lance le run HORS du verrou (même schéma que
    t354 I5 : jamais rejouée) ; le fait « terminee » porte le nombre de résultats, le coût réel et un dépôt JSON des
@@ -48,8 +57,10 @@ l'onglet Prospects ; une **carte « collecte »** de l'agent, acceptée, déclen
    `ApifyEchec(message, cout_usd)`. Banc `test_apify.py` (faux serveur : run fini d'emblée, run à suivre, run trop
    long → abort + partiel, FAILED avec coût, 402 du compte Apify, prix PPE / par résultat / gratuit / forfait refusé,
    acteur hors liste, champ d'entrée non autorisé, jeton jamais dans un message ni dans l'URL).
-2. **Pricing et coffre** : kind `apify` dans `pricing.py` ; `APIFY_TOKEN` dans `config.py` et `coffre.SECRETES` ;
-   fournisseur `apify` accepté par la route de clé ; `GET /api/prospects/recherche` le liste. Bancs mis à jour.
+2. **Pricing, coffre et Réglages** : kind `apify` dans `pricing.py` ; la clé comme décidé en 6 (serveur + maillon
+   `dzapify` + Diagnostic + appairage) ; `GET /api/prospects/recherche` dit son état. Bancs : `test_settings_routes`,
+   `test_coffre` (secret, export chiffré), `test_appairage`, `test_index_reglages`, `test_diagnostic`, banc du maillon
+   (`--check`, aller-retour, `repatch_all.py --list` tout OK), catalogue de l'assistant (ligne neuve rédigée).
 3. **Carte « collecte »** : `agent_format.GENRES_CARTE`, schéma et doc du format, route de décision
    (`_reserver_collecte`, `_executer_collecte`, dépôt des résultats) ; écran `dz-campagnes.js` (requête, devis, nombre
    de résultats, coût réel) ; **compagnon** `format.ts` + rendu minimal ; bancs `test_agent_collecte_carte.py`, node,
