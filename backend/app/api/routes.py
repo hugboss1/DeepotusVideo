@@ -9731,10 +9731,16 @@ async def _post_ou_404(session, post_id: str) -> ScheduledPost:
 
 
 def _etat_diffusion(rec: dict | None) -> dict | None:
+    """L'état de la diffusion pour l'écran. Revue finale t328 M5 : `relancable` (la config se modifie et la diffusion se
+    relance — un `failed` PROUVÉ sans envoi et soldé l'est), avec `rien_envoye` et `reel_note` qui le fondent."""
+    from app.services import whatsapp_diffusions as WD
     if not rec:
         return None
-    return {k: rec.get(k) for k in ("statut", "broadcast_id", "n", "incertain", "attente_confirmation", "compteurs",
-                                    "ecartes", "ajout", "reel_usd", "maj")}
+    out = {k: rec.get(k) for k in ("statut", "broadcast_id", "n", "incertain", "attente_confirmation", "compteurs",
+                                   "ecartes", "ajout", "reel_usd", "maj")}
+    out.update(rien_envoye=rec.get("rien_envoye") is True, reel_note=rec.get("reel_note") is True,
+               relancable=WD.relancable(rec))
+    return out
 
 
 @router.get("/schedule/{post_id}/diffusion")

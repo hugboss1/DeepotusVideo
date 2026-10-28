@@ -2,7 +2,8 @@
 """t328 tâche 2 (27/10/2026) — audience d'une diffusion, devis par quantité, plafond de messages.
 Plan docs/superpowers/plans/2026-10-27-t328-diffusions-whatsapp.md (Décisions 1, 3, 4). Aucun réseau. Ce que ce banc garde :
   A1  `audience_diffusion` marketing : accord `entrant` écarté, stop écarté, désinscrit écarté, bsuid écarté et compté
-  A2  `audience_diffusion` utility : accord `entrant` retenu, désinscrit marketing retenu, stop écarté
+  A2  `audience_diffusion` utility : revue finale M8 (Décision 1) — un accord `entrant` est ÉCARTÉ comme en marketing
+      (un message entrant n'est pas un accord de diffusion) ; désinscrit marketing retenu, stop écarté
   A3  liste explicite : filtrée par les mêmes règles ; alias tel/bsuid ; identité mal formée refusée
   A4  refus : consentement client absent (`consentement`), audience vide (`accord`) ; même verdict que `controler`
   A5  fichier d'état et fiche client lus UNE fois pour toute la liste
@@ -87,8 +88,13 @@ check("A1.3 la casse de la catégorie ne compte pas", WA.audience_diffusion(cid,
 
 print("\n[A2] utility")
 a = WA.audience_diffusion(cid, categorie="utility")
-check("A2.1 entrant et désinscrit marketing retenus, stop écarté", sorted(a["retenus"]) == sorted([SAISI, ENTRANT, DESINSCRIT]), a)
-check("A2.2 écartés : stop et bsuid seulement", a["ecartes"] == {"bsuid": 1, "stop": 1, "accord": 0, "marketing": 0}, a)
+check("A2.1 M8 : accord saisi et désinscrit marketing retenus ; entrant écarté, stop écarté",
+      sorted(a["retenus"]) == sorted([SAISI, DESINSCRIT]), a)
+check("A2.2 écartés : stop, bsuid et l'accord né d'un entrant", a["ecartes"] == {"bsuid": 1, "stop": 1, "accord": 1, "marketing": 0}, a)
+check("A2.3 M8 : utility avec que des entrants -> accord", refus(WA.audience_diffusion, cid, categorie="utility",
+                                                                 identites=[ENTRANT]) == "accord")
+check("A2.4 M8 : authentication aussi", refus(WA.audience_diffusion, cid, categorie="authentication",
+                                              identites=[ENTRANT]) == "accord")
 
 print("\n[A3] liste explicite")
 a = WA.audience_diffusion(cid, categorie="marketing",

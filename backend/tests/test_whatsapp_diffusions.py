@@ -84,13 +84,21 @@ class Faux:
         self.sans_sent = set()      # broadcasts dont le GET omet `sent_count`
         self.pendant = None         # fabrique de coroutine lancée au premier lot de destinataires
         self.tache = None
+        self.vider = []             # revue finale I1 : réponses du DELETE …/recipients à servir : (statut, corps) ou fonction
+        self.get_404 = set()        # revue finale M9 : broadcasts dont le GET répond 404 (supprimés chez Kapso)
 
 
 F = Faux()
 MODELES = [{"id": "999", "name": "promo", "language": "fr", "category": "MARKETING", "status": "APPROVED",
             "components": [{"type": "BODY", "text": TEXTE_MODELE,
                             "example": {"body_text_named_params": [{"param_name": "prenom", "example": "Ana"}]}}]},
-           {"id": "", "name": "sansid", "language": "fr", "category": "MARKETING", "status": "APPROVED", "components": []}]
+           {"id": "", "name": "sansid", "language": "fr", "category": "MARKETING", "status": "APPROVED", "components": []},
+           # revue finale M4 : modèles non diffusables
+           {"id": "777", "name": "code", "language": "fr", "category": "AUTHENTICATION", "status": "APPROVED",
+            "components": [{"type": "BODY", "text": "Votre code : {{1}}"}]},
+           {"id": "778", "name": "entete", "language": "fr", "category": "MARKETING", "status": "APPROVED",
+            "components": [{"type": "HEADER", "format": "TEXT", "text": "Salut {{1}}"},
+                           {"type": "BODY", "text": "Les soldes"}]}]
 
 
 async def faux_requete(methode, url, *, json=None, params=None, fichiers=None):
@@ -109,8 +117,18 @@ async def faux_requete(methode, url, *, json=None, params=None, fichiers=None):
         return 201, {"data": {"id": bid, "status": "draft"}}, {}
     bid = parts[2]
     b = F.bc.get(bid)
-    if b is None:
+    if b is None or bid in F.get_404:
         return 404, {"error": "Broadcast not found"}, {}
+    if len(parts) == 4 and parts[3] == "recipients" and methode == "DELETE":
+        if F.vider:
+            rep = F.vider.pop(0)
+            rep = rep(b) if callable(rep) else rep
+            if rep is not None:
+                return rep[0], rep[1], {}
+        if b["status"] != "draft":
+            return 422, {"error": "Broadcast is not a draft"}, {}
+        b["recipients"] = []
+        return 200, {"data": {"id": bid, "status": "draft", "total_recipients": 0}}, {}
     if len(parts) == 4 and parts[3] == "recipients" and methode == "POST":
         lot = json["whatsapp_broadcast"]["recipients"]
         if len(lot) > 1000:
@@ -286,19 +304,107 @@ check("I1.1 incertain, statut envoi", r["incertain"] is True and r["statut"] == 
 d2 = depenses(b2)
 check("I1.2 réservation gardée (réel vide)", len(d2) == 1 and d2[0].reel_usd is None and abs(d2[0].estime_usd - 0.24) < 1e-9,
       [(d.estime_usd, d.reel_usd) for d in d2])
+check("I1.6 configurer refusé tant qu'incertain (pas encore relue)", refus(WD.configurer("post-2", cid, modele=MOD,
+                                                                        parametres={"prenom": "b"}, identites=PETIT)) == "deja_lancee")
 F.appels.clear()
 check("I1.3 second lancer sans confirmation (Kapso : draft) -> incertain", refus(WD.lancer("post-2")) == "incertain")
 check("I1.4 … après une relecture GET, sans aucun send", ("GET", f"/whatsapp/broadcasts/{b2}") in F.appels
       and not any(c.endswith("/send") for _m, c in F.appels), F.appels)
 check("I1.5 toujours incertain", WD.lire("post-2", boite)["incertain"] is True)
-check("I1.6 configurer refusé tant qu'incertain", refus(WD.configurer("post-2", cid, modele=MOD, parametres={"prenom": "b"},
-                                                                     identites=PETIT)) == "deja_lancee")
 F.appels.clear()
 r = run(WD.lancer("post-2", confirme_incertain=True))
 check("I1.7 confirmé -> nouvelle diffusion envoyée", r["broadcast_id"] != b2 and r["statut"] == "sending"
       and r["incertain"] is False and sum(1 for _m, c in F.appels if c.endswith("/send")) == 1, r)
 check("I1.8 ancienne réservation remise à 0 (Kapso disait draft)", depenses(b2)[0].reel_usd == 0.0)
 check("I1.9 nouvelle réservation sur le nouveau broadcast", len(depenses(r["broadcast_id"])) == 1)
+i_del = F.appels.index(("DELETE", f"/whatsapp/broadcasts/{b2}/recipients")) if ("DELETE", f"/whatsapp/broadcasts/{b2}/recipients") in F.appels else -1
+i_cre = F.appels.index(("POST", "/whatsapp/broadcasts")) if ("POST", "/whatsapp/broadcasts") in F.appels else -1
+check("I1.10 revue finale : l'ancien brouillon est VIDÉ avant la création de la relance", 0 <= i_del < i_cre
+      and F.bc[b2]["recipients"] == [], F.appels)
+
+for p_ in [f"post-{i}" for i in range(18, 27)]:
+    creer_post(p_, boite)
+
+print("\n[I3] revue finale I1 : draft relu puis Kapso prend l'envoi au moment de la confirmation")
+run(WD.configurer("post-18", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1600:1603]))
+F.send = [(500, {"error": "boom"})]
+b18 = run(WD.lancer("post-18"))["broadcast_id"]
+check("I3.1 relu draft -> attente de confirmation", refus(WD.lancer("post-18")) == "incertain"
+      and WD.lire("post-18", boite)["attente_confirmation"] is True)
+
+
+def _prise(b):                                  # Kapso a pris le send entre la relecture et le vidage
+    b["status"] = "sending"
+    return 422, {"error": "Broadcast is not a draft"}
+F.vider = [_prise]
+F.appels.clear()
+r = run(WD.lancer("post-18", confirme_incertain=True))
+rec18 = WD.lire("post-18", boite)
+check("I3.2 vidage refusé 422 : AUCUNE relance (ni création, ni send)",
+      not any(c.endswith("/send") for _m, c in F.appels) and ("POST", "/whatsapp/broadcasts") not in F.appels, F.appels)
+check("I3.3 la diffusion est relue et suivie normalement : sending, plus incertaine, même broadcast",
+      r["broadcast_id"] == b18 and r["statut"] == "sending" and r["incertain"] is False
+      and rec18["attente_confirmation"] is False and rec18["broadcast_id"] == b18, (r, rec18))
+check("I3.4 réservation gardée (sera soldée au réel au terme)", depenses(b18)[0].reel_usd is None)
+check("I3.5 suivie par la relecture de fond",
+      "post-18" in {p for p, _e in WD.a_relire(datetime.now(timezone.utc) + timedelta(seconds=120))})
+
+print("\n[I4] revue finale I1 : panne au vidage -> aucune relance")
+run(WD.configurer("post-19", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1610:1612]))
+F.send = [(500, {"error": "boom"})]
+b19 = run(WD.lancer("post-19"))["broadcast_id"]
+refus(WD.lancer("post-19"))
+F.vider = [(503, {"error": "indisponible"})]
+F.appels.clear()
+check("I4.1 confirmation refusée « incertain »", refus(WD.lancer("post-19", confirme_incertain=True)) == "incertain")
+check("I4.2 ni création ni send", not any(c.endswith("/send") for _m, c in F.appels)
+      and ("POST", "/whatsapp/broadcasts") not in F.appels, F.appels)
+rec19 = WD.lire("post-19", boite)
+check("I4.3 toujours incertaine, réservation gardée", rec19["incertain"] is True and rec19["broadcast_id"] == b19
+      and depenses(b19)[0].reel_usd is None, rec19)
+
+print("\n[M3] revue finale : reconfigurer une diffusion en attente de confirmation")
+run(WD.configurer("post-20", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1620:1622]))
+F.send = [(500, {"error": "boom"})]
+b20 = run(WD.lancer("post-20"))["broadcast_id"]
+refus(WD.lancer("post-20"))
+F.appels.clear()
+res20 = run(WD.configurer("post-20", cid, modele=MOD, parametres={"prenom": "neuf"}, identites=FR[1620:1622]))
+rec20 = WD.lire("post-20", boite)
+check("M3.1 brouillon vidé, réservation soldée à 0", ("DELETE", f"/whatsapp/broadcasts/{b20}/recipients") in F.appels
+      and F.bc[b20]["recipients"] == [] and depenses(b20)[0].reel_usd == 0.0, F.appels)
+check("M3.2 config neuve rangée, plus incertaine", rec20["statut"] == "configuree" and rec20["incertain"] is False
+      and rec20["attente_confirmation"] is False and rec20["parametres"] == {"prenom": "neuf"}, rec20)
+check("M3.3 relancée normalement", run(WD.lancer("post-20"))["broadcast_id"] != b20)
+run(WD.configurer("post-21", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1630:1632]))
+F.send = [(500, {"error": "boom"})]
+b21 = run(WD.lancer("post-21"))["broadcast_id"]
+refus(WD.lancer("post-21"))
+F.vider = [_prise]
+check("M3.4 Kapso a pris l'envoi : reconfiguration refusée deja_lancee",
+      refus(WD.configurer("post-21", cid, modele=MOD, parametres={"prenom": "b"}, identites=None)) == "deja_lancee")
+rec21 = WD.lire("post-21", boite)
+check("M3.5 … diffusion relue et suivie, réservation gardée", rec21["statut"] == "sending" and rec21["incertain"] is False
+      and rec21["parametres"] == {"prenom": "a"} and depenses(b21)[0].reel_usd is None, rec21)
+run(WD.configurer("post-22", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1640:1642]))
+F.send = [(500, {"error": "boom"})]
+run(WD.lancer("post-22"))
+F.vider = []
+refus(WD.lancer("post-22"))
+F.vider = [(500, {"error": "boom"})]
+check("M3.6 panne au vidage : reconfiguration refusée incertain, rien ne change",
+      refus(WD.configurer("post-22", cid, modele=MOD, parametres={"prenom": "b"}, identites=None)) == "incertain"
+      and WD.lire("post-22", boite)["attente_confirmation"] is True)
+F.vider = []
+
+print("\n[M4] revue finale : modèles non diffusables refusés")
+F.appels.clear()
+check("M4.1 catégorie authentication -> refus modele", refus(WD.configurer("post-23", cid, modele={"nom": "code", "langue": "fr"},
+                                                                         parametres=["1"], identites=None)) == "modele")
+check("M4.2 en-tête texte variable -> refus modele", refus(WD.configurer("post-23", cid, modele={"nom": "entete", "langue": "fr"},
+                                                                        parametres=[], identites=None)) == "modele")
+check("M4.3 rien rangé, aucun appel de diffusion", WD.lire("post-23", boite) is None
+      and not any("broadcasts" in c for _m, c in F.appels), F.appels)
 
 print("\n[I2] panne réseau puis Kapso dit sending")
 run(WD.configurer("post-3", cid, modele=MOD, parametres={"prenom": "a"}, identites=PETIT))
@@ -409,9 +515,21 @@ PF.noter_reel_lignes = _nrl
 
 print("\n[A1] a_relire")
 maintenant = datetime.now(timezone.utc)
-liste = WD.a_relire(maintenant + timedelta(seconds=120))
-check("A1.1 sending ancien (post-2, post-3, post-5) relu ; terminée et non lancée absentes",
-      {p for p, _e in liste} == {"post-2", "post-3", "post-5"} and all(e == boite for _p, e in liste), liste)
+_lire_es = E.lire
+
+
+def _interdit():
+    raise AssertionError("espaces.lire() appelé par a_relire")
+E.lire = _interdit
+try:
+    liste = WD.a_relire(maintenant + timedelta(seconds=120))
+    check("A1.0 revue finale I3 : a_relire ne passe jamais par espaces.lire() (lecture seule du disque)", True)
+except AssertionError as x:
+    liste = []
+    check("A1.0 revue finale I3 : a_relire ne passe jamais par espaces.lire() (lecture seule du disque)", False, str(x))
+E.lire = _lire_es
+check("A1.1 sending ancien (post-2, post-3, post-5, post-18, post-20, post-21) relu ; terminée, non lancée et en attente absentes",
+      {p for p, _e in liste} == {"post-2", "post-3", "post-5", "post-18", "post-20", "post-21"} and all(e == boite for _p, e in liste), liste)
 check("A1.2 maj récente (< 60 s) : rien", WD.a_relire(maintenant) == [], WD.a_relire(maintenant))
 
 print("\n[K1] deux lancer simultanés")
@@ -501,6 +619,46 @@ check("K4.4 ancienne soldée : 1 sent x 0,08", abs(depenses(b_old)[0].reel_usd -
 check("K4.5 désinscriptions de l'ancienne captées", f"tel:{ro[1]['phone_number']}" in e_["desinscrits_marketing"]
       and f"tel:{ro[2]['phone_number']}" in e_["desinscrits_marketing"])
 check("K4.6 retirée des anciennes", WD.lire("post-11", boite)["anciennes"] == [])
+
+print("\n[K4b] revue finale I1 : une ancienne encore draft n'est soldée qu'une fois VIDÉE")
+run(WD.configurer("post-24", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1650:1652]))
+F.send = [(500, {"error": "boom"})]
+b24 = run(WD.lancer("post-24"))["broadcast_id"]
+F.get_panne = {b24}
+run(WD.lancer("post-24", confirme_incertain=True))
+F.get_panne = set()
+F.vider = [_prise]                               # au premier vidage, Kapso l'a prise : elle reste suivie
+run(WD.relire("post-24", boite))
+check("K4b.1 vidage 422 : l'ancienne reste suivie, réservation gardée",
+      [a["broadcast_id"] for a in WD.lire("post-24", boite)["anciennes"]] == [b24] and depenses(b24)[0].reel_usd is None)
+F.bc[b24]["status"] = "draft"                    # (faux) redevenue brouillon : le vidage passe
+run(WD.relire("post-24", boite))
+check("K4b.2 vidée : soldée à 0 et retirée", WD.lire("post-24", boite)["anciennes"] == [] and depenses(b24)[0].reel_usd == 0.0
+      and F.bc[b24]["recipients"] == [], WD.lire("post-24", boite)["anciennes"])
+
+print("\n[M9] revue finale : diffusion supprimée chez Kapso (404 persistant)")
+run(WD.configurer("post-25", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1660:1662]))
+b25 = run(WD.lancer("post-25"))["broadcast_id"]
+F.get_404.add(b25)
+e1 = leve(WD.relire("post-25", boite), KA.KapsoErreur)
+e2 = leve(WD.relire("post-25", boite), KA.KapsoErreur)
+check("M9.1 deux 404 : l'erreur remonte, toujours suivie", e1 is not None and e2 is not None and e2.statut == 404
+      and WD.lire("post-25", boite)["statut"] == "sending" and WD.lire("post-25", boite)["echecs_404"] == 2)
+v25 = run(WD.relire("post-25", boite))
+rec25 = WD.lire("post-25", boite)
+check("M9.2 au 3e : introuvable, plus incertaine", v25["statut"] == "introuvable" and rec25["statut"] == "introuvable"
+      and rec25["incertain"] is False, rec25)
+check("M9.3 plus suivie en fond, pas une publication",
+      "post-25" not in {p for p, _e in WD.a_relire(datetime.now(timezone.utc) + timedelta(seconds=120))}
+      and WD.deja_prise(rec25) is False)
+check("M9.4 réservation gardée comme estimation", depenses(b25)[0].reel_usd is None)
+check("M9.5 ni relançable ni reconfigurable", refus(WD.lancer("post-25")) == "deja_lancee")
+F.appels.clear()
+run(WD.relire("post-25", boite))
+check("M9.6 une relecture explicite ne rappelle plus Kapso", F.appels == [], F.appels)
+F.get_404.discard(b25)
+logger.complete()
+check("M9.7 une seule ligne « introuvable » au journal", JOURNAL.read_text(encoding="utf-8").count(f"broadcast {b25} : introuvable") == 1)
 
 print("\n[K5] incertain + draft : attente de confirmation")
 run(WD.configurer("post-12", cid, modele=MOD, parametres={"prenom": "a"}, identites=FR[1800:1802]))

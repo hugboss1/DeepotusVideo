@@ -84,10 +84,31 @@ def ids(post_id: str) -> tuple[str, str]:
     return f"val:{post_id}:ok", f"val:{post_id}:corr"
 
 
+def _diffusion(post) -> dict | None:
+    """t328 revue finale I2 : la DIFFUSION WhatsApp configurée pour le post ({compte, nom, langue, parametres}), ou None.
+    Lecture d'affichage (`whatsapp_diffusions.lire`, aucun réseau) ; les identités ne sont JAMAIS lues ici."""
+    try:
+        from app.services import whatsapp_diffusions as WD
+        rec = WD.lire(getattr(post, "id", None), getattr(post, "espace_id", None) or "deepotus")
+    except Exception:  # noqa: BLE001 — espace inconnu, fichier absent : pas de diffusion
+        return None
+    m = (rec or {}).get("modele")
+    if not isinstance(m, dict) or not m.get("nom"):
+        return None
+    return {"compte": rec.get("compte"), "nom": m.get("nom"), "langue": m.get("langue"), "parametres": rec.get("parametres")}
+
+
 def empreinte(post) -> str:
     """Empreinte (sha256, 16 caractères) du CONTENU du post : le tuple `contenu_avant` des routes du Planificateur
-    (title, caption, source_image, job_id, brief). Un contenu changé après l'envoi rend les boutons caducs."""
+    (title, caption, source_image, job_id, brief). Un contenu changé après l'envoi rend les boutons caducs.
+    t328 revue finale I2 : un post à DIFFUSION WhatsApp y ajoute un condensé de sa config (nom et langue du modèle,
+    paramètres) — un PUT de la diffusion après l'envoi rend l'ancien bouton caduc ; sans diffusion, l'empreinte est
+    celle d'avant (les demandes déjà envoyées restent valables)."""
     t = [getattr(post, k, None) for k in ("title", "caption", "source_image", "job_id", "brief")]
+    d = _diffusion(post)
+    if d is not None:
+        cfg = {"nom": d["nom"], "langue": d["langue"], "parametres": d["parametres"]}
+        t.append(hashlib.sha256(json.dumps(cfg, ensure_ascii=False, sort_keys=True, default=str).encode("utf-8")).hexdigest())
     return hashlib.sha256(json.dumps(t, ensure_ascii=False, default=str).encode("utf-8")).hexdigest()[:16]
 
 
@@ -200,6 +221,47 @@ def _texte(post, langue: str) -> str:
     return t[:WE.MAX_CORPS_BOUTONS]
 
 
+_JALON_CORPS = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")
+DIFFUSION = {"fr": ("Diffusion WhatsApp — modèle « {nom} » ({langue}) :", "paramètres : {valeurs}"),
+             "en": ("WhatsApp broadcast — template “{nom}” ({langue}):", "parameters: {valeurs}")}
+
+
+async def _bloc_diffusion(post, langue: str) -> str | None:
+    """t328 revue finale I2 : ce que le client doit voir de la diffusion WhatsApp du post — le NOM du modèle et son corps
+    REMPLI (texte du modèle approuvé, jalons remplacés par les paramètres rangés) ; corps illisible (Kapso injoignable,
+    modèle disparu) : les valeurs des paramètres. Jamais une identité de destinataire. None sans diffusion."""
+    d = _diffusion(post)
+    if d is None:
+        return None
+    titre, repli = DIFFUSION.get(langue) or DIFFUSION["fr"]
+    p = d["parametres"]
+    valeurs = p if isinstance(p, dict) else {str(i + 1): v for i, v in enumerate(p or [])}
+    corps = None
+    try:
+        from app.services import whatsapp_echanges as WE
+        _vue, pub, _pid = WE._compte_relie(d["compte"])
+        brut = next((m for m in await WE._modeles_bruts(pub)
+                     if m.get("name") == d["nom"] and m.get("language") == d["langue"]), None)
+        texte = next((c.get("text") for c in (brut or {}).get("components") or []
+                      if isinstance(c, dict) and str(c.get("type")).upper() == "BODY"), None)
+        if isinstance(texte, str) and texte.strip():
+            corps = _JALON_CORPS.sub(lambda m_: str(valeurs.get(m_.group(1), m_.group(0))), texte).strip()
+    except Exception as e:  # noqa: BLE001 — l'aperçu se replie sur les paramètres, jamais un échec de la demande
+        logger.warning(f"validation WhatsApp : texte du modèle de diffusion non lu ({type(e).__name__})")
+    if corps is None:
+        corps = repli.format(valeurs=", ".join(str(v) for v in valeurs.values()) or "—")
+    return titre.format(nom=d["nom"], langue=d["langue"]) + "\n" + corps
+
+
+def _avec_bloc(texte: str, bloc: str | None, limite: int, sep: str) -> str:
+    """`texte` puis `bloc` (le bloc de diffusion passe en entier : c'est le texte du post qui est raccourci)."""
+    if not bloc:
+        return texte[:limite]
+    bloc = bloc[:limite]
+    reste = limite - len(bloc) - len(sep)
+    return (texte[:reste].rstrip() + sep + bloc) if reste > 0 and texte else bloc
+
+
 def _parametre(post, langue: str) -> str:
     """Le paramètre d'un modèle à UNE variable : le titre (repli : la légende, puis le texte de repli), sans retour à la
     ligne ni suite d'espaces (refusés par Meta dans un paramètre), 1024 caractères au plus."""
@@ -261,17 +323,21 @@ async def envoyer_validation(post_id: str) -> dict:
     if apercu is not None and entete_image:
         media_id = await kapso.televerser_media(pid, *apercu)
     ok, corr = ids(post.id)
+    bloc = await _bloc_diffusion(post, langue)       # t328 revue finale I2 : le client voit ce qui partira en diffusion
     if modele is None:
-        envoi = {"type": "boutons", "texte": _texte(post, langue), "boutons": list(titres(langue)), "ids": [ok, corr]}
+        envoi = {"type": "boutons", "texte": _avec_bloc(_texte(post, langue), bloc, WE.MAX_CORPS_BOUTONS, "\n\n"),
+                 "boutons": list(titres(langue)), "ids": [ok, corr]}
         if media_id:
             envoi["entete_media_id"] = media_id
     else:
         n = modele.get("n_parametres") or 0
         noms = modele.get("noms_parametres") if isinstance(modele.get("noms_parametres"), list) else []
+        # t328 revue finale I2 : le paramètre porte aussi la diffusion, sur une ligne (Meta refuse les retours à la ligne)
+        unique = _avec_bloc(_parametre(post, langue), re.sub(r"\s+", " ", bloc).strip() if bloc else None, 1024, " · ")
         if n == 1 and modele.get("parametres") == "nommes" and len(noms) == 1:
-            parametres = {str(noms[0]): _parametre(post, langue)}      # paramètre NOMMÉ : {nom: titre}
+            parametres = {str(noms[0]): unique}                         # paramètre NOMMÉ : {nom: titre}
         elif n == 1 and modele.get("parametres") != "nommes":
-            parametres = [_parametre(post, langue)]
+            parametres = [unique]
         else:
             parametres = []
         envoi = {"type": "modele", "nom": modele["nom"], "langue": modele["langue"], "parametres": parametres,

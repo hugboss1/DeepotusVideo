@@ -26,6 +26,13 @@ boucle de fond n'est pas démarrée). Ce que ce banc garde :
   F7  GET/PUT : identités COMPTÉES (n_identites), jamais la liste
   F8  post X + WhatsApp sans config : X part, post `posted`, l'erreur WhatsApp gardée ; après PUT + fire, WhatsApp part
       seul (X pas republié) ; GET ?relire=1 lit les pages
+  Revue finale t328 :
+  RF-I4 client « publié en son nom » : PUT et confirmer sans confirme_client -> 409 `confirmation` (rien d'écrit) ; avec
+      confirme_client = le client -> 200 (même règle que PATCH et /fire)
+  RF-M1 diffusion incertaine d'un post de client tranchée par la relecture de fond : post `posted` ET ligne `publication`
+      au journal du client (comme fire_post)
+  RF-M5 GET : `etat.relancable` (faux pour une diffusion partie, vrai pour un failed prouvé sans envoi et soldé),
+      `rien_envoye`, `reel_note`
   J1  journal sans numéro ni texte de modèle
 Run (depuis backend/) : & $PY tests/test_scheduler_whatsapp.py"""
 import asyncio, json, os, pathlib, sys, tempfile
@@ -117,6 +124,11 @@ async def faux_requete(methode, url, *, json=None, params=None, fichiers=None):
             b["recipients"].append({"phone_number": r["phone_number"].lstrip("+"), "status": "pending",
                                     "error_details": None})
         return 201, {"data": {"added": len(lot), "duplicates": 0, "errors": []}}, {}
+    if len(parts) == 4 and parts[3] == "recipients" and methode == "DELETE":     # revue finale I1 : vider un brouillon
+        if b["status"] != "draft":
+            return 422, {"error": "Broadcast is not a draft"}, {}
+        b["recipients"] = []
+        return 200, {"data": {"id": bid, "status": "draft"}}, {}
     if len(parts) == 4 and parts[3] == "recipients" and methode == "GET":
         page, pp = int(params["page"]), int(params["per_page"])
         tout = b["recipients"]
@@ -541,6 +553,73 @@ async def main():
         j_ = JOURNAL.read_text(encoding="utf-8")
         check("S8.5 une relecture qui lève ne casse pas le tick", casse is None, repr(casse))
         check("S8.6 … journal : le type seulement", "RuntimeError" in j_ and "+33610000001" not in j_, j_[-400:])
+
+        print("\n[RF-I4] client publié en son nom : PUT et confirmer acceptent confirme_client")
+        nom = E.creer({"nom": "Fleuriste Nom", "type": "client"})["id"]
+        FC.ecrire(nom, {"societe": "Fleuriste Nom SARL", "mode_publication": "publie_en_son_nom"})
+        wnom = compte_wa(nom, "PN-N")
+        CP.noter_verification(wnom, {"etat": "vert", "id_distant": "PN-N"})
+        FC.ajouter_consentement(nom, "whatsapp:PN-N", ["publier", "messages"], "ecrit")
+        accords(wnom)
+        r = await poster(nom, [wnom], status="scheduled", confirme_client=nom)
+        pn = r.json()["id"] if r.status_code == 200 else "x"
+        check("RF-I4.0 post programmé du client confirmé", r.status_code == 200 and r.json()["status"] == "scheduled", r.text[:300])
+        r = await c.put(f"/api/schedule/{pn}/diffusion", json=MOD)
+        check("RF-I4.1 PUT sans confirme_client : 409 confirmation, rien rangé",
+              r.status_code == 409 and r.json()["detail"]["code"] == "confirmation" and r.json()["detail"]["client"] == nom
+              and WD.lire(pn, nom) is None, r.text[:300])
+        r = await c.put(f"/api/schedule/{pn}/diffusion", json={**MOD, "confirme_client": nom})
+        p = await lire_post(pn)
+        check("RF-I4.2 PUT avec confirme_client : 200, config rangée, confirmation gardée, post toujours programmé",
+              r.status_code == 200 and WD.lire(pn, nom) is not None and p.confirme_client == nom and p.status == "scheduled",
+              (r.text[:300], p.confirme_client, p.status))
+        F.send = [(503, {"error": "indisponible"})]
+        await c.post(f"/api/schedule/{pn}/fire")
+        bn = WD.lire(pn, nom)["broadcast_id"]
+        async with storage.async_session_factory() as s_:            # la confirmation du post a été perdue entre-temps
+            q = (await s_.execute(select(storage.ScheduledPost).where(storage.ScheduledPost.id == pn))).scalar_one()
+            q.confirme_client = None
+            await s_.commit()
+        F.appels.clear()
+        r = await c.post(f"/api/schedule/{pn}/diffusion/confirmer", json={"confirme_incertain": True})
+        check("RF-I4.3 confirmer sans confirme_client : 409 confirmation, aucun appel de diffusion",
+              r.status_code == 409 and r.json()["detail"]["code"] == "confirmation" and diffusions_kapso() == [], r.text[:300])
+        r = await c.post(f"/api/schedule/{pn}/diffusion/confirmer", json={"confirme_incertain": True, "confirme_client": nom})
+        check("RF-I4.4 confirmer avec confirme_client : 200, diffusion relancée", r.status_code == 200
+              and r.json()["diffusion"]["broadcast_id"] != bn, r.text[:300])
+
+        print("\n[RF-M1] relecture de fond : ligne publication au journal du client")
+        pm1 = (await poster(cli, [wcli], status="draft")).json()["id"]
+        await c.put(f"/api/schedule/{pm1}/diffusion", json=MOD)
+        await c.post(f"/api/schedule/{pm1}/validation-client", json={"reponse": "valide", "moyen": "ecrit"})
+        F.send = [(503, {"error": "indisponible"})]
+        await c.post(f"/api/schedule/{pm1}/fire")
+        bm1 = WD.lire(pm1, cli)["broadcast_id"]
+        avant = [x for x in FC.lire(cli)["journal"] if x.get("quoi") == "publication"]
+        F.bc[bm1]["status"] = "sending"
+        vieillir(cli, pm1)
+        await marketing.tick([datetime.utcnow().strftime("%Y-%m-%d")])
+        p = await lire_post(pm1)
+        apres = [x for x in FC.lire(cli)["journal"] if x.get("quoi") == "publication"]
+        check("RF-M1.1 post posted par la relecture, une ligne publication de plus au journal du client (canal du compte)",
+              p.status == "posted" and len(apres) == len(avant) + 1 and apres[-1]["canal_id"] == "whatsapp:PN-C"
+              and apres[-1]["qui"] == "utilisateur", (p.status, apres[-2:]))
+        await marketing.tick([datetime.utcnow().strftime("%Y-%m-%d")])
+        check("RF-M1.2 pas de seconde ligne au tour suivant",
+              len([x for x in FC.lire(cli)["journal"] if x.get("quoi") == "publication"]) == len(apres))
+
+        print("\n[RF-M5] GET : relancable")
+        r = await c.get(f"/api/schedule/{pm1}/diffusion")
+        e_ = r.json()["etat"]
+        check("RF-M5.1 diffusion partie : relancable faux, rien_envoye et reel_note présents",
+              e_["relancable"] is False and e_["rien_envoye"] is False and e_["reel_note"] is False, e_)
+        F.bc[bm1]["status"] = "failed"
+        for x in F.bc[bm1]["recipients"]:
+            x["status"] = "failed"
+        r = await c.get(f"/api/schedule/{pm1}/diffusion?relire=1")
+        e_ = r.json()["etat"]
+        check("RF-M5.2 failed prouvé sans envoi et soldé : relancable vrai", e_["statut"] == "failed"
+              and e_["rien_envoye"] is True and e_["reel_note"] is True and e_["relancable"] is True, e_)
 
         print("\n[S9] espace archivé")
         r = await poster(arch, [warch], status="scheduled", mode="auto", run_at="2026-10-01T09:00:00Z")

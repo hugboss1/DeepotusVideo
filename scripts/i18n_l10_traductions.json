@@ -11298,5 +11298,17 @@
  "aucune diffusion à l'issue incertaine à confirmer pour ce post : publiez-le normalement": {
   "fr": "aucune diffusion à l'issue incertaine à confirmer pour ce post : publiez-le normalement",
   "en": "no broadcast with an uncertain outcome to confirm for this post: publish it normally"
+ },
+ "un modèle d'authentification (code à usage unique) ne peut pas partir en diffusion": {
+  "fr": "un modèle d'authentification (code à usage unique) ne peut pas partir en diffusion",
+  "en": "an authentication template (one-time code) cannot be sent as a broadcast"
+ },
+ "un modèle à en-tête texte variable ne peut pas partir en diffusion (v1 : corps seulement)": {
+  "fr": "un modèle à en-tête texte variable ne peut pas partir en diffusion (v1 : corps seulement)",
+  "en": "a template with a variable text header cannot be sent as a broadcast (v1: body only)"
+ },
+ "l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est relancé, réessayez dans un instant": {
+  "fr": "l'ancienne diffusion n'a pas pu être neutralisée chez Kapso (panne) : rien n'est relancé, réessayez dans un instant",
+  "en": "the previous broadcast could not be neutralised at Kapso (outage): nothing was relaunched, try again in a moment"
  }
 }

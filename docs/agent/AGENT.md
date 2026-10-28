@@ -84,14 +84,17 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   → [POINT:reglages.nouvel_espace] [POINT:reglages.cles] [GUIDE:marques]
 - **Diffuser un post sur WhatsApp** (t328) : dans l'inspecteur d'un post du Planificateur, le compte WhatsApp de
   l'espace se coche comme un réseau (un seul compte WhatsApp par post), jamais précoché dans les canaux par défaut d'un
-  projet. Le panneau « Diffusion WhatsApp » demande un modèle approuvé par Meta (sans en-tête média), ses paramètres (le
+  projet. Le panneau « Diffusion WhatsApp » demande un modèle approuvé par Meta (sans en-tête média ni en-tête texte
+  variable, jamais un modèle d'authentification), ses paramètres (le
   même texte pour tous les contacts), puis montre l'audience (les contacts de l'espace dont l'accord a été saisi, hors
   STOP et désinscrits du marketing) et le devis ; « Enregistrer la diffusion » ne dépense rien et efface la validation
   client du post. La diffusion part avec la publication du post, par Kapso, après le contrôle du plafond mensuel : la
   validation du client est respectée comme pour tout post, et sans accord saisi rien ne part. Ensuite le panneau suit
   statut, envoyés, livrés, lus, échecs et coût réel (« Relire »). Si l'issue est incertaine, « Confirmer l'envoi »
   la relance après une boîte de confirmation : payant, certains contacts peuvent la recevoir deux fois, et le post
-  part aussi sur ses autres canaux. → [ALLER:scheduler] [GUIDE:planificateur]
+  part aussi sur ses autres canaux. Avant de relancer, l'ancien brouillon est vidé chez Kapso ; s'il était déjà parti,
+  rien n'est relancé et la diffusion est simplement suivie. Un échec de Kapso prouvé sans aucun envoi rend le panneau
+  modifiable pour une nouvelle tentative. → [ALLER:scheduler] [GUIDE:planificateur]
 - **Répondre sur WhatsApp avec l'agent** (t311) : l'agent WhatsApp d'un espace se règle dans Réglages › Espaces de
   marque, bouton « Agent WhatsApp » sous les comptes de l'espace actif : Agent actif, mode, rôles (questions courantes,
   rendez-vous, commandes, validation des posts), horaires et message hors horaires, réponses automatiques par contact et

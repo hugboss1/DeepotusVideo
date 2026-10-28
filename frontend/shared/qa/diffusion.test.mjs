@@ -3,7 +3,9 @@
 // et pose son dialogue sur le 402 du plafond, comme dans la SPA.
 // Séries : modele_sans_parametres, modele_nomme (et positionnel), audience_vide, plafond_402 (refusé, accepté),
 // incertain_409 (dialogue refusé, accepté, pas_incertaine), suivi (compteurs, relire), sans_dialogue, perime, delai,
-// liste_explicite, anglais, jamais_de_numero.
+// liste_explicite, anglais, jamais_de_numero ; revue finale t328 : client_publie_en_son_nom (409 confirmation sur PUT
+// et confirmer, dialogue nominatif, renvoi unique), relancable (failed prouvé sans envoi -> édition), introuvable,
+// modèle d'authentification écarté.
 // Lancer : node frontend/shared/qa/diffusion.test.mjs
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
@@ -96,6 +98,7 @@ const MODELES = [
   { nom: "sans_meta", langue: "fr", categorie: "utility", parametres: "positionnels", n_parametres: 0, noms_parametres: [], statut: "approved", meta_id: "", composants: { entete: null, boutons: [] } },
   { nom: "refuse", langue: "fr", categorie: "utility", parametres: "positionnels", n_parametres: 0, noms_parametres: [], statut: "rejected", meta_id: "m6", composants: { entete: null, boutons: [] } },
   { nom: "entete_var", langue: "fr", categorie: "utility", parametres: "positionnels", n_parametres: 0, noms_parametres: [], statut: "approved", meta_id: "m7", composants: { entete: "text", entete_variable: true, boutons: [] } },
+  { nom: "code_otp", langue: "fr", categorie: "authentication", parametres: "positionnels", n_parametres: 1, noms_parametres: ["1"], statut: "approved", meta_id: "m8", composants: { entete: null, boutons: [] } },
 ];
 const GET = "GET /api/schedule/p1/diffusion", RELIRE = "GET /api/schedule/p1/diffusion?relire=1", PUT = "PUT /api/schedule/p1/diffusion";
 const CONF = "POST /api/schedule/p1/diffusion/confirmer", MOD = "GET /api/whatsapp/c_wa/modeles?espace=esp_a";
@@ -113,7 +116,7 @@ const options = (h) => attr(h, "value").filter((x) => x.tagName === "OPTION").ma
   } });
   await m.API.monter(m.hote, "p1", O); await tick();
   ok("1.1 GET de la diffusion puis des modèles du compte (espace en paramètre)", m.appels[0].url === "/api/schedule/p1/diffusion" && m.appels[1].url === "/api/whatsapp/c_wa/modeles?espace=esp_a", JSON.stringify(m.appels));
-  ok("1.2 seuls les modèles approuvés, avec identifiant Meta, sans en-tête média ni en-tête texte variable",
+  ok("1.2 seuls les modèles approuvés, avec identifiant Meta, sans en-tête média ni en-tête texte variable, hors authentification",
     JSON.stringify(options(m.hote)) === JSON.stringify(["promo_simple|fr", "bienvenue|fr", "rappel|en"]), JSON.stringify(options(m.hote)));
   ok("1.3 la catégorie est affichée (option et ligne)", un(m.hote, "data-dz-diffusion-categorie").textContent === FR("diffusion.modele.categorie", { categorie: FR("diffusion.categorie.utility") })
     && m.hote.textContent.includes(FR("diffusion.modele.option", { nom: "bienvenue", langue: "fr", categorie: FR("diffusion.categorie.marketing") })));
@@ -455,6 +458,73 @@ const PLAFOND = { detail: { dz_plafond: { motif: "global", message: "Ce tir dép
   m.longs[m.longs.length - 1](); await tick();
   ok("16.2 dialogue fermé : au délai suivant, le message d'attente", un(m.hote, "data-dz-diffusion-erreur")?.textContent === FR("diffusion.erreur.attente"));
   lacher(); await tick();
+}
+
+// ---- revue finale t328 I4 : client « publié en son nom » — 409 confirmation sur PUT, dialogue nominatif, renvoi unique --
+const REFUS_NOM = { detail: { message: "confirmez la publication au nom du client « Fleuriste » sur : WhatsApp (whatsapp:PN-N)", code: "confirmation", client: "cli_f", nom: "Fleuriste", canaux: ["WhatsApp (whatsapp:PN-N)"] } };
+{
+  const corps = [];
+  const m = monde({ dialogue: [true], routes: {
+    [GET]: () => rep(200, VIDE), [MOD]: () => rep(200, MODELES),
+    [PUT]: (b) => { corps.push(b); return b.confirme_client ? rep(200, { config: CFG({ nom: "promo_simple", langue: "fr" }, []), audience: { n: 2, ecartes: {} }, devis: { usd: 0.03, lignes: [] } }) : rep(409, REFUS_NOM); },
+  } });
+  await m.API.monter(m.hote, "p1", O); await tick();
+  un(m.hote, "data-dz-diffusion-enregistrer").click(); await tick(8);
+  ok("17.1 PUT 409 confirmation : le dialogue NOMME le client et ses canaux (clés de dz-garde-client)", m.dialogues.length === 1
+    && m.dialogues[0].m === FR("scheduler.client.confirmer", { nom: "Fleuriste", canaux: "WhatsApp (whatsapp:PN-N)" })
+    && m.dialogues[0].o.titre === FR("scheduler.client.confirmer_titre") && m.dialogues[0].o.ok === FR("scheduler.client.confirmer_ok"), JSON.stringify(m.dialogues));
+  ok("17.2 oui : le MÊME corps renvoyé une fois avec confirme_client", corps.length === 2
+    && JSON.stringify(corps[1]) === JSON.stringify({ modele: { nom: "promo_simple", langue: "fr" }, parametres: [], confirme_client: "cli_f" }), JSON.stringify(corps));
+  ok("17.3 enregistrée", un(m.hote, "data-dz-diffusion-msg")?.textContent === FR("diffusion.etat.enregistree"));
+}
+{
+  let puts = 0;
+  const m = monde({ dialogue: [false], routes: { [GET]: () => rep(200, VIDE), [MOD]: () => rep(200, MODELES), [PUT]: () => { puts++; return rep(409, REFUS_NOM); } } });
+  await m.API.monter(m.hote, "p1", O); await tick();
+  un(m.hote, "data-dz-diffusion-enregistrer").click(); await tick(8);
+  ok("17.4 non : aucun renvoi, le message du serveur, la liste relue", puts === 1 && un(m.hote, "data-dz-diffusion-erreur")?.textContent.startsWith("confirmez la publication")
+    && m.evenements.includes("deepotus:schedule-recharger"), puts);
+}
+{
+  let puts = 0;
+  const m = monde({ dialogue: [true], routes: { [GET]: () => rep(200, VIDE), [MOD]: () => rep(200, MODELES), [PUT]: () => { puts++; return rep(409, REFUS_NOM); } } });
+  await m.API.monter(m.hote, "p1", O); await tick();
+  un(m.hote, "data-dz-diffusion-enregistrer").click(); await tick(8);
+  ok("17.5 second refus après confirmation : montré tel quel, jamais un troisième PUT", puts === 2 && m.dialogues.length === 1
+    && un(m.hote, "data-dz-diffusion-erreur")?.textContent.startsWith("confirmez la publication"), puts);
+}
+{
+  const corps = [];
+  let etat = INCERTAIN;
+  const m = monde({ dialogue: [true, true], routes: {
+    [GET]: () => rep(200, etat),
+    [CONF]: (b) => { corps.push(b); if (!b.confirme_client) return rep(409, REFUS_NOM); etat = { ...INCERTAIN, etat: { statut: "sending", n: 3, incertain: false, compteurs: {} } }; return rep(200, { diffusion: { broadcast_id: "b2", statut: "sending", n: 3, incertain: false } }); },
+  } });
+  await m.API.monter(m.hote, "p1", O); await tick();
+  un(m.hote, "data-dz-diffusion-confirmer").click(); await tick(10);
+  ok("17.6 confirmer 409 confirmation : dialogue nominatif puis {confirme_incertain, confirme_client}", corps.length === 2 && m.dialogues.length === 2
+    && m.dialogues[1].m === FR("scheduler.client.confirmer", { nom: "Fleuriste", canaux: "WhatsApp (whatsapp:PN-N)" })
+    && JSON.stringify(corps[1]) === JSON.stringify({ confirme_incertain: true, confirme_client: "cli_f" }), JSON.stringify(corps));
+  ok("17.7 confirmée : suivi sending", un(m.hote, "data-dz-diffusion-msg")?.textContent === FR("diffusion.etat.confirmee") && !!un(m.hote, "data-dz-diffusion-statut", "sending"));
+}
+
+// ---- revue finale t328 M5 : failed prouvé sans envoi -> édition ; introuvable -> suivi ------------------------------
+{
+  const m = monde({ routes: { [MOD]: () => rep(200, MODELES),
+    [GET]: () => rep(200, { config: CFG({ nom: "promo_simple", langue: "fr", categorie: "utility" }, [], { statut: "failed" }), audience: { n: 3, ecartes: {} }, devis: { usd: 0.05, lignes: [] }, refus: null,
+      etat: { statut: "failed", broadcast_id: "b1", n: 3, incertain: false, attente_confirmation: false, compteurs: { sent: 0, failed: 3 }, rien_envoye: true, reel_note: true, relancable: true } }) } });
+  await m.API.monter(m.hote, "p1", O); await tick();
+  ok("18.1 failed relançable : ÉDITION (bouton Enregistrer), la note dit que rien n'est parti", !!un(m.hote, "data-dz-diffusion-enregistrer")
+    && un(m.hote, "data-dz-diffusion-statut", "failed")?.textContent === FR("diffusion.statut.failed_rien_note") && !un(m.hote, "data-dz-diffusion-relire"), m.hote.textContent);
+  ok("18.2 règle pure : relancable vrai -> pas lancée ; faux -> lancée", m.API._regles.lancee({ etat: { statut: "failed", relancable: true } }) === false
+    && m.API._regles.lancee({ etat: { statut: "failed", relancable: false } }) === true
+    && m.API._regles.lancee({ etat: { statut: "envoi", incertain: true, relancable: true } }) === true);
+}
+{
+  const m = monde({ routes: { [GET]: () => rep(200, { ...INCERTAIN, etat: { statut: "introuvable", n: 3, incertain: false, compteurs: {}, relancable: false } }) } });
+  await m.API.monter(m.hote, "p1", O); await tick();
+  ok("18.3 introuvable : suivi, statut traduit", un(m.hote, "data-dz-diffusion-statut", "introuvable")?.textContent.includes(FR("diffusion.statut.introuvable")), m.hote.textContent);
+  ok("18.4 modèle d'authentification écarté (règle pure)", m.API._regles.utilisable(MODELES.find((x) => x.nom === "code_otp")) === false);
 }
 
 if (echecs.length) { console.log(`ÉCHEC ${echecs.length}/${n}\n  - ` + echecs.join("\n  - ")); process.exit(1); }

@@ -36,6 +36,7 @@ MAX_ESSAIS = 5                    # essais au total pour un 429 (relevé §6 : �
 ATTENTE_MAX = 120.0               # un Retry-After démesuré ne bloque pas l'application
 _RE_TOKEN_URL = re.compile(r"token=[^&\s]+", re.I)
 _RE_TOKEN_JSON = re.compile(r'"token"\s*:\s*"[^"]+"', re.I)
+_RE_CHIFFRES = re.compile(r"\d{6,}")      # un numéro de téléphone ne sort jamais d'une erreur (t328, revue finale M2)
 
 
 class KapsoErreur(RuntimeError):
@@ -102,7 +103,8 @@ def _lire_erreur(statut: int, corps, cle: str) -> tuple[str, str]:
             message = err or corps.get("message") or ""
             code = corps.get("code") or ""
     code = _propre(code, cle, 64).strip() or str(statut)
-    message = _propre(message, cle).strip() or f"Réponse Kapso inattendue (HTTP {statut})"
+    # t328 revue finale M2 : une suite de 6 chiffres ou plus (un numéro cité par le fournisseur) est masquée
+    message = _RE_CHIFFRES.sub("…", _propre(message, cle)).strip() or f"Réponse Kapso inattendue (HTTP {statut})"
     return code, message
 
 
@@ -404,9 +406,6 @@ async def media_et_type(media_id: str, phone_number_id: str) -> tuple[bytes, str
 MAX_DESTINATAIRES = 1000          # par appel d'ajout (relevé Broadcasts §2.2)
 
 
-_RE_CHIFFRES = re.compile(r"\d{6,}")      # un numéro de téléphone ne sort jamais d'une erreur
-
-
 def _id_bc(broadcast_id) -> str:
     return quote(str(broadcast_id), safe="")
 
@@ -498,3 +497,13 @@ async def arreter_broadcast(broadcast_id: str) -> dict:
                                  json={"whatsapp_broadcast": {"status": "stopped"}})
     d = _data(corps, dict)
     return {"id": str(d.get("id") or broadcast_id), "statut": str(d.get("status") or "")}
+
+
+async def vider_destinataires(broadcast_id: str) -> dict:
+    """DELETE .../recipients (t328 revue finale I1) : vide TOUS les destinataires d'un brouillon (`draft`, ou `scheduled`
+    qui repasse `draft`). Un brouillon vidé ne peut plus rien envoyer. 422 si la diffusion n'est plus un brouillon (elle
+    est partie) : la `KapsoErreur` remonte, à l'appelant de relire. Rend {"id", "statut"}."""
+    _s, corps, _e = await _appel("DELETE", f"{PLATFORM}/whatsapp/broadcasts/{_id_bc(broadcast_id)}/recipients")
+    d = corps.get("data") if isinstance(corps, dict) else None     # un 2xx = vidé, même sans corps lisible
+    return {"id": str(d.get("id") or broadcast_id) if isinstance(d, dict) else str(broadcast_id),
+            "statut": str(d.get("status") or "") if isinstance(d, dict) else ""}

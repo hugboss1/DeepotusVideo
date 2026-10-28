@@ -26,7 +26,8 @@ Ce que ce banc garde :
   W12 médias : octets rendus avec le type du fournisseur, rien sur disque.
   W13 accords et stop par route ; erreurs : compte inconnu 404, compte non whatsapp 404, autre espace 404, hors boucle
       locale refusé.
-  W14 RF 2 : POST /api/schedule avec un compte whatsapp en cible -> 400.
+  W14 règle t328 (diffusions depuis le Planificateur ; avant t328 : 400) : POST /api/schedule avec le compte whatsapp de
+      l'espace -> 200, channels ["whatsapp"], comptes [cid] ; avec le compte whatsapp d'un AUTRE espace -> 409.
   W15 deux envois simultanés sous un plafond mensuel de 1 : un seul part (verrou du compte).
   W19 relecture finale I1 : STOP reçu, compte supprimé, nouveau compte du même espace relié au même numéro -> 409 stop,
       compteurs du mois gardés.
@@ -624,10 +625,15 @@ codes = [dehors.get(f"/api/whatsapp/{cid}/conversations").status_code,
          dehors.post(f"/api/whatsapp/{cid}/stop", json={"identite": TEL}).status_code]
 check("W13.9 hors boucle locale : refusé (401/403) partout", all(x in (401, 403) for x in codes), codes)
 
-print("\n[W14] RF 2 : un compte whatsapp n'est pas une cible de post")
+print("\n[W14] t328 : un compte whatsapp de l'espace est une cible de post (diffusion) ; celui d'un autre espace, non")
 r = c.post("/api/schedule", json={"title": "t", "caption": "c", "run_at": "2026-12-01T10:00:00Z", "espace_id": boite,
                                   "comptes": [cid]})
-check("W14.1 POST /api/schedule avec un compte whatsapp : 400", r.status_code == 400, r.text)
+check("W14.1 POST /api/schedule avec le compte whatsapp de l'espace : 200, canal whatsapp, compte posé",
+      r.status_code == 200 and r.json().get("channels") == ["whatsapp"] and r.json().get("comptes") == [cid], r.text[:300])
+c_lune = compte(lune, "PN-LUNE-W14")
+r = c.post("/api/schedule", json={"title": "t", "caption": "c", "run_at": "2026-12-01T10:00:00Z", "espace_id": boite,
+                                  "comptes": [c_lune]})
+check("W14.2 POST /api/schedule avec le compte whatsapp d'un AUTRE espace : 409", r.status_code == 409, r.text[:300])
 
 print("\n[W15] deux envois simultanés sous un plafond de 1 message")
 from app.services import whatsapp_echanges as WE                    # noqa: E402

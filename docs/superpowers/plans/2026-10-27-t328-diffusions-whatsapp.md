@@ -70,7 +70,7 @@
 - `_ligne_whatsapp` : clé `n` (entier ≥ 1, défaut 1) multiplie le coût ; le libellé de ligne dit la quantité.
 - `_modele_plat` : ajoute `meta_id` (id du brut Meta).
 
-- [ ] Step 1 : banc : accord `entrant` exclu pour marketing mais retenu pour `utility` ; stop exclu ; désinscrit exclu en marketing seulement ; bsuid écarté et compté ; liste explicite filtrée ; consentement client absent → refus ; audience vide → refus `accord` ; plafond 1000 avec 990 déjà + 20 → refus ; devis `n=3` = 3 × prix ; marché inconnu → ValueError existante ; `meta_id` présent dans `modeles(cid)`.
+- [ ] Step 1 : banc : accord `entrant` exclu pour TOUTE catégorie (revue finale M8 : Décision 1 l'emporte, un entrant n'est pas un accord de diffusion) ; stop exclu ; désinscrit exclu en marketing seulement ; bsuid écarté et compté ; liste explicite filtrée ; consentement client absent → refus ; audience vide → refus `accord` ; plafond 1000 avec 990 déjà + 20 → refus ; devis `n=3` = 3 × prix ; marché inconnu → ValueError existante ; `meta_id` présent dans `modeles(cid)`.
 - [ ] Step 2-4 : échec, implémentation, vert (+ `test_whatsapp_prix.py`, `test_whatsapp_kapso2.py`).
 - [ ] Step 5 : commit.
 

@@ -21,6 +21,9 @@ corps envoyés : aucun réseau, aucune clé réelle) :
   V9  relecture : contenu modifié après l'envoi -> « Valider » sans effet (empreinte) ; décision au PC (moyen ≠ whatsapp)
       -> demande `perimee` ; `en_attente` ignore une demande de plus de 30 jours ou d'un post qui n'est plus a_valider ;
       bouton forgé pour le post d'un autre client -> rien ; réponse venue de l'alias BSUID -> acceptée.
+  V11 revue finale t328 I2 : un post à DIFFUSION WhatsApp — la demande montre le nom du modèle et son texte rempli (jamais
+      une identité), l'empreinte inclut la config de diffusion (bouton caduc après un changement) ; sans diffusion,
+      l'empreinte d'avant est inchangée.
   V8  journal (logger) : aucun texte de message ni clé.
 Run (depuis backend/) : & $PY tests/test_whatsapp_validation.py"""
 import asyncio, json, os, pathlib, sys, tempfile, uuid
@@ -544,6 +547,48 @@ check("V10.2 modèle sans boutons de réponse rapide aux places 0 et 1 : 400 (me
       (r.status_code, r.text[:200], len(FK.medias) - m0))
 r = client_http.post(f"/api/schedule/{poser(C7)}/validation-whatsapp", headers={"Accept-Language": "en"})
 check("V10.3 le refus est traduit (L10, en)", r.status_code == 400 and "quick" in str(detail(r)).lower(), r.text[:200])
+
+# ---------------------------------------------------------------------------------------------------------------------
+print("\n[V11] revue finale t328 I2 : la DIFFUSION WhatsApp du post entre dans l'empreinte et dans la demande")
+import hashlib                                                       # noqa: E402
+from app.services import whatsapp_diffusions as WD                   # noqa: E402
+FK.ouvertes.add(("PN-V", TEL))
+FK.modeles.append({"id": "M-DIF", "name": "soldes_dif", "language": "fr", "category": "MARKETING", "status": "APPROVED",
+                   "components": [{"type": "BODY", "text": "Bonjour, profitez de {{remise}} en boutique",
+                                   "example": {"body_text_named_params": [{"param_name": "remise", "example": "x"}]}}]})
+DIF = {"nom": "soldes_dif", "langue": "fr", "meta_id": "M-DIF", "categorie": "marketing"}
+PDIF = poser(C1)
+WD._modifier(C1, PDIF, lambda r: {"compte": cW, "modele": dict(DIF), "parametres": {"remise": "-30 %"},
+                                  "identites": ["tel:33600000001"], "statut": "configuree"})
+n0 = len(FK.envois)
+r = envoyer(PDIF)
+txt = ((((FK.envois[-1][1] or {}).get("interactive") or {}).get("body") or {}).get("text") or "") if len(FK.envois) > n0 else ""
+check("V11.1 la demande (boutons) montre le post, le NOM du modèle et son texte REMPLI", r.status_code == 200
+      and "Teaser" in txt and "soldes_dif" in txt and "Bonjour, profitez de -30 % en boutique" in txt, (r.status_code, txt))
+check("V11.2 aucune identité de destinataire dans la demande", "33600000001" not in txt and "identit" not in txt, txt)
+e0 = (AW.validations(C1).get(PDIF) or {}).get("empreinte")
+check("V11.3 empreinte rangée = empreinte avec la diffusion", e0 == WV.empreinte(lire_post(PDIF)), e0)
+WD._modifier(C1, PDIF, lambda r: {**r, "parametres": {"remise": "-50 %"}})
+check("V11.4 paramètres de diffusion changés -> empreinte changée", WV.empreinte(lire_post(PDIF)) != e0)
+r = run(WV.traiter_reponse(cW, C1, plat(bouton_inter(TEL, f"val:{PDIF}:ok"))))
+check("V11.5 « Valider » sur l'ANCIENNE demande : caduc (post toujours à valider, demande périmée)",
+      r is True and lire_post(PDIF).status == "a_valider" and lire_post(PDIF).valide_client_le is None
+      and (AW.validations(C1).get(PDIF) or {}).get("etat") == "perimee", (r, lire_post(PDIF).status))
+q1 = lire_post(P1)
+ancien = hashlib.sha256(json.dumps([q1.title, q1.caption, q1.source_image, q1.job_id, q1.brief], ensure_ascii=False,
+                                   default=str).encode("utf-8")).hexdigest()[:16]
+check("V11.6 post SANS diffusion : empreinte inchangée (demandes déjà envoyées toujours valables)", WV.empreinte(q1) == ancien)
+WA.regler_espace(C7, {"agent": {"modele_validation": {"nom": "validation_nommee", "langue": "fr"}}})
+PDIF7 = poser(C7)
+WD._modifier(C7, PDIF7, lambda r: {"compte": cW7, "modele": dict(DIF), "parametres": {"remise": "-20 %"},
+                                   "identites": None, "statut": "configuree"})
+r = envoyer(PDIF7)
+corps_b = next((c for c in (((FK.envois[-1][1] or {}).get("template") or {}).get("components") or [])
+                if c.get("type") == "body"), {}) if FK.envois else {}
+val = ((corps_b.get("parameters") or [{}])[0]).get("text") or ""
+check("V11.7 fenêtre fermée (modèle de validation) : le paramètre porte le titre ET la diffusion, sur une ligne",
+      r.status_code == 200 and val.startswith("Teaser") and "soldes_dif" in val and "-20 %" in val and "\n" not in val
+      and len(val) <= 1024, (r.status_code, val))
 
 # ---------------------------------------------------------------------------------------------------------------------
 print("\n[V8] journal")

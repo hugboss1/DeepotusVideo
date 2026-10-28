@@ -905,8 +905,9 @@ def audience_diffusion(cid: str, *, categorie: str, identites: list[str] | None 
     """t328 : les destinataires d'une DIFFUSION (modèle de `categorie`) sous les mêmes règles que `controler`, mais en
     lisant le fichier d'état et la fiche client UNE seule fois pour toute la liste. Candidats : `identites` (liste
     explicite) sinon toutes les identités à accord du numéro. Écartés et comptés : `bsuid` (Kapso ne les confirme pas pour
-    une diffusion), `stop`, `accord` (aucun accord ; pour un modèle marketing, un accord né d'un entrant ne vaut que pour
-    répondre), `marketing` (désinscrit, marketing seulement). Une diffusion part toujours par modèle : la fenêtre de 24 h
+    une diffusion), `stop`, `accord` (aucun accord, ou seulement un accord né d'un entrant : revue finale t328 M8, Décision
+    1 — toute diffusion, QUELLE QUE SOIT sa catégorie, exige un accord SAISI ; un message entrant ouvre une conversation,
+    ce n'est pas un accord de diffusion), `marketing` (désinscrit, marketing seulement). Une diffusion part toujours par modèle : la fenêtre de 24 h
     ne joue pas. Aucune écriture, aucun réseau. `WhatsappRefus` : `consentement` (client), `accord` (aucun retenu)."""
     marketing = str(categorie or "").upper() == "MARKETING"
     eid, pid = _cle_etat(cid)
@@ -939,8 +940,8 @@ def audience_diffusion(cid: str, *, categorie: str, identites: list[str] | None 
             ecartes["accord"] += 1
         elif marketing and any(i in e["desinscrits_marketing"] for i in groupe):
             ecartes["marketing"] += 1
-        elif marketing and not any(isinstance(e["accords"].get(i), dict) and e["accords"][i].get("source") != "entrant"
-                                   for i in groupe):
+        elif not any(isinstance(e["accords"].get(i), dict) and e["accords"][i].get("source") != "entrant"
+                     for i in groupe):
             ecartes["accord"] += 1
         else:
             retenus.append(ident)

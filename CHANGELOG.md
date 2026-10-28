@@ -49,6 +49,10 @@ avancement, fichier par fichier.
   du client est respectée. Un envoi jamais renvoyé sans relecture : au moindre
   doute le panneau dit « incertain » et demande « Confirmer l'envoi ».
 - **Le suivi** : statut, envoyés, livrés, lus, échecs, coût réel, « Relire ».
+- **Relance sans doublon** : avant de relancer une diffusion incertaine, l'ancien
+  brouillon est vidé chez Kapso ; s'il était déjà parti, rien n'est relancé. La
+  demande de validation envoyée au client montre le modèle et son texte rempli,
+  et un client « publié en son nom » se confirme depuis le panneau.
 
 ### Sous le capot
 - Cinq routes locales (`/api/transfer/destinations`, `export`, `inspect`,

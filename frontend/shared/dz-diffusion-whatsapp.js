@@ -20,6 +20,11 @@
        …/diffusion/confirmer {confirme_incertain: true}) derrière `await window.__dzDialogue.confirmer(` dont le texte
        AVERTIT que confirmer publie aussi les autres canaux du post pas encore envoyés. Sans boîte de dialogue : rien ne
        part (jamais de confirm natif : test_dialogues_partout).
+   Revue finale t328 : un post d'un client « publié en son nom » — le 409 `confirmation` (detail {code, client, nom,
+   canaux}) du PUT et de la confirmation ouvre le MÊME dialogue nominatif que dz-garde-client.js (clés
+   scheduler.client.confirmer*, via __dzDialogue.confirmer) ; oui -> la même requête est renvoyée UNE fois avec
+   confirme_client:<id du client> ; non -> le message du serveur. `etat.relancable` (failed prouvé sans envoi et soldé)
+   ramène le panneau à l'ÉDITION ; les modèles d'authentification sont écartés comme le serveur les refuse.
    Le 402 du plafond est lu par dz-plafonds.js (il enveloppe fetch : son dialogue, puis la même requête ou un 402 au détail
    texte affiché ici). Réponses périmées ignorées (jeton par instance), délai de 30 s (GET et PUT abandonnés ; la
    confirmation n'est jamais abandonnée en vol : un message dit d'attendre). Jamais un numéro affiché : le serveur n'en
@@ -36,7 +41,7 @@
   var JSON_H = { "Content-Type": "application/json" };
   var RELANCABLES = ["configuree", "preparation", "echec"];
   var ECARTES = ["accord", "stop", "marketing", "bsuid"];
-  var STATUTS = ["configuree", "preparation", "envoi", "draft", "sending", "completed", "stopped", "failed", "echec"];
+  var STATUTS = ["configuree", "preparation", "envoi", "draft", "sending", "completed", "stopped", "failed", "echec", "introuvable"];
   var CATEGORIES = ["marketing", "utility", "authentication"];
   var COMPTEURS = [["envoyes", ["sent"]], ["livres", ["livres", "delivered"]], ["lus", ["lus", "read"]],
                    ["echecs", ["failed"]], ["retires", ["suppressed"]]];
@@ -131,12 +136,14 @@
   // ── règles pures ──
   function lancee(d) {
     var e = d && d.etat;
+    if (e && e.relancable === true && e.incertain !== true && e.attente_confirmation !== true) return false;   // failed prouvé sans envoi
     return !!e && (e.incertain === true || e.attente_confirmation === true || (!!e.statut && RELANCABLES.indexOf(e.statut) < 0));
   }
   function utilisable(m) {
     var c = (m && m.composants) || {};
     return !!m && typeof m.nom === "string" && !!m.nom && typeof m.langue === "string" && !!m.langue && !!m.meta_id
       && (!m.statut || String(m.statut).toLowerCase() === "approved")
+      && String(m.categorie || "").toLowerCase() !== "authentication"
       && MEDIA.indexOf(c.entete) < 0 && !(c.entete === "text" && c.entete_variable);
   }
   function nomsParametres(m) {
@@ -154,6 +161,17 @@
     });
     return total ? T("diffusion.audience.ecartes", { n: total, detail: parts.join(", ") }) : "";
   }
+  function copie(o) { var c = {}; for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) c[k] = o[k]; return c; }
+  // le 409 « confirmation » d'un client publié en son nom : le dialogue nominatif de dz-garde-client.js -> id du client, ou null
+  function confirmerClient(d) {
+    var D = window.__dzDialogue;
+    if (!d || typeof d !== "object" || !d.client || !D || typeof D.confirmer !== "function") return Promise.resolve(null);
+    var canaux = (Array.isArray(d.canaux) ? d.canaux : []).map(function (x) { return String(x); }).join(", ");
+    return Promise.resolve(D.confirmer(T("scheduler.client.confirmer", { nom: d.nom || d.client, canaux: canaux }),
+      { titre: T("scheduler.client.confirmer_titre"), ok: T("scheduler.client.confirmer_ok"), annuler: T("diffusion.confirmer.annuler") }))
+      .then(function (oui) { return oui ? String(d.client) : null; }, function () { return null; });
+  }
+  function aConfirmer(r, corps) { return !r.ok && r.status === 409 && code(r) === "confirmation" && !(corps && corps.confirme_client); }
   function refusTexte(c) {
     return c === "consentement" || c === "prix" ? T("diffusion.refus." + c) : T("diffusion.refus.autre", { code: c });
   }
@@ -257,6 +275,7 @@
     var p = cadre(inst);
     p.appendChild(el("div", S.note, T("diffusion.panneau.intro")));
     if (e && e.statut === "echec") p.appendChild(el("div", S.alerte, T("diffusion.statut.echec_note"), { "data-dz-diffusion-statut": "echec" }));
+    if (e && e.statut === "failed" && e.relancable === true) p.appendChild(el("div", S.alerte, T("diffusion.statut.failed_rien_note"), { "data-dz-diffusion-statut": "failed" }));
     var btn = null;
     if (!inst.modeles || !inst.modeles.length) {
       p.appendChild(el("div", S.note, inst.noteModeles || T("diffusion.modele.aucun"), { "data-dz-diffusion-note": "modeles" }));
@@ -362,13 +381,22 @@
         { titre: T("diffusion.liste.titre"), ok: T("diffusion.liste.ok"), annuler: T("diffusion.confirmer.annuler") });
       if (!elargir) return;
     }
+    return envoyerPut(inst, { modele: { nom: lu.m.nom, langue: lu.m.langue }, parametres: valeurs });
+  }
+  function envoyerPut(inst, corps) {
     var j = ++inst.jeton;
     inst.occupe = true;
     if (inst.etatBouton) inst.etatBouton();
-    var corps = { modele: { nom: lu.m.nom, langue: lu.m.langue }, parametres: valeurs };
     return requete("PUT", base(inst), corps).then(function (r) {
       if (!vivant(inst, j)) return;
       inst.occupe = false;
+      if (aConfirmer(r, corps)) {                          // client publié en son nom : dialogue nominatif, renvoi UNE fois
+        return confirmerClient(detail(r)).then(function (client) {
+          if (!vivant(inst, j)) return;
+          if (client) { var suite = copie(corps); suite.confirme_client = client; return envoyerPut(inst, suite); }
+          inst.err = message(r); signaler("deepotus:schedule-recharger"); rendreEdition(inst);
+        });
+      }
       if (!r.ok) {
         inst.err = message(r);
         if (r.status === 409 && (code(r) === "deja_lancee" || code(r) === "incertain")) { var err = inst.err; return charger(inst, false).then(function () { inst.err = err; rerendre(inst); }); }
@@ -431,18 +459,29 @@
     var oui = await window.__dzDialogue.confirmer(T("diffusion.confirmer.texte"),
       { titre: T("diffusion.confirmer.titre"), ok: T("diffusion.confirmer.ok"), annuler: T("diffusion.confirmer.annuler"), danger: true });
     if (!oui || inst.occupe || inst.el.__dzDiffusion !== inst) return;
+    return envoyerConfirmation(inst, { confirme_incertain: true });
+  }
+  function envoyerConfirmation(inst, corps) {
     var j = ++inst.jeton;
     inst.occupe = true;
     inst.envoiEnVol = true;                                // « Confirmer » grisé jusqu'à la réponse, même relue entre-temps
     inst.msg = T("diffusion.etat.envoi");
     rendreSuivi(inst);
-    return requete("POST", base(inst) + "/confirmer", { confirme_incertain: true }, function () {
+    return requete("POST", base(inst) + "/confirmer", corps, function () {
       if (!vivant(inst, j)) return;
       inst.occupe = false; inst.msg = ""; inst.err = T("diffusion.erreur.attente"); rendreSuivi(inst);
     }).then(function (r) {
       inst.envoiEnVol = false;
       if (!vivant(inst, j)) { if (inst.el.__dzDiffusion === inst && !inst.occupe) rerendre(inst); return; }   // relue entre-temps : « Confirmer » rendu
       inst.occupe = false;
+      if (aConfirmer(r, corps)) {                          // client publié en son nom : dialogue nominatif, renvoi UNE fois
+        inst.msg = ""; rendreSuivi(inst);
+        return confirmerClient(detail(r)).then(function (client) {
+          if (!vivant(inst, j)) return;
+          if (client) { var suite = copie(corps); suite.confirme_client = client; return envoyerConfirmation(inst, suite); }
+          inst.err = message(r); signaler("deepotus:schedule-recharger"); rendreSuivi(inst);
+        });
+      }
       if (!r.ok) {
         inst.msg = ""; inst.err = message(r);
         if (r.status === 409 && code(r) === "pas_incertaine") { var err = inst.err; return charger(inst, false).then(function () { inst.err = err; rerendre(inst); }); }

@@ -5412,6 +5412,8 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "diffusion.statut.echec_note": {"fr": "Le dernier envoi a été refusé : corrigez la diffusion puis publiez le post à nouveau.", "en": "The last send was refused: fix the broadcast, then publish the post again.", "contexte": true},
   "diffusion.statut.envoi": {"fr": "envoi en cours", "en": "sending", "contexte": true},
   "diffusion.statut.failed": {"fr": "échouée", "en": "failed", "contexte": true},
+  "diffusion.statut.failed_rien_note": {"fr": "Kapso a échoué sans rien envoyer (vérifié) : corrigez la diffusion si besoin, puis publiez le post à nouveau.", "en": "Kapso failed without sending anything (verified): fix the broadcast if needed, then publish the post again.", "contexte": true},
+  "diffusion.statut.introuvable": {"fr": "introuvable chez Kapso (plus suivie)", "en": "not found at Kapso (no longer tracked)", "contexte": true},
   "diffusion.statut.ligne": {"fr": "Statut : {statut}", "en": "Status: {statut}", "contexte": true},
   "diffusion.statut.preparation": {"fr": "en préparation", "en": "being prepared", "contexte": true},
   "diffusion.statut.sending": {"fr": "en cours d'envoi", "en": "sending", "contexte": true},
