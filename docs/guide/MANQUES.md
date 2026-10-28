@@ -2,9 +2,9 @@
 
 Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
-- 1117 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 50 sont payantes.
+- 1126 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 53 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 43 chapitres dans le sommaire v3, en 6 familles.
+- 44 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -547,6 +547,22 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Générations sur devis et brouillons** **payant** : Images, vidéos et voix proposées en carte de devis, générées seulement au clic ; les posts arrivent en brouillons dans l'espace de la campagne, jamais publiés ni programmés par l'agent. — *Carte de devis → Générer ; carte des brouillons → Ouvrir le calendrier du Planificateur* (PR #443 · t285)
 - [x] **Mode Agent Campagnes du Planificateur** **payant** : Le dialogue « Générer un plan » garde le mode Rapide et gagne le mode Agent Campagnes : espace, brief, période, document joint, puis la conversation dans le dialogue. — *Planificateur → Générer un plan → Agent Campagnes → Ouvrir la conversation* (PR #443 · t285)
 - [x] **Campagnes depuis le téléphone** **payant** : Le compagnon appairé mène les mêmes conversations sur le Wi-Fi ; le travail se fait sur le PC, avec ses clés et son plafond. — *Compagnon mobile, sur le Wi-Fi* (PR #445 · t286)
+
+### Veille, prospects et prospection (`prospection`, lot t360, reprend : nouveau) — 9 manques
+
+**Tiroir F1 : Veille, Prospects (fiche, séquences, e-mail, tableau)** — accès : Tiroir F1 → onglets « Veille » et « Prospects »
+
+- [x] **Onglet Veille** : La dernière veille des concurrents de l'espace : matrice, douleurs, angles, demandes ; collecte lecture seule (HN, YouTube, App Store). — *F1 → Veille* (PR #461 · t352)
+- [x] **Fiche Prospects** : CRM léger par espace : source et base légale obligatoires, statuts du pipeline, consentements, export, effacement, opposition (registre global), purge à 3 ans, espace démonstration au rendez-vous. — *F1 → Prospects → Ajouter un prospect* (PR #464 · t353)
+- [x] **Recherche et qualification par l'agent** **payant** : Prospects proposés depuis WhatsApp entrant, CSV déposé, page d'entreprise, registre des entreprises ; barème + avis ±20 ; recherche web payante sur carte de devis. — *Demander à l'agent ; Prospects → Recherche web* (PR #466 · t354)
+- [x] **Séquences** : 1er message + 2 relances par canal, validées par l'utilisateur, planifiées en heures calmes ; X/Instagram/LinkedIn : Copier et ouvrir, Marquer envoyé. — *Fiche → Séquences → Valider la séquence → Planifier* (PR #467 · t355)
+- [x] **Canal e-mail** : SMTP ou Brevo par espace, IMAP pour les réponses, identité et STOP, plafond 10/20/30, pause sur rebonds ou plainte. — *Prospects → E-mail* (PR #468 · t356)
+- [x] **WhatsApp pour la prospection** **payant** : Étapes WhatsApp par les règles de l'espace (accord, STOP, fenêtre de 24 h) ; relances = modèles approuvés. — *Séquence sur le canal WhatsApp* (PR #469 · t357)
+- [x] **Suivi des réponses et tableau** : Réponses lues par l'agent, une réponse proposée ou passage à l'humain (« À reprendre ») ; vue Tableau du pipeline. — *Prospects → Tableau ; demander « qui a répondu ? »* (PR #470 · t358)
+**Agent Campagnes, compagnon (campagne témoin)** — accès : Téléphone appairé → écran de l'agent → « Campagne témoin » ; PC : conversation Campagnes dans l'espace démonstration
+
+- [x] **Campagne témoin** **payant** : Une campagne préparée dans l'espace démonstration d'un prospect au rendez-vous ; ne publie jamais. — *Compagnon → Agent → Campagne témoin* (t359)
+- [x] **Cartes de prospection au doigt** : Le compagnon lit et valide les cartes de séquence et de recherche des conversations du PC. — *Compagnon → Agent → Valider la séquence* (t359)
 
 ### Connecter ses comptes (`comptes`, lot t175, reprend : c12) — 0 manques
 
@@ -1513,3 +1529,4 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t211 | 0 | 0 |
 | t259 | 6 | 6 |
 | t287 | 6 | 6 |
+| t360 | 9 | 9 |

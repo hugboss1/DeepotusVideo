@@ -157,7 +157,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   Prospects › « Recherche web »). Signaux de veille : jamais de fiche. Page ou recommandation : « À informer avant
   le … ». Score = barème ± 20 de l'agent, statut inchangé. Séquences (fiche
   Qualifiée) : l'agent rédige un message + 2 relances ; « Valider la séquence » (carte ou fiche), « Planifier » ; X, Instagram, LinkedIn : « Copier et ouvrir », « Marquer envoyé » ; e-mail : Prospects › « E-mail » ; « Tableau » : le
-  pipeline. → [GUIDE:agent-campagnes]
+  pipeline. → [GUIDE:prospection]
 - **Mener une campagne avec l'agent Campagnes** (stratégie, calendrier et posts d'un lancement) : onglet « Campagnes »
   de ce tiroir, ou Planificateur › Générer un plan, mode Agent Campagnes ; il faut une clé Anthropic. Choisir
   d'abord l'espace de marque de la campagne dans la liste du haut : vide par défaut, jamais l'espace actif d'office ;

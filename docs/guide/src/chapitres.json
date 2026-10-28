@@ -340,6 +340,20 @@
       "etat": "v3"
     },
     {
+      "id": "prospection",
+      "famille": "publier",
+      "lot": "t360",
+      "icone": "dz-nav-campagne",
+      "fr": "Veille, prospects et prospection",
+      "en": "Watch, prospects and prospecting",
+      "anciens": [],
+      "ecrans": [
+        "Tiroir F1 : Veille, Prospects (fiche, séquences, e-mail, tableau)",
+        "Agent Campagnes, compagnon (campagne témoin)"
+      ],
+      "etat": "v3"
+    },
+    {
       "id": "comptes",
       "famille": "publier",
       "lot": "t175",
