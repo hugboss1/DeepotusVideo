@@ -522,9 +522,9 @@ async def devis_contenu(iid: str, angle: int, image: bool = True, langue: str = 
         visuel = {"route": route, "corps": corps, "ops": ops,
                   "usd": round(float(PR.estimate({"kind": "campaign", "ops": ops})["total_usd"]), 4) if ops else 0.0}
     total = round(texte_usd + (visuel["usd"] if visuel else 0.0), 4)
-    return {"type": "carte", "genre": "contenu_neuf", "libelle": f"Devis contenu neuf : {total:.2f} $",
+    return {"type": "carte", "genre": "devis", "libelle": f"Devis contenu neuf : {total:.2f} $",
             "etat": "proposee", "devis": total, "action": "generer_contenu_neuf",
-            "arguments": {"inspiration_id": iid, "angle": angle, "espace_id": rec["espace_id"], "usd": total,
+            "arguments": {"genre": "contenu_neuf", "inspiration_id": iid, "angle": angle, "espace_id": rec["espace_id"], "usd": total,
                           "texte": {"usd": texte_usd, "route": f"/api/inspiration/{iid}/redaction",
                                     "disponible": not code, "raison": RAISONS.get(code, "")},
                           "image": visuel, "animation": None}}

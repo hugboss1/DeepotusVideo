@@ -39,9 +39,10 @@ BOITES: dict[str, dict] = {
         "mobile": False,
     },
     # t312 : lire le texte d'une image de la Bibliothèque ; aucun agent ne la déclare encore (§11 bis)
+    # t313 : + l'inspiration vers un contenu neuf (angles_inspiration en lecture, deviser_contenu_neuf en carte)
     "scan": {
         "libelle": "agent.boites.scan",
-        "outils": ["lire_texte_image"],
+        "outils": ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf"],
         "agents": [],
         "mobile": False,
     },

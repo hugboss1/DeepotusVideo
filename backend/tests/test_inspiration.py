@@ -244,13 +244,16 @@ try:
     print("[4] carte de devis")
     carte = run(I.devis_contenu(IID, 0, True))
     a = carte["arguments"]
-    check("4a carte contenu_neuf, total = texte + image", carte["genre"] == "contenu_neuf"
+    check("4a carte contenu_neuf, total = texte + image", carte["genre"] == "devis" and a["genre"] == "contenu_neuf"
           and abs(a["usd"] - round(a["texte"]["usd"] + a["image"]["usd"], 4)) < 1e-6 and a["texte"]["usd"] > 0, a)
     check("4b image : route /api/images/generate, source scheduler, espace de l'inspiration",
           a["image"]["route"] == "/api/images/generate" and a["image"]["corps"]["source"] == "scheduler"
           and a["image"]["corps"]["espace_id"] == EA, a["image"])
     check("4c invite du visuel tirée de l'angle, sans la capture", "Atelier éclairé" in a["image"]["corps"]["prompt"]
           and "vélos" not in a["image"]["corps"]["prompt"], a["image"]["corps"]["prompt"])
+    from app.services import agent_format as FMT
+    check("4a' carte valide au format des messages de l'agent (genre devis, arguments.genre contenu_neuf)",
+          FMT.valider(FMT.nouveau_message("agent", [carte])) == [], FMT.valider(FMT.nouveau_message("agent", [carte])))
     check("4d sans image : pas de visuel", run(I.devis_contenu(IID, 0, False))["arguments"]["image"] is None)
     for lab, ang, code in (("4e angle copié refusé", 1, "angle"), ("4f angle inconnu refusé", 7, "angle"),
                            ("4g angle booléen refusé", True, "angle")):
