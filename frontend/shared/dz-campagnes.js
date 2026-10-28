@@ -186,7 +186,7 @@
   var OUTILS = ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_document", "ecrire_dossier",
     "proposer_porte", "deviser_generation", "creer_brouillons", "pointer", "veille_collecter", "veille_lire",
     "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher",
-    "sequence_proposer", "sequence_planifier"];
+    "sequence_proposer", "sequence_planifier", "whatsapp_modeles"];
   function ligneOutil(nom, ok) {
     var lib = OUTILS.indexOf(String(nom)) >= 0 ? T("campagnes.outil." + nom) : T("campagnes.outil.inconnu");
     if (ok === true) return T("campagnes.fil.outil_ok", { outil: lib });
@@ -355,6 +355,7 @@
         (Array.isArray(a.etapes) ? a.etapes : []).forEach(function (x, i) {
           var li = el("li", {}, [el("div", { class: "dzCampSeqT", texte: T("campagnes.sequence.etape", { n: i + 1, jours: Number(x && x.delai_jours) || 0 }) })]);
           if (x && x.objet) li.appendChild(el("div", { texte: T("campagnes.sequence.objet", { objet: String(x.objet) }) }));
+          if (x && x.modele && x.modele.nom) li.appendChild(el("div", { texte: T("campagnes.sequence.modele", { nom: String(x.modele.nom), langue: String(x.modele.langue || "") }) }));   // t357
           li.appendChild(el("div", { class: "dzCampSeqTexte", texte: String((x && x.texte) || "") }));
           ul.appendChild(li);
         });

@@ -376,7 +376,8 @@ def lire_reponses(eid) -> dict:
 def _espaces_email() -> list:
     racine = _es.dossier()
     try:
-        return sorted(d.name for d in racine.iterdir() if d.is_dir() and _es.id_valide(d.name) and (d / M.FICHIER).is_file())
+        return sorted(d.name for d in racine.iterdir() if d.is_dir() and _es.id_valide(d.name)
+                      and ((d / M.FICHIER).is_file() or (d / _sq.FICHIER).is_file()))
     except OSError:
         return []
 
@@ -395,5 +396,12 @@ async def boucle(premier: float = 90, intervalle: float = 60) -> None:
                     pass                     # espace archivé, réglages ou registre indisponibles : la passe suivante
                 except Exception as e:  # noqa: BLE001 — une panne d'un espace n'arrête pas les autres
                     logger.warning(f"canal e-mail de {eid} : {type(e).__name__} : {e}")
+            try:                             # t357 : les étapes WhatsApp, par les règles de whatsapp_echanges
+                from app.services import whatsapp_prospection as _wp
+                await _wp.envoyer_dues(eid)
+            except (M.RefusEmail, _sq.RefusSequence):
+                pass
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"WhatsApp prospection de {eid} : {type(e).__name__} : {e}")
         n += 1
         await asyncio.sleep(intervalle)

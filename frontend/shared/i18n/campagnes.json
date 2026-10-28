@@ -98,5 +98,7 @@
   "campagnes.sequence.etape": {"fr": "Message {n} · J+{jours}", "en": "Message {n} · day +{jours}"},
   "campagnes.sequence.objet": {"fr": "Objet : {objet}", "en": "Subject: {objet}"},
   "campagnes.sequence.validee": {"fr": "Validée : elle se planifie ici ou dans l'onglet Prospects. Rien ne part sans canal branché.", "en": "Approved: schedule it here or in the Prospects tab. Nothing goes out without a connected channel."},
-  "campagnes.action.valider_sequence": {"fr": "Valider la séquence", "en": "Approve the sequence"}
+  "campagnes.action.valider_sequence": {"fr": "Valider la séquence", "en": "Approve the sequence"},
+  "campagnes.sequence.modele": {"fr": "Modèle WhatsApp : {nom} ({langue})", "en": "WhatsApp template: {nom} ({langue})"},
+  "campagnes.outil.whatsapp_modeles": {"fr": "Lecture des modèles WhatsApp approuvés", "en": "Reading approved WhatsApp templates"}
 }

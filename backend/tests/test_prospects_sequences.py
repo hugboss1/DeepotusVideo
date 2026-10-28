@@ -190,6 +190,20 @@ r = refus(lambda: S.lister(A, r1), "indisponible")
 P._op.opposes = _opp
 check("8f registre indisponible : refus 503, jamais une étape « due »", r[0], r)
 
+print("[9] t357 : étapes WhatsApp (modèle approuvé)")
+wa = fiche("Wapp", [{"type": "whatsapp", "valeur": "+33612345678"}], base="consentement")
+P.ajouter_consentement(A, wa, "whatsapp", "consentement", "whatsapp", "2026-10-20")
+MOD = {"nom": "prospection_relance", "langue": "fr", "parametres": ["Léa"]}
+check("9a relance WhatsApp sans modèle : refus (hors fenêtre, Meta n'accepte qu'un modèle)",
+      refus(lambda: S.proposer(A, wa, "whatsapp", [{"texte": "Bonjour", "delai_jours": 0}, {"texte": "Relance", "delai_jours": 3}]), "champ")[0])
+check("9b modèle mal formé : refus", refus(lambda: S.proposer(A, wa, "whatsapp", [{"texte": "x", "delai_jours": 0, "modele": {"nom": "A B", "langue": "fr"}}]), "champ")[0])
+check("9c paramètre trop long : refus", refus(lambda: S.proposer(A, wa, "whatsapp", [{"texte": "x", "delai_jours": 0, "modele": dict(MOD, parametres=["a" * 1025])}]), "champ")[0])
+check("9d mot interdit dans un paramètre : refus", refus(lambda: S.proposer(A, wa, "whatsapp", [{"texte": "x", "delai_jours": 0, "modele": dict(MOD, parametres=["essai gratuit"])}], interdits=["gratuit"]), "interdit")[0])
+check("9e modèle sur un autre canal : refus", refus(lambda: S.proposer(A, mail if False else wa, "whatsapp", [{"texte": "x", "delai_jours": 0, "modele": MOD}]) and S.proposer(A, fiche("M2", [{"type": "email", "valeur": "a@m2.fr"}]), "email", [dict(E1[0], modele=MOD)]), "champ")[0])
+sw = S.proposer(A, wa, "whatsapp", [{"texte": "Bonjour Léa, merci pour votre message.", "delai_jours": 0},
+                                    {"texte": "Aperçu : relance", "delai_jours": 3, "modele": MOD}])
+check("9f 1er message en texte, relance en modèle : gardés", sw["etapes"][0].get("modele") is None and sw["etapes"][1]["modele"] == MOD, sw["etapes"])
+
 print("[7] fichier illisible")
 f = E.chemin(A, S.FICHIER)
 f.write_text("{pas du json", encoding="utf-8")

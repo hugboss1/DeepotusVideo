@@ -27,7 +27,7 @@ BOITES: dict[str, dict] = {
     "prospects": {
         "libelle": "agent.boites.prospects",
         "outils": ["prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher",
-                   "sequence_proposer", "sequence_planifier"],
+                   "sequence_proposer", "sequence_planifier", "whatsapp_modeles"],
         "agents": ["campagnes"],
         "mobile": False,
     },

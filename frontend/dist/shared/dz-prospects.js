@@ -41,7 +41,7 @@
   var FOURNISSEURS = ["anthropic", "tavily", "exa", "serper"];   // t354 : recherche web de la prospection
   var SEQ_STATUTS = ["proposee", "validee", "planifiee", "terminee", "annulee"];   // t355 : séquences
   var ETAPE_STATUTS = ["brouillon", "validee", "planifiee", "envoyee", "annulee"];
-  var SEQ_MOTIFS = ["effacee", "remplacee", "annulee", "canal", "rebond", "echec"];
+  var SEQ_MOTIFS = ["effacee", "remplacee", "annulee", "canal", "rebond", "echec", "fenetre", "modele", "incertain"];
   var EMAIL_MODES = ["smtp", "brevo"];   // t356 : canal e-mail
   var EMAIL_MANQUES = ["expediteur", "identite", "smtp", "imap", "mdp", "brevo"];
   var EMAIL_PAUSES = ["rebonds", "plainte"];
@@ -444,6 +444,7 @@
                 statut: lib(ETAPE_STATUTS, "prospects.etapestatut.", e.statut) }) + (e.quand ? " · " + new Date(e.quand).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : "")
                 + (e.due ? " · " + T("prospects.sequence.due") : "") })]);
             if (e.objet) li.appendChild(el("p", { texte: T("prospects.sequence.objet", { objet: e.objet }) }));
+            if (e.modele && e.modele.nom) li.appendChild(el("p", { "data-dz-prospects": "etape-modele", texte: T("prospects.sequence.modele", { nom: String(e.modele.nom), langue: String(e.modele.langue || "") }) }));   // t357
             li.appendChild(el("pre", { class: "dzProspectsTexte", texte: e.texte }));
             if (manuel && s.statut === "planifiee" && prochaine && prochaine.rang === e.rang) {
               li.appendChild(el("div", { class: "dzProspectsActions" }, [
