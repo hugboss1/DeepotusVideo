@@ -8379,10 +8379,6 @@
   "fr": "{label} ne prend qu'une vue (max_images {max_images}) — désactive multiview ou change de moteur.",
   "en": "{label} only takes one view (max_images {max_images}) — disable multiview or change engine."
  },
- "{label} ne sait pas demander une T-pose — utilise le besoin « rig » (Rodin).": {
-  "fr": "{label} ne sait pas demander une T-pose — utilise le besoin « rig » (Rodin).",
-  "en": "{label} can't request a T-pose — use the \"rig\" need (Rodin)."
- },
  "{label} part d'une vidéo : aucune vidéo fournie": {
   "fr": "{label} part d'une vidéo : aucune vidéo fournie",
   "en": "{label} starts from a video: no video provided"
@@ -13114,5 +13110,29 @@
  "Uthana : le clip rapatrié n'est pas un GLB": {
   "fr": "Uthana : le clip rapatrié n'est pas un GLB",
   "en": "Uthana: the downloaded clip is not a GLB"
+ },
+ "Ce moteur ne sait pas poser le sujet ({engine}) : choisis « Aucune » ou un moteur qui le fait (Rodin, ou Tripo avec les vues multiples).": {
+  "fr": "Ce moteur ne sait pas poser le sujet ({engine}) : choisis « Aucune » ou un moteur qui le fait (Rodin, ou Tripo avec les vues multiples).",
+  "en": "This engine cannot pose the subject ({engine}): choose “None”, or an engine that can (Rodin, or Tripo with multi-view)."
+ },
+ "Le sujet n'est pas un personnage : une T-pose ou une A-pose ne s'applique pas. Choisis « Aucune ».": {
+  "fr": "Le sujet n'est pas un personnage : une T-pose ou une A-pose ne s'applique pas. Choisis « Aucune ».",
+  "en": "The subject is not a character: a T-pose or A-pose does not apply. Choose “None”."
+ },
+ "Ce moteur reçoit la pose par les vues multiples : active-les, ou choisis « Aucune ».": {
+  "fr": "Ce moteur reçoit la pose par les vues multiples : active-les, ou choisis « Aucune ».",
+  "en": "This engine gets the pose through the multi-view pass: turn it on, or choose “None”."
+ },
+ "Image introuvable dans la Bibliothèque : {name}": {
+  "fr": "Image introuvable dans la Bibliothèque : {name}",
+  "en": "Image not found in the Library: {name}"
+ },
+ "Pose inconnue : {v} (aucune, t-pose ou a-pose).": {
+  "fr": "Pose inconnue : {v} (aucune, t-pose ou a-pose).",
+  "en": "Unknown pose: {v} (none, t-pose or a-pose)."
+ },
+ "Image source illisible : impossible de la classer.": {
+  "fr": "Image source illisible : impossible de la classer.",
+  "en": "Unreadable source image: it cannot be classified."
  }
 }

@@ -117,7 +117,7 @@ async def preparer_vues(payload: dict, job: str, on_step=None) -> dict:
     shutil.copy2(src, d / "shot_0.png")
     vues = [{"index": 0, "cle": "source", "role": "source", "file": "shot_0.png", "url": url,
              "prompt": None, "rejeux": 0, "detoure": None}]
-    for i, pr in enumerate(A3.view_prompts(n, payload.get("subject", "")), 1):
+    for i, pr in enumerate(A3.view_prompts(n, payload.get("subject", ""), A3.pose_de(payload)), 1):   # t376
         await _step(f"Vue {i}/{n}", 10 + int(80 * i / n))
         v = {"index": i, "cle": A3.VUES_CLES[i - 1], "role": "vue", "file": None, "url": None,
              "prompt": pr, "rejeux": 0, "detoure": None}

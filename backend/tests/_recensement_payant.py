@@ -32,6 +32,7 @@ MODULES = {
     "mouvement": RACINE / "api" / "mouvement_routes.py",   # t343 : vidéo → mouvement sur le rig (Uthana)
     "blender": RACINE / "api" / "blender_routes.py",   # t331 : generate_3d de mcp-for-blender (clés ou abonnement de l'add-on)
     "parallaxe": RACINE / "api" / "parallaxe_routes.py",   # t341 : décor en calques de parallaxe (Qwen-Image-Layered / Seedream Layerize, fal)
+    "pose3d": RACINE / "api" / "pose3d_routes.py",   # t376 : la classification vision de la source 3D (Anthropic)
 }
 
 PUITS = {
@@ -65,6 +66,7 @@ PUITS = {
     "SV.lire",   # t312 : le secours Claude vision du Scan (scan_vision.lire -> moteurs_texte.tirer_garde, Anthropic)
     "I.analyser", "I.rediger",   # t313 : l'inspiration (inspiration.analyser / rediger -> moteurs_texte.tirer_garde, Anthropic)
     "RV.noter",   # t337 : l'avis « directeur artistique » de la revue d'un plan (revue_plan.noter -> moteurs_texte.tirer_garde, Anthropic)
+    "P.classer_image",   # t376 : personnage ou non pour la pose 3D (pose3d.classer_image -> moteurs_texte.tirer_garde, Anthropic)
     "WD.lancer",   # t328 : le lancement d'une diffusion WhatsApp (whatsapp_diffusions.lancer -> kapso.envoyer_broadcast)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
@@ -103,6 +105,7 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
           "SV.lire",   # t312 : la garde vit DANS scan_vision.lire (tirer_garde avant CHAQUE lot) ; test_plafonds_garde A2i
           "I.analyser", "I.rediger",   # t313 : la garde vit DANS inspiration (tirer_garde après l'accord) ; test_plafonds_garde A2j
           "RV.noter",   # t337 : la garde vit DANS revue_plan.noter (tirer_garde après l'accord) ; test_plafonds_garde A2m
+          "P.classer_image",   # t376 : la garde vit DANS pose3d.classer_image (tirer_garde après l'accord) ; test_plafonds_garde A2n
           "WD.lancer"}   # t328 : la garde vit DANS whatsapp_diffusions._lancer_sous_verrou (plafonds.verifier avant le send) ;
                          # test_plafonds_garde A2k le vérifie, A2l que lancer y mène (A2i/A2j de t328 renommés à la fusion t320)
 

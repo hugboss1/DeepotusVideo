@@ -572,6 +572,10 @@ app.include_router(tutoriels_router, prefix="/api/tutoriels")
 # t344 (29/10/2026) : /api/comparatif3d — banc comparatif des moteurs image -> 3D (tir payant gardé, existants gratuit)
 from app.api.comparatif3d_routes import router as comparatif3d_router
 app.include_router(comparatif3d_router, prefix="/api/comparatif3d")
+# t376 (29/10/2026) : /api/assets3d/pose — choix Aucune / T-pose / A-pose (état gratuit, classement vision payant
+# une fois par image), local seulement
+from app.api.pose3d_routes import router as pose3d_router
+app.include_router(pose3d_router, prefix="/api/assets3d/pose")
 # t343 (29/10/2026) : /api/etabli/mouvement — mouvement sur le rig (BVH/GLB, vidéo par Uthana), retimage, Godot
 from app.api.mouvement_routes import router as mouvement_router
 app.include_router(mouvement_router, prefix="/api/etabli/mouvement")
