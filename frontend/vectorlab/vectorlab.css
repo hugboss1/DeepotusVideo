@@ -298,11 +298,9 @@ details[id] > summary.panneau-tete > button { margin-left: auto; }
 /* ── delta du handoff design_handoff_vectorlab (06/09/2026 au soir) ──
    §8.2 : pistes dégradées des curseurs de teinte ; §8.5 : l'amorce du
    document vide sous les calques. */
-.vit-tsv { -webkit-appearance: none; appearance: none; height: 8px;
-  outline: none; cursor: pointer; border: 1px solid var(--aff-bord); flex: 1; }
-.vit-tsv::-webkit-slider-thumb { -webkit-appearance: none; width: 11px;
-  height: 11px; border-radius: 50%; background: var(--aff-texte);
-  border: 1px solid var(--aff-sel); cursor: pointer; }
+.vit-tsv { height: 12px; border: 1px solid var(--aff-bord); flex: 1;
+  /* t373 : piste colorée (fond posé par le script), bouton de la règle commune dz-curseur.css */
+  --dz-curseur-piste: 12px; --dz-curseur-rainure: transparent; --dz-curseur-rempli: transparent; }
 .vl-amorce { margin-top: 8px; font-family: "IBM Plex Mono", Consolas,
   monospace; font-size: 9.5px; line-height: 1.7; color: var(--aff-muet); }
 .vl-amorce-btn { margin-top: 8px; width: 100%; height: 24px;
@@ -786,14 +784,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #4a90e2
 .ap-ligne { min-height: 26px; }
 .ap-ligne > span:first-child { font-size: 11px; }
 #panneauCalques .ap-ligne > span:not(:first-child) > button { height: var(--pan-champ-h); border-radius: 3px; }
-/* curseurs : piste fine, poignée ronde blanche cerclée */
-input[type="range"] { -webkit-appearance: none; appearance: none; height: 24px; background: transparent; margin: 0; }
-input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: #555; }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; margin-top: -4px; border-radius: 50%; background: #fff; border: 2px solid var(--aff-fond); box-shadow: 0 0 0 1px #777; }
-input[type="range"]::-moz-range-track { height: 4px; border-radius: 2px; background: #555; }
-input[type="range"]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 2px solid var(--aff-fond); }
-#nuH::-webkit-slider-runnable-track { height: 12px; background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); border-radius: 0; }
-#nuH::-webkit-slider-thumb { margin-top: -1px; width: 14px; height: 14px; }
+/* curseurs : le dessin est celui de /shared/dz-curseur.css (t373, fader D1) ; ici, la hauteur de rangée */
+input[type="range"] { height: 24px; }
 /* règles et canevas */
 .regle { background: var(--aff-barre); }
 .regle-h, .regle-v { border-color: var(--aff-bord); }
@@ -877,16 +869,20 @@ body[data-outil="noeuds"] #canvasHost [data-objet] { cursor: crosshair; }
 vl-curseur { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 60px; min-width: 0; height: var(--pan-champ-h); --vl-f: 0; outline: none; }
 vl-curseur[disabled] { opacity: .5; pointer-events: none; }
 .vl-curseur-piste { position: relative; flex: 1 1 auto; height: var(--pan-champ-h); cursor: pointer; touch-action: none; }
-.vl-curseur-piste::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: var(--aff-bord); }
-.vl-curseur-plein { position: absolute; left: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; width: calc(var(--vl-f) * 100%); background: var(--aff-sel); }
-.vl-curseur-poignee { position: absolute; top: 50%; left: calc(var(--vl-f) * 100%); width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--aff-texte); border: 2px solid var(--aff-fond); box-shadow: 0 0 0 1px var(--aff-bord); }
-vl-curseur:focus-visible .vl-curseur-poignee { box-shadow: 0 0 0 2px var(--pan-bord-focus); }
+/* t373 : <vl-curseur> au dessin du fader commun (/shared/dz-curseur.css, D1) : rainure 3 px encastrée, rempli discret,
+   bouton rectangulaire strié, contour --amber au focus clavier */
+.vl-curseur-piste::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; border-radius: var(--radius); background: var(--bg-base); box-shadow: inset 0 1px 1px var(--bg-base), inset 0 0 0 1px var(--stroke); }
+.vl-curseur-plein { position: absolute; left: 0; top: 50%; height: 3px; margin-top: -1.5px; border-radius: var(--radius); width: calc(var(--vl-f) * 100%); background: color-mix(in srgb, var(--cat, var(--amber)) 60%, transparent); }
+.vl-curseur-poignee { position: absolute; top: 50%; left: calc(var(--vl-f) * 100%); width: 8px; height: 12px; margin: -6px 0 0 -4px; border-radius: var(--radius); background: repeating-linear-gradient(to bottom, var(--fg-3) 0 1px, var(--bg-panel-2, var(--bg-panel)) 1px 3px); box-shadow: inset 0 0 0 1px var(--stroke-strong, var(--stroke)); }
+vl-curseur:hover .vl-curseur-poignee { box-shadow: inset 0 0 0 1px var(--fg-4); }
+vl-curseur:focus-visible { outline: 1px solid var(--amber); outline-offset: 2px; }
+vl-curseur:focus-visible .vl-curseur-poignee { box-shadow: inset 0 0 0 1px var(--amber); }
 #panneauCalques .ap-ligne vl-curseur .vl-curseur-val, vl-curseur .vl-curseur-val { flex: 0 0 44px; width: 44px; height: var(--pan-champ-h); text-align: center; font-variant-numeric: tabular-nums; background: var(--pan-fond); color: var(--pan-texte); border: 1px solid var(--pan-bord); border-radius: 6px; font-size: 12px; padding: 0 4px; }
 vl-curseur-couleur { display: inline-flex; align-items: center; height: var(--pan-champ-h); --vl-couleur: transparent; --vl-f: 0; flex: 0 0 auto; position: relative; }
 vl-curseur-couleur[mode="teinte"] { flex: 1 1 60px; width: 100%; }
 .vl-teintes { flex: 1 1 auto; height: var(--pan-champ-h); position: relative; cursor: pointer; touch-action: none; }
-.vl-teintes::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 10px; margin-top: -5px; border-radius: 5px; background: linear-gradient(to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(360 100% 50%)); }
-.vl-teintes .vl-curseur-poignee { background: var(--vl-couleur); }
+.vl-teintes::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 10px; margin-top: -5px; border-radius: var(--radius); background: linear-gradient(to right, hsl(0 100% 50%), hsl(60 100% 50%), hsl(120 100% 50%), hsl(180 100% 50%), hsl(240 100% 50%), hsl(300 100% 50%), hsl(360 100% 50%)); }
+.vl-teintes .vl-curseur-poignee { height: 14px; margin-top: -7px; background: var(--vl-couleur); box-shadow: inset 0 0 0 1px var(--bg-base), 0 0 0 1px var(--fg-3); }
 .vl-couleur-pastille { display: inline-block; width: var(--pan-champ-h); height: var(--pan-champ-h); border-radius: 6px; border: 1px solid var(--pan-bord); background: var(--vl-couleur); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
 vl-curseur-couleur.vide .vl-couleur-pastille { background: repeating-conic-gradient(var(--aff-bord) 0 25%, var(--aff-champ) 0 50%) 0 0 / 8px 8px; }
 .vl-couleur-natif { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; border: 0; padding: 0; }

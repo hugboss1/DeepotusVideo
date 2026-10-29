@@ -460,21 +460,8 @@ button:disabled { opacity: .4; cursor: default; }
 .pl-reglage .pl-erreur[hidden] { display: none; }
 .pl-reglage input[type=checkbox] { accent-color: var(--accent); margin: 0; }
 
-/* curseurs : piste fine aux jetons, pouce d'accent (photocraft : pastille ronde sur un trait) */
-input[type=range] {
-  -webkit-appearance: none; appearance: none; width: 100%; height: 16px; margin: 0; padding: 0;
-  background: transparent; cursor: pointer;
-}
-input[type=range]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--stroke-strong); }
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none; width: 12px; height: 12px; margin-top: -4.5px; border-radius: 50%;
-  background: var(--accent); border: 1px solid var(--accent-ink);
-}
-input[type=range]::-moz-range-track { height: 3px; border-radius: 2px; background: var(--stroke-strong); }
-input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 1px solid var(--accent-ink); }
-input[type=range]:focus-visible { outline: none; }
-input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--accent-soft); }
-input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--accent-soft); }
+/* curseurs : le dessin est celui de /shared/dz-curseur.css (t373, fader D1) ; ici, la largeur seulement */
+input[type=range] { width: 100%; }
 
 /* ---- t138 B4 : Courbes et Niveaux (grille SVG 256 × 256, histogramme en fond, curseurs triangulaires de photocraft).
    Teintes des canaux : alias des jetons partagés (--red, --green, --blue), rien en dur. ---- */

@@ -51,9 +51,10 @@ check("2.3 chaque rayon vaut var(--radius) (angles vifs, aucun rayon littéral)"
 check("2.4 aucune couleur en dur (#hex, rgb, hsl)", not re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(", css))
 check("2.5 tailles de texte aux paliers de la charte", re.findall(r"font-size:([^;}]*)", css) and
       all(v.startswith("var(--fs-") for v in re.findall(r"font-size:([^;}]*)", css)))
-check("2.6 progression façon fader (D1) : rainure 3px, rempli --amber discret, bouton rectangulaire strié",
-      "::-webkit-slider-runnable-track{height:3px" in css and "color-mix(in srgb,var(--amber) 72%" in css
-      and "repeating-linear-gradient(to bottom" in css and "width:8px;height:14px" in css)
+# t373 (29/10/2026) : le fader D1 est désormais LA règle commune /shared/dz-curseur.css (banc test_curseur_ecran) ;
+# le lecteur ne dessine plus ses curseurs, il ne leur donne que leur place dans la barre
+check("2.6 progression et volume : dessinés par la règle commune (aucun pouce ni piste ici), placés en flex",
+      "slider" not in css and "--dz-lecteur-pos" not in js and ".dz-lecteur input[type=range]{flex:1 1 auto" in css)
 
 print("\n[3] les branchements")
 coque = (REPO / "frontend" / "dist" / "index.html").read_text(encoding="utf-8")

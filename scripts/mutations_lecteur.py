@@ -27,7 +27,7 @@ M = [
  ("js", "if (!L.glisse) pos.value =", "pos.value =", NOEUD),
  ("js", 'pos.addEventListener("change", function () { L.glisse = false; });', "", NOEUD),
  ("js", "media.volume = Number(vol.value) / 100; media.muted = false;", "media.volume = Number(vol.value) / 100;", NOEUD),
- ("js", 'pos.style.setProperty("--dz-lecteur-pos", pct + "%");', "", NOEUD),
+ ("js", '".dz-lecteur input[type=range]{flex:1 1 auto;min-width:40px}",', '".dz-lecteur input[type=range]{flex:1 1 auto;min-width:40px}::-webkit-slider-thumb{}",', BANC),   # t373
  ("js", 'barre.setAttribute("data-visible", !joue || L.survol || L.focus ? "1" : "0");', 'barre.setAttribute("data-visible", "1");', NOEUD),
  ("js", 'if (ps === "static") parent.style.position = "relative";', "", NOEUD),
  ("js", 'barre.style.top = (media.offsetTop + media.offsetHeight - HAUTEUR) + "px";', 'barre.style.top = media.offsetTop + "px";', NOEUD),

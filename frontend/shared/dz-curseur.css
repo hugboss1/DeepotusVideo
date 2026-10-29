@@ -1,0 +1,140 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Deepotus — curseurs façon table de mixage (t373, 29/10/2026, décision D1)
+   UNE règle pour tout input[type=range] : la coque (frontend/dist/index.html,
+   après dz-charte.css) et chaque lab (@import en tête de deepotus.tokens.css,
+   atelier.css, spritelab.css). Copie identique dans frontend/dist/shared/.
+
+   Le dessin : une rainure fine encastrée (--bg-base, ombre intérieure, filet
+   --stroke), un rempli discret jusqu'au bouton (teinte de la catégorie --cat,
+   sinon --amber, à 60 %), un bouton rectangulaire strié, un contour --amber au
+   focus clavier. Le rempli est dessiné par le BOUTON lui-même (border-image
+   prolongée de 100vw vers la gauche, coupée par overflow:hidden) : aucun
+   script, il suit la valeur que React ou un lab pose.
+
+   RÈGLES — banc backend/tests/test_curseur_ecran.py :
+   • tout passe sous :where() : spécificité nulle, la mise en page locale
+     (largeur, hauteur, flex) garde la main ; un écran ne redessine plus jamais
+     pouce ni piste, il règle au besoin les variables --dz-curseur-* ;
+   • jetons de la charte et de base seulement : aucun rayon littéral, aucune
+     couleur en dur.
+   Variantes : .dz-gradue (graduations, --dz-graduations : 10 pas par défaut),
+   .dz-curseur-vertical (fader vertical, --dz-curseur-longueur).
+   ═══════════════════════════════════════════════════════════════════════════ */
+:where(input[type=range]){
+  --dz-curseur-piste:3px;          /* rainure */
+  --dz-curseur-epaisseur:16px;     /* hauteur de la zone de saisie */
+  --dz-curseur-bouton-l:8px;
+  --dz-curseur-bouton-h:12px;
+  --dz-curseur-rainure:var(--bg-base);
+  --dz-curseur-rempli:color-mix(in srgb,var(--cat,var(--amber)) 60%,transparent);
+  --dz-curseur-bouton:var(--bg-panel-2,var(--bg-panel));
+  --dz-curseur-strie:var(--fg-3);
+  --dz-curseur-filet:var(--stroke-strong,var(--stroke));
+  -webkit-appearance:none;appearance:none;
+  height:var(--dz-curseur-epaisseur);margin:0;padding:0;
+  background:transparent;overflow:hidden;cursor:pointer;
+  border-radius:var(--radius);
+}
+:where(input[type=range])::-webkit-slider-runnable-track{
+  height:var(--dz-curseur-piste);border:0;border-radius:var(--radius);
+  background:var(--dz-curseur-rainure);
+  box-shadow:inset 0 1px 1px var(--bg-base),inset 0 0 0 1px var(--stroke);
+}
+:where(input[type=range])::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:var(--dz-curseur-bouton-l);height:var(--dz-curseur-bouton-h);
+  margin-top:calc((var(--dz-curseur-piste) - var(--dz-curseur-bouton-h)) / 2);
+  border:0;border-radius:var(--radius);
+  background:repeating-linear-gradient(var(--dz-curseur-stries,to bottom),var(--dz-curseur-strie) 0 1px,var(--dz-curseur-bouton) 1px 3px);
+  box-shadow:inset 0 0 0 1px var(--dz-curseur-filet);
+  border-image:linear-gradient(90deg,var(--dz-curseur-rempli) 50%,transparent 0) 0 1/calc(50% - var(--dz-curseur-piste) / 2) 100vw/0 100vw;
+}
+/* Firefox : rempli natif */
+:where(input[type=range])::-moz-range-track{
+  height:var(--dz-curseur-piste);border:0;border-radius:var(--radius);
+  background:var(--dz-curseur-rainure);
+  box-shadow:inset 0 1px 1px var(--bg-base),inset 0 0 0 1px var(--stroke);
+}
+:where(input[type=range])::-moz-range-progress{
+  height:var(--dz-curseur-piste);border-radius:var(--radius);background:var(--dz-curseur-rempli);
+}
+:where(input[type=range])::-moz-range-thumb{
+  width:var(--dz-curseur-bouton-l);height:var(--dz-curseur-bouton-h);
+  border:0;border-radius:var(--radius);
+  background:repeating-linear-gradient(var(--dz-curseur-stries,to bottom),var(--dz-curseur-strie) 0 1px,var(--dz-curseur-bouton) 1px 3px);
+  box-shadow:inset 0 0 0 1px var(--dz-curseur-filet);
+}
+/* survol, focus clavier, désactivé */
+:where(input[type=range]):hover{--dz-curseur-strie:var(--fg-2);--dz-curseur-filet:var(--fg-4)}
+:where(input[type=range]):focus{outline:none}
+:where(input[type=range]):focus-visible{outline:1px solid var(--amber);outline-offset:2px;
+  --dz-curseur-strie:var(--amber);--dz-curseur-filet:var(--amber)}
+:where(input[type=range]:disabled){opacity:.45;cursor:default}
+
+/* graduations facultatives : un trait tous les 1/N de la course, sous la rainure */
+:where(input[type=range].dz-gradue){
+  background:linear-gradient(to right,var(--dz-curseur-filet) 1px,transparent 1px)
+    calc(var(--dz-curseur-bouton-l) / 2 - .5px) 100% / calc((100% - var(--dz-curseur-bouton-l)) / var(--dz-graduations,10)) 4px repeat-x;
+}
+
+/* fader vertical : le même dessin tourné d'un quart de tour ; les marges
+   rendent à la mise en page une boîte haute et étroite (min en bas) */
+:where(input[type=range].dz-curseur-vertical){
+  --dz-curseur-longueur:96px;--dz-curseur-stries:to right;--dz-curseur-bouton-h:14px;
+  width:var(--dz-curseur-longueur);
+  transform:rotate(-90deg);
+  margin:calc((var(--dz-curseur-longueur) - var(--dz-curseur-epaisseur)) / 2)
+         calc((var(--dz-curseur-epaisseur) - var(--dz-curseur-longueur)) / 2);
+}
+
+/* ── Montage › MIXAGE : rails « div » (role=slider) de la couche SONVFX ──
+   Le geste reste celui de la couche (glisser, flèches) ; seul le dessin
+   rejoint celui des curseurs : rainure encastrée, rempli à la teinte du bus
+   (posée en ligne par la couche), bouton strié au bout du rempli. */
+.svm-mixrail,.svm-thmix{
+  height:var(--dz-curseur-piste,3px);border-radius:var(--radius);
+  background:var(--bg-base);
+  box-shadow:inset 0 1px 1px var(--bg-base),inset 0 0 0 1px var(--stroke);
+}
+.svm-mixrail::after{border-radius:var(--radius);inset:-3px 0}
+.svm-mixfill,.svm-thmixfill{border-radius:var(--radius);position:relative}
+.svm-mixrail .svm-mixfill{height:100%}
+.svm-mixfill::after,.svm-thmixfill::after{
+  content:"";position:absolute;z-index:1;top:50%;right:-4px;
+  width:8px;height:12px;transform:translateY(-50%);
+  border-radius:var(--radius);
+  background:repeating-linear-gradient(to bottom,var(--fg-3) 0 1px,var(--bg-panel-2,var(--bg-panel)) 1px 3px);
+  box-shadow:inset 0 0 0 1px var(--stroke-strong,var(--stroke));
+}
+.svm-thmixfill::after{right:-3px;width:6px;height:10px}
+.svm-mixrail:hover .svm-mixfill::after,.svm-mixrail:focus-visible .svm-mixfill::after,
+.svm-thmix:hover .svm-thmixfill::after,.svm-thmix:focus-visible .svm-thmixfill::after{
+  box-shadow:inset 0 0 0 1px var(--amber);
+}
+.svm-mixrail:focus-visible,.svm-thmix:focus-visible{outline:1px solid var(--amber);outline-offset:4px}
+
+/* ── Son & VFX › Pistes : la console des pistes en tranches verticales ──
+   (règles du maillon dzsonvfx surclassées par la spécificité : chaque piste
+   = M/S en haut, fader vertical gradué, envoyer/télécharger, nom en bas) */
+div.dzsvp-stems{flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:var(--pad-2)}
+.dzsvp-stems > .dzsvp-stem{
+  grid-template-columns:28px 28px;
+  grid-template-areas:"m s" "v v" "e d" "n n";
+  justify-items:center;row-gap:var(--pad-2);column-gap:var(--pad-1);
+  padding:var(--pad-2);
+}
+.dzsvp-stems > .dzsvp-stem > button.dzsvp-mini:nth-of-type(1){grid-area:m}
+.dzsvp-stems > .dzsvp-stem > button.dzsvp-mini:nth-of-type(2){grid-area:s}
+.dzsvp-stems > .dzsvp-stem > button.dzsvp-mini:nth-of-type(3){grid-area:e}
+.dzsvp-stems > .dzsvp-stem > a.dzsvp-mini{grid-area:d}
+.dzsvp-stems > .dzsvp-stem > .dzsvp-stemn{grid-area:n;max-width:60px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-2)}
+.dzsvp-stems .dzsvp-vol{
+  grid-area:v;--dz-curseur-longueur:112px;--dz-curseur-stries:to right;--dz-curseur-bouton-h:14px;
+  width:var(--dz-curseur-longueur);
+  transform:rotate(-90deg);
+  margin:calc((var(--dz-curseur-longueur) - var(--dz-curseur-epaisseur)) / 2)
+         calc((var(--dz-curseur-epaisseur) - var(--dz-curseur-longueur)) / 2);
+  background:linear-gradient(to right,var(--dz-curseur-filet) 1px,transparent 1px)
+    calc(var(--dz-curseur-bouton-l) / 2 - .5px) 100% / calc((100% - var(--dz-curseur-bouton-l)) / 10) 4px repeat-x;
+}

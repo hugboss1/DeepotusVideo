@@ -334,11 +334,22 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzcurseur(bundle: str) -> str:
+    """Le bundle d'avant le curseur de base à la charte (maillon de queue patch_bundle_dzcurseur, t373, 29/10/2026,
+    posé APRÈS dzmcp : c'est la queue de la chaîne : `Oe` rend un input visible au lieu de sa pastille ronde) : sa
+    paire défaite, lue dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzcurseur as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzmcp(bundle: str) -> str:
     """Le bundle d'avant l'onglet « Serveur MCP » de Réglages (maillon de queue patch_bundle_dzmcp, t345, 29/10/2026,
     posé APRÈS dzapify : c'est la queue de la chaîne) : ses paires défaites, lues dans le maillon lui-même.
     Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzmcp as _m
+    bundle = avant_dzcurseur(bundle)             # 29/10 (t373) : le maillon posé APRÈS dzmcp, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

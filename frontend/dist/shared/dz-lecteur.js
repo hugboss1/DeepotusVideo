@@ -6,7 +6,7 @@
 
    Ce qu'il fait : à l'exécution, tout <audio controls> / <video controls> de la page perd ses contrôles natifs (blancs,
    arrondis) au profit d'une barre à la charte — fond --bg-panel, angles vifs (var(--radius)), bouton lecture --amber,
-   temps en mono, progression et volume en curseur façon fader (décision D1 ; t373 unifiera tous les curseurs).
+   temps en mono, progression et volume en curseur façon fader (décision D1), dessinés par la règle commune /shared/dz-curseur.css (t373).
    Le média reste EN PLACE : on lui retire seulement l'attribut controls et la barre se pose JUSTE APRÈS lui. React
    garde donc son nœud, ses ref et ses évènements (onLoadedMetadata, onError…), et le bundle prébâti n'est pas touché
    (aucun maillon) : ses 16 lecteurs natifs relevés (Chapitres › aperçu de voix, Quick et Studio › voix, Son & VFX ›
@@ -56,19 +56,10 @@
     ".dz-lecteur-tps{flex:none;font-family:var(--font-mono);font-size:var(--fs-2);color:var(--fg-3);",
     "font-variant-numeric:tabular-nums;letter-spacing:0}",
     ".dz-lecteur-tps[data-dz-lecteur=temps]{color:var(--fg-1)}",
-    /* curseurs façon fader (D1) : rainure fine encastrée, rempli --amber discret, bouton rectangulaire strié */
-    ".dz-lecteur input[type=range]{-webkit-appearance:none;appearance:none;flex:1 1 auto;min-width:40px;height:18px;",
-    "margin:0;padding:0;background:transparent;cursor:pointer}",
+    /* curseurs : le fader D1 commun (/shared/dz-curseur.css, t373) les dessine ; ici, leur place dans la barre */
+    ".dz-lecteur input[type=range]{flex:1 1 auto;min-width:40px}",
     ".dz-lecteur input[data-dz-lecteur=volume]{flex:0 0 56px;min-width:56px}",
     ".dz-lecteur[data-etroit=\"1\"] input[data-dz-lecteur=volume]{display:none}",
-    ".dz-lecteur input[type=range]::-webkit-slider-runnable-track{height:3px;border:0;border-radius:var(--radius);",
-    "background:linear-gradient(to right,color-mix(in srgb,var(--amber) 72%,transparent) var(--dz-lecteur-pos,0%),",
-    "var(--bg-base) var(--dz-lecteur-pos,0%));box-shadow:inset 0 0 0 1px var(--stroke)}",
-    ".dz-lecteur input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:8px;height:14px;",
-    "margin-top:-5.5px;border:1px solid var(--stroke-strong,var(--stroke));border-radius:var(--radius);",
-    "background:repeating-linear-gradient(to bottom,var(--fg-3) 0 1px,var(--bg-panel) 1px 3px)}",
-    ".dz-lecteur input[type=range]:hover::-webkit-slider-thumb,.dz-lecteur input[type=range]:focus-visible::-webkit-slider-thumb",
-    "{border-color:var(--amber)}",
     /* vidéo : surimpression du bas de l'image */
     ".dz-lecteur[data-dz-genre=video]{position:absolute;z-index:2;width:auto;border-width:1px 0 0;",
     "background:color-mix(in srgb,var(--bg-panel) 88%,transparent);transition:opacity .15s}",
@@ -164,8 +155,6 @@
       dur.textContent = temps(d);
       var ok = isFinite(d) && d > 0;
       if (!L.glisse) pos.value = String(ok ? Math.round(Math.min(1, t / d) * PAS) : 0);
-      var pct = ok ? Math.round(Number(pos.value) / PAS * 1000) / 10 : 0;
-      pos.style.setProperty("--dz-lecteur-pos", pct + "%");
       pos.setAttribute("aria-valuetext", T("lecteur.curseur.position_valeur", { t: temps(t), d: temps(d) }));
       if (video) placer();
     }
@@ -173,7 +162,6 @@
       var muet = media.muted || media.volume === 0;
       etiqueter(son, muet ? ICONES.muet : ICONES.son, T(muet ? "lecteur.action.retablir_son" : "lecteur.action.couper_son"));
       vol.value = String(Math.round((media.muted ? 0 : media.volume) * 100));
-      vol.style.setProperty("--dz-lecteur-pos", vol.value + "%");
     }
     function erreur() {
       barre.setAttribute("data-etat", "erreur");

@@ -7,6 +7,7 @@
    ════════════════════════════════════════════════════════════════════════════ */
 
 @import url("/shared/dz-charte.css"); /* t370 : jetons communs de la charte, en TÊTE (un @import après une règle est ignoré) */
+@import url("/shared/dz-curseur.css"); /* t373 : curseurs façon table de mixage, après les jetons de la charte */
 
 @font-face { font-family:"IBMPlex Local";  src:url("/fonts/IBMPlexSans.ttf")  format("truetype"); font-weight:400 600; font-display:swap; }
 @font-face { font-family:"Inter Local";    src:url("/fonts/Inter.ttf")        format("truetype"); font-weight:400 700; font-display:swap; }

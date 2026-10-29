@@ -686,23 +686,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* curseur : trait fin, poignée ronde, et un REPÈRE au défaut sur la piste */
 .rng { position: relative; width: 100%; display: flex; align-items: center; height: 16px; }
-.rng::before { content: ""; position: absolute; left: 0; right: 0; top: 50%;
-  height: 2px; margin-top: -1px; border-radius: 2px; background: var(--stroke-strong); }
+/* t373 : rainure et bouton = /shared/dz-curseur.css (fader D1) ; le repère du défaut reste, sous le bouton de 8 px */
 .rng::after { content: ""; position: absolute; top: 50%; width: 1px; height: 8px;
-  margin-top: -4px; left: calc(6px + (100% - 12px) * var(--dp, 0));
-  background: var(--ink-muted); }
-.rng input[type=range] { position: relative; width: 100%; margin: 0; height: 16px;
-  background: transparent; -webkit-appearance: none; appearance: none; }
-.rng input[type=range]::-webkit-slider-runnable-track { height: 16px; background: transparent; }
-.rng input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none;
-  width: 11px; height: 11px; margin-top: 2.5px; border-radius: 50%;
-  background: var(--ink-soft); border: 0; cursor: pointer;
-  box-shadow: 0 0 0 3px var(--bg-base); }
-.prop.mod .rng input[type=range]::-webkit-slider-thumb { background: var(--mod); }
-.rng input[type=range]:hover::-webkit-slider-thumb { background: var(--accent); }
-.rng input[type=range]:focus { outline: none; }
-.rng input[type=range]:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px var(--bg-base), 0 0 0 4.5px var(--accent); }
+  margin-top: -4px; left: calc(4px + (100% - 8px) * var(--dp, 0));
+  background: var(--ink-muted); pointer-events: none; }
+.rng input[type=range] { position: relative; width: 100%; }
+.prop.mod .rng input[type=range] { --dz-curseur-strie: var(--mod); }
 
 /* couleur : pastille + hexadécimal saisissable (la barre n'affiche que l'hexa) */
 .swatch { width: 22px; height: 16px; padding: 0; border: 1px solid var(--stroke-strong);
