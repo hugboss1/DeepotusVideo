@@ -1,0 +1,5 @@
+{
+  "news.liste.ecartes_resume": {"fr": "Écartés par le filtre : {n}", "en": "Dropped by the filter: {n}"},
+  "news.liste.ecartes_tout": {"fr": "Tout afficher", "en": "List all"},
+  "news.liste.ecartes_tout_aide": {"fr": "« Tout afficher » donne la liste complète.", "en": "“List all” shows every dropped item."}
+}

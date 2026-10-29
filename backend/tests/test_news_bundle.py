@@ -65,8 +65,10 @@ check("A16 (tache #34) le sujet deja couvert est recopie du classement et montre
 check("A9 la carte montre score, motif, etoile de tete et origine IA", 'children:i.score_pourquoi' in pm
       and '(i.en_tete?"★ ":"")+i.score+"/100"' in pm and 'dzT("news.article.ia",{o:i.score_origine})' in pm
       and AIDE.fr("news.article.ia", o="claude") == "IA · claude")
-check("A10 les ecartes : puce comptee, motifs au survol (span porteur du title : `te` ne le transmet pas)",
-      'r.jsx("span",{title:ranked.ecartes.map(function(z){return z.title+" — "+z.motif}).join("\\n"),children:r.jsx(te,{tone:"amber",style:{whiteSpace:"nowrap"}' in pm
+# t375 (29/10/2026) : la bulle ne liste plus les titres, elle RÉSUME (dzNewsEcartesResume) ; la liste passe par
+# « Tout afficher » (banc test_news_ecartes_ecran)
+check("A10 les ecartes : puce comptee, résumé des motifs au survol (span porteur du title : `te` ne le transmet pas)",
+      'r.jsx("span",{title:dzNewsEcartesResume(ranked.ecartes),children:r.jsx(te,{tone:"amber",style:{whiteSpace:"nowrap"}' in pm
       and 'dzT("news.liste.ecartes",{n:ranked.ecartes.length})' in pm and AIDE.fr("news.liste.ecartes", n=4) == "4 écartés ce jour")
 check("A11 le panneau du filtre : quatre champs, un bouton titre qui enregistre", all(f'fch("{k}"' in pm for k in
       ("mots_cles", "mots_noirs", "sources_noires", "fraicheur_h")) and 'title:dzT("news.filtre.enregistrer_aide"),onClick:saveFilt' in pm

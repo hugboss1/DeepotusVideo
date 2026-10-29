@@ -41,7 +41,8 @@ CLES_A = {k: {"fr": k.rsplit(".", 1)[-1], "en": k.rsplit(".", 1)[-1].upper()} fo
     "a.b.voisin", "a.b.y", "a.b.z", "a.b.montage_vide", "a.b.favori", "a.b.interne", "a.b.gen", "a.b.com", "a.b.com_voisin", "a.b.param", "a.b.param_aide", "a.b.filtre", "avatar.noeud.visage")}
 
 CLES_A.update({"a.b.envoi": {"fr": "Envoi…", "en": "Sending…"}, "a.b.envoyer": {"fr": "Envoyer", "en": "Send"},
-               "a.b.parcourir": {"fr": "Parcourir...", "en": "Browse..."}})
+               "a.b.parcourir": {"fr": "Parcourir...", "en": "Browse..."},
+               "a.b.deplier": {"fr": "Tout afficher", "en": "List all"}})
 
 
 def _ecrire(p: pathlib.Path, txt: str):
@@ -133,6 +134,13 @@ def test_ternaire_et_voisin(cas):
 def test_bouton_maison(tmp_path):                          # seul : la fiche ne peut venir que du composant
     x = S.extraire(_depot(tmp_path, CAS["maison"]))["a.b.lancer"]
     assert x["type"] == "bouton" and x["libelle"]["en"] == "LANCER"
+
+
+def test_summary_est_un_bouton(tmp_path):
+    """t375 (29/10/2026) : le <summary> d'un déroulé natif (<details>) s'ouvre au clic sans onClick : c'est un bouton
+    (« Tout afficher » des écartés de News)."""
+    x = S.extraire(_depot(tmp_path, 'r.jsx("summary",{style:{a:1},children:dzT("a.b.deplier")})'))["a.b.deplier"]
+    assert x["type"] == "bouton" and x["libelle"] == {"fr": "Tout afficher", "en": "List all"}
 
 
 def test_non_cliquable_exclu(tmp_path):

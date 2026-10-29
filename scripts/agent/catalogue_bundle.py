@@ -222,7 +222,8 @@ def _retenu(balise: str, attrs: dict):
         nom = balise.strip('"')
         if nom in CHAMPS:
             return "champ"
-        return "bouton" if nom == "button" or "onClick" in attrs else None
+        # t375 : <summary> s'ouvre au clic sans onClick (déroulé natif <details>)
+        return "bouton" if nom in ("button", "summary") or "onClick" in attrs else None
     if "placeholder" in attrs:                           # composant de saisie maison (champ de recherche…)
         return "champ"
     return "bouton" if ("onClick" in attrs or "title" in attrs or "aria-label" in attrs) else None
