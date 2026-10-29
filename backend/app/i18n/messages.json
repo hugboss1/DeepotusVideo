@@ -168,7 +168,7 @@
   "passes.installer": {"fr": "Blender est introuvable : installez Blender {min} ou plus récent (gratuit, blender.org) dans « C:\\Program Files\\Blender Foundation », ou indiquez son chemin dans BLENDER_PATH du .env, puis relancez — rien n'a été lancé.", "en": "Blender cannot be found: install Blender {min} or newer (free, blender.org) in “C:\\Program Files\\Blender Foundation”, or set its path in BLENDER_PATH in the .env, then try again — nothing was started."},
   "passes.job_introuvable": {"fr": "Passe introuvable (le serveur a peut-être redémarré).", "en": "Pass not found (the server may have restarted)."},
   "passes.passes_inconnues": {"fr": "Passes inconnues : choisissez parmi {liste}.", "en": "Unknown passes: choose from {liste}."},
-  "passes.plan_introuvable": {"fr": "Plan introuvable.", "en": "Shot not found."},
+  "passes.plan_introuvable": {"fr": "Ce plan n'existe pas ou plus : rien à rendre.", "en": "This shot does not exist (any more): nothing to render."},
   "passes.sans_scene": {"fr": "Ce plan n'a pas de scène au Plateau 3D : ouvrez le Plateau du plan, posez la caméra, puis relancez les passes.", "en": "This shot has no 3D Stage scene: open the shot's Stage, set the camera, then run the passes again."},
   "passes.scene_inutilisable": {"fr": "La scène du plan ne peut pas être rendue : {msg}", "en": "The shot's scene cannot be rendered: {msg}"},
   "cartes.lot.cle_absente": {"fr": "{nom_cle} non configurée (Réglages) pour « {modele} » — rien n'a été lancé.", "en": "{nom_cle} is not configured (Settings) for \"{modele}\" — nothing was started."},

@@ -66,7 +66,9 @@ print("[T] la table")
 T = getattr(SR, "RUBRIQUE_DE_CLE", {})
 if not hasattr(SR, "rubrique_de"):
     SR.rubrique_de = lambda k: ""
-check("T0 la barre des Réglages est lue dans le bundle (14 rubriques)", len(YM) == 14 and "defaults" in YM, repr(YM))
+# t345 (29/10) : 15e rubrique « mcp » (Serveur MCP), posée par le maillon dzmcp.
+check("T0 la barre des Réglages est lue dans le bundle (15 rubriques, dont mcp)", len(YM) == 15 and "defaults" in YM
+      and "mcp" in YM, repr(YM))
 check("T1 AUCUNE clé de l'allowlist sans rubrique", T and not (_ALLOWED_ENV_KEYS - set(T)),
       repr(sorted(_ALLOWED_ENV_KEYS - set(T))))
 check("T2 aucune clé hors de l'allowlist", set(T) <= _ALLOWED_ENV_KEYS, repr(sorted(set(T) - _ALLOWED_ENV_KEYS)))
