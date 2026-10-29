@@ -11,7 +11,7 @@
      O / C, image par image ;
    - MESURES (gratuites, locales) : POST /api/shots/{id}/revue/mesurer — dérive résiduelle en images (le rendu est
      déjà recalé par t336, le recalage d'origine est rappelé), structure image par image (bords + luminance : un
-     repère de composition, la profondeur n'est PAS mesurée et la boîte le dit), identité des entités (ΔE,
+     repère de composition ; t334 : contours de la passe de profondeur Blender quand le plan en a une, sinon la profondeur n'est PAS mesurée et la boîte le dit), identité des entités (ΔE,
      silhouette) avec son angle mort ;
    - AVIS DU DIRECTEUR ARTISTIQUE (payant, Claude vision) : devis gratuit à l'ouverture (POST …/revue/devis), puis
      « Demander l'avis » porte le montant, confirmation (window.__dzDialogue.confirmer), POST …/revue/note
@@ -264,7 +264,13 @@
         st.verdict === "proche" ? S.ok : S.ko);
       l("m-structure-aide", T("revueplan.mesures.structure_aide"), S.note);
     }
-    l("m-profondeur", T("revueplan.mesures.profondeur"), S.note);
+    // t334 : la passe de profondeur Blender du plan (« Passes Blender ») : ses contours contre les bords du rendu
+    var pf = m.profondeur || {};
+    if (pf.mesuree && pf.concordance != null) {
+      l("m-profondeur", T(pf.verdict === "proche" ? "revueplan.mesures.profondeur_proche" : "revueplan.mesures.profondeur_ecart",
+        { c: nombre(pf.concordance), s: nombre(pf.seuil) }), pf.verdict === "proche" ? S.ok : S.ko);
+      l("m-profondeur-aide", T("revueplan.mesures.profondeur_aide"), S.note);
+    } else l("m-profondeur", T("revueplan.mesures.profondeur"), S.note);
     (m.identite || []).forEach(function (e) {
       l("m-identite", e.vue == null ? T("revueplan.mesures.identite_sans_vue", { nom: e.name || "" })
         : T(e.verdict === "stable" ? "revueplan.mesures.identite_stable" : "revueplan.mesures.identite_derive", {

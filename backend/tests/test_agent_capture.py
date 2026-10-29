@@ -57,8 +57,9 @@ def lancer(args, agent="capture_test"):
 
 print("[1] la boîte")
 check("1a verifier() sain", B.verifier() == [], B.verifier())
-check("1b boîte capture figée", B.BOITES.get("capture") == {"libelle": "agent.boites.capture",
-      "outils": ["lire_piste_clics", "proposer_decoupe", "proposer_chapitres_tuto"], "agents": [],
+check("1b boîte capture figée (t345 : déclarée par l'agent mcp, qui n'en voit que la lecture)",
+      B.BOITES.get("capture") == {"libelle": "agent.boites.capture",
+      "outils": ["lire_piste_clics", "proposer_decoupe", "proposer_chapitres_tuto"], "agents": ["mcp"],
       "mobile": False}, B.BOITES.get("capture"))
 check("1c nature lecture, capture requise", ao.OUTILS["lire_piste_clics"]["nature"] == "lecture"
       and ao.OUTILS["lire_piste_clics"]["schema"]["required"] == ["capture"])

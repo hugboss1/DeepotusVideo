@@ -18,6 +18,14 @@ touche un fournisseur payant (la génération vidéo reste derrière sa propre p
   POST   /{id}/mouvement        {keyframes?, scene?} → camera_move, motion_prompt, avertissements + écart et durée
   POST   /{id}/capture          {quand: debut|fin, image_b64} → PNG validé dans les images, Bibliothèque « plateau »
   POST   /{id}/vers-plan        {appliquer: {...}, confirmer?} → avant/après ; écrit SEULEMENT avec confirmer:true
+  GET|POST /{id}/palette        t333 (A3) : {scene?} → la previs COLORÉE et NOMMÉE (previs_palette) : couleur par
+                                entité / matière, légende FR/EN, phrase de prompt, faisceaux exclus, table Blender
+  POST   /{id}/couverture       t338 (A8) : {camera?, scene?, partenaire_id?, gros_plan_id?, enregistrer?} → plan
+                                large, contre-champ (règle des 180°), gros plan (scene3d_couverture), rangés si demandé
+  POST   /{id}/couverture/{cam}/nouveau-plan  {confirmer?} → un plan NEUF après le plan lié, avec sa scène et cette caméra
+
+Captures (t333/t338) : `quand` = debut | fin | camera (+ camera_id) ; les FAISCEAUX ne sont jamais rendus (l'écran
+les cache) ; la recette de la Bibliothèque porte la légende de la previs. Le GLB composé les exclut aussi.
 
 `scene` (dans /mesure et /mouvement) = l'état AFFICHÉ par l'écran ({instances, aspect, capteur_mm}) quand il n'est pas
 encore enregistré : la mesure porte sur ce qu'on voit, pas sur le disque.
@@ -36,7 +44,9 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 
 from app.config import settings
+from app.services import previs_palette as PP
 from app.services import scene3d as S
+from app.services import scene3d_couverture as CV
 from app.services import scene3d_glb as G
 from app.services.storage import Scene3D, async_session_factory
 
@@ -45,7 +55,8 @@ router = APIRouter()
 _ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 _JOB = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _FICHIER = re.compile(r"^model(\.v\d{1,4})?\.glb$")
-_ROLES = ("sujet", "decor", "repere")
+_ROLES = ("sujet", "decor", "repere", "faisceau")     # t333 : « faisceau » = volume de lumière, jamais un solide
+_CAM_ID = re.compile(r"^[a-z_]{1,20}$")
 _MAX_INSTANCES = 64
 _COULEUR = re.compile(r"^#[0-9A-Fa-f]{6}$")
 _PNG_MAX = 12 * 1024 * 1024
@@ -116,9 +127,13 @@ def _instances(v) -> list:
         if dims is None and kind == "proxy":
             raise HTTPException(400, f"{iid} : une primitive a besoin de dims [l, h, p].")
         couleur = x.get("couleur") if isinstance(x.get("couleur"), str) and _COULEUR.match(x["couleur"]) else "#8a8f98"
+        if role == "faisceau" and kind != "proxy":
+            raise HTTPException(400, f"{iid} : un faisceau est une primitive (proxy), pas un maillage.")
+        # t333 : la MATIÈRE = ce que la forme représente (« cyprès »), lue par la légende de la previs
+        matiere = " ".join(str(x.get("matiere") or "").split())[:60] or None
         out.append({"id": iid, "nom": str(x.get("nom") or iid)[:80], "source": source, "niveau": niveau,
                     "dims": dims, "transform": transform, "couleur": couleur, "role": role,
-                    "entity_id": str(x["entity_id"])[:40] if x.get("entity_id") else None})
+                    "entity_id": str(x["entity_id"])[:40] if x.get("entity_id") else None, "matiere": matiere})
     if sum(1 for x in out if x["role"] == "sujet") > 1:
         raise HTTPException(400, "un seul sujet par scène.")
     return out
@@ -174,7 +189,8 @@ def _dict(r: Scene3D) -> dict:
             return defaut
     return {"id": r.id, "chapter_id": r.chapter_id, "shot_id": r.shot_id, "nom": r.nom, "aspect": r.aspect,
             "focale_mm": r.focale_mm, "capteur_mm": r.capteur_mm, "instances": j(r.instances, []),
-            "camera": j(r.camera, None), "keyframes": j(r.keyframes, []), "glb_file": r.glb_file,
+            "camera": j(r.camera, None), "keyframes": j(r.keyframes, []),
+            "couverture": j(getattr(r, "couverture", None), None), "glb_file": r.glb_file,
             "glb_version": r.glb_version or 0,
             "created_at": r.created_at.isoformat() if r.created_at else None,
             "updated_at": r.updated_at.isoformat() if r.updated_at else None}
@@ -216,7 +232,7 @@ async def lister(chapter_id: str = "", shot_id: str = ""):
         if shot_id:
             q = q.where(Scene3D.shot_id == shot_id)
         rows = (await session.execute(q.limit(200))).scalars().all()
-    return {"scenes": [{k: v for k, v in _dict(r).items() if k not in ("instances", "keyframes", "camera")}
+    return {"scenes": [{k: v for k, v in _dict(r).items() if k not in ("instances", "keyframes", "camera", "couverture")}
                        | {"instances": len(_dict(r)["instances"])} for r in rows]}
 
 
@@ -377,10 +393,13 @@ async def composer(sid: str):
     async with async_session_factory() as session:
         r = await _lire(session, sid)
         d = _dict(r)
-        if not d["instances"]:
+        # t333 : un faisceau (volume de lumière) n'entre jamais dans le GLB — il y deviendrait un solide
+        solides = [i for i in d["instances"] if not PP.est_faisceau(i)]
+        exclus = [i["id"] for i in d["instances"] if PP.est_faisceau(i)]
+        if not solides:
             raise HTTPException(400, "scène vide : rien à composer.")
         try:
-            glb, rap = await asyncio.to_thread(G.composer, d["instances"], _lire_maillage)
+            glb, rap = await asyncio.to_thread(G.composer, solides, _lire_maillage)
         except ValueError as e:
             raise HTTPException(400, str(e))
         except RuntimeError as e:
@@ -398,7 +417,8 @@ async def composer(sid: str):
         r.instances = json.dumps(d["instances"])
         r.glb_file, r.glb_version, r.updated_at = dest.name, v, datetime.utcnow()
         await session.commit()
-    return {"ok": True, "version": v, "file": dest.name, "bytes": len(glb), "rapport": rap, "fiche": fiche}
+    return {"ok": True, "version": v, "file": dest.name, "bytes": len(glb), "rapport": rap, "fiche": fiche,
+            "faisceaux_exclus": exclus}
 
 
 @router.get("/{sid}/scene.glb")
@@ -467,8 +487,11 @@ async def capture(sid: str, body: dict):
     from app.services import library_index as LI
     body = body if isinstance(body, dict) else {}
     quand = body.get("quand")
-    if quand not in ("debut", "fin"):
-        raise HTTPException(400, "quand : debut ou fin.")
+    if quand not in ("debut", "fin", "camera"):
+        raise HTTPException(400, "quand : debut, fin ou camera.")
+    cid = body.get("camera_id") if quand == "camera" else None
+    if quand == "camera" and (not isinstance(cid, str) or not _CAM_ID.match(cid)):
+        raise HTTPException(400, "camera_id : l'identifiant d'une caméra de couverture.")
     brut = str(body.get("image_b64") or "")
     if brut.startswith("data:"):
         brut = brut.split(",", 1)[-1]
@@ -489,19 +512,183 @@ async def capture(sid: str, body: dict):
     async with async_session_factory() as session:
         r = await _lire(session, sid)
         d = _dict(r)
+    cam = None
+    if quand == "camera":
+        cam = next((c for c in (d["couverture"] or {}).get("cameras") or [] if c.get("id") == cid), None)
+        if cam is None:
+            raise HTTPException(404, f"caméra de couverture inconnue : {cid} — générez la couverture d'abord.")
+    # t333 : la légende de la previs (scène AFFICHÉE si l'écran l'envoie : la capture porte ce qu'on voit)
+    sc = body.get("scene")
+    pal = PP.palette(_instances(sc["instances"]) if isinstance(sc, dict) and "instances" in sc else d["instances"])
     dossier = settings.images_path
     dossier.mkdir(parents=True, exist_ok=True)
+    tag = f"cam-{cid}" if cam else quand
     n = 1
-    while (dossier / f"plateau_{sid[:8]}_{quand}_{n}.png").exists():
+    while (dossier / f"plateau_{sid[:8]}_{tag}_{n}.png").exists():
         n += 1
-    nom = f"plateau_{sid[:8]}_{quand}_{n}.png"
+    nom = f"plateau_{sid[:8]}_{tag}_{n}.png"
     (dossier / nom).write_bytes(data)
     t = None
-    if d["keyframes"]:
+    if d["keyframes"] and not cam:
         t = d["keyframes"][0]["t"] if quand == "debut" else d["keyframes"][-1]["t"]
-    await LI.noter([nom], "plateau", recette={"outil": "plateau", "scene": sid, "quand": quand, "t": t,
-                                              "aspect": d["aspect"], "focale_mm": d["focale_mm"]})
-    return {"ok": True, "filename": nom, "quand": quand}
+    recette = {"outil": "plateau", "scene": sid, "quand": quand, "t": t, "aspect": d["aspect"],
+               "focale_mm": cam["focale_mm"] if cam else d["focale_mm"], "legende": pal["prompt"],
+               "palette": [{"cle": e["cle"], "libelle": e["libelle"], "hex": e["couleur"]} for e in pal["table"]],
+               "faisceaux_exclus": [f["id"] for f in pal["faisceaux"]]}
+    if cam:
+        recette.update(angle=cid, camera=cam["camera"], nom_camera=cam["nom"])
+    await LI.noter([nom], "plateau", recette=recette)
+    if cam:                                            # la caméra nommée garde sa dernière capture
+        async with async_session_factory() as session:
+            r = await _lire(session, sid)
+            cv = _dict(r)["couverture"] or {}
+            for c in cv.get("cameras") or []:
+                if c.get("id") == cid:
+                    c["capture"] = nom
+            r.couverture = json.dumps(cv)
+            await session.commit()
+    return {"ok": True, "filename": nom, "quand": quand, "camera_id": cid, "legende": pal["legende"]}
+
+
+# ── t333 (A3) : la previs colorée et nommée ─────────────────────────────────
+def _palette_reponse(instances) -> dict:
+    p = PP.palette(instances)
+    p["table"] = [{k: v for k, v in e.items() if k != "teinte"} | {"teinte": {"fr": e["teinte"]["fr"]["m"],
+                                                                               "en": e["teinte"]["en"]}}
+                  for e in p["table"]]
+    return p
+
+
+@router.get("/{sid}/palette")
+async def palette_lire(sid: str):
+    async with async_session_factory() as session:
+        d = _dict(await _lire(session, sid))
+    return _palette_reponse(d["instances"])
+
+
+@router.post("/{sid}/palette")
+async def palette_calculer(sid: str, body: dict):
+    """La palette de la scène AFFICHÉE ({scene: {instances}}), sinon de la scène enregistrée. Gratuit, rien d'écrit."""
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:
+        d = _dict(await _lire(session, sid))
+    sc = body.get("scene")
+    return _palette_reponse(_instances(sc["instances"]) if isinstance(sc, dict) and "instances" in sc
+                            else d["instances"])
+
+
+async def legende_du_plan(shot_id: str) -> dict | None:
+    """La légende de la previs du plan (la scène du Plateau liée la plus récente) : {prompt, fr, en, scene} ou None.
+    Lue par « Previs → plan » et l'image de production (routes.py) : le prompt proposé NOMME chaque forme."""
+    from sqlalchemy import select
+    if not shot_id:
+        return None
+    async with async_session_factory() as session:
+        r = (await session.execute(select(Scene3D).where(Scene3D.shot_id == shot_id)
+                                   .order_by(Scene3D.updated_at.desc()).limit(1))).scalars().first()
+    if r is None:
+        return None
+    p = PP.palette(_dict(r)["instances"])
+    if not p["prompt"]:
+        return None
+    return {"prompt": p["prompt"], "fr": p["legende"]["fr"], "en": p["legende"]["en"], "scene": r.id,
+            "faisceaux_exclus": [f["id"] for f in p["faisceaux"]]}
+
+
+# ── t338 (A8) : la couverture du plan ───────────────────────────────────────
+def _camera_du_plan(d) -> tuple[dict, str]:
+    if d["keyframes"]:
+        k = d["keyframes"][0]
+        return {"orbit": k["orbit"], "target": k["target"], "fov": k["fov"]}, "premier_keyframe"
+    if d["camera"]:
+        return _camera(d["camera"]), "camera"
+    raise HTTPException(400, "aucune caméra à couvrir : posez la caméra du plan d'abord.")
+
+
+def calculer_couverture(d, body) -> dict:
+    """La couverture (sans écrire) d'une scène lue (`_dict`) : partagée par la route et l'outil de l'agent."""
+    body = body if isinstance(body, dict) else {}
+    if "camera" in body:
+        cam, origine = _camera(body["camera"]), "ecran"
+    else:
+        cam, origine = _camera_du_plan(d)
+    sc = _scene_pour_mesure(d, body.get("scene"))
+    part = body.get("partenaire_id")
+    gp = body.get("gros_plan_id")
+    for k, v in (("partenaire_id", part), ("gros_plan_id", gp)):
+        if v is not None and not isinstance(v, str):
+            raise HTTPException(400, f"{k} : l'identifiant d'une instance.")
+    try:
+        out = CV.couverture(sc, cam, partenaire_id=part, gros_plan_id=gp or None)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    for c in out["cameras"]:
+        c["capture"] = None
+    out["origine"] = origine
+    return out
+
+
+@router.post("/{sid}/couverture")
+async def couverture(sid: str, body: dict):
+    """Plan large, contre-champ (règle des 180°), gros plan depuis la caméra du plan. Gratuit. `enregistrer: true`
+    range les trois caméras dans la scène (les captures précédentes de la couverture sont oubliées)."""
+    body = body if isinstance(body, dict) else {}
+    async with async_session_factory() as session:
+        r = await _lire(session, sid)
+        out = calculer_couverture(_dict(r), body)
+        if body.get("enregistrer") is True:
+            out["date"] = datetime.utcnow().isoformat(timespec="seconds")
+            r.couverture = json.dumps(out)
+            r.updated_at = datetime.utcnow()
+            await session.commit()
+            out["enregistre"] = True
+    return out
+
+
+@router.post("/{sid}/couverture/{cid}/nouveau-plan")
+async def couverture_nouveau_plan(sid: str, cid: str, body: dict):
+    """Une caméra de couverture → un plan NEUF juste après le plan lié (même chapitre, texte, entités, durée), avec sa
+    propre scène du Plateau posée sur cette caméra. Sans `confirmer: true` : l'aperçu seulement, rien n'est écrit."""
+    from app.services.storage import Shot
+    from sqlalchemy import select
+    body = body if isinstance(body, dict) else {}
+    if not _CAM_ID.match(cid or ""):
+        raise HTTPException(404, f"caméra de couverture inconnue : {str(cid)[:20]}.")
+    async with async_session_factory() as session:
+        r = await _lire(session, sid)
+        d = _dict(r)
+        cam = next((c for c in (d["couverture"] or {}).get("cameras") or [] if c.get("id") == cid), None)
+        if cam is None:
+            raise HTTPException(404, f"caméra de couverture inconnue : {cid} — générez la couverture d'abord.")
+        s = await _shot(session, r.shot_id)
+        if s is None:
+            raise HTTPException(409, "cette scène n'est liée à aucun plan du storyboard.")
+        plan = {"idx": s.idx + 1, "shot_type": cam["shot_type"] if cam["shot_type"] in _SHOT_TYPES else s.shot_type,
+                "camera_move": "static, locked-off", "motion_prompt": cam["prompt"][:600],
+                "keyframe_image": cam.get("capture"), "action": s.action or "", "duration_s": s.duration_s,
+                "angle": cid, "nom": cam["nom"]}
+        if body.get("confirmer") is not True:
+            return {"ok": True, "applique": False, "plan": plan}
+        suivants = (await session.execute(select(Shot).where(Shot.chapter_id == s.chapter_id)
+                                          .where(Shot.idx > s.idx))).scalars().all()
+        for x in suivants:
+            x.idx += 1
+        maintenant = datetime.utcnow()
+        neuf = Shot(id=str(uuid4()), chapter_id=s.chapter_id, idx=s.idx + 1, source_text=s.source_text,
+                    action=s.action, entities=s.entities, shot_type=plan["shot_type"], camera_move=plan["camera_move"],
+                    duration_s=s.duration_s, motion_recipe=s.motion_recipe, energy=s.energy,
+                    motion_prompt=plan["motion_prompt"], keyframe_image=plan["keyframe_image"],
+                    created_at=maintenant, updated_at=maintenant)
+        session.add(neuf)
+        c = cam["camera"]
+        scene = Scene3D(id=str(uuid4()), chapter_id=s.chapter_id, shot_id=neuf.id,
+                        nom=f"plan {s.idx + 2} · {cam['nom']}"[:120], aspect=d["aspect"], focale_mm=cam["focale_mm"],
+                        capteur_mm=d["capteur_mm"], instances=json.dumps(d["instances"]), camera=json.dumps(c),
+                        keyframes=json.dumps([{"t": 0.0, "orbit": c["orbit"], "target": c["target"], "fov": c["fov"],
+                                               "easing": "ease-in-out"}]), created_at=maintenant, updated_at=maintenant)
+        session.add(scene)
+        await session.commit()
+        return {"ok": True, "applique": True, "plan": plan, "shot_id": neuf.id, "scene_id": scene.id}
 
 
 @router.post("/{sid}/vers-plan")

@@ -103,8 +103,11 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   (mouvement, caméra) + 1 à 4 style frames (look) ; Seedance 2.5 (sans clip : Veo 3.1). Payant (entrée + sortie
   facturées), catégorie « chapitres ». Clip trop court : étiré ou complété au noir (la boîte dit la durée facturée) ;
   après rendu, dérive mesurée et recalée (« dérive : +2 images, recalée »). → [ALLER:episodes] [GUIDE:chapitres]
+- **Previs colorée et couverture** (t333, t338) : Plateau du plan. Chaque forme prend la couleur de son entité ou de sa « Matière » ; la légende part dans les prompts ; faisceaux jamais capturés. « Générer la couverture » : plan large, contre-champ (règle des 180°), gros plan — gratuit. → [ALLER:episodes]
 - **Revoir un plan rendu** (t337) : carte du plan, « Revue du plan ». Mesures gratuites (dérive, structure, identité ;
-  pas de profondeur), comparateur (O, C, ← →), avis Claude payant sur devis — jamais une garantie. → [ALLER:episodes]
+  profondeur si le plan a ses passes Blender), comparateur (O, C, ← →), avis Claude payant sur devis — jamais une garantie. → [ALLER:episodes]
+- **Passes d'un plan** (t334) : carte du plan, « Passes Blender » : la scène du Plateau rendue par Blender (clay, look,
+  profondeur, normales, masques), gratuit et local ; Blender 4.2+ requis. → [ALLER:episodes]
 - **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles
   payants, devis, brouillon ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:scan]
 - **Filmer l'app, l'habiller, la monter** (t315-t319) : barre du haut, « Filmer l'app » (gratuit, secrets masqués) ;
@@ -138,6 +141,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   → [POINT:photolab.pinceau] [POINT:photolab.recadrage] [GUIDE:photolab]
 - **Appliquer un filtre** : Photolab › menu Filtre. → [POINT:photolab.menu_filtre] [GUIDE:photolab-avance]
 - **Changer de PC** : Réglages › Transfert entre machines (pas d'ancre pour cette section). → [GUIDE:transfert]
+- **Piloter l'app depuis Claude Code** (t345) : Réglages › Serveur MCP, l'activer puis « Copier la commande ». Claude
+  Code lit et chiffre ; tout lancement payant attend votre « Lancer » sur la carte en bas à droite. → [POINT:reglages.mcp]
 - **Se faire aider** : F1 ou « Demander » ouvre ce tiroir (onglets « Demander », « Campagnes », « Veille »,
   « Prospects ») ; la réponse peut montrer un bouton, ouvrir l'écran ou le guide, ou proposer de regarder l'écran
   (accord et coût d'abord). Ce qui est dans le tiroir ne se pointe pas : nomme l'onglet. → [GUIDE:demander]

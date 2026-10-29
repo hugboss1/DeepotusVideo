@@ -43,8 +43,9 @@ def lancer(args, agent="demo"):
 
 print("[1] registre")
 check("4d verifier() sain", B.verifier() == [], B.verifier())
-check("4d nature carte, boîte scan sans agent", ao.OUTILS["calques_illustration"]["nature"] == "carte"
-      and B.boite_de("calques_illustration") == "scan" and B.BOITES["scan"]["agents"] == [])
+check("4d nature carte, boîte scan déclarée par le seul agent mcp (t345), qui ne voit pas cette carte",
+      ao.OUTILS["calques_illustration"]["nature"] == "carte" and B.boite_de("calques_illustration") == "scan"
+      and B.BOITES["scan"]["agents"] == ["mcp"] and "calques_illustration" not in B.outils_pour("mcp"))
 fige = json.loads((_ICI / "agent_definitions_campagnes.json").read_text(encoding="utf-8"))
 check("4e Campagnes inchangé (fixture figée)", B.definitions_pour("campagnes") == fige)
 check("4e refusé hors boîte", lancer({"image": "schema.png"}, agent="campagnes")["ok"] is False)

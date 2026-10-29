@@ -42,6 +42,7 @@ SOURCES: dict[str, str] = {
     "plateau": "Plateau 3D",        # t127 (07/10/2026) : les cadres de début et de fin capturés au Plateau
     "photolab": "Photolab",         # t137 (07/10/2026) : « Enregistrer dans la Bibliothèque » du Photolab (photolab_*)
     "capture": "Capture",           # t315 (28/10/2026) : les enregistrements de l'app (capture_<date>_<id>.webm|mp4)
+    "passe": "Passes Blender",      # t334 (29/10/2026) : passes headless d'un plan (passe_<plan>_<run>_<passe>.png)
     "inconnu": "Inconnu",
 }
 
@@ -59,6 +60,7 @@ _PREFIXES: list[tuple[str, str]] = [
     ("tile_", "tuiles"),            # t113 : tile_<id>_atlas.png
     ("plateau_", "plateau"),        # t127 : plateau_<scène>_debut|fin_<n>.png
     ("photolab_", "photolab"),      # t137 : photolab_<AAAAMMJJ-HHMMSS>_<nom>.png|jpg
+    ("passe_", "passe"),            # t334 : passe_<plan>_<run>_<clay|look|profondeur|normales|masques>.png
     ("gen_", "generation"),
 ]
 
@@ -70,7 +72,7 @@ _PREFIXES: list[tuple[str, str]] = [
 # n'est JAMAIS écrasée : seules les lignes à NULL reçoivent ce défaut.
 SOURCES_PROPRES = {"generation", "retouche", "matieres", "atelier", "cardforge",
                    "vectorlab", "sprites", "assets3d", "templates", "tuiles", "plateau",
-                   "photolab", "capture"}
+                   "photolab", "capture", "passe"}
 LICENCE_PROPRE, LICENCE_INCONNUE = "propriétaire", "inconnue"
 
 

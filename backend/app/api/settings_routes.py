@@ -369,6 +369,7 @@ _RUBRIQUES = {
     "paths": "Paths", "news": "News", "appearance": "Appearance", "pricing": "Pricing & budget",
     "transfert": "Transfert entre machines",
     "espaces": "Espaces",          # t202 : onglet posé par le maillon de queue dzespace
+    "mcp": "Serveur MCP",          # t345 : onglet posé par le maillon de queue dzmcp (panneau frontend/shared/dz-mcp.js)
 }
 _INDEX_FIXE = [
     ("diag", "Diagnostic", "diagnostic santé état disque poids journal erreurs version soldes crédits test des clés"),
@@ -399,6 +400,9 @@ _INDEX_FIXE = [
     ("pricing", "Dépenses du mois", "dépenses réel estimé facturé moteur écran tableau rapproché"),
     ("transfert", "Transfert entre machines", "transfert exporter importer sauvegarde copie autre machine empreintes "
                                               "intégrité sha256 lots"),
+    # t345 (29/10/2026) : le serveur MCP local (Claude Code pilote l'app : lecture, devis, lancement accepté ici)
+    ("mcp", "Serveur MCP", "mcp claude code agent serveur brancher commande claude mcp add outils lecture devis "
+                           "lancement demande journal des appels"),
 ]
 _CLES_ECRAN = {
     "keys": ("FAL_KEY", "HEYGEN_API_KEY", "ELEVENLABS_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY",

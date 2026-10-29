@@ -578,6 +578,12 @@ app.include_router(mouvement_router, prefix="/api/etabli/mouvement")
 # t346 (29/10/2026) : /api/recettes — exporter la recette (rendu, plan, asset) en skill ZIP + PDF de fabrication, gratuit, local seulement
 from app.api.recette_export_routes import router as recette_export_router
 app.include_router(recette_export_router, prefix="/api/recettes")
+# t334 (29/10/2026) : /api/passes — passes headless d'un plan par Blender (clay, look, profondeur, normales, masques), gratuit, local
+from app.api.passes_routes import router as passes_router
+app.include_router(passes_router, prefix="/api/passes")
+# t345 (29/10/2026) : /api/mcp — le serveur MCP local (Claude Code) : lecture, devis à jeton, lancement accepté dans l'écran ; local seulement
+from app.api.mcp_routes import router as mcp_router
+app.include_router(mcp_router, prefix="/api/mcp")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
