@@ -334,11 +334,23 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzecartes(bundle: str) -> str:
+    """Le bundle d'avant le résumé des écartés de News (maillon de queue patch_bundle_dzecartes, t375, 29/10/2026,
+    posé APRÈS dzcurseur : c'est la queue de la chaîne : la puce « N écartés ce jour » montre un résumé au survol et
+    la liste par « Tout afficher ») : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu
+    tel quel."""
+    import patch_bundle_dzecartes as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzcurseur(bundle: str) -> str:
     """Le bundle d'avant le curseur de base à la charte (maillon de queue patch_bundle_dzcurseur, t373, 29/10/2026,
     posé APRÈS dzmcp : c'est la queue de la chaîne : `Oe` rend un input visible au lieu de sa pastille ronde) : sa
     paire défaite, lue dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzcurseur as _m
+    bundle = avant_dzecartes(bundle)             # 29/10 (t375) : le maillon posé APRÈS dzcurseur, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

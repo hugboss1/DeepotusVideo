@@ -166,7 +166,7 @@ import patch_bundle_dzcurseur as M
 import _i18n_l1_aide as AIDE
 avant = AIDE.avant_dzcurseur(bundle)
 check("4.6 l'inverse avant_dzcurseur défait le maillon, et le rejouer redonne le bundle à l'octet",
-      M.MARKER not in avant and M.appliquer(avant) == bundle)
+      M.MARKER not in avant and M.appliquer(avant) == AIDE.avant_dzecartes(bundle))   # t375 : dzecartes suit dzcurseur
 src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
 _mcp = src_aide[src_aide.index("def avant_dzmcp("):]
 _mcp = _mcp[:_mcp.index("\ndef ", 5)]
