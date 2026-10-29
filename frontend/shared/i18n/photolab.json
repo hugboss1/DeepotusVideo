@@ -298,6 +298,7 @@
   "photolab.histo.fill": {"fr": "Remplir", "en": "Fill"},
   "photolab.histo.clear": {"fr": "Effacer", "en": "Clear"},
   "photolab.rail.ajustements": {"fr": "Ajustements", "en": "Adjustments"},
+  "photolab.docks.plus": {"fr": "Tous les onglets du groupe", "en": "All tabs in this group"},
   "photolab.rendu.echec": {"fr": "L'aperçu du moteur n'a pas pu être affiché.", "en": "The engine preview could not be displayed."},
   "photolab.recadrage.aide": {"fr": "Trace un cadre (ou fais une sélection) puis appuie sur Entrée pour recadrer.", "en": "Draw a frame (or make a selection), then press Enter to crop."},
   "photolab.reglage.apercu": {"fr": "Aperçu", "en": "Preview"},

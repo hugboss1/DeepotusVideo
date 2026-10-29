@@ -84,15 +84,50 @@ button:disabled { opacity: .4; cursor: default; }
 #grpProprietes .groupe-corps { flex: 0 1 auto; }
 .groupe.grand { flex: 1; border-bottom: 0; }
 .groupe-tete {
-  height: 26px; flex: none; display: flex; align-items: stretch; gap: 2px; padding: 0 6px;
+  height: 26px; flex: none; display: flex; flex-wrap: nowrap; align-items: stretch; gap: 0; padding: 0;
   background: var(--bg-panel-3); border-bottom: 1px solid var(--stroke);
 }
 .groupe-titre { align-self: center; color: var(--ink-strong); font-weight: 600; letter-spacing: .02em; }
 .groupe-tete .onglet {
-  background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 0 8px; color: var(--ink-muted);
+  background: transparent; border: 0; border-bottom: 2px solid transparent; padding: 0 var(--pad-2); color: var(--ink-muted);
 }
 .groupe-tete .onglet.actif { color: var(--ink-strong); border-bottom-color: var(--accent); }
-.groupe-corps { flex: 1; min-height: 0; overflow: auto; padding: 8px; }
+.groupe-corps { flex: 1; min-height: 0; overflow: auto; padding: var(--pad-2); }
+
+/* ---- t371 : docks lisibles. Les onglets tiennent sur UNE ligne, quel que soit le groupe et la langue : chaque onglet
+   garde sa largeur (une ellipse au-delà de 132 px, libellé complet en bulle posée par mod-docks.js), l'en-tête défile
+   à l'horizontale SANS ascenseur (molette, onglet actif ramené en vue) et le bouton « ⋯ », collé à droite, liste tous
+   les onglets dès que la ligne déborde. La marge de l'onglet (--pad-2) aligne son texte sur la marge du corps. ---- */
+.groupe-tete { position: relative; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.groupe-tete::-webkit-scrollbar { display: none; }
+.groupe-tete .onglet { flex: 0 0 auto; max-width: 132px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.groupe-tete .onglet:hover { color: var(--ink-strong); }
+.groupe-plus {
+  position: sticky; right: 0; flex: none; width: 24px; margin-left: auto; padding: 0; display: inline-flex;
+  align-items: center; justify-content: center; background: var(--bg-panel-3); border: 0; border-left: 1px solid var(--stroke);
+  color: var(--ink-soft);
+}
+.groupe-plus:hover, .groupe-plus[aria-expanded="true"] { color: var(--ink-strong); background: var(--bg-panel-2); }
+.groupe-tete:not(.deborde) .groupe-plus { display: none; }
+.groupe-menu {
+  position: fixed; z-index: 60; min-width: 160px; padding: var(--pad-1) 0; display: flex; flex-direction: column;
+  background: var(--bg-panel); border: 1px solid var(--stroke-strong); border-radius: var(--radius);
+  box-shadow: var(--shadow-1);
+}
+.groupe-menu button {
+  padding: var(--pad-1) var(--pad-2); background: transparent; border: 0; border-left: 2px solid transparent;
+  color: var(--ink); text-align: left; white-space: nowrap;
+}
+.groupe-menu button:hover, .groupe-menu button:focus-visible { background: var(--bg-panel-2); color: var(--ink-strong); outline: none; }
+.groupe-menu button.actif { color: var(--ink-strong); border-left-color: var(--accent); }
+/* t371 : plus de carré blanc de redimensionnement. Le coin entre deux ascenseurs prend le fond du panneau, et la
+   poignée d'une zone de texte (resize: vertical) devient la poignée de la charte : deux traits en biais, --stroke-strong,
+   angles vifs. */
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-resizer {
+  background: linear-gradient(135deg, transparent 0 55%, var(--stroke-strong) 55% 62%, transparent 62% 72%,
+    var(--stroke-strong) 72% 79%, transparent 79%);
+}
 .groupe-corps[hidden] { display: none; }
 
 /* ---- écran d'accueil ---- */
@@ -299,7 +334,7 @@ button:disabled { opacity: .4; cursor: default; }
 .groupe[hidden] { display: none; }
 #corpsCalques { display: flex; flex-direction: column; padding: 0; }
 #corpsCalques[hidden] { display: none; }
-.cq-tete { flex: none; display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--stroke); }
+.cq-tete { flex: none; display: flex; flex-direction: column; gap: 4px; padding: var(--pad-2); border-bottom: 1px solid var(--stroke); }
 .cq-l { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .cq-filtre, .cq-fusion, .cq-nombre, .cq-renommer, .co-hex {
   height: 22px; min-width: 0; padding: 0 4px; background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 3px;
@@ -524,7 +559,6 @@ input[type=range]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--
 /* ---- t155 : groupe Pinceaux (Pinceaux │ Paramètres de pinceau │ Source de duplication │ Outils prédéfinis) ---- */
 #grpPinceaux { flex: 0 1 auto; min-height: 120px; max-height: 46%; }
 #grpPinceaux .groupe-corps { flex: 0 1 auto; }
-#grpPinceaux .groupe-tete { overflow-x: auto; }
 .pi-recherche { width: 100%; height: 24px; margin-bottom: 6px; padding: 0 6px; background: var(--bg-panel-2); color: var(--ink-strong); border: 1px solid var(--stroke); border-radius: 3px; }
 .pi-liste { list-style: none; margin: 0; padding: 0; }
 .pi-ligne { display: flex; align-items: center; }
@@ -588,7 +622,6 @@ body.ecran-plein #panneaux, body.ecran-plein #statut, body.ecran-plein .espace-b
    le choix reste dans Fenêtre › Espace de travail */
 @media (max-width: 900px) { .espace-boite { display: none; } }
 /* ---- t153 : Nuancier, Dégradés, Motifs (groupe Couleur), Compositions, Couches, Histogramme et Infos ---- */
-#grpCouleur .groupe-tete, #grpCalques .groupe-tete, #grpProprietes .groupe-tete, #grpInfos .groupe-tete { overflow-x: auto; }
 #grpInfos { flex: 0 1 auto; min-height: 120px; max-height: 40%; }
 #grpInfos .groupe-corps { flex: 0 1 auto; }
 .pr-recherche { width: 100%; height: 24px; margin-bottom: 6px; padding: 0 6px; background: var(--bg-panel-2); color: var(--ink-strong); border: 1px solid var(--stroke); border-radius: 3px; }
@@ -652,8 +685,6 @@ body.ecran-plein #panneaux, body.ecran-plein #statut, body.ecran-plein .espace-b
 .cmp-case { display: block; margin: 2px 0; color: var(--ink-strong); }
 /* t153 : champs et graphe à 100 % de largeur, bordure comprise (sinon le corps du groupe défile à l'horizontale) */
 .pr-recherche, .pr-courant, .hi-graphe, .pl-nom, .cmp-champ input, .cmp-champ textarea { box-sizing: border-box; }
-/* t153 : quatre onglets (Calques | Couches | Historique | Navigateur) dans 278 px : marges resserrées */
-#grpCalques .groupe-tete .onglet { padding: 0 5px; }
 /* ---- t154 : transformation manuelle (cadre, poignées, point de référence, barre d'options) ---- */
 #fourmis .transfo-cadre { stroke: var(--accent); stroke-width: 1; }
 #fourmis .transfo-poignee { fill: var(--ink-strong); stroke: var(--accent); stroke-width: 1; }
@@ -671,7 +702,6 @@ body.ecran-plein #panneaux, body.ecran-plein #statut, body.ecran-plein .espace-b
 
 /* ---- t156 : texte, formes, plume, tracés, recherche ---- */
 #grpTexte { flex: 0 1 auto; min-height: 140px; max-height: 48%; }
-#grpTexte .groupe-tete { overflow-x: auto; }
 #grpTexte .groupe-corps { flex: 0 1 auto; }
 .tx-editeur { position: absolute; z-index: 30; box-sizing: border-box; min-width: 40px; padding: 2px 4px; margin: 0; resize: none; overflow: hidden;
   background: color-mix(in srgb, var(--bg-base) 70%, transparent); border: 1px dashed var(--accent); outline: none; white-space: pre; }
