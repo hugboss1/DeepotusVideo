@@ -12634,5 +12634,89 @@
  "fal.ai : {e}": {
   "fr": "fal.ai : {e}",
   "en": "fal.ai: {e}"
+ },
+ "image : le nom d'une image de la Bibliothèque est attendu": {
+  "fr": "image : le nom d'une image de la Bibliothèque est attendu",
+  "en": "image: the name of a Library image is expected"
+ },
+ "image introuvable dans la Bibliothèque : {brut}": {
+  "fr": "image introuvable dans la Bibliothèque : {brut}",
+  "en": "image not found in the Library: {brut}"
+ },
+ "modèle inconnu : {v}": {
+  "fr": "modèle inconnu : {v}",
+  "en": "unknown model: {v}"
+ },
+ "image illisible : PNG, JPEG ou WebP attendu": {
+  "fr": "image illisible : PNG, JPEG ou WebP attendu",
+  "en": "unreadable image: PNG, JPEG or WebP expected"
+ },
+ "Clé fal absente — ajoute-la dans les Réglages : la décomposition IA passe par fal.": {
+  "fr": "Clé fal absente — ajoute-la dans les Réglages : la décomposition IA passe par fal.",
+  "en": "fal key missing — add it in Settings: AI decomposition goes through fal."
+ },
+ "impossible d'allouer un identifiant de décor": {
+  "fr": "impossible d'allouer un identifiant de décor",
+  "en": "could not allocate a backdrop id"
+ },
+ "calque introuvable : {v}": {
+  "fr": "calque introuvable : {v}",
+  "en": "layer not found: {v}"
+ },
+ "nombre de calques : {N_MIN} ou {N_MAX}": {
+  "fr": "nombre de calques : {N_MIN} ou {N_MAX}",
+  "en": "number of layers: {N_MIN} or {N_MAX}"
+ },
+ "modèle inconnu : {modele}": {
+  "fr": "modèle inconnu : {modele}",
+  "en": "unknown model: {modele}"
+ },
+ "image de {w} × {h} px : de {COTE_MIN} à {COTE_MAX} px de côté": {
+  "fr": "image de {w} × {h} px : de {COTE_MIN} à {COTE_MAX} px de côté",
+  "en": "{w} × {h} px image: each side must be {COTE_MIN} to {COTE_MAX} px"
+ },
+ "réponse de fal illisible": {
+  "fr": "réponse de fal illisible",
+  "en": "unreadable fal response"
+ },
+ "le modèle n'a rendu aucun calque": {
+  "fr": "le modèle n'a rendu aucun calque",
+  "en": "the model returned no layer"
+ },
+ "décor inconnu : {v}": {
+  "fr": "décor inconnu : {v}",
+  "en": "unknown backdrop: {v}"
+ },
+ "décor introuvable : {pid}": {
+  "fr": "décor introuvable : {pid}",
+  "en": "backdrop not found: {pid}"
+ },
+ "format : godot ou png": {
+  "fr": "format : godot ou png",
+  "en": "format: godot or png"
+ },
+ "nombre de calques : entier attendu ({N_MIN} ou {N_MAX})": {
+  "fr": "nombre de calques : entier attendu ({N_MIN} ou {N_MAX})",
+  "en": "number of layers: integer expected ({N_MIN} or {N_MAX})"
+ },
+ "Seedream Layerize : de 512 × 512 à 6000 × 6000 px, rapport 16 au plus": {
+  "fr": "Seedream Layerize : de 512 × 512 à 6000 × 6000 px, rapport 16 au plus",
+  "en": "Seedream Layerize: 512 × 512 to 6000 × 6000 px, aspect ratio 16 at most"
+ },
+ "calques : liste attendue": {
+  "fr": "calques : liste attendue",
+  "en": "layers: list expected"
+ },
+ "calques : chaque calque une fois, ni plus ni moins": {
+  "fr": "calques : chaque calque une fois, ni plus ni moins",
+  "en": "layers: each layer exactly once"
+ },
+ "facteur : de {FACTEUR_MIN} à {FACTEUR_MAX}": {
+  "fr": "facteur : de {FACTEUR_MIN} à {FACTEUR_MAX}",
+  "en": "factor: from {FACTEUR_MIN} to {FACTEUR_MAX}"
+ },
+ "facteur : nombre attendu": {
+  "fr": "facteur : nombre attendu",
+  "en": "factor: number expected"
  }
 }

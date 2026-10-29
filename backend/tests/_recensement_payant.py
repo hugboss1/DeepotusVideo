@@ -28,6 +28,7 @@ MODULES = {
     "scan": RACINE / "api" / "scan_routes.py",   # t312 : le secours Claude vision de la boîte Scan (Anthropic)
     "inspiration": RACINE / "api" / "inspiration_routes.py",   # t313 : matière, angles et rédaction d'une inspiration (Anthropic)
     "schema": RACINE / "api" / "schema_routes.py",   # t314 : le détourage fal d'un schéma (calques du Vectorlab)
+    "parallaxe": RACINE / "api" / "parallaxe_routes.py",   # t341 : décor en calques de parallaxe (Qwen-Image-Layered / Seedream Layerize, fal)
 }
 
 PUITS = {
@@ -71,6 +72,7 @@ PUITS = {
     "rigger_asset3d",   # T104 : rig + animations Meshy d'un job fal
     "preparer_vues", "rejouer_vue", "detourer_vue", "tirer_vues",   # T106 : les vues avant le tir (Seedream, rembg, moteur)
     "segmenter_par_ia",   # t342 : Tripo Segmentation (fal) — les pièces mobiles soudées
+    "decomposer_par_ia",   # t341 : décor en calques de parallaxe (fal) — POST /api/parallaxe/decouper
     "convertir_par_meshy",   # T105 : fbx/usdz/blend par Meshy convert (1 crédit par tâche)
     "_run_manuscript_job", "_run_adapt_job", "_run_bible_model3d",
     "ouvrir_session_direct",   # t161 : le jeton client Decart (le Direct, facturé à la seconde)
