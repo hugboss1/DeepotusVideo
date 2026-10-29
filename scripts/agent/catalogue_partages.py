@@ -36,6 +36,7 @@ PARTAGES = {
                                         "prospects.opposition.identifiant"),
     # t307 (25/10/2026) : la boîte des canaux d'un projet ; son « Annuler » (commun.action.annuler) n'est pas à elle
     "frontend/shared/dz-projet-canaux.js": ("projets.canaux.",),
+    "frontend/shared/dz-previs-plan.js": ("previs.export.",),          # t346 : « Exporter la recette du plan »
     # t308 (26/10/2026) : l'assistant de création d'espace ; ses champs et boutons repris (Annuler, Précédent, Suivant,
     # nom, couleur, kit, Connecter) ont déjà leur fiche ailleurs
     "frontend/shared/dz-espace-assistant.js": ("espaces.assistant.",),

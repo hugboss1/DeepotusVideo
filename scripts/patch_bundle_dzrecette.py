@@ -7,7 +7,8 @@ Trois paires, toutes HORS des blocs de couche (MONTAGE, SONVFX… ne sont jamais
      __dzRecetteLire / __dzRecetteQuick / __dzRecetteStudio / DzRecetteRendu (voir l'en-tête de la source) ;
   R2 « Envoyer vers » d'un rendu : « Quick — reprendre la recette » et « Studio — refaire la génération », après
      « Studio — nouveau graphe » (qui garde son rôle : re-rendre le clip) ;
-  R3 la fiche modale de la Bibliothèque : le panneau DzRecetteRendu après les images semblables, avant le média.
+  R3 la fiche modale de la Bibliothèque : le panneau DzRecetteRendu après les images semblables, avant le média ;
+     t346 (29/10/2026) : suivi du bouton DzRecetteExport (« Exporter la recette » : skill ZIP + PDF de fabrication).
 Le serveur donne la recette (GET /api/jobs/{id}/recette, services/recette_rendu.py) ; aucun coût n'est repris.
 AUCUN `x.useState(` ajouté (hooks par alias : 731 inchangé) ; v2.8.0 ×4, DzTracks 181, confirmations ×30 intouchés.
 Textes : clés dzT `recette.*` dans frontend/shared/i18n/recette.json (FR/EN).
@@ -75,7 +76,8 @@ PAIRES = [
     # R3 : le panneau de la fiche, après les « images semblables » et avant le média (l'enchaînement DzLignee →
     # DzFiche → DzCommentaires → DzSemblables est épinglé par les bancs test_library_*_ecran)
     ('r.jsx(DzSemblables,{m:m,liste:l,ouvrir:y}),m.kind==="sprite2d"',
-     'r.jsx(DzSemblables,{m:m,liste:l,ouvrir:y}),r.jsx(DzRecetteRendu,{m:m,fermer:()=>y(null)}),m.kind==="sprite2d"'),
+     'r.jsx(DzSemblables,{m:m,liste:l,ouvrir:y}),r.jsx(DzRecetteRendu,{m:m,fermer:()=>y(null)}),'
+     'r.jsx(DzRecetteExport,{m:m}),m.kind==="sprite2d"'),
 ]
 
 

@@ -187,7 +187,7 @@ check("D5 CRLF partout", RAW.count(b"\r\n") > 15000 and RAW.count(b"\n") == RAW.
 check("D6 Envoyer vers : Quick et Studio refaire pour un rendu",
       'lbl:dzT("recette.envoyer.quick")' in B and 'lbl:dzT("recette.envoyer.studio")' in B
       and "__dzRecetteQuick(m.jobId,!1)" in B and "__dzRecetteStudio(m.jobId,!1)" in B)
-check("D7 la fiche d'un rendu porte le panneau de recette", "r.jsx(DzSemblables,{m:m,liste:l,ouvrir:y}),r.jsx(DzRecetteRendu,{m:m,fermer:()=>y(null)}),m.kind===" in B)
+check("D7 la fiche d'un rendu porte le panneau de recette", "r.jsx(DzSemblables,{m:m,liste:l,ouvrir:y}),r.jsx(DzRecetteRendu,{m:m,fermer:()=>y(null)}),r.jsx(DzRecetteExport,{m:m}),m.kind===" in B)   # t346 : + le bouton « Exporter la recette »
 check("D8 la recette unifiée est lue par /recette", 'fetch("/api/jobs/"+encodeURIComponent(id)+"/recette")' in B)
 check("D9 graine neuve par défaut, reprise sur demande", "garder?rc.seed:__dzGraineNeuve()" in B)
 check("D10 le graphe Studio : Image → Seedance, Prompt → Seedance, Seedance → Render",

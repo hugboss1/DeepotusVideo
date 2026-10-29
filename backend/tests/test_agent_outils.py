@@ -103,6 +103,7 @@ DIX = {"chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur",
        "reponses_lire", "relance_proposer",   # t358
        "entreprises_carte",   # t365 : leads Google Maps (Apify)
        "veille_sources", "veille_apify",   # t366 : veille enrichie (Apify)
+       "lire_recette",   # t346 : la recette exportable (boîte « recette »)
        "signaux_reddit",   # t367
        "concurrents_pages", "concurrents_pubs", "concurrents_serp"}   # t368
 
@@ -140,10 +141,10 @@ async def main():
     from app.services import agent_boites as _B
     check("test_seulement_dix_outils : OUTILS", set(ao.OUTILS) - set(_B.BOITES["whatsapp"]["outils"])
           - set(_B.BOITES["scan"]["outils"]) - set(_B.BOITES["capture"]["outils"])
-          - set(_B.BOITES["assets3d"]["outils"]) == DIX   # t319 : boîte « capture » ; t342 : boîte « assets3d »
+          - set(_B.BOITES["assets3d"]["outils"]) - set(_B.BOITES["chapitres"]["outils"]) == DIX   # t319 : boîte « capture » ; t342 : boîte « assets3d » ; t337 : boîte « chapitres »
           and set(_B.outils_pour("campagnes")) == DIX, str(sorted(ao.OUTILS)))
     defs = ao.definitions()
-    check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 28)   # t365 : + entreprises_carte ; t366 : + veille_sources, veille_apify
+    check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 29)   # t365 : + entreprises_carte ; t366 : + veille_sources, veille_apify
     check("definitions : forme de l'API", all(set(d) == {"name", "description", "input_schema"}
                                               and d["input_schema"].get("type") == "object" for d in defs))
     check("OUTILS : nature connue, fn appelable", all(o["nature"] in ("lecture", "ecriture", "carte")
