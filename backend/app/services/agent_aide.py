@@ -29,7 +29,7 @@ VUES = ("quick", "studio", "episodes", "sonvfx", "montage", "scheduler", "templa
 # les sections des Réglages que l'écran sait ouvrir (`dzReglagesEcoute` du bundle ; settings_routes._RUBRIQUES en a une
 # de plus, « transfert », que l'écran n'ouvre pas par section)
 SECTIONS_REGLAGES = ("diag", "coffre", "appareils", "keys", "accounts", "personas", "branding", "pack", "defaults",
-                     "paths", "news", "appearance", "pricing", "espaces")
+                     "paths", "news", "appearance", "pricing", "espaces", "mcp")
 
 MAX_QUESTION = 2000
 MAX_HISTORIQUE = 10
