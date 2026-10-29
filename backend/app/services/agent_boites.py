@@ -43,6 +43,13 @@ BOITES: dict[str, dict] = {
         "agents": ["whatsapp"],
         "mobile": False,
     },
+    # t346 : lire la recette exportable d'un rendu, d'un plan ou d'un asset (lecture, gratuite)
+    "recette": {
+        "libelle": "agent.boites.recette",
+        "outils": ["lire_recette"],
+        "agents": ["campagnes"],
+        "mobile": False,
+    },
     # t312 : lire le texte d'une image de la Bibliothèque ; aucun agent ne la déclare encore (§11 bis)
     # t313 : + l'inspiration vers un contenu neuf (angles_inspiration en lecture, deviser_contenu_neuf en carte)
     # t314 : + calques_illustration (carte : schéma -> calques nommés du Vectorlab, devis du détourage)

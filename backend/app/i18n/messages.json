@@ -134,6 +134,8 @@
   "plan.video.debut_introuvable": {"fr": "Image de départ introuvable : {nom}", "en": "Start image not found: {nom}"},
   "plan.video.fin_introuvable": {"fr": "Image de fin introuvable : {nom}", "en": "End image not found: {nom}"},
   "plan.video.mouvement_requis": {"fr": "Décrivez le mouvement du plan (prompt de mouvement ou action) avant sa vidéo.", "en": "Describe the shot's motion (motion prompt or action) before its video."},
+  "recette_export.refus": {"fr": "Export de la recette refusé : {detail}", "en": "Recipe export refused: {detail}"},
+  "recette_export.introuvable": {"fr": "Rien à exporter : {type} « {id} » introuvable.", "en": "Nothing to export: {type} \"{id}\" not found."},
   "previs.modele_inconnu": {"fr": "Modèle « {modele} » inconnu pour Previs → plan (ids : {ids}).", "en": "Unknown model \"{modele}\" for Previs → shot (ids: {ids})."},
   "previs.prix_non_publie": {"fr": "{modele} : prix non publié par fal — aucun tir sans devis.", "en": "{modele}: price not published by fal — no run without a quote."},
   "previs.clip_requis": {"fr": "Choisissez le clip de previs (@Video1) : un rendu de la Bibliothèque ou une vidéo importée.", "en": "Choose the previs clip (@Video1): a Library render or an imported video."},

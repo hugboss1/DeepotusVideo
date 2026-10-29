@@ -13503,7 +13503,7 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
                               image_filename=frames[0].name, final_prompt=calc["prompt"], video_model=mid,
                               aspect_ratio="9:16", duration_s=int(round(calc["secondes_sortie"] or 0)) or None,
                               provider="previs", current_step="Previs → plan",
-                              cost_meta=json.dumps({"usd": calc["usd"], "kind": "video_refs", "modele": mid,
+                              cost_meta=json.dumps({"usd": calc["usd"], "kind": "video_refs", "modele": mid, "plan": shot_id,
                                                     "conform": conf})))
         s.video = job_id
         s.updated_at = datetime.utcnow()

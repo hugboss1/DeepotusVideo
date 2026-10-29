@@ -204,6 +204,12 @@
     sc.appendChild(E.aideRecalage);
     E.dernier = el("div", { style: S.note, hidden: "", "data-dz-previs": "recalage-dernier" });
     sc.appendChild(E.dernier);
+    /* t346 : la recette du plan (croquis, image, previs, ratés, coûts) exportée en skill ZIP + PDF, gratuitement */
+    E.export = el("a", { "data-dz-previs": "export", download: "", title: T("previs.export.aide"),
+      href: "/api/recettes/export?type=plan&id=" + encodeURIComponent(E.shot.id) + "&lang=" + langue(),
+      style: S.note + ";display:inline-block;margin-top:6px;color:var(--accent,#f0b429);text-decoration:underline;cursor:pointer" },
+      T("previs.export.lien"));
+    sc.appendChild(E.export);
 
     var sf = section(E, T("previs.frames.titre", { max: FRAMES_MAX }), T("previs.frames.aide"));
     E.grilleFrames = el("div", { style: S.grille, "data-dz-previs": "frames" });
