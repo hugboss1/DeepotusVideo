@@ -106,8 +106,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Previs colorée et couverture** (t333, t338) : Plateau du plan. Chaque forme prend la couleur de son entité ou de sa « Matière » ; la légende part dans les prompts ; faisceaux jamais capturés. « Générer la couverture » : plan large, contre-champ (règle des 180°), gros plan — gratuit. → [ALLER:episodes]
 - **Revoir un plan rendu** (t337) : carte du plan, « Revue du plan ». Mesures gratuites (dérive, structure, identité ;
   profondeur si le plan a ses passes Blender), comparateur (O, C, ← →), avis Claude payant sur devis — jamais une garantie. → [ALLER:episodes]
-- **Passes d'un plan** (t334) : carte du plan, « Passes Blender » : la scène du Plateau rendue par Blender (clay, look,
-  profondeur, normales, masques), gratuit et local ; Blender 4.2+ requis. → [ALLER:episodes]
+- **Passes d'un plan** (t334, t331) : carte du plan, « Passes Blender » : clay, look, profondeur, normales, masques
+  (gratuit, Blender 4.2+). « Blender ouvert » : « Envoyer vers Blender » (caméra, lumière, blocking), « Regarder la scène » ; gratuit, add-on MCP requis. → [ALLER:episodes]
 - **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles
   payants, devis, brouillon ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:scan]
 - **Filmer l'app, l'habiller, la monter** (t315-t319) : barre du haut, « Filmer l'app » (gratuit, secrets masqués) ;

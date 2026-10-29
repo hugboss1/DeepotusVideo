@@ -141,6 +141,9 @@ DEFAULTS = {
     # dite ; 40 unités d'après l'exemple de la doc Tripo (credits_consumed) : une ESTIMATION, rapprochée par les plafonds
     "tripo_segment_usd": 0.40,
     "uthana_v2m_usd_s": 0.05,   # t343 (29/10/2026) : Uthana video-to-motion, 0,05 $ / s de vidéo (uthana.com/pricing)
+    # t331 (29/10/2026) : generate_3d de mcp-for-blender (pont Scène Blender), payé par les clés ou l'abonnement
+    # de l'add-on Blender ; ESTIMÉ au tarif fal des mêmes moteurs, le plus haut pour « auto » (moteur inconnu)
+    "blender3d_usd": {"tripo": 0.30, "hunyuan3d": 0.48, "hyper3d": 0.40, "meshy": 0.40, "auto": 0.48},
     # t341 : décor en calques de parallaxe (Tile Lab). Pages fal relues le 29/10/2026 :
     # fal-ai/qwen-image-layered « $0.05 per image » — la page ne dit pas si l'image est la requête ou un calque :
     # HYPOTHÈSE PRUDENTE, chaque calque rendu compte pour une image ;
@@ -1166,6 +1169,13 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         s = math.ceil(float(op.get("secondes") or 0))
         lines.append(_line("uthana", "Vidéo → mouvement (Uthana)", s, "s",
                            s * float(p.get("uthana_v2m_usd_s", DEFAULTS["uthana_v2m_usd_s"]))))
+    elif kind == "blender_3d":
+        # t331 : un modèle généré DANS Blender (generate_3d) ; estimé, le réel est facturé par le fournisseur de l'add-on
+        perso = p.get("blender3d_usd")
+        taux = dict(DEFAULTS["blender3d_usd"], **(perso if isinstance(perso, dict) else {}))
+        moteur = str(op.get("engine") or "auto").lower()
+        lines.append(_line("blender", f"Modèle 3D dans Blender ({moteur})", 1, "gen",
+                           float(taux.get(moteur, taux["auto"]))))
     elif kind == "asset3d_segment":
         # t342 : segmentation IA en pièces mobiles (Tripo sur fal) ; la voie locale (îlots) est gratuite
         lines.append(_line("fal", "Segmentation en pièces (Tripo)", 1, "gen",

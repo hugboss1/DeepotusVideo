@@ -30,6 +30,7 @@ MODULES = {
     "schema": RACINE / "api" / "schema_routes.py",   # t314 : le détourage fal d'un schéma (calques du Vectorlab)
     "comparatif3d": RACINE / "api" / "comparatif3d_routes.py",   # t344 : N moteurs image → 3D en un clic (fal)
     "mouvement": RACINE / "api" / "mouvement_routes.py",   # t343 : vidéo → mouvement sur le rig (Uthana)
+    "blender": RACINE / "api" / "blender_routes.py",   # t331 : generate_3d de mcp-for-blender (clés ou abonnement de l'add-on)
     "parallaxe": RACINE / "api" / "parallaxe_routes.py",   # t341 : décor en calques de parallaxe (Qwen-Image-Layered / Seedream Layerize, fal)
 }
 
@@ -77,6 +78,7 @@ PUITS = {
     "preparer_vues", "rejouer_vue", "detourer_vue", "tirer_vues",   # T106 : les vues avant le tir (Seedream, rembg, moteur)
     "segmenter_par_ia",   # t342 : Tripo Segmentation (fal) — les pièces mobiles soudées
     "decomposer_par_ia",   # t341 : décor en calques de parallaxe (fal) — POST /api/parallaxe/decouper
+    "generer_3d",   # t331 : generate_3d dans le Blender ouvert (blender_mcp.generer_3d) — POST /api/blender/generer
     "convertir_par_meshy",   # T105 : fbx/usdz/blend par Meshy convert (1 crédit par tâche)
     "_run_manuscript_job", "_run_adapt_job", "_run_bible_model3d",
     "ouvrir_session_direct",   # t161 : le jeton client Decart (le Direct, facturé à la seconde)

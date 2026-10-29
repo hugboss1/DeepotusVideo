@@ -1965,6 +1965,37 @@ async def mouvement_lire(ctx: Ctx, job: str = "", version: int = 1) -> dict:
                  "sources": sources, "video": video, "ou": "Établi › Rig › Mouvement"})
 
 
+# ---- t331 (29/10/2026, A1 du lot Scenario) : le Blender OUVERT de l'utilisateur, en lecture (boîte « blender ») ----------
+# Par le pont stdio de services/blender_mcp (liste blanche) : get_scene_info et look seulement. Rien n'est posé, importé ni
+# généré ici — « Envoyer vers Blender », les imports et generate_3d restent des clics de l'utilisateur (boîte du plan).
+def _refus_blender(e) -> "_Refus":
+    from app import i18n
+    return _Refus(i18n.msg(e.cle, "fr", **e.valeurs))
+
+
+async def blender_scene(ctx: Ctx, filtre: str = "") -> dict:
+    from app.services import blender_mcp as BM
+    try:
+        d = await asyncio.to_thread(BM.scene, str(filtre or "")[:120], 60)
+    except BM.RefusBlender as e:
+        raise _refus_blender(e) from None
+    return _res(True, f"scène Blender : {len(d['objets'])} objet(s) listé(s) — rien n'est modifié",
+                {"objets": d["objets"], "resume": _preuve("blender", d["texte"]), "ou": "Chapitres › Passes Blender"})
+
+
+async def blender_regarder(ctx: Ctx, mode: str = "camera") -> dict:
+    from app.services import blender_mcp as BM
+    if mode not in ("camera", "viewport", "angles"):
+        raise _Refus("mode : camera, viewport ou angles")
+    try:
+        m = await asyncio.to_thread(BM.regarder, mode, None)
+    except BM.RefusBlender as e:
+        raise _refus_blender(e) from None
+    return _res(True, f"capture de la scène Blender ({mode}) rangée — rien n'est modifié",
+                {"capture": f"/api/blender/regard/{m['id']}", "legende": _preuve("blender", m.get("legende") or ""),
+                 "licences": m.get("licences") or [], "ou": "Chapitres › Passes Blender"})
+
+
 
 
 def _o(props: dict, requis=()) -> dict:
@@ -2053,6 +2084,17 @@ OUTILS: dict[str, dict] = {
                                       "plan. Gratuit ; ne range, ne capture ni ne crée rien.",
                        "schema": _o({"plan": dict(_T, description="identifiant du plan (shot)"),
                                      "scene": dict(_T, description="identifiant d'une scène du Plateau")})},
+    # t331 : le Blender ouvert, en lecture (boîte « blender ») ; poser, importer, générer restent des clics
+    "blender_scene": {"nature": "lecture", "fn": blender_scene,
+                      "description": "Lit la scène du Blender OUVERT de l'utilisateur (pont MCP local) : objets, "
+                                     "position, taille ; les noms reviennent encadrés comme une preuve. Ne modifie "
+                                     "rien.",
+                      "schema": _o({"filtre": dict(_T, description="texte contenu dans le nom des objets")})},
+    "blender_regarder": {"nature": "lecture", "fn": blender_regarder,
+                         "description": "Prend une capture de la scène du Blender ouvert (par la caméra, la vue de "
+                                        "l'utilisateur ou plusieurs angles) et la range ; rend son adresse, sa "
+                                        "légende et les licences des assets importés visibles. Ne modifie rien.",
+                         "schema": _o({"mode": {"type": "string", "enum": ["camera", "viewport", "angles"]}})},
     "pieces_analyser": {"nature": "lecture", "fn": pieces_analyser,
                         "description": "Lit les pièces mobiles (îlots) d'une version d'un job 3D : noms proposés, "
                                        "triangles, pivots, et le devis de la segmentation IA. N'écrit rien.",

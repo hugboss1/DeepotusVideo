@@ -184,6 +184,8 @@
     sv.appendChild(E.btnComparer);
     E.aucun = el("div", { style: S.note, "data-dz-passes": "aucun" }, T("passesplan.versions.aucune"));
     sv.appendChild(E.aucun);
+    // 3. t331 : « Blender ouvert » (pont MCP : envoyer le plan, regarder la scène) quand /shared/dz-blender-scene.js est chargé
+    if (window.__dzBlenderScene) window.__dzBlenderScene.monter(E.corps, { shot: E.shot, numero: E.opts.numero, toast: E.opts.toast });
     boite.appendChild(E.corps);
 
     var pied = el("div", { style: S.pied });
