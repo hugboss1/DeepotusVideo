@@ -88,6 +88,15 @@ BOITES: dict[str, dict] = {
         "agents": [],
         "mobile": False,
     },
+    # t331 (29/10/2026) : le Blender ouvert en LECTURE (scène, capture) par le pont MCP local ; aucun agent ne la déclare
+    # encore (§11 bis, comme « plateau » : Campagnes est figé, Claude Code a déjà mcp-for-blender en direct) ; jamais
+    # sur le téléphone (le pont est local, ses routes refusent le compagnon)
+    "blender": {
+        "libelle": "agent.boites.blender",
+        "outils": ["blender_scene", "blender_regarder"],
+        "agents": [],
+        "mobile": False,
+    },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)
     "assets3d": {
         "libelle": "agent.boites.assets3d",

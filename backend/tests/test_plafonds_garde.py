@@ -90,6 +90,7 @@ PAYANTES = {
     ("comparatif3d", "POST", ""),   # t344 : le comparatif des moteurs 3D — N tirs, garde « moteurs3d » sur le total puis par tir
     ("routes", "POST", "/etabli/pieces/ia"),   # t342 : Tripo Segmentation (fal), garde « moteurs3d » après confirme_cout
     ("mouvement", "POST", "/video"),   # t343 : vidéo → mouvement (Uthana), garde « moteurs3d » après la clé et confirme_cout
+    ("blender", "POST", "/generer"),   # t331 : generate_3d dans Blender, garde « moteurs3d » après confirme_cout
     ("parallaxe", "POST", "/decouper"),   # t341 : décor en calques (fal), garde « tuiles » après la clé et confirme_cout
     ("routes", "POST", "/assets/3d/{job}/convert"),   # T105 : fbx/usdz/blend par Meshy convert   # T104 : rig + animations Meshy d'un job fal (crédits)
     ("routes", "POST", "/audio/sfx-video"),   # t187 (G5) : le bruitage d'une vidéo (Sonilo, Mirelo, Kling, Hunyuan, ThinkSound)
@@ -244,6 +245,9 @@ anciens["parallaxe"] = _pxr.replace("R._plafond(", "_sans_garde(") if "R._plafon
 # t343 : le mouvement sur le rig n'existait pas en bfec23e — même témoin
 _mvr = (RP.MODULES["mouvement"]).read_text(encoding="utf-8")
 anciens["mouvement"] = _mvr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _mvr else None
+# t331 : le pont Scène Blender n'existait pas en bfec23e — même témoin
+_blr = (RP.MODULES["blender"]).read_text(encoding="utf-8")
+anciens["blender"] = _blr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _blr else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

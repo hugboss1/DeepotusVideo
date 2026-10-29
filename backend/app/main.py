@@ -581,6 +581,9 @@ app.include_router(recette_export_router, prefix="/api/recettes")
 # t334 (29/10/2026) : /api/passes — passes headless d'un plan par Blender (clay, look, profondeur, normales, masques), gratuit, local
 from app.api.passes_routes import router as passes_router
 app.include_router(passes_router, prefix="/api/passes")
+# t331 (29/10/2026) : /api/blender — pont « Scène Blender » (client MCP stdio de mcp-for-blender), local seulement
+from app.api.blender_routes import router as blender_router
+app.include_router(blender_router, prefix="/api/blender")
 # t345 (29/10/2026) : /api/mcp — le serveur MCP local (Claude Code) : lecture, devis à jeton, lancement accepté dans l'écran ; local seulement
 from app.api.mcp_routes import router as mcp_router
 app.include_router(mcp_router, prefix="/api/mcp")
