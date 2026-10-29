@@ -140,6 +140,7 @@ DEFAULTS = {
     # t342 : Tripo Segmentation (fal tripo3d/tripo/segment) — page fal du 29/10/2026 « $0.01 per units », unité non
     # dite ; 40 unités d'après l'exemple de la doc Tripo (credits_consumed) : une ESTIMATION, rapprochée par les plafonds
     "tripo_segment_usd": 0.40,
+    "uthana_v2m_usd_s": 0.05,   # t343 (29/10/2026) : Uthana video-to-motion, 0,05 $ / s de vidéo (uthana.com/pricing)
     # t341 : décor en calques de parallaxe (Tile Lab). Pages fal relues le 29/10/2026 :
     # fal-ai/qwen-image-layered « $0.05 per image » — la page ne dit pas si l'image est la requête ou un calque :
     # HYPOTHÈSE PRUDENTE, chaque calque rendu compte pour une image ;
@@ -1160,6 +1161,11 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                                17 * float(p.get(cle, DEFAULTS[cle]))))
         else:
             lines.append(_line("local", "Découpe locale par bandes de profondeur", 1, "op", 0.0))
+    elif kind == "video_mouvement":
+        # t343 : vidéo → mouvement (Uthana), à la seconde ENVOYÉE (arrondie au-dessus) ; l'application est gratuite
+        s = math.ceil(float(op.get("secondes") or 0))
+        lines.append(_line("uthana", "Vidéo → mouvement (Uthana)", s, "s",
+                           s * float(p.get("uthana_v2m_usd_s", DEFAULTS["uthana_v2m_usd_s"]))))
     elif kind == "asset3d_segment":
         # t342 : segmentation IA en pièces mobiles (Tripo sur fal) ; la voie locale (îlots) est gratuite
         lines.append(_line("fal", "Segmentation en pièces (Tripo)", 1, "gen",

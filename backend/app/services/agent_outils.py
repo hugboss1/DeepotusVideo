@@ -1780,6 +1780,41 @@ async def comparatif3d_lire(ctx: Ctx, id: str = "", tri: str = "") -> dict:
                  "lignes": [{k: l.get(k) for k in cols} for l in lignes],
                  "ou": "Game Assets › 3D Studio › Comparer les moteurs"})
 
+# ---- t343 : un mouvement sur le rig (boîte « assets3d ») ------------------------------------------------------------
+
+async def mouvement_lire(ctx: Ctx, job: str = "", version: int = 1) -> dict:
+    """t343 (29/10/2026) : LECTURE de ce qu'il faut pour poser un mouvement sur le rig d'une version : squelette (os et
+    rôles reconnus), clips présents, mouvements rangés dans le job (BVH/GLB importés, vidéo captée, clips Meshy) et
+    prix de la voie vidéo → mouvement (Uthana). Rien n'est écrit, rien n'est dépensé : appliquer, capter une vidéo ou
+    exporter vers Godot reste un clic dans Établi › Rig › Mouvement."""
+    from app.services import mesh_edit, mesh_report, mouvement_rig as MR, uthana as UT
+    nom = Path(str(job or "")).name
+    if not nom or nom != str(job):
+        raise _Refus("job refusé : le nom du dossier du job 3D est attendu")
+    try:
+        v = int(version)
+    except (TypeError, ValueError):
+        raise _Refus("version refusée : un entier à partir de 1") from None
+    if v < 1:
+        raise _Refus("version refusée : un entier à partir de 1")
+    f = mesh_report.job_dir(nom) / ("model.glb" if v == 1 else f"model.v{v}.glb")
+    if not f.is_file():
+        raise _Refus("version introuvable pour ce job")
+    try:
+        inv = await asyncio.to_thread(mesh_edit.rig_inventory, f.read_bytes())
+    except ValueError as e:
+        raise _Refus(str(e)) from None
+    roles = {o["nom"]: MR.role(o["nom"]) for o in inv["os"]}
+    sources = await asyncio.to_thread(MR.sources, nom)
+    video = {"cle": bool(UT.cle()), "modele": UT.MODELE, "usd_seconde": UT.devis(1)["usd_seconde"],
+             "duree_s": [UT.DUREE_MIN, UT.DUREE_MAX]}
+    return _res(True, f"{inv['nb_os']} os ({sum(1 for r in roles.values() if r)} reconnus), {len(inv['clips'])} "
+                      f"clip(s), {len(sources)} mouvement(s) rangé(s) ; vidéo → mouvement {video['usd_seconde']} $/s",
+                {"a_squelette": inv["a_squelette"], "os": inv["nb_os"],
+                 "reconnus": sorted(r for r in roles.values() if r), "clips": [c["nom"] for c in inv["clips"]],
+                 "sources": sources, "video": video, "ou": "Établi › Rig › Mouvement"})
+
+
 
 
 def _o(props: dict, requis=()) -> dict:
@@ -1832,6 +1867,12 @@ OUTILS: dict[str, dict] = {
                                        "été demandé (notes par critère, défauts ; textes encadrés). Ne mesure ni ne "
                                        "paie rien ; une note n'est jamais une garantie.",
                         "schema": _o({"plan": dict(_T, description="identifiant du plan (shot)")}, ("plan",))},
+    "mouvement_lire": {"nature": "lecture", "fn": mouvement_lire,
+                       "description": "Lit le squelette d'une version d'un job 3D (os, rôles reconnus), ses clips, les "
+                                      "mouvements rangés (BVH/GLB, vidéo captée, clips Meshy) et le prix de la voie "
+                                      "vidéo → mouvement (Uthana). N'écrit rien, ne dépense rien.",
+                       "schema": _o({"job": dict(_T, description="nom du dossier du job 3D"),
+                                     "version": {"type": "integer", "minimum": 1}}, ("job",))},
     "pieces_analyser": {"nature": "lecture", "fn": pieces_analyser,
                         "description": "Lit les pièces mobiles (îlots) d'une version d'un job 3D : noms proposés, "
                                        "triangles, pivots, et le devis de la segmentation IA. N'écrit rien.",

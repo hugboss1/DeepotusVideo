@@ -194,6 +194,9 @@ class Settings(BaseSettings):
     SERPER_API_KEY: str = ""
     # t364 (28/10/2026) : Apify (collectes de la veille et des leads), réglée dans Réglages › Clés d'API
     APIFY_TOKEN: str = ""
+    # t343 (29/10/2026) : Uthana (vidéo → mouvement sur le rig, Établi › Rig), posée depuis le panneau Mouvement
+    # (POST /api/etabli/mouvement/cle, comme les clés de recherche de t354 : hors de Réglages › Clés d'API)
+    UTHANA_API_KEY: str = ""
 
     # v1.11: local LLM via Ollama (optional). When OLLAMA_MODEL is set, the
     # marketing plan generator uses your local model — plans never leave the

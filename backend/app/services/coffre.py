@@ -50,6 +50,7 @@ SECRETES = {
     "TELEGRAM_BOT_TOKEN",
     "TAVILY_API_KEY", "EXA_API_KEY", "SERPER_API_KEY",   # t354 (28/10/2026) : recherche web de la prospection
     "APIFY_TOKEN",                  # t364 (28/10/2026) : collectes Apify (veille, leads), Réglages › Clés d'API
+    "UTHANA_API_KEY",               # t343 (29/10/2026) : vidéo → mouvement (Uthana), Établi › Rig
     "KAPSO_API_KEY",                # t310 (27/10/2026) : WhatsApp par Kapso, clé plate partagée par tous les espaces
     "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET",
     "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN",

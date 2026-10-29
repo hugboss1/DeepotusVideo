@@ -158,6 +158,19 @@ GUIDES = {
               "Apify ($2 for competitor watch, $1 for leads) and announced by a quote. Powers the competitor-watch "
               "and lead-search collections.",
     },
+    # t343 (29/10/2026) : pages publiques relues ce jour-là (docs/api, capabilities/video-to-motion, pricing)
+    "UTHANA_API_KEY": {
+        "nom": "Uthana",
+        "console": "https://uthana.com/docs/api",
+        "tarifs": "https://uthana.com/pricing",
+        "verifie_le": "2026-10-29",
+        "fr": "Compte Uthana, clé d'API de la documentation de l'API (authentification Basic : la clé seule). "
+              "Paiement à l'usage sur des crédits prépayés : 0,05 $ par seconde de vidéo envoyée. Sert à "
+              "« Mouvement depuis une vidéo » dans Établi › Rig (une personne entière, plan fixe, 2 à 60 s).",
+        "en": "Uthana account, API key from the API documentation (Basic authentication: the key alone). "
+              "Pay-as-you-go on prepaid credits: $0.05 per second of uploaded video. Powers « Motion from a video » "
+              "in Workbench › Rig (one full-body person, fixed shot, 2 to 60 s).",
+    },
 }
 # Les quatre clés X partagent le guide de X_API_KEY.
 for _k in ("X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET"):

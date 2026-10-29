@@ -1,0 +1,60 @@
+/* t343 (lot Scenario B8, 29/10/2026) : un mouvement sur le rig et les hitboxes Godot, SOUS le panneau Rig.
+   Feuille À PART d'etabli.css, mêmes jetons et mêmes contrôles que jeu.css (t342). */
+#panMouvement { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 12px;
+  border-top: 1px solid var(--stroke); }
+#panMouvement.hidden { display: none; }
+#panMouvement .dt-label .dzi, .mv-ia-tete .dzi { width: 12px; height: 12px; vertical-align: -2px; }
+.mv-note { font-size: 10.5px; line-height: 1.45; color: var(--ink-soft); }
+.mv-avis { font-size: 10.5px; line-height: 1.45; color: var(--amber); }
+.mv-erreur { font-size: 10.5px; line-height: 1.45; color: var(--red); }
+.mv-ok { font-size: 10.5px; line-height: 1.45; color: var(--green); }
+.mv-etape { margin-top: 6px; font-size: 11px; font-weight: 600; color: var(--ink-strong); }
+.mv-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.mv-actions button {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 6px 6px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-soft); font-size: 11px; cursor: pointer;
+}
+.mv-actions button:hover, .mv-actions button.actif { border-color: var(--accent); color: var(--ink-strong); }
+.mv-actions button:disabled { opacity: .5; cursor: not-allowed; }
+.mv-actions .mv-principal { border-color: var(--accent); color: var(--ink-strong); background: var(--bg-panel-2); }
+.mv-actions .dzi { width: 14px; height: 14px; flex: none; }
+/* Hauteur POSÉE et défilement propre, comme .jeu-pieces : vingt mouvements ne chassent pas les boutons. */
+.mv-sources { max-height: 22vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.mv-source {
+  display: grid; grid-template-columns: 16px 1fr auto 44px; align-items: center; gap: 6px; min-height: 24px;
+  padding: 0 4px; border-radius: var(--r-sm); font: 11px var(--f-mono), ui-monospace, monospace; color: var(--ink-soft);
+  cursor: pointer;
+}
+.mv-source:hover { background: var(--bg-panel-3); }
+.mv-source:has(input:checked) { color: var(--ink-strong); background: var(--bg-panel-2); }
+.mv-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-badge { padding: 1px 5px; border: 1px solid var(--stroke); border-radius: var(--r-sm); font-size: 9.5px;
+  color: var(--ink-muted); }
+.mv-duree { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-muted); }
+.mv-video { padding: 8px; border: 1px solid var(--stroke); border-radius: var(--r-sm); display: flex;
+  flex-direction: column; gap: 6px; }
+.mv-ia-tete { font-size: 11px; color: var(--ink-strong); font-weight: 600; }
+.mv-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mv-champ { display: flex; flex-direction: column; gap: 3px; font-size: 10.5px; color: var(--ink-soft); min-width: 0; }
+.mv-champ b { font-weight: 500; color: var(--ink-strong); font-variant-numeric: tabular-nums; }
+.mv-champ input[type="text"], .mv-champ input[type="number"], .mv-champ select, .mv-cle input, .mv-os select,
+.mv-os input[type="number"] {
+  min-width: 0; height: 24px; padding: 0 6px; border: 1px solid var(--stroke); border-radius: var(--r-sm);
+  background: var(--bg-panel-3); color: var(--ink-strong); font-size: 11px;
+}
+.mv-champ input:focus, .mv-champ select:focus, .mv-cle input:focus { outline: none; border-color: var(--accent); }
+.mv-champ input[type="range"] { width: 100%; accent-color: var(--accent); }
+.mv-case { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-soft); cursor: pointer; }
+.mv-cle { display: flex; gap: 6px; }
+.mv-cle input { flex: 1; }
+.mv-cle button { padding: 0 10px; border: 1px solid var(--accent); border-radius: var(--r-sm); background: transparent;
+  color: var(--ink-strong); font-size: 11px; cursor: pointer; }
+.mv-godot-tete { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--stroke); }
+.mv-os { max-height: 26vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.mv-os-ligne { display: grid; grid-template-columns: 1fr; align-items: center; gap: 4px; min-height: 22px;
+  font: 10.5px var(--f-mono), ui-monospace, monospace; color: var(--ink-muted); }
+.mv-os-ligne.on { grid-template-columns: minmax(0, 1fr) 76px 64px 46px; color: var(--ink-strong); }
+.mv-os-ligne label { display: flex; align-items: center; gap: 5px; overflow: hidden; white-space: nowrap; cursor: pointer; }
+.mv-os-ligne label span { overflow: hidden; text-overflow: ellipsis; }
+.mv-os select, .mv-os input[type="number"] { height: 20px; padding: 0 3px; font-size: 10px; }

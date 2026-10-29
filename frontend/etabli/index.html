@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/shared/icons/dz-icons.css">
 <link rel="stylesheet" href="etabli.css">
 <link rel="stylesheet" href="jeu.css">
+<link rel="stylesheet" href="mouvement.css">
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
 <script src="/shared/icons/dz-icons.js"></script>
@@ -162,6 +163,8 @@
     <div class="panneau hidden" id="panRig">
       <div class="vide">aucun modèle chargé</div>
     </div>
+    <!-- t343 (B8) : un mouvement sur le rig et les hitboxes Godot, SOUS Rig et montrés avec lui — écrits par mouvement.js, nés vides -->
+    <div class="panneau hidden" id="panMouvement"></div>
     <div class="panneau hidden" id="panFiche"></div>
     <div class="panneau hidden" id="panExport">
       <div class="dt-label">Impression 3D</div>
@@ -197,5 +200,6 @@
 <script src="/shared/dialogue.js"></script>
 <script type="module" src="etabli.js"></script>
 <script type="module" src="jeu.js"></script>
+<script type="module" src="mouvement.js"></script>
 </body>
 </html>
