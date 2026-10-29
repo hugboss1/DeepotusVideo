@@ -145,7 +145,7 @@
   "previs.resolution_refusee": {"fr": "Résolution « {res} » refusée ({liste}).", "en": "Resolution \"{res}\" refused ({liste})."},
   "previs.conform_refuse": {"fr": "Conform « {choix} » refusé ({liste}).", "en": "Conform \"{choix}\" refused ({liste})."},
   "previs.conform_echec": {"fr": "Le clip de previs n'a pas pu être conformé à la durée minimale du modèle (rien n'a été payé) : {msg}", "en": "The previs clip could not be conformed to the model's minimum duration (nothing was charged): {msg}"},
-  "previs.confirmer":{"fr": "Previs → plan est payant : confirmez le devis avant de lancer.", "en": "Previs → shot is paid: confirm the quote before running it."},
+  "previs.confirmer": {"fr": "Previs → plan est payant : confirmez le devis avant de lancer.", "en": "Previs → shot is paid: confirm the quote before running it."},
   "revue.sans_rendu": {"fr": "Ce plan n'a pas de rendu « Previs → plan » à revoir : lancez d'abord Previs → plan.", "en": "This shot has no “Previs → shot” render to review: run Previs → shot first."},
   "revue.rendu_pas_pret": {"fr": "Le rendu « Previs → plan » de ce plan n'est pas encore fini (ou son fichier a disparu).", "en": "This shot's “Previs → shot” render is not finished yet (or its file is gone)."},
   "revue.mesure_echec": {"fr": "La revue n'a pas pu lire les vidéos (rien n'a été payé) : {msg}", "en": "The review could not read the videos (nothing was charged): {msg}"},
