@@ -2111,6 +2111,12 @@
     "groupe": "s3a"
    },
    {
+    "pos": 49149,
+    "avant": "  body.innerHTML = html;\r\n",
+    "apres": "  body.innerHTML = html;\r\n  /* t376 : règle D6 (personnage ou non) sur la pose Meshy — /shared/dz-pose3d.js */\r\n  if (id === \"preview\" && window.__dzPose3d) window.__dzPose3d.monterSelect(body.querySelector(\"#f-pose\"), { engine: \"meshy\", multiview: true, subject: c.source === \"text\" ? c.prompt : \"\", image: c.imageName || \"\" });\r\n",
+    "groupe": "t376"
+   },
+   {
     "pos": 50076,
     "avant": "padding:9px 14px; border-radius:9px;",
     "apres": "padding:9px 14px; border-radius:var(--r);",

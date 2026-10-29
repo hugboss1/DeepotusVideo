@@ -758,6 +758,21 @@ async def animate(body: dict, background_tasks: BackgroundTasks, request: Reques
     return {"job_id": job_id, "status": "queued"}
 
 
+def _pose_ou_400(body: dict, engine: str, sujet: str | None = None) -> None:
+    """t376 : la pose du corps (« pose » "" | "t-pose" | "a-pose", ou l'ancien booléen « tpose ») est normalisée
+    DANS le corps, puis vérifiée contre le moteur, les vues multiples et le sujet (règle D6 de pose3d). 400 sinon."""
+    from app.services import pose3d
+    try:
+        pose = pose3d.normaliser(body)
+        if pose is not None:
+            body["pose"] = pose
+        pose3d.verifier(engine, bool(body.get("multiview")),
+                        body.get("subject", "") if sujet is None else sujet,
+                        str(body.get("image_filename") or ""), pose)
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+
 @router.post("/assets/3d")
 async def assets_3d(body: dict, background_tasks: BackgroundTasks):
     """Game Assets 3D: image -> (optional multi-view) -> 3D engine -> mesh + shots.
@@ -798,6 +813,7 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
     fmts = body.get("formats") or ["glb"]
     if not isinstance(fmts, list) or not all(isinstance(f, str) for f in fmts):
         raise HTTPException(400, "formats must be a list of strings")
+    _pose_ou_400(body, engine)   # t376 : une pose que l'écran aurait grisée est refusée AVANT la garde
 
     await _plafond({"kind": "asset3d", "engine": engine, "textures": body.get("textures", True),
                     "quality": body.get("quality") or "", "formats": fmts, "multiview": body.get("multiview"),
@@ -952,7 +968,7 @@ async def list_asset3d_engines():
     (FAL_KEY présente) et son coût unitaire, pour que l'UI montre-mais-grise
     au lieu de laisser choisir un moteur inutilisable."""
     from app.services.asset3d_service import ENGINES, BESOINS_3D
-    from app.services import local3d_service, pricing as _pricing
+    from app.services import local3d_service, pricing as _pricing, pose3d as _pose3d
     dispo = bool(settings.FAL_KEY)
     # T107 : un moteur local est disponible quand SON service répond — listé et grisé sinon, comme un fal sans clé
     local_ok = await asyncio.to_thread(local3d_service.joignable) if any(e.get("local") for e in ENGINES.values())         else False
@@ -968,6 +984,7 @@ async def list_asset3d_engines():
         out.append({**{k: v for k, v in e.items()
                        if not k.startswith("endpoint")},
                     "id": eid, "available": local_ok if e.get("local") else dispo,
+                    "pose": _pose3d.mode_moteur(eid),   # t376 : "moteur" | "vues" | None
                     "usd_texture": devis["total_usd"],
                     "usd_brouillon": brouillon["total_usd"]})
     out.sort(key=lambda m: m["id"])
@@ -1399,6 +1416,9 @@ async def post_asset3d_views(background_tasks: BackgroundTasks, body: dict = Non
     fmts = body.get("formats") or ["glb"]
     if not isinstance(fmts, list) or not all(isinstance(f, str) for f in fmts):
         raise HTTPException(400, "formats : une liste de chaînes")
+    _pose_ou_400({**body, "multiview": True}, engine)   # t376 : ce jeu de vues EST la passe multi-vues
+    if "pose" in body or "tpose" in body:
+        body["pose"] = A3.pose_de(body)
     _cle_fal_ou_400()
 
     op = {"kind": "asset3d_views", "views": n}
@@ -12085,7 +12105,7 @@ async def generate_bible_model3d(entity_id: str, background_tasks: BackgroundTas
     except ValueError as ve:
         raise HTTPException(400, str(ve))
 
-    for k in ("multiview", "views", "textures", "quality", "tpose", "formats"):
+    for k in ("multiview", "views", "textures", "quality", "tpose", "pose", "formats"):
         if k in body:
             opts[k] = body[k]
     # Mêmes validations d'entrée que la route sœur POST /assets/3d : sans
@@ -12116,10 +12136,9 @@ async def generate_bible_model3d(entity_id: str, background_tasks: BackgroundTas
         raise HTTPException(
             400, f"{caps['label']} ne prend qu'une vue (max_images "
                  f"{caps['max_images']}) — désactive multiview ou change de moteur.")
-    if opts.get("tpose") and not caps["tpose"]:
-        raise HTTPException(
-            400, f"{caps['label']} ne sait pas demander une T-pose — "
-                 "utilise le besoin « rig » (Rodin).")
+    # t376 : l'ancien refus « ne sait pas demander une T-pose » devient la règle commune de pose3d (moteur, vues,
+    # sujet) ; le sujet est celui que reçoivent les vues : le nom de l'entité et son genre
+    _pose_ou_400(opts, engine, sujet=f"{nom} — the same {kind}")
 
     payload = {**opts, "engine": engine, "image_filename": src,
                "subject": f"{nom} — the same {kind}, consistent design",

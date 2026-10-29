@@ -1,0 +1,22 @@
+{
+  "pose3d.choix.champ": {"fr": "Pose", "en": "Pose"},
+  "pose3d.choix.aucune": {"fr": "Aucune", "en": "None"},
+  "pose3d.choix.t": {"fr": "T-pose", "en": "T-pose"},
+  "pose3d.choix.a": {"fr": "A-pose", "en": "A-pose"},
+  "pose3d.aide.aucune": {"fr": "Le sujet garde la pose de l'image source.", "en": "The subject keeps the pose of the source image."},
+  "pose3d.aide.t": {"fr": "Bras à l'horizontale : la pose de rig la plus courante.", "en": "Arms out horizontally: the most common rig pose."},
+  "pose3d.aide.a": {"fr": "Bras abaissés à 45° : moins d'étirement aux épaules au rig.", "en": "Arms lowered at 45°: less shoulder stretching once rigged."},
+  "pose3d.raison.moteur": {"fr": "{moteur} ne sait pas poser le sujet : il reconstruit l'image telle quelle.", "en": "{moteur} cannot pose the subject: it rebuilds the image as is."},
+  "pose3d.raison.objet": {"fr": "Le sujet n'est pas un personnage : pas de pose de rig.", "en": "The subject is not a character: no rig pose."},
+  "pose3d.raison.vues": {"fr": "Active les vues multiples : ce moteur reçoit la pose par les vues générées.", "en": "Turn on multi-view: this engine gets the pose through the generated views."},
+  "pose3d.avert.doute": {"fr": "Sujet incertain : la pose ne vaut que pour un personnage.", "en": "Uncertain subject: the pose only suits a character."},
+  "pose3d.precision.rodin": {"fr": "Rodin demande une pose de rig ; laquelle est dite par le prompt.", "en": "Rodin asks for a rig pose; the prompt says which one."},
+  "pose3d.precision.vues": {"fr": "La pose est demandée aux vues générées.", "en": "The pose is requested in the generated views."},
+  "pose3d.vision.bouton": {"fr": "Vérifier l'image (IA)", "en": "Check the image (AI)"},
+  "pose3d.vision.titre": {"fr": "Personnage ou non ?", "en": "Character or not?"},
+  "pose3d.vision.ok": {"fr": "Vérifier", "en": "Check"},
+  "pose3d.vision.confirmer": {"fr": "Claude regarde l'image source et dit si c'est un personnage. Coût estimé : {usd} $, une seule fois pour cette image.", "en": "Claude looks at the source image and tells whether it is a character. Estimated cost: ${usd}, once for this image."},
+  "pose3d.vision.indispo_cle": {"fr": "Vérification indisponible : le moteur Anthropic n'est pas configuré (Réglages › Clés d'API).", "en": "Check unavailable: the Anthropic engine is not configured (Settings › API keys)."},
+  "pose3d.vision.indispo_vision": {"fr": "Vérification indisponible : le modèle Anthropic réglé ne lit pas les images (Réglages › Modèles).", "en": "Check unavailable: the Anthropic model set does not read images (Settings › Models)."},
+  "pose3d.vision.echec": {"fr": "La vérification a échoué.", "en": "The check failed."}
+}

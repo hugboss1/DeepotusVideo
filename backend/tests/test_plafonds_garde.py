@@ -34,6 +34,7 @@ PAYANTES = {
     ("agent", "POST", "/lire"),   # A6 (19/10/2026) : la réponse de l'assistant lue à voix haute (garde « aide »)
     ("audio_graph", "POST", "/apercu"), ("audio_graph", "POST", "/rendre"),   # t272 : nœuds IA de l'Atelier sonore
     ("scan", "POST", "/{scan_id}/vision"),   # t312 : le secours Claude vision du Scan (garde « atelier » avant chaque lot)
+    ("pose3d", "POST", "/classer"),   # t376 : la classification vision de la source 3D (garde « moteurs3d » dans P.classer_image)
     ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
     ("schema", "POST", "/analyser"),   # t314 : détourage fal d'un schéma (garde « vectorlab » avant l'envoi)
     ("agent_campagnes", "POST", "/{cid}/message"),   # t285a : le message de l'agent Campagnes (garde « campagnes » à chaque tour)
@@ -200,6 +201,12 @@ _rv = (RP.RACINE / "services" / "revue_plan.py").read_text(encoding="utf-8")
 _rn = _rv[_rv.find("async def noter("):_rv.find("def lire_meta(")]
 check("A2m l'avis du directeur artistique refuse un coût hors accord AVANT MT.tirer_garde, sans appel nu au modèle",
       0 < _rn.find("raise CoutChange(") < _rn.find("MT.tirer_garde(") and "MT.tirer(" not in _rv, "")
+# t376 : la route de classement délègue sa garde à pose3d.classer_image — le cache d'abord (une fois par image),
+# puis l'accord (CoutChange) AVANT MT.tirer_garde, et aucun appel nu au modèle
+_p3 = (RP.RACINE / "services" / "pose3d.py").read_text(encoding="utf-8")
+_pc = _p3[_p3.find("async def classer_image("):]
+check("A2n la pose 3D rend le cache, puis refuse un coût hors accord AVANT MT.tirer_garde, sans appel nu",
+      0 < _pc.find("_lire_cache()") < _pc.find("raise CoutChange(") < _pc.find("MT.tirer_garde(") and "MT.tirer(" not in _p3, "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes
@@ -248,6 +255,9 @@ anciens["mouvement"] = _mvr.replace("R._plafond(", "_sans_garde(") if "R._plafon
 # t331 : le pont Scène Blender n'existait pas en bfec23e — même témoin
 _blr = (RP.MODULES["blender"]).read_text(encoding="utf-8")
 anciens["blender"] = _blr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _blr else None
+# t376 : la classification vision de la pose 3D n'existait pas en bfec23e — même témoin
+_p3r = (RP.MODULES["pose3d"]).read_text(encoding="utf-8")
+anciens["pose3d"] = _p3r.replace("P.classer_image(", "_sans_garde(") if "P.classer_image(" in _p3r else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

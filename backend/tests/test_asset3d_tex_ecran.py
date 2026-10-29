@@ -49,7 +49,8 @@ check("L2 aucune convention recopiée dans le bundle", "unity_urp" not in foncti
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import _i18n_l1_aide as AIDE  # noqa: E402  (icônes G1 : __dzGl & co. sous node)
 
-HARNAIS = AIDE.PRELUDE_DZGLYPH + r"""
+# t376 : les textes passent par dzT (maillon dzga3d) — PRELUDE_DZT (dictionnaire, dzT en français, glyphes G1)
+HARNAIS = AIDE.PRELUDE_DZT + r"""
 var H=[],hi=0,EFF=[],CALLS=[],REP={},DL=[],TIM=[];
 var x={useState:function(v){var i=hi++;if(!(i in H))H[i]=v;return [H[i],function(n){H[i]=typeof n==="function"?n(H[i]):n}]},
   useEffect:function(f){var i=hi++;if(!(i in H)){H[i]=1;EFF.push(f)}}};

@@ -34,16 +34,33 @@ _ANGLES = [
 ]
 
 
-def view_prompts(n: int, subject: str) -> list[str]:
+def view_prompts(n: int, subject: str, pose: str | None = None) -> list[str]:
     """N prompts d'angle (1..4) pour la passe multi-vues.
 
     Ordre : face, dos, profil gauche, profil droit — le quatuor orthographique.
     Le suffixe de cadrage est identique sur toutes les vues : c'est CE qui
     rend la série cohérente, pas l'angle seul.
+
+    t376 : `pose` ("" | "t-pose" | "a-pose") vient du choix de l'écran. La
+    phrase de pose va sur TOUTES les vues (une pose sur la face seule donnait
+    des bras différents d'une vue à l'autre) ; "" n'en met aucune — un objet
+    n'a pas de bras. None (appelant d'avant t376) garde l'ancien « front
+    view, T-pose » sur la seule face.
     """
     n = 1 if n < 1 else 4 if n > 4 else n
     subj = (subject or "the same character/object, consistent design").strip()
-    return [f"{subj}, {a}, {_CADRAGE}" for a in _ANGLES[:n]]
+    if pose is None:
+        return [f"{subj}, {a}, {_CADRAGE}" for a in _ANGLES[:n]]
+    from app.services import pose3d
+    angles = ["front view"] + _ANGLES[1:]
+    ph = pose3d.phrase(pose)
+    return [f"{subj}, {a}, {ph + ', ' if ph else ''}{_CADRAGE}" for a in angles[:n]]
+
+
+def pose_de(payload: dict) -> str | None:
+    """La pose d'un corps de requête (t376) — voir `pose3d.normaliser`."""
+    from app.services import pose3d
+    return pose3d.normaliser(payload)
 
 
 # endpoint + the export formats the engine can emit natively.
@@ -65,9 +82,8 @@ def view_prompts(n: int, subject: str) -> list[str]:
 #     Ce que ce drapeau ne dit PAS : l'app ne valide pas la valeur contre
 #     l'énumération du moteur. Pour tripo, `quality` ne sert qu'à choisir le
 #     palier de texture (voir `texture_mode`) ; pour rodin elle part dans
-#     `quality_mesh_option`, dont les valeurs admises sont celles du
-#     fournisseur — passer « hd » à rodin est une erreur d'appelant que le
-#     registre n'intercepte pas.
+#     `quality` (high | medium | low | extra-low) : « hd » y vaut high, une
+#     valeur inconnue medium (t376, schéma fal relu le 29/10/2026).
 ENGINES = {
     "tripo": {
         "endpoint": "tripo3d/tripo/v2.5/image-to-3d",
@@ -330,6 +346,9 @@ def resolve_endpoint(engine: str, n_images: int = 1) -> str:
     return e["endpoint"]
 
 
+_QUALITES_RODIN = ("high", "medium", "low", "extra-low")
+
+
 def build_engine_args(engine: str, image_urls: list[str], opts: dict) -> dict:
     """Map the common request to the chosen engine's fal arguments."""
     fmt = (opts.get("format") or "glb").lower()
@@ -360,9 +379,22 @@ def build_engine_args(engine: str, image_urls: list[str], opts: dict) -> dict:
             a["image_url"] = vues[0] if vues else primary
         return a
     if engine == "rodin":
-        return {"input_image_urls": image_urls, "geometry_file_format": fmt,
-                "material": "PBR", "quality_mesh_option": opts.get("quality", "medium"),
-                "TAPose": bool(opts.get("tpose")), "use_original_alpha": True, "preview_render": True}
+        # t376 : `TAPose` (booléen) demande « une pose T/A » sans dire laquelle (page API fal relue le 29/10) ;
+        # le `prompt`, optionnel en image→3D, dit laquelle. Sans `pose` (appelant d'avant), l'ancien `tpose`.
+        pose = opts.get("pose")
+        if pose is None:
+            pose = "t-pose" if opts.get("tpose") else ""
+        # Schéma Hyper3dRodinInput relu sur fal le 29/10/2026 : la qualité s'appelle `quality` (high | medium | low |
+        # extra-low) ; `quality_mesh_option`, `use_original_alpha` et `preview_render` n'y figurent pas et étaient
+        # ignorés (la qualité choisie ne changeait rien). « hd » vaut high ; une valeur inconnue, medium.
+        q = str(opts.get("quality") or "medium").strip().lower()
+        q = "high" if q == "hd" else q if q in _QUALITES_RODIN else "medium"
+        a = {"input_image_urls": image_urls, "geometry_file_format": fmt,
+             "material": "PBR", "quality": q, "TAPose": bool(pose)}
+        if pose:
+            from app.services import pose3d
+            a["prompt"] = pose3d.phrase(pose)
+        return a
     if engine == "tripo":
         # Tripo's `texture` is a literal: 'no' | 'standard' | 'HD' (not a bool).
         if not opts.get("textures", True):
@@ -523,7 +555,7 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
             _nv = max(1, min(4, int(payload.get("views", 3))))
         except (TypeError, ValueError):
             _nv = 3
-        for i, pr in enumerate(view_prompts(_nv, payload.get("subject", "")), 1):
+        for i, pr in enumerate(view_prompts(_nv, payload.get("subject", ""), pose_de(payload)), 1):
             await _step(f"View {i}/{_nv}", 10 + int(40 * i / max(1, _nv)))
             try:
                 u = await _seedream_edit(src_url, pr)
@@ -579,6 +611,7 @@ async def tirer_moteur(job_id: str, image_urls: list, payload: dict,
     base_opts = {"format": "glb", "textures": payload.get("textures", True),
                  "quality": payload.get("quality", "medium"),
                  "tpose": payload.get("tpose"),
+                 "pose": pose_de(payload),          # t376 : "" | "t-pose" | "a-pose" | None (avant)
                  # options de topologie / reproductibilité — seul H3.1 les
                  # câble ; les autres adaptateurs les ignorent
                  "face_limit": payload.get("face_limit"),
@@ -632,7 +665,9 @@ async def tirer_moteur(job_id: str, image_urls: list, payload: dict,
         "multiview": bool(payload.get("multiview")),
         "views": len(shots) - 1,
         "formats": formats, "quality": payload.get("quality"),
-        "tpose": bool(payload.get("tpose")),
+        "tpose": base_opts["pose"] == "t-pose" if base_opts["pose"] is not None
+        else bool(payload.get("tpose")),
+        "pose": base_opts["pose"] or "",
         "engine_args_echo": {k: v for k, v in
                              build_engine_args(engine, ["<image>"], base_opts).items()
                              if k not in ("image_url", "image_urls",
@@ -787,7 +822,7 @@ async def refine_asset3d(job: str, quality: str = "hd", on_step=None) -> dict:
 
     await _step(f"{caps['label']} · texture {cible}", 55)
     opts = {"format": "glb", "textures": True, "quality": quality,
-            "tpose": man.get("tpose"),
+            "tpose": man.get("tpose"), "pose": man.get("pose"),
             "face_limit": man.get("face_limit"), "quad": man.get("quad"),
             "seed": man.get("seed")}
     res = await _run_engine(engine, build_engine_args(engine, vues, opts))

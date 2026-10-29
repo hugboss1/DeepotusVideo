@@ -900,6 +900,8 @@ async function openEditor(id) {
     };
   }
   body.innerHTML = html;
+  /* t376 : règle D6 (personnage ou non) sur la pose Meshy — /shared/dz-pose3d.js */
+  if (id === "preview" && window.__dzPose3d) window.__dzPose3d.monterSelect(body.querySelector("#f-pose"), { engine: "meshy", multiview: true, subject: c.source === "text" ? c.prompt : "", image: c.imageName || "" });
   if (id === "ref") {
     body.querySelectorAll("#f-pick button").forEach(b => b.addEventListener("click", () => {
       body.querySelectorAll("#f-pick button").forEach(x => x.classList.remove("sel"));

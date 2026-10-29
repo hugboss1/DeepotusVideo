@@ -106,7 +106,8 @@ except ImportError:
     M = None
 avant = AIDE.avant_dzecartes(bundle) if hasattr(AIDE, "avant_dzecartes") else bundle
 check("4.2 l'inverse avant_dzecartes défait le maillon, et le rejouer redonne le bundle à l'octet",
-      M is not None and M.MARKER not in avant and "title:ranked.ecartes.map(" in avant and M.appliquer(avant) == bundle)
+      M is not None and M.MARKER not in avant and "title:ranked.ecartes.map(" in avant
+      and M.appliquer(avant) == (AIDE.avant_dzpose(bundle) if hasattr(AIDE, "avant_dzpose") else bundle))   # t376 : dzpose suit dzecartes
 src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
 _cur = src_aide[src_aide.index("def avant_dzcurseur("):]
 _cur = _cur[:_cur.index("\ndef ", 5)]
