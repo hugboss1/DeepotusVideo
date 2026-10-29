@@ -169,10 +169,10 @@
     ".dzia-modele.dzia-mini .dzia-mtxt{display:none}",
     ".dzia-modele.dzia-mini .dzia-mcar{opacity:1}",
     ".dzia-liste{position:fixed;z-index:2147483000;min-width:230px;max-width:360px;max-height:320px;overflow:auto;padding:4px;" +
-      "border-radius:10px;background:#15171c;border:1px solid rgba(139,92,246,.5);" +
+      "border-radius:var(--r);background:#15171c;border:1px solid rgba(139,92,246,.5);" +
       "box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 14px -4px rgba(59,130,246,.45);box-sizing:border-box}",
     ".dzia-opt{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin:0;padding:6px 8px;border:0;" +
-      "border-radius:6px;background:transparent;color:#e5e7eb;font:12px/1.25 system-ui,-apple-system,'Segoe UI',sans-serif;text-align:left;cursor:pointer}",
+      "border-radius:var(--r);background:transparent;color:#e5e7eb;font:12px/1.25 system-ui,-apple-system,'Segoe UI',sans-serif;text-align:left;cursor:pointer}",
     ".dzia-opt:hover,.dzia-opt.dzia-opt-actif{background:rgba(59,130,246,.18)}",
     ".dzia-opt.dzia-opt-actif{outline:1px solid rgba(59,130,246,.7);outline-offset:-1px}",
     ".dzia-modele:focus-visible,.dzia-micro:focus-visible{outline:2px solid #3b82f6;outline-offset:1px}",
@@ -195,7 +195,7 @@
     ".dzia-mico,.dzia-mstop{display:flex;align-items:center;justify-content:center;width:15px;height:15px}",
     ".dzia-ecoute .dzia-micro{border-color:#ef4444;background:#b91c1c;color:#fff;animation:dzia-pouls 1.2s ease-in-out infinite}",
     "@keyframes dzia-pouls{50%{box-shadow:0 0 0 4px rgba(239,68,68,.28)}}",
-    ".dzia-note{position:fixed;z-index:2147483000;max-width:360px;padding:5px 9px;border-radius:8px;background:#15171c;" +
+    ".dzia-note{position:fixed;z-index:2147483000;max-width:360px;padding:5px 9px;border-radius:var(--r);background:#15171c;" +
       "border:1px solid rgba(139,92,246,.5);color:#e5e7eb;font:11px/1.35 system-ui,-apple-system,'Segoe UI',sans-serif;" +
       "box-shadow:0 8px 22px rgba(0,0,0,.45);pointer-events:none;box-sizing:border-box}",
     ".dzia-dlg{position:fixed;inset:0;z-index:2147483600;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center}",

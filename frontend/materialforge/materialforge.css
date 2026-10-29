@@ -95,12 +95,12 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
 .fld.sub { padding-left: 10px; border-left: 1px solid var(--stroke); }
 .lbl { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 input[type=text], input[type=number], select, textarea {
-  background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: 8px;
+  background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: var(--r);
   color: var(--ink-strong); padding: 6px 9px; font-size: 12.5px;
   font-family: var(--f-ui); width: 100%; }
 textarea { resize: none; line-height: 1.45; flex: 1; min-height: 74px; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
-.search { background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: 8px;
+.search { background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: var(--r);
   color: var(--ink-strong); padding: 5px 9px; font-size: 12px; width: 100%; }
 .search.sm { width: 150px; }
 .row-tight { display: flex; gap: 6px; align-items: center; }
@@ -123,14 +123,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .status { font-size: 11.5px; color: var(--ink); }
 .status.err { color: var(--red); }
 .counter { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-strong);
-  border: 1px solid var(--stroke-strong); border-radius: 8px; padding: 2px 8px; white-space: nowrap; }
+  border: 1px solid var(--stroke-strong); border-radius: var(--r); padding: 2px 8px; white-space: nowrap; }
 /* la définition commune à toutes les cartes affichées : écrite ICI, une seule
    fois, au lieu d'être répétée à l'identique sur chaque vignette */
 .counter .cnt-res { font-style: normal; font-size: 10.5px; color: var(--ink-muted);
   border-left: 1px solid var(--stroke-strong); padding-left: 8px; margin-left: 5px; }
 
 /* ── boutons ────────────────────────────────────────────────────────────── */
-.btn { background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: 8px;
+.btn { background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: var(--r);
   color: var(--ink); padding: 6px 10px; font-size: 12.5px; cursor: pointer;
   white-space: nowrap; text-decoration: none; display: inline-block; text-align: center; }
 .btn:hover { border-color: var(--ink-soft); color: var(--ink-strong); }
@@ -152,7 +152,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .btn-row .btn { flex: 1; }
 
 /* segmenté 1K / 2K / 4K */
-.seg { display: flex; border: 1px solid var(--stroke-strong); border-radius: 8px; overflow: hidden; }
+.seg { display: flex; border: 1px solid var(--stroke-strong); border-radius: var(--r); overflow: hidden; }
 .seg-b { flex: 1; background: var(--bg-base); border: 0; border-right: 1px solid var(--stroke);
   color: var(--ink-soft); padding: 6px 0; font-size: 12px; cursor: pointer; letter-spacing: .06em; }
 .seg-b:last-child { border-right: 0; }
@@ -170,7 +170,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* jetons (maillage, environnement) */
 .chips { display: flex; flex-wrap: wrap; gap: 5px; }
-.chip { background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 7px;
+.chip { background: var(--bg-base); border: 1px solid var(--stroke); border-radius: var(--r);
   color: var(--ink-soft); padding: 4px 8px; font-size: 11px; cursor: pointer; }
 .chip:hover { border-color: var(--stroke-strong); color: var(--ink-strong); }
 .chip.active { border-color: var(--sel-bg); color: var(--sel-ink); background: var(--sel-bg);
@@ -185,15 +185,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .drop-t { font-size: 11.5px; color: var(--ink); }
 .drop-s { font-size: 10px; color: var(--ink-muted); }
 .ref-picked { display: flex; align-items: center; gap: 8px; border: 1px solid var(--stroke);
-  border-radius: 8px; padding: 5px 7px; background: var(--bg-base); }
-.ref-picked img { width: 34px; height: 34px; object-fit: cover; border-radius: 5px; border: 1px solid var(--stroke); }
+  border-radius: var(--r); padding: 5px 7px; background: var(--bg-base); }
+.ref-picked img { width: 34px; height: 34px; object-fit: cover; border-radius: var(--r); border: 1px solid var(--stroke); }
 .ref-picked span { flex: 1; font-size: 11px; color: var(--ink); overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .libbox { border: 1px solid var(--stroke); border-radius: var(--r); padding: 7px;
   display: flex; flex-direction: column; gap: 7px; background: var(--bg-base); }
 .img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
   gap: 6px; max-height: 168px; overflow-y: auto; }
-.img-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px;
+.img-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: var(--r);
   border: 1px solid var(--stroke); cursor: pointer; }
 .img-grid img:hover { border-color: var(--accent); }
 .img-grid img.sel { border: 2px solid var(--accent); }
@@ -207,7 +207,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* ── amorces d'invite + invite exacte ───────────────────────────────────── */
 .chips.seeds .chip { font-size: 10.5px; padding: 3px 7px; }
-.fullp { border: 1px solid var(--stroke); border-radius: 8px; background: var(--bg-base); }
+.fullp { border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-base); }
 .fullp > summary { list-style: none; cursor: pointer; padding: 5px 8px; font-size: 10px;
   letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
   display: flex; align-items: center; justify-content: space-between; gap: 6px; }
@@ -459,7 +459,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .card-foot { display: flex; align-items: center; gap: 4px; margin-top: 6px; flex-wrap: wrap;
   border-top: 1px solid var(--stroke); padding-top: 7px; }
 .iact { padding: 3px 6px; line-height: 1.35; font-size: 10px; letter-spacing: .01em;
-  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 6px;
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: var(--r);
   color: var(--ink-soft); cursor: pointer; white-space: nowrap;
   transition: all var(--dur) var(--ease); }
 .iact:hover { border-color: var(--ink-soft); color: var(--ink-strong); }
@@ -660,7 +660,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .qmark.on { border-color: var(--ink-soft); color: var(--bg-base); background: var(--ink-soft); }
 .prop-help { font-size: 10.5px; color: var(--ink-soft); line-height: 1.5;
   border-left: 2px solid var(--help-line); background: var(--bg-panel-2);
-  padding: 5px 8px 6px; margin: 1px 0 4px 21px; border-radius: 0 6px 6px 0; }
+  padding: 5px 8px 6px; margin: 1px 0 4px 21px; border-radius: var(--r); }
 #groups.showhelp .prop-help.hidden { display: block !important; }
 
 /* valeur : champ de saisie déguisé — on lit, on tape, on règle au clavier.
@@ -675,7 +675,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
    permanence : c'est une case où l'on tape 0.37. */
 .prop-num .numv { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 10.5px;
   color: var(--ink); background: var(--bg-panel-2); border: 1px solid var(--stroke);
-  border-radius: 5px; padding: 1px 3px; width: 100%; text-align: right; cursor: text; }
+  border-radius: var(--r); padding: 1px 3px; width: 100%; text-align: right; cursor: text; }
 .prop-num .numv:hover { border-color: var(--stroke-strong); color: var(--ink-strong); }
 .prop-num .numv:focus { outline: none; border-color: var(--accent); background: var(--bg-panel-2);
   color: var(--ink-strong); }
@@ -695,11 +695,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* couleur : pastille + hexadécimal saisissable (la barre n'affiche que l'hexa) */
 .swatch { width: 22px; height: 16px; padding: 0; border: 1px solid var(--stroke-strong);
-  border-radius: 4px; background: transparent; cursor: pointer; flex: none; }
+  border-radius: var(--r); background: transparent; cursor: pointer; flex: none; }
 .swatch::-webkit-color-swatch-wrapper { padding: 1px; }
-.swatch::-webkit-color-swatch { border: 0; border-radius: 3px; }
+.swatch::-webkit-color-swatch { border: 0; border-radius: var(--r); }
 .prop-line .hexv { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft);
-  background: transparent; border: 1px solid transparent; border-radius: 5px;
+  background: transparent; border: 1px solid transparent; border-radius: var(--r);
   padding: 1px 3px; width: 100%; text-transform: lowercase; }
 .prop-line .hexv:hover { border-color: var(--stroke); }
 .prop-line .hexv:focus { outline: none; border-color: var(--accent); color: var(--ink-strong); }
@@ -726,7 +726,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* maps de texture */
 .mapgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-.mapcell { position: relative; border: 1px solid var(--stroke); border-radius: 7px;
+.mapcell { position: relative; border: 1px solid var(--stroke); border-radius: var(--r);
   overflow: hidden; background: var(--bg-panel-2); display: block; }
 .mapcell img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block;
   background: repeating-conic-gradient(#1a1a1f 0% 25%, #131317 0% 50%) 0 0 / 10px 10px; }
@@ -773,7 +773,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* trois cartes de format : le nom, la nature, et à quoi ça sert */
 .fmts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
-.fmt { background: var(--bg-panel-2); border: 1px solid var(--stroke-strong); border-radius: 8px;
+.fmt { background: var(--bg-panel-2); border: 1px solid var(--stroke-strong); border-radius: var(--r);
   padding: 6px 6px 7px; cursor: pointer; text-align: left; display: flex;
   flex-direction: column; gap: 1px; color: var(--ink-soft); min-width: 0; }
 .fmt b { font-size: 12px; color: var(--ink-strong); font-weight: 600; letter-spacing: .02em; }
@@ -861,7 +861,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   transform: translateX(-50%); width: min(760px, 92vw);
   display: flex; flex-direction: column; overflow: hidden;
   background: var(--bg-panel); border: 1px solid var(--stroke-strong);
-  border-radius: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
+  border-radius: var(--r); box-shadow: 0 24px 60px rgba(0,0,0,.55); }
 .proof-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px;
   border-bottom: 1px solid var(--stroke); background: var(--bg-panel-2); }
 .proof-head b { flex: 1; color: var(--ink-strong); font-size: 13.5px; font-weight: 500;
@@ -877,14 +877,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* le verdict de correlation : vert tant qu'aucune paire n'est un simple gain,
    rouge des qu'une l'est. La couleur suit la mesure, pas l'envie. */
 .proof-verdict { margin: 12px 0 0; padding: 9px 11px; font-size: 11.5px; line-height: 1.5;
-  border-radius: 8px; color: var(--ink);
+  border-radius: var(--r); color: var(--ink);
   border: 1px solid color-mix(in srgb, var(--green) 45%, transparent);
   background: color-mix(in srgb, var(--green) 8%, transparent); }
 .proof-verdict.bad { border-color: color-mix(in srgb, var(--red) 55%, transparent);
   background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); }
 
 .pgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.pcell { margin: 0; border: 1px solid var(--stroke); border-radius: 8px; overflow: hidden;
+.pcell { margin: 0; border: 1px solid var(--stroke); border-radius: var(--r); overflow: hidden;
   background: var(--bg-panel-2); }
 .pcell img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover;
   background: var(--bg-base); }
@@ -928,7 +928,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 
 /* ── toast ──────────────────────────────────────────────────────────────── */
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-  background: var(--bg-panel-3); border: 1px solid var(--stroke-strong); border-radius: 10px;
+  background: var(--bg-panel-3); border: 1px solid var(--stroke-strong); border-radius: var(--r);
   padding: 9px 16px; color: var(--ink-strong); font-size: 12.5px; z-index: 80; max-width: 70vw; }
 /* z-index 80 : au-dessus du panneau de preuve (71), sans quoi le retour du
    telechargement lance DEPUIS ce panneau passait derriere lui. */
@@ -946,12 +946,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* ── panneau Photo (P1) ──────────────────────────────────────────────────── */
 #phCanvas {
   width: 100%; height: auto; aspect-ratio: 1 / 1;
-  border: 1px solid var(--line, #222831); border-radius: 6px;
+  border: 1px solid var(--line, #222831); border-radius: var(--r);
   background: #12151a; cursor: crosshair; display: block; margin: 6px 0;
 }
 #phOut {
   width: 100%; height: auto; display: block; margin-top: 8px;
-  border: 1px solid var(--line, #222831); border-radius: 6px;
+  border: 1px solid var(--line, #222831); border-radius: var(--r);
 }
 #grpPhoto .row { display: flex; gap: 8px; align-items: center; }
 
@@ -973,7 +973,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px;
   margin: 10px 0; }
 .cat-cell { display: block; padding: 0; border: 1px solid var(--stroke, #222831);
-  border-radius: 6px; background: transparent; cursor: pointer; overflow: hidden; height: 132px;
+  border-radius: var(--r); background: transparent; cursor: pointer; overflow: hidden; height: 132px;
   color: var(--ink); }
 .cat-cell img { width: 100%; height: 100px; object-fit: cover; display: block; }
 .cat-cell span { display: block; font-size: 11px; padding: 3px 4px;
@@ -983,7 +983,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 /* ── onglets du rail et générateurs (T098) ─────────────────────────────── */
 #railTabs { margin: 0 12px 8px; }
 #genPreview { width: 100%; height: auto; display: block; margin: 8px 0;
-  border: 1px solid var(--stroke, #222831); border-radius: 6px; }
+  border: 1px solid var(--stroke, #222831); border-radius: var(--r); }
 #genParams .mini { display: block; margin: 6px 0; }
 #genParams input[type=range] { width: 100%; }
 

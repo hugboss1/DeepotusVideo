@@ -74,11 +74,11 @@
     + ".dzCampFil{flex:1;min-height:0;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}"
     + ".dzCampVide{color:var(--ink-soft,#8a857d)}"
     + ".dzCampMsg{display:flex;flex-direction:column;gap:6px;max-width:100%}"
-    + ".dzCampMsg[data-role=utilisateur]{align-self:flex-end;background:var(--accent-soft,rgba(240,180,41,.14));border-radius:var(--r,10px);padding:8px 10px}"
+    + ".dzCampMsg[data-role=utilisateur]{align-self:flex-end;background:var(--accent-soft,rgba(240,180,41,.14));border-radius:var(--r);padding:8px 10px}"
     + ".dzCampTexte{white-space:pre-wrap}"
     + ".dzCampOutil{font-family:var(--f-mono,monospace);font-size:11px;color:var(--ink-soft,#8a857d)}"
     + ".dzCampOutil[data-ok=non]{color:var(--red,#e35d4a)}"
-    + ".dzCampCarte{border:1px solid var(--stroke-strong,#3d3b45);border-radius:var(--r,10px);background:var(--bg-panel-2,#1c1c21);padding:10px;display:flex;flex-direction:column;gap:8px}"
+    + ".dzCampCarte{border:1px solid var(--stroke-strong,#3d3b45);border-radius:var(--r);background:var(--bg-panel-2,#1c1c21);padding:10px;display:flex;flex-direction:column;gap:8px}"
     + ".dzCampCarte[data-etat=proposee]{border-color:var(--accent,#f0b429)}"
     + ".dzCampCarteT{color:var(--ink-strong,#f2efe9);font-weight:600}"
     + ".dzCampResume{white-space:pre-wrap}"
@@ -87,7 +87,7 @@
     + ".dzCampEtat{font-family:var(--f-mono,monospace);font-size:11px;color:var(--ink-soft,#8a857d)}"
     + ".dzCampEtat[data-ton=ok]{color:var(--green,#5ec8a0)}.dzCampEtat[data-ton=ko]{color:var(--red,#e35d4a)}"
     + ".dzCampActions{display:flex;flex-wrap:wrap;gap:6px}"
-    + ".dzCamp button,.dzCamp a.dzCampLien{background:transparent;color:inherit;border:1px solid var(--stroke-strong,#3d3b45);border-radius:var(--r-sm,6px);"
+    + ".dzCamp button,.dzCamp a.dzCampLien{background:transparent;color:inherit;border:1px solid var(--stroke-strong,#3d3b45);border-radius:var(--r);"
     + "padding:5px 10px;font:inherit;cursor:pointer;text-decoration:none}"
     + ".dzCamp button:hover,.dzCamp a.dzCampLien:hover{border-color:var(--accent,#f0b429)}"
     + ".dzCamp button[data-primaire=\"1\"]{background:var(--accent,#f0b429);color:var(--accent-ink,#1a1206);border-color:var(--accent,#f0b429);font-weight:600}"
@@ -99,7 +99,7 @@
     + ".dzCampDevis{font-family:var(--f-mono,monospace);font-size:11px;color:var(--amber,#f0b429);min-height:16px}"
     + ".dzCampSaisie{display:flex;gap:6px}"
     + ".dzCampSaisie textarea{flex:1;resize:none;min-height:38px;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);"
-    + "border-radius:var(--r-sm,6px);padding:6px;font:inherit}"
+    + "border-radius:var(--r);padding:6px;font:inherit}"
     + "@media (prefers-reduced-motion:reduce){.dzCamp *{transition:none!important;animation:none!important}}";
   var styleInjecte = false;
   function injecterStyle() {

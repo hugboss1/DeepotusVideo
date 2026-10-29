@@ -37,7 +37,7 @@
 .cf-capture .cf-capture-drop.over { border-color: var(--accent);
   background: var(--accent-soft); }
 .cf-capture .cf-capture-preview { display: flex; align-items: center;
-  justify-content: center; min-height: 190px; border-radius: 6px;
+  justify-content: center; min-height: 190px; border-radius: var(--r);
   background: var(--bg-panel-2); overflow: hidden; padding: 6px; }
 /* LE CADRE SE SERRE SUR L'IMAGE RENDUE. `inline-block` + `line-height: 0`
    suppriment la ligne de base sous l'<img> : sans cela le cadre est plus haut
@@ -45,13 +45,13 @@
 .cf-capture .cf-capture-frame { position: relative; display: inline-block;
   line-height: 0; max-width: 100%; }
 .cf-capture .cf-capture-img { display: block; max-width: 100%; max-height: 320px;
-  border-radius: 3px; box-shadow: 0 1px 6px rgb(0 0 0 / .28); }
+  border-radius: var(--r); box-shadow: 0 1px 6px rgb(0 0 0 / .28); }
 /* ── l'incrustation des zones : de l'HTML par-dessus l'image, aucun canvas ── */
 .cf-capture .cf-capture-boxes { position: absolute; inset: 0;
   pointer-events: none; }
 .cf-capture .cf-capture-box { position: absolute; border: 1px solid var(--accent);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
-  border-radius: 2px; box-sizing: border-box; }
+  border-radius: var(--r); box-sizing: border-box; }
 /* Une boite COUPEE par la bande exclue ne se dessine pas comme une mesure :
    trait interrompu, pas de fond. Sa taille est un minimum, et le trait le dit
    sans qu'on ait a lire l'infobulle. */
@@ -60,7 +60,7 @@
 .cf-capture .cf-capture-box.tronquee i { background: var(--amber, var(--ink-soft)); }
 .cf-capture .cf-capture-box i { position: absolute; top: 0; left: 0;
   font-style: normal; font-size: 8.5px; line-height: 1.5; padding: 0 3px;
-  background: var(--accent); color: var(--bg-base); border-radius: 0 0 3px 0; }
+  background: var(--accent); color: var(--bg-base); border-radius: var(--r); }
 .cf-capture .cf-capture-empty { margin: 0; padding: 0 12px; text-align: center;
   font-size: 11px; line-height: 1.5; color: var(--ink-muted); }
 .cf-capture .cf-capture-actions { display: flex; gap: 6px; align-items: center;
@@ -119,7 +119,7 @@
   color-mix(in srgb, var(--red) 45%, transparent); }
 .cf-capture .cf-capture-pastilles { display: flex; gap: 4px; flex-wrap: wrap;
   margin-top: 3px; }
-.cf-capture .cf-capture-pastille { width: 20px; height: 20px; border-radius: 4px;
+.cf-capture .cf-capture-pastille { width: 20px; height: 20px; border-radius: var(--r);
   border: 1px solid var(--stroke); flex: 0 0 auto; }
 /* Le format a change SOUS les mesures : ce n'est pas une note de bas de page,
    c'est un bandeau — les millimetres affiches decrivent une autre carte. */

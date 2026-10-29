@@ -497,7 +497,7 @@ button { font-family: inherit; }
    de parler de la même couleur. Taille EXPLICITE et `flex: none` : sans elles
    un <i> vide ne mesure rien et la couleur n'existe pas à l'écran. */
 .pastille {
-  flex: none; width: 10px; height: 10px; border-radius: 3px;
+  flex: none; width: 10px; height: 10px; border-radius: var(--r);
   border: 1px solid var(--stroke-strong);
 }
 .plaque-oeil {

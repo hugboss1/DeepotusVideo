@@ -42,7 +42,7 @@
 .cf-gltf .cf-gltf-num input {
   width: 104px; padding-right: 26px;
   background: var(--bg-base); border: 1px solid var(--stroke-strong);
-  border-radius: 8px; color: var(--ink-strong); font-family: var(--f-mono);
+  border-radius: var(--r); color: var(--ink-strong); font-family: var(--f-mono);
   font-size: 12px; padding-left: 8px; padding-top: 5px; padding-bottom: 5px;
 }
 .cf-gltf .cf-gltf-num input:focus { outline: none; border-color: var(--accent); }
@@ -118,7 +118,7 @@
 }
 .cf-gltf .cf-gltf-free kbd {
   font-family: var(--f-mono); font-size: 9.5px; border: 1px solid var(--stroke-strong);
-  border-radius: 4px; padding: 0 3px; color: var(--ink-soft);
+  border-radius: var(--r); padding: 0 3px; color: var(--ink-soft);
 }
 
 /* ── visionneuse ────────────────────────────────────────────────────────── */

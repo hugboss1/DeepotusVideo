@@ -1,0 +1,291 @@
+/* GÉNÉRÉ par scripts/charte_bords.py (t374) — ne pas éditer : relancer le script.
+   Angles vifs de la coque sans toucher au bundle prébâti ni aux feuilles figées du Montage.
+   Liée EN DERNIER par frontend/dist/index.html ; copie identique dans frontend/dist/shared/. */
+/* [A] règles de la coque qui écrivaient un rayon littéral — UNE règle par sélecteur : un sélecteur que le
+   navigateur refuserait n'emporte que la sienne */
+.badge{border-radius:var(--radius)!important}
+.btn-ghost{border-radius:var(--radius)!important}
+.btn-primary{border-radius:var(--radius)!important}
+.dz-dock-handle{border-radius:var(--radius)!important}
+.dz-insp-handle{border-radius:var(--radius)!important}
+.dz-opengraph-item{border-radius:var(--radius)!important}
+.dz-tip{border-radius:var(--radius)!important}
+.dzAgentAccord select{border-radius:var(--radius)!important}
+.dzAgentActions button{border-radius:var(--radius)!important}
+.dzAgentBulle{border-radius:var(--radius)!important}
+.dzAgentCampEspace select{border-radius:var(--radius)!important}
+.dzAgentHalo{border-radius:var(--radius)!important}
+.dzAgentMenu{border-radius:var(--radius)!important}
+.dzAgentMenu button{border-radius:var(--radius)!important}
+.dzAgentMsg{border-radius:var(--radius)!important}
+.dzAgentOnglets button{border-radius:var(--radius)!important}
+.dzAgentPied button{border-radius:var(--radius)!important}
+.dzAgentPied textarea{border-radius:var(--radius)!important}
+.dzAgentTete button{border-radius:var(--radius)!important}
+.dzAgentTete select{border-radius:var(--radius)!important}
+.dzlp{border-radius:var(--radius)!important}
+.dzlp-btn{border-radius:var(--radius)!important}
+.dzlp-case{border-radius:var(--radius)!important}
+.dzlp-cherche{border-radius:var(--radius)!important}
+.dzlp-chip{border-radius:var(--radius)!important}
+.dzsvm .dzm-acclip{border-radius:var(--radius)!important}
+.dzsvm .dzm-acest{border-radius:var(--radius)!important}
+.dzsvm .dzm-acpersona{border-radius:var(--radius)!important}
+.dzsvm .dzm-actext{border-radius:var(--radius)!important}
+.dzsvm .dzm-durb{border-radius:var(--radius)!important}
+.dzsvm .dzm-glbadge{border-radius:var(--radius)!important}
+.dzsvm .dzm-gp-ccv{border-radius:var(--radius)!important}
+.dzsvm .dzm-gp-prev img{border-radius:var(--radius)!important}
+.dzsvm .dzm-hb{border-radius:var(--radius)!important}
+.dzsvm .dzm-hb button{border-radius:var(--radius)!important}
+.dzsvm .dzm-lb{border-radius:var(--radius)!important}
+.dzsvm .dzm-lbph{border-radius:var(--radius)!important}
+.dzsvm .dzm-lbtile{border-radius:var(--radius)!important}
+.dzsvm .dzm-lbtile img{border-radius:var(--radius)!important}
+.dzsvm .dzm-mk{border-radius:var(--radius)!important}
+.dzsvm .dzm-mktitre{border-radius:var(--radius)!important}
+.dzsvm .dzm-newerb{border-radius:var(--radius)!important}
+.dzsvm .dzm-projcard{border-radius:var(--radius)!important}
+.dzsvm .dzm-projerr{border-radius:var(--radius)!important}
+.dzsvm .dzm-projin{border-radius:var(--radius)!important}
+.dzsvm .dzm-projp{border-radius:var(--radius)!important}
+.dzsvm .dzm-projthumb{border-radius:var(--radius)!important}
+.dzsvm .dzm-scmsg{border-radius:var(--radius)!important}
+.dzsvm .dzm-scwx{border-radius:var(--radius)!important}
+.dzsvm .dzm-ttcard{border-radius:var(--radius)!important}
+.dzsvm .dzm-ttimg{border-radius:var(--radius)!important}
+.dzsvm .dzm-ttxt{border-radius:var(--radius)!important}
+.dzsvm .dzm-txtb{border-radius:var(--radius)!important}
+.dzsvm .dzm-txterr{border-radius:var(--radius)!important}
+.dzsvm .dzm-txtw{border-radius:var(--radius)!important}
+.dzsvm .svm-abthumb{border-radius:var(--radius)!important}
+.dzsvm .svm-clip[data-nosub]::after{border-radius:var(--radius)!important}
+.dzsvm .svm-delbadge{border-radius:var(--radius)!important}
+.dzsvm .svm-frame>.dzm-scwin{border-radius:var(--radius)!important}
+.dzsvm .svm-gapsel{border-radius:var(--radius)!important}
+.dzsvm .svm-medac:focus-visible{border-radius:var(--radius)!important}
+.dzsvm .svm-medq{border-radius:var(--radius)!important}
+.dzsvm .svm-medrow{border-radius:var(--radius)!important}
+.dzsvm .svm-medrow img{border-radius:var(--radius)!important}
+.dzsvm .svm-medstar:focus-visible{border-radius:var(--radius)!important}
+.dzsvm .svm-menuitem{border-radius:var(--radius)!important}
+.dzsvm .svm-mmrect{border-radius:var(--radius)!important}
+.dzsvm .svm-toolchip .sub-chipbad{border-radius:var(--radius)!important}
+.dzsvm .svm-toolchip .sub-chipcov{border-radius:var(--radius)!important}
+.dzsvm .svm-viewbtn{border-radius:var(--radius)!important}
+.dzsvm .svx-abtn{border-radius:var(--radius)!important}
+.dzsvm .svx-dirty{border-radius:var(--radius)!important}
+.dzsvm .svx-drawer.svx-inline{border-radius:var(--radius)!important}
+.dzsvm .svx-drawer[data-fileover]::after{border-radius:var(--radius)!important}
+.dzsvm .svx-empty{border-radius:var(--radius)!important}
+.dzsvm .svx-gcard{border-radius:var(--radius)!important}
+.dzsvm .svx-ghrow{border-radius:var(--radius)!important}
+.dzsvm .svx-gnum{border-radius:var(--radius)!important}
+.dzsvm .svx-gprompt{border-radius:var(--radius)!important}
+.dzsvm .svx-gsegbtn{border-radius:var(--radius)!important}
+.dzsvm .svx-hints kbd{border-radius:var(--radius)!important}
+.dzsvm .svx-ibadge{border-radius:var(--radius)!important}
+.dzsvm .svx-iconbtn{border-radius:var(--radius)!important}
+.dzsvm .svx-itag{border-radius:var(--radius)!important}
+.dzsvm .svx-item{border-radius:var(--radius)!important}
+.dzsvm .svx-kbd{border-radius:var(--radius)!important}
+.dzsvm .svx-listen{border-radius:var(--radius)!important}
+.dzsvm .svx-mbar{border-radius:var(--radius)!important}
+.dzsvm .svx-mfill{border-radius:var(--radius)!important}
+.dzsvm .svx-mod{border-radius:var(--radius)!important}
+.dzsvm .svx-mpop{border-radius:var(--radius)!important}
+.dzsvm .svx-mtag{border-radius:var(--radius)!important}
+.dzsvm .svx-pval{border-radius:var(--radius)!important}
+.dzsvm .svx-rename{border-radius:var(--radius)!important}
+.dzsvm .svx-rreset{border-radius:var(--radius)!important}
+.dzsvm .svx-searchin{border-radius:var(--radius)!important}
+.dzsvm .svx-seg{border-radius:var(--radius)!important}
+.dzsvm .svx-select{border-radius:var(--radius)!important}
+.dzsvm .svx-skelrow{border-radius:var(--radius)!important}
+.dzsvm .svx-tab{border-radius:var(--radius)!important}
+.dzsvm .svx-tagin{border-radius:var(--radius)!important}
+.dzsvm .svx-wave{border-radius:var(--radius)!important}
+.dzsvm.dz-libsons{border-radius:var(--radius)!important}
+.dzsvm>.dzm-scwin{border-radius:var(--radius)!important}
+.input{border-radius:var(--radius)!important}
+.panel{border-radius:var(--radius)!important}
+.rounded{border-radius:var(--radius)!important}
+.rounded-lg{border-radius:var(--radius)!important}
+.rounded-md{border-radius:var(--radius)!important}
+.sub-act[data-fam="fix"]{border-radius:var(--radius)!important}
+.sub-actcost{border-radius:var(--radius)!important}
+.sub-alert{border-radius:var(--radius)!important}
+.sub-arb{border-radius:var(--radius)!important}
+.sub-btn{border-radius:var(--radius)!important}
+.sub-chip{border-radius:var(--radius)!important}
+.sub-color{border-radius:var(--radius)!important}
+.sub-cov{border-radius:var(--radius)!important}
+.sub-covbar{border-radius:var(--radius)!important}
+.sub-covleg{border-radius:var(--radius)!important}
+.sub-covmore{border-radius:var(--radius)!important}
+.sub-cpsrow{border-radius:var(--radius)!important}
+.sub-empty{border-radius:var(--radius)!important}
+.sub-fr{border-radius:var(--radius)!important}
+.sub-frc{border-radius:var(--radius)!important}
+.sub-frh{border-radius:var(--radius)!important}
+.sub-hidbad{border-radius:var(--radius)!important}
+.sub-hud{border-radius:var(--radius)!important}
+.sub-iconbtn{border-radius:var(--radius)!important}
+.sub-kbd{border-radius:var(--radius)!important}
+.sub-lgnote{border-radius:var(--radius)!important}
+.sub-minibtn{border-radius:var(--radius)!important}
+.sub-mod{border-radius:var(--radius)!important}
+.sub-note{border-radius:var(--radius)!important}
+.sub-nrm{border-radius:var(--radius)!important}
+.sub-nrmbtn{border-radius:var(--radius)!important}
+.sub-num{border-radius:var(--radius)!important}
+.sub-pfr{border-radius:var(--radius)!important}
+.sub-ptile{border-radius:var(--radius)!important}
+.sub-quick{border-radius:var(--radius)!important}
+.sub-rbadge{border-radius:var(--radius)!important}
+.sub-row{border-radius:var(--radius)!important}
+.sub-safebox{border-radius:var(--radius)!important}
+.sub-safelab{border-radius:var(--radius)!important}
+.sub-search{border-radius:var(--radius)!important}
+.sub-sel{border-radius:var(--radius)!important}
+.sub-statfilt{border-radius:var(--radius)!important}
+.sub-sw{border-radius:var(--radius)!important}
+.sub-tab{border-radius:var(--radius)!important}
+.sub-tbad{border-radius:var(--radius)!important}
+.sub-tc{border-radius:var(--radius)!important}
+.sub-tcnow{border-radius:var(--radius)!important}
+.sub-text{border-radius:var(--radius)!important}
+.sub-warn{border-radius:var(--radius)!important}
+.svm-albtn{border-radius:var(--radius)!important}
+.svm-albtn i{border-radius:var(--radius)!important}
+.svm-cap{border-radius:var(--radius)!important}
+.svm-card{border-radius:var(--radius)!important}
+.svm-cellsel{border-radius:var(--radius)!important}
+.svm-clip{border-radius:var(--radius)!important}
+.svm-clip[data-media] .svm-cliplabel{border-radius:var(--radius)!important}
+.svm-clipwave{border-radius:var(--radius)!important}
+.svm-duckpanel{border-radius:var(--radius)!important}
+.svm-durmaster{border-radius:var(--radius)!important}
+.svm-fadeshade{border-radius:var(--radius)!important}
+.svm-frame{border-radius:var(--radius)!important}
+.svm-frametc{border-radius:var(--radius)!important}
+.svm-fxedit{border-radius:var(--radius)!important}
+.svm-gap{border-radius:var(--radius)!important}
+.svm-gen{border-radius:var(--radius)!important}
+.svm-goldbtn{border-radius:var(--radius)!important}
+.svm-hovertc{border-radius:var(--radius)!important}
+.svm-junc{border-radius:var(--radius)!important}
+.svm-kbdbtn{border-radius:var(--radius)!important}
+.svm-kbds kbd{border-radius:var(--radius)!important}
+.svm-kbfind{border-radius:var(--radius)!important}
+.svm-kbwait{border-radius:var(--radius)!important}
+.svm-lyrtag{border-radius:var(--radius)!important}
+.svm-minibtn{border-radius:var(--radius)!important}
+.svm-model{border-radius:var(--radius)!important}
+.svm-mood{border-radius:var(--radius)!important}
+.svm-mph{border-radius:var(--radius)!important}
+.svm-musicprompt{border-radius:var(--radius)!important}
+.svm-narradd{border-radius:var(--radius)!important}
+.svm-nb{border-radius:var(--radius)!important}
+.svm-nbgold{border-radius:var(--radius)!important}
+.svm-nbtext{border-radius:var(--radius)!important}
+.svm-ovadd{border-radius:var(--radius)!important}
+.svm-ovimg{border-radius:var(--radius)!important}
+.svm-pchip{border-radius:var(--radius)!important}
+.svm-pop{border-radius:var(--radius)!important}
+.svm-primarybtn{border-radius:var(--radius)!important}
+.svm-prop{border-radius:var(--radius)!important}
+.svm-safebox{border-radius:var(--radius)!important}
+.svm-scrolllist::-webkit-scrollbar-thumb{border-radius:var(--radius)!important}
+.svm-secbtn{border-radius:var(--radius)!important}
+.svm-sfx{border-radius:var(--radius)!important}
+.svm-sfxprompt{border-radius:var(--radius)!important}
+.svm-solochip{border-radius:var(--radius)!important}
+.svm-spdchip{border-radius:var(--radius)!important}
+.svm-sq6{border-radius:var(--radius)!important}
+.svm-sq7{border-radius:var(--radius)!important}
+.svm-strip{border-radius:var(--radius)!important}
+.svm-tab{border-radius:var(--radius)!important}
+.svm-target{border-radius:var(--radius)!important}
+.svm-tbtn{border-radius:var(--radius)!important}
+.svm-tex{border-radius:var(--radius)!important}
+.svm-tfbadge{border-radius:var(--radius)!important}
+.svm-themechip{border-radius:var(--radius)!important}
+.svm-tkbtn{border-radius:var(--radius)!important}
+.svm-toolbtn{border-radius:var(--radius)!important}
+.svm-toolchip{border-radius:var(--radius)!important}
+.svm-tprev{border-radius:var(--radius)!important}
+.svm-transdur{border-radius:var(--radius)!important}
+.svm-transhandle[data-side="l"]{border-radius:var(--radius)!important}
+.svm-transhandle[data-side="r"]{border-radius:var(--radius)!important}
+.svm-transinsp{border-radius:var(--radius)!important}
+.svm-translabel{border-radius:var(--radius)!important}
+.svm-transspan{border-radius:var(--radius)!important}
+.svm-transtile{border-radius:var(--radius)!important}
+.svm-vfx{border-radius:var(--radius)!important}
+.svm-vfxresult{border-radius:var(--radius)!important}
+.svm-vitsel{border-radius:var(--radius)!important}
+.svm-voice{border-radius:var(--radius)!important}
+.svm-vph{border-radius:var(--radius)!important}
+.svm-wave{border-radius:var(--radius)!important}
+.vfx-ab{border-radius:var(--radius)!important}
+.vfx-alert{border-radius:var(--radius)!important}
+.vfx-bezsvg{border-radius:var(--radius)!important}
+.vfx-btn{border-radius:var(--radius)!important}
+.vfx-chip{border-radius:var(--radius)!important}
+.vfx-color{border-radius:var(--radius)!important}
+.vfx-hints kbd{border-radius:var(--radius)!important}
+.vfx-iconbtn{border-radius:var(--radius)!important}
+.vfx-kbd{border-radius:var(--radius)!important}
+.vfx-mbadge{border-radius:var(--radius)!important}
+.vfx-mhead .vfx-thumb{border-radius:var(--radius)!important}
+.vfx-mod{border-radius:var(--radius)!important}
+.vfx-num{border-radius:var(--radius)!important}
+.vfx-ptile{border-radius:var(--radius)!important}
+.vfx-rack{border-radius:var(--radius)!important}
+.vfx-rack.vfx-inline{border-radius:var(--radius)!important}
+.vfx-search{border-radius:var(--radius)!important}
+.vfx-sel{border-radius:var(--radius)!important}
+.vfx-sw{border-radius:var(--radius)!important}
+.vfx-tab{border-radius:var(--radius)!important}
+.vfx-thumbgen{border-radius:var(--radius)!important}
+.vfx-tile{border-radius:var(--radius)!important}
+.vfx-tilebadge{border-radius:var(--radius)!important}
+.vfx-tog{border-radius:var(--radius)!important}
+::-webkit-scrollbar-thumb{border-radius:var(--radius)!important}
+[data-node-id]{border-radius:var(--radius)!important}
+[data-node-id]>div:first-child{border-radius:var(--radius)!important}
+[data-node-id]>div:first-child>span:first-child{border-radius:var(--radius)!important}
+/* [B] rayons en ligne de React (attribut style) */
+[style*="border-radius: 1px"],
+[style*="border-radius: 2px"],
+[style*="border-radius: 3px"],
+[style*="border-radius: 4px"],
+[style*="border-radius: 5px"],
+[style*="border-radius: 6px"],
+[style*="border-radius: 7px"],
+[style*="border-radius: 8px"],
+[style*="border-radius: 9px"],
+[style*="border-radius: 10px"],
+[style*="border-radius: 11px"],
+[style*="border-radius: 12px"],
+[style*="border-radius: 14px"],
+[style*="border-radius: 20px"],
+[style*="border-radius: var(--r-md)"],
+[style*="border-radius: 0px 3px 3px 0px"],
+[style*="border-radius: 3px 0px 0px 3px"]{border-radius:var(--radius)!important}
+/* [C] classes Tailwind (rounded-full reste rond) */
+.rounded,.rounded-sm,.rounded-md,.rounded-lg,.rounded-xl,.rounded-2xl{border-radius:var(--radius)!important}
+/* ── finitions écrites à la main (t374) ────────────────────────────────────── */
+/* Typographie : les gris Tailwind du bundle rejoignent les quatre encres de la charte. */
+.text-slate-100{color:var(--fg-1)}
+.text-slate-200,.text-slate-300{color:var(--fg-2)}
+.text-slate-400,.text-slate-500{color:var(--fg-3)}
+.text-slate-600{color:var(--fg-4)}
+.font-mono{font-family:var(--font-mono)}
+.font-sans{font-family:var(--font-ui)}
+/* Sélecteur de modèle (Quick, Studio…) : UNE ligne, l'excédent en points de suspension (le bouton fait 30 px). */
+button[data-dzselect]{gap:var(--pad-2);min-width:0}
+button[data-dzselect]>span:first-child{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+/* Ascenseurs : le coin où se croisent les deux barres n'est plus le carré blanc par défaut du moteur. */
+::-webkit-scrollbar-corner{background:transparent}

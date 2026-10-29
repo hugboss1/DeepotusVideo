@@ -251,7 +251,7 @@
   function observer() {
     try {
       var st = document.createElement("style");
-      st.textContent = ".dzpc-btn{height:24px;padding:0 9px;font-size:11px;border-radius:12px;cursor:pointer;" +
+      st.textContent = ".dzpc-btn{height:24px;padding:0 9px;font-size:11px;border-radius:var(--r);cursor:pointer;" +
         "border:1px solid var(--stroke);background:transparent;color:var(--ink-soft);display:inline-flex;" +
         "align-items:center;gap:4px}.dzpc-btn:hover{color:var(--ink-strong)}";
       document.head.appendChild(st);

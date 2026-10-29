@@ -104,8 +104,8 @@ textarea.wa-champ { height: auto; padding: 6px 8px; resize: vertical; line-heigh
 .wa-actions-fil { display: flex; gap: 6px; }
 .wa-fil { flex: 1; min-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel-3); }
 .wa-bulle { max-width: 72%; padding: 7px 10px; border-radius: var(--r); background: var(--bg-panel-2); border: 1px solid var(--stroke); display: flex; flex-direction: column; gap: 4px; }
-.wa-bulle--entrant { align-self: flex-start; border-bottom-left-radius: 3px; }
-.wa-bulle--sortant { align-self: flex-end; border-bottom-right-radius: 3px; border-color: color-mix(in srgb, var(--accent) 35%, var(--stroke)); }
+.wa-bulle--entrant { align-self: flex-start; border-bottom-left-radius: var(--r); }
+.wa-bulle--sortant { align-self: flex-end; border-bottom-right-radius: var(--r); border-color: color-mix(in srgb, var(--accent) 35%, var(--stroke)); }
 .wa-bulle-texte { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink-strong); line-height: 1.45; }
 .wa-bulle-bouton { margin: 0; font-size: 11px; color: var(--ink-soft); }
 .wa-bulle-meta { display: flex; gap: 8px; justify-content: flex-end; font-size: 10px; color: var(--ink-soft); font-family: var(--f-mono); }
