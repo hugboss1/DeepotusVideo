@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
 """t305 (25/10/2026) (lot A0) — les BOÎTES À OUTILS de l'agent : les outils sont groupés par fonctionnalité ; chaque agent ne voit
 que les boîtes qui le déclarent, et `agent_outils.executer` refuse un outil hors de la boîte de l'agent du tour.
-A0 ne déclare que « campagnes » (les dix outils existants) ; les autres boîtes arrivent avec leur lot."""
+A0 ne déclare que « campagnes » (les dix outils existants) ; les autres boîtes arrivent avec leur lot.
+
+t345 (29/10/2026, D1 du lot Scenario) : l'agent « mcp » = Claude Code (ou tout client MCP) branché sur le serveur MCP
+local de l'app (services/mcp_pont.py). Il déclare les boîtes utiles à la production (campagnes, veille, recette, scan,
+capture, chapitres, assets3d), mais `FILTRES` ne lui laisse que la LECTURE et le seul devis `deviser_generation` :
+aucune écriture, aucune carte qui suppose une conversation. Campagnes reste figé à l'octet (fixture), le mobile aussi."""
 from __future__ import annotations
 
 from app.services import agent_outils as ao
@@ -13,7 +18,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.campagnes",
         "outils": ["chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_document",
                    "ecrire_dossier", "proposer_porte", "deviser_generation", "creer_brouillons", "pointer"],
-        "agents": ["campagnes"],
+        "agents": ["campagnes", "mcp"],
         "mobile": True,
     },
     # t352 (27/10/2026) : la veille concurrentielle (niveau 1, lecture seule) ; le compagnon l'aura en P8
@@ -21,7 +26,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.veille",
         "outils": ["veille_collecter", "veille_lire", "veille_sources", "veille_apify",   # t366 : sources Apify
                    "concurrents_pages", "concurrents_pubs", "concurrents_serp"],             # t368 : concurrents
-        "agents": ["campagnes"],
+        "agents": ["campagnes", "mcp"],
         "mobile": False,
     },
     # t354 (28/10/2026) : la recherche et la qualification des prospects ; le compagnon l'aura en P8
@@ -47,7 +52,7 @@ BOITES: dict[str, dict] = {
     "recette": {
         "libelle": "agent.boites.recette",
         "outils": ["lire_recette"],
-        "agents": ["campagnes"],
+        "agents": ["campagnes", "mcp"],
         "mobile": False,
     },
     # t312 : lire le texte d'une image de la Bibliothèque ; aucun agent ne la déclare encore (§11 bis)
@@ -56,7 +61,7 @@ BOITES: dict[str, dict] = {
     "scan": {
         "libelle": "agent.boites.scan",
         "outils": ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf", "calques_illustration"],
-        "agents": [],
+        "agents": ["mcp"],   # t345 : lecture seulement pour mcp (FILTRES)
         "mobile": False,
     },
     # t317 : lire la piste des clics d'une capture ; aucun agent ne la déclare encore (§11 bis : le Tutoriel est « Demander ») ;
@@ -64,14 +69,15 @@ BOITES: dict[str, dict] = {
     "capture": {
         "libelle": "agent.boites.capture",
         "outils": ["lire_piste_clics", "proposer_decoupe", "proposer_chapitres_tuto"],
-        "agents": [],
+        "agents": ["mcp"],   # t345 : lecture seulement pour mcp (FILTRES)
         "mobile": False,
     },
-    # t337 (29/10/2026) : lire la revue chiffrée d'un plan du storyboard ; aucun agent ne la déclare encore (§11 bis)
+    # t337 (29/10/2026) : lire la revue chiffrée d'un plan du storyboard ; t345 : + la bible et les plans, déclarée par
+    # l'agent « mcp » (Claude Code) ; pas par Campagnes, dont la fixture est figée et le métier est la diffusion
     "chapitres": {
         "libelle": "agent.boites.chapitres",
-        "outils": ["lire_revue_plan"],
-        "agents": [],
+        "outils": ["lire_revue_plan", "lire_bible", "lire_plans"],
+        "agents": ["mcp"],
         "mobile": False,
     },
     # t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (lecture, proposition) ; aucun agent ne
@@ -86,10 +92,23 @@ BOITES: dict[str, dict] = {
     "assets3d": {
         "libelle": "agent.boites.assets3d",
         "outils": ["pieces_analyser", "budgets_triangles", "comparatif3d_lire"],   # t344 : + le tableau d'un comparatif
-        "agents": [],
+        "agents": ["mcp"],   # t345 : Claude Code lit pièces, budgets et comparatifs (lecture)
         "mobile": False,
     },
 }
+
+
+# t345 : ce qu'un agent garde des boîtes qu'il déclare. « mcp » : la LECTURE (hors outils d'une conversation WhatsApp,
+# hors `pointer` qui vise l'écran de l'app, hors `lire_document` qui lit les dépôts d'une conversation de campagne) et
+# le devis `deviser_generation` (une carte que le serveur MCP transforme en jeton ; jamais une dépense).
+def _permis_mcp(nom: str) -> bool:
+    o = ao.OUTILS.get(nom) or {}
+    if nom == "deviser_generation":
+        return True
+    return o.get("nature") == "lecture" and not o.get("contact") and nom not in ("pointer", "lire_document")
+
+
+FILTRES = {"mcp": _permis_mcp}
 
 
 def boite_de(outil: str) -> str | None:
@@ -103,7 +122,8 @@ def boite_de(outil: str) -> str | None:
 def outils_pour(agent: str) -> list[str]:
     """Les noms d'outils visibles de l'agent, dans l'ordre de `OUTILS`."""
     permis = {o for b in BOITES.values() if agent in b["agents"] for o in b["outils"]}
-    return [n for n in ao.OUTILS if n in permis]
+    garde = FILTRES.get(agent)
+    return [n for n in ao.OUTILS if n in permis and (garde is None or garde(n))]
 
 
 def _definitions(noms: list[str]) -> list[dict]:

@@ -399,9 +399,11 @@ check("R15 une ligne de dépense, catégorie « chapitres », moteur anthropic, 
       dep == [("chapitres", "anthropic", s0)], dep)
 
 print("\n[A] l'outil d'agent")
-check("A1 la boîte « chapitres » porte lire_revue_plan (lecture), aucun agent ne la déclare encore ; registre sain",
-      B.BOITES.get("chapitres") == {"libelle": "agent.boites.chapitres", "outils": ["lire_revue_plan"],
-                                    "agents": [], "mobile": False}
+check("A1 la boîte « chapitres » porte lire_revue_plan (lecture), déclarée par le seul agent « mcp » (t345 : + bible "
+      "et plans) ; registre sain",
+      B.BOITES.get("chapitres") == {"libelle": "agent.boites.chapitres",
+                                    "outils": ["lire_revue_plan", "lire_bible", "lire_plans"],
+                                    "agents": ["mcp"], "mobile": False}
       and ao.OUTILS["lire_revue_plan"]["nature"] == "lecture" and B.verifier() == [], B.verifier())
 ctx = ao.Ctx(cid="c1")
 r = loop.run_until_complete(ao.lire_revue_plan(ctx, plan=s0))

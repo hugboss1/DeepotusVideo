@@ -68,8 +68,9 @@ print("[1] registre")
 check("1a verifier() sain", B.verifier() == [], B.verifier())
 check("1b natures", ao.OUTILS["angles_inspiration"]["nature"] == "lecture"
       and ao.OUTILS["deviser_contenu_neuf"]["nature"] == "carte")
-check("1c dans la boîte scan, sans agent", B.boite_de("angles_inspiration") == "scan"
-      and B.boite_de("deviser_contenu_neuf") == "scan" and B.BOITES["scan"]["agents"] == [])
+check("1c dans la boîte scan, déclarée par le seul agent mcp (t345), qui ne voit pas la carte deviser_contenu_neuf",
+      B.boite_de("angles_inspiration") == "scan" and B.boite_de("deviser_contenu_neuf") == "scan"
+      and B.BOITES["scan"]["agents"] == ["mcp"] and "deviser_contenu_neuf" not in B.outils_pour("mcp"))
 fige = json.loads((_ICI / "agent_definitions_campagnes.json").read_text(encoding="utf-8"))
 check("1d Campagnes inchangé (fixture figée)", B.definitions_pour("campagnes") == fige)
 r = lancer("deviser_contenu_neuf", {"titre": "x"}, agent="campagnes")

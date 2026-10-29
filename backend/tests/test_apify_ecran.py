@@ -51,7 +51,9 @@ r = subprocess.run([sys.executable, str(REPO / "scripts" / "patch_bundle_dzapify
 check("1.4 --check : déjà appliqué", "déjà appliqué" in r.stdout, r.stdout + r.stderr)
 check("1.5 ancre unique dans la vue d'avant", all(AVANT.count(a) == 1 for a, _z in M.PAIRES))
 check("1.6 hors couche", all(M.hors_couche(B, z) for _a, z in M.PAIRES))
-check("1.7 aller-retour exact", M.appliquer(AVANT) == B and M.defaire(B) == AVANT)
+# t345 : dzmcp est posé APRÈS dzapify ; avant_dzapify le défait d'abord, l'aller-retour se lit donc sur le bundle d'avant dzmcp
+_SANS_MCP = AIDE.avant_dzmcp(B)
+check("1.7 aller-retour exact", M.appliquer(AVANT) == _SANS_MCP and M.defaire(_SANS_MCP) == AVANT)
 check("1.8 épingles intouchées", B.count("x.useState(") == 731 and B.count("v2.8.0") == 4 and B.count("DzTracks") == 181
       and B.count(CONFIRMER) == 30)
 if NODE:
