@@ -141,7 +141,7 @@ async def main():
     from app.services import agent_boites as _B
     check("test_seulement_dix_outils : OUTILS", set(ao.OUTILS) - set(_B.BOITES["whatsapp"]["outils"])
           - set(_B.BOITES["scan"]["outils"]) - set(_B.BOITES["capture"]["outils"])
-          - set(_B.BOITES["assets3d"]["outils"]) == DIX   # t319 : boîte « capture » ; t342 : boîte « assets3d »
+          - set(_B.BOITES["assets3d"]["outils"]) - set(_B.BOITES["chapitres"]["outils"]) == DIX   # t319 : boîte « capture » ; t342 : boîte « assets3d » ; t337 : boîte « chapitres »
           and set(_B.outils_pour("campagnes")) == DIX, str(sorted(ao.OUTILS)))
     defs = ao.definitions()
     check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 29)   # t365 : + entreprises_carte ; t366 : + veille_sources, veille_apify
