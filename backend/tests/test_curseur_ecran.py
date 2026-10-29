@@ -91,7 +91,7 @@ check("2.1 la coque charge la feuille une fois, après la feuille du bundle et d
 IMPORT = '@import url("/shared/dz-curseur.css");'
 for f in (FRONT / "shared" / "deepotus.tokens.css", FRONT / "dist" / "shared" / "deepotus.tokens.css",
           FRONT / "atelier" / "atelier.css", FRONT / "spritelab" / "spritelab.css"):
-    t = f.read_text(encoding="utf-8")
+    t = re.sub(r"/\*.*?\*/", "", f.read_text(encoding="utf-8"), flags=re.S)   # un @import en commentaire ne charge rien
     tete = t.split("{", 1)[0]
     check(f"2.2 {f.relative_to(REPO).as_posix()} : @import en tête, après dz-charte",
           t.count(IMPORT) == 1 and IMPORT in tete and tete.index("dz-charte.css") < tete.index(IMPORT))
@@ -107,7 +107,7 @@ def porte_la_feuille(page: pathlib.Path) -> bool:
         if f in vus or not f.exists():
             continue
         vus.add(f)
-        a_lire += re.findall(r'@import url\("([^"]+)"\)', f.read_text(encoding="utf-8"))
+        a_lire += re.findall(r'@import url\("([^"]+)"\)', re.sub(r"/\*.*?\*/", "", f.read_text(encoding="utf-8"), flags=re.S))
     return False
 labs = {}
 for lab in sorted(p for p in FRONT.iterdir() if p.is_dir() and p.name not in ("dist", "shared", "src", "patches", "node_modules")):
