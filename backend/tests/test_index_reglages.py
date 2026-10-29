@@ -51,6 +51,10 @@ barre = dict(re.findall(r'\{k:"([a-z]+)",l:"([^"]+)"\}', m.group(1))) if m else 
 _ESP = s.count('{k:"personas",l:dzT("reglages.onglet.personas")},{k:"espaces",l:dzT("espaces.reglages.onglet")},')
 if _ESP == 1:
     barre["espaces"] = AIDE.DICO["espaces.reglages.onglet"]["fr"]
+# t345 (29/10/2026) : l'onglet « mcp » (Serveur MCP) est posé par le maillon de QUEUE dzmcp, lui aussi après la traduction
+_MCP = s.count('{k:"pricing",l:dzT("reglages.onglet.tarifs")},{k:"mcp",l:dzT("mcp.reglages.onglet")},')
+if _MCP == 1:
+    barre["mcp"] = AIDE.DICO["mcp.reglages.onglet"]["fr"]
 fu = re.search(r'Fu=\[(.*?)\];function bm\(', s_av)
 cles_keys = set(re.findall(r'\{k:"([A-Z_]+)",label:', fu.group(1))) if fu else set()
 _iw = s_av.find("function wm({serverKeys:e,onSaved:t})")
@@ -83,7 +87,7 @@ with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) a
     code_distant = c2.get("/api/reglages/index").status_code
 
 print("\n[1] les sections")
-check("1.0 le miroir a bien lu le bundle (14 sections dont Appareils depuis #56 + Espaces depuis t202, 9 clés, Ollama, 16 comptes dont TikTok depuis #31)", len(barre) == 14 + _ESP and _ESP == 1 and len(cles_keys) == 9
+check("1.0 le miroir a bien lu le bundle (14 sections dont Appareils depuis #56 + Espaces depuis t202 + Serveur MCP depuis t345, 9 clés, Ollama, 16 comptes dont TikTok depuis #31)", len(barre) == 14 + _ESP + _MCP and _ESP == 1 and _MCP == 1 and len(cles_keys) == 9
       and cles_ollama == {"OLLAMA_URL", "OLLAMA_MODEL"} and len(cles_comptes) == 16, f"{barre} {cles_keys} {cles_ollama} {cles_comptes}")
 vues = {x["section"] for x in e}
 check("1.1 CHAQUE section de la barre a au moins une entrée, et aucune entrée ne vise une section qui n'existe pas",

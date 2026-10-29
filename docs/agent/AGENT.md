@@ -141,6 +141,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   → [POINT:photolab.pinceau] [POINT:photolab.recadrage] [GUIDE:photolab]
 - **Appliquer un filtre** : Photolab › menu Filtre. → [POINT:photolab.menu_filtre] [GUIDE:photolab-avance]
 - **Changer de PC** : Réglages › Transfert entre machines (pas d'ancre pour cette section). → [GUIDE:transfert]
+- **Piloter l'app depuis Claude Code** (t345) : Réglages › Serveur MCP, l'activer puis « Copier la commande ». Claude
+  Code lit et chiffre ; tout lancement payant attend votre « Lancer » sur la carte en bas à droite. → [POINT:reglages.mcp]
 - **Se faire aider** : F1 ou « Demander » ouvre ce tiroir (onglets « Demander », « Campagnes », « Veille »,
   « Prospects ») ; la réponse peut montrer un bouton, ouvrir l'écran ou le guide, ou proposer de regarder l'écran
   (accord et coût d'abord). Ce qui est dans le tiroir ne se pointe pas : nomme l'onglet. → [GUIDE:demander]

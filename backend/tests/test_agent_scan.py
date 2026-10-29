@@ -56,7 +56,7 @@ def lancer(args, agent="scan"):
 print("[1] la boite et l'outil")
 check("1a verifier() sain", B.verifier() == [], B.verifier())
 b = B.BOITES.get("scan")
-check("1b boite scan figee (t313 : + angles_inspiration, deviser_contenu_neuf ; t314 : + calques_illustration)", b == {"libelle": "agent.boites.scan", "outils": ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf", "calques_illustration"], "agents": [],
+check("1b boite scan figee (t313 : + angles_inspiration, deviser_contenu_neuf ; t314 : + calques_illustration)", b == {"libelle": "agent.boites.scan", "outils": ["lire_texte_image", "angles_inspiration", "deviser_contenu_neuf", "calques_illustration"], "agents": ["mcp"],
                                    "mobile": False}, b)
 check("1c outil enregistre, nature lecture", ao.OUTILS["lire_texte_image"]["nature"] == "lecture")
 check("1d schema image requise, langue fr|en|auto",

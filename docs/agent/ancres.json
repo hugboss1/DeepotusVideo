@@ -29,6 +29,7 @@
     {"id": "reglages.diagnostic", "ecran": "settings", "reglages": "diag", "fr": "Réglages › Diagnostic (et mise à jour)", "en": "Settings › Diagnostics (and update)"},
     {"id": "reglages.apparence", "ecran": "settings", "reglages": "appearance", "fr": "Réglages › Apparence", "en": "Settings › Appearance"},
     {"id": "reglages.appareils", "ecran": "settings", "reglages": "appareils", "fr": "Réglages › Appareils", "en": "Settings › Devices"},
+    {"id": "reglages.mcp", "ecran": "settings", "reglages": "mcp", "fr": "Réglages › Serveur MCP (Claude Code)", "en": "Settings › MCP server (Claude Code)"},
     {"id": "quick.onglet_seedance", "ecran": "quick", "selecteur": "button", "texte": {"fr": "Seedance", "en": "Seedance"}, "fr": "Quick › onglet Seedance (clip animé)", "en": "Quick › Seedance tab (animated clip)"},
     {"id": "quick.persona", "ecran": "quick", "selecteur": "button", "texte": {"fr": "Changer de persona", "en": "Switch persona"}, "fr": "Quick › choix du persona", "en": "Quick › persona picker"},
     {"id": "quick.preset_enregistrer", "ecran": "quick", "selecteur": "button", "texte": {"fr": "Enregistrer…", "en": "Save…"}, "fr": "Quick › Enregistrer un preset", "en": "Quick › Save a preset"},
