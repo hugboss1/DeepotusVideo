@@ -12854,5 +12854,265 @@
  "facteur : nombre attendu": {
   "fr": "facteur : nombre attendu",
   "en": "factor: number expected"
+ },
+ "job : le nom du dossier du job 3D est attendu": {
+  "fr": "job : le nom du dossier du job 3D est attendu",
+  "en": "job: the 3D job folder name is expected"
+ },
+ "job 3D introuvable : {j}": {
+  "fr": "job 3D introuvable : {j}",
+  "en": "3D job not found: {j}"
+ },
+ "FBX non lu ici (aucun lecteur FBX embarqué) : exporte-le en GLB ou en BVH depuis Blender": {
+  "fr": "FBX non lu ici (aucun lecteur FBX embarqué) : exporte-le en GLB ou en BVH depuis Blender",
+  "en": "FBX is not read here (no embedded FBX reader): export it to GLB or BVH from Blender"
+ },
+ "mouvement : un fichier .bvh ou .glb est attendu": {
+  "fr": "mouvement : un fichier .bvh ou .glb est attendu",
+  "en": "motion: a .bvh or .glb file is expected"
+ },
+ "mouvement trop lourd : 40 Mo au plus": {
+  "fr": "mouvement trop lourd : 40 Mo au plus",
+  "en": "motion too heavy: 40 MB at most"
+ },
+ "Clé Uthana absente — colle-la dans Établi › Rig › Mouvement, « Depuis une vidéo ».": {
+  "fr": "Clé Uthana absente — colle-la dans Établi › Rig › Mouvement, « Depuis une vidéo ».",
+  "en": "Uthana key missing — paste it in Workbench › Rig › Motion, « From a video »."
+ },
+ "tâche : identifiant de 12 caractères hexadécimaux attendu": {
+  "fr": "tâche : identifiant de 12 caractères hexadécimaux attendu",
+  "en": "task: a 12-character hexadecimal id is expected"
+ },
+ "tâche inconnue pour ce job": {
+  "fr": "tâche inconnue pour ce job",
+  "en": "unknown task for this job"
+ },
+ "rognage : début et fin en secondes": {
+  "fr": "rognage : début et fin en secondes",
+  "en": "trim: start and end in seconds"
+ },
+ "format de mouvement non pris en charge : .bvh ou .glb": {
+  "fr": "format de mouvement non pris en charge : .bvh ou .glb",
+  "en": "unsupported motion format: .bvh or .glb"
+ },
+ "source : type « fichier », « meshy » ou « clip »": {
+  "fr": "source : type « fichier », « meshy » ou « clip »",
+  "en": "source: type « fichier », « meshy » or « clip »"
+ },
+ "BVH : l'en-tête HIERARCHY manque — ce fichier n'est pas un BVH": {
+  "fr": "BVH : l'en-tête HIERARCHY manque — ce fichier n'est pas un BVH",
+  "en": "BVH: the HIERARCHY header is missing — this file is not a BVH"
+ },
+ "BVH : {n} images (1 à {MAX_IMAGES} attendues)": {
+  "fr": "BVH : {n} images (1 à {MAX_IMAGES} attendues)",
+  "en": "BVH: {n} frames (1 to {MAX_IMAGES} expected)"
+ },
+ "BVH : durée d'image hors bornes (0 à 1 s)": {
+  "fr": "BVH : durée d'image hors bornes (0 à 1 s)",
+  "en": "BVH: frame time out of bounds (0 to 1 s)"
+ },
+ "BVH : {valeurs} valeurs pour {n} images de {largeur} canaux": {
+  "fr": "BVH : {valeurs} valeurs pour {n} images de {largeur} canaux",
+  "en": "BVH: {valeurs} values for {n} frames of {largeur} channels"
+ },
+ "GLB : aucun clip d'animation dans ce fichier": {
+  "fr": "GLB : aucun clip d'animation dans ce fichier",
+  "en": "GLB: no animation clip in this file"
+ },
+ "GLB : aucun os (ni skin ni nœud animé)": {
+  "fr": "GLB : aucun os (ni skin ni nœud animé)",
+  "en": "GLB: no bone (neither skin nor animated node)"
+ },
+ "GLB : le clip n'anime aucun os": {
+  "fr": "GLB : le clip n'anime aucun os",
+  "en": "GLB: the clip animates no bone"
+ },
+ "GLB : clip trop long ({n} images, {MAX_IMAGES} au plus)": {
+  "fr": "GLB : clip trop long ({n} images, {MAX_IMAGES} au plus)",
+  "en": "GLB: clip too long ({n} frames, {MAX_IMAGES} at most)"
+ },
+ "retimage : rognage hors du mouvement (0 à {duree} s, début avant la fin)": {
+  "fr": "retimage : rognage hors du mouvement (0 à {duree} s, début avant la fin)",
+  "en": "retime: trim outside the motion (0 to {duree} s, start before end)"
+ },
+ "retimage : vitesse entre {VITESSE_MIN} et {VITESSE_MAX}": {
+  "fr": "retimage : vitesse entre {VITESSE_MIN} et {VITESSE_MAX}",
+  "en": "retime: speed between {VITESSE_MIN} and {VITESSE_MAX}"
+ },
+ "retimage : fondu de boucle entre 0 et {FONDU_MAX} s": {
+  "fr": "retimage : fondu de boucle entre 0 et {FONDU_MAX} s",
+  "en": "retime: loop blend between 0 and {FONDU_MAX} s"
+ },
+ "retimage : cadence entre {FPS_MIN} et {FPS_MAX} i/s": {
+  "fr": "retimage : cadence entre {FPS_MIN} et {FPS_MAX} i/s",
+  "en": "retime: frame rate between {FPS_MIN} and {FPS_MAX} fps"
+ },
+ "mouvement trop court : il faut au moins deux images": {
+  "fr": "mouvement trop court : il faut au moins deux images",
+  "en": "motion too short: at least two frames are needed"
+ },
+ "aucun os en commun : les noms des deux squelettes ne se reconnaissent pas (bassin, colonne, bras, jambes…)": {
+  "fr": "aucun os en commun : les noms des deux squelettes ne se reconnaissent pas (bassin, colonne, bras, jambes…)",
+  "en": "no bone in common: the names of the two skeletons do not match (hips, spine, arms, legs…)"
+ },
+ "clip trop long après retimage ({n} images, {MAX_IMAGES} au plus)": {
+  "fr": "clip trop long après retimage ({n} images, {MAX_IMAGES} au plus)",
+  "en": "clip too long after retiming ({n} frames, {MAX_IMAGES} at most)"
+ },
+ "nom du clip : des lettres ou des chiffres sont attendus": {
+  "fr": "nom du clip : des lettres ou des chiffres sont attendus",
+  "en": "clip name: letters or digits are expected"
+ },
+ "GLB à tampon externe (uri) : hors périmètre": {
+  "fr": "GLB à tampon externe (uri) : hors périmètre",
+  "en": "GLB with an external buffer (uri): out of scope"
+ },
+ "ce modèle n'a pas de squelette : rigge-le d'abord (3D Studio › Rig Meshy)": {
+  "fr": "ce modèle n'a pas de squelette : rigge-le d'abord (3D Studio › Rig Meshy)",
+  "en": "this model has no skeleton: rig it first (3D Studio › Meshy rig)"
+ },
+ "hitboxes : une liste non vide d'os est attendue": {
+  "fr": "hitboxes : une liste non vide d'os est attendue",
+  "en": "hitboxes: a non-empty list of bones is expected"
+ },
+ "hitboxes : {MAX_HITBOXES} au plus": {
+  "fr": "hitboxes : {MAX_HITBOXES} au plus",
+  "en": "hitboxes: {MAX_HITBOXES} at most"
+ },
+ "ce modèle n'a pas de squelette : pas de hitbox sur des os": {
+  "fr": "ce modèle n'a pas de squelette : pas de hitbox sur des os",
+  "en": "this model has no skeleton: no hitbox on bones"
+ },
+ "source : {type, nom} attendu": {
+  "fr": "source : {type, nom} attendu",
+  "en": "source: {type, nom} expected"
+ },
+ "source : « clip » attend un nom": {
+  "fr": "source : « clip » attend un nom",
+  "en": "source: « clip » expects a name"
+ },
+ "source : un nom de fichier nu est attendu": {
+  "fr": "source : un nom de fichier nu est attendu",
+  "en": "source: a bare file name is expected"
+ },
+ "clip Meshy introuvable : {nom}": {
+  "fr": "clip Meshy introuvable : {nom}",
+  "en": "Meshy clip not found: {nom}"
+ },
+ "BVH : aucun os": {
+  "fr": "BVH : aucun os",
+  "en": "BVH: no bone"
+ },
+ "BVH : « Frames: » attendu après MOTION": {
+  "fr": "BVH : « Frames: » attendu après MOTION",
+  "en": "BVH: « Frames: » expected after MOTION"
+ },
+ "BVH : « Frame Time: » attendu": {
+  "fr": "BVH : « Frame Time: » attendu",
+  "en": "BVH: « Frame Time: » expected"
+ },
+ "BVH tronqué ou mal formé ({name})": {
+  "fr": "BVH tronqué ou mal formé ({name})",
+  "en": "BVH truncated or malformed ({name})"
+ },
+ "GLB : clip « {v} » introuvable": {
+  "fr": "GLB : clip « {v} » introuvable",
+  "en": "GLB: clip « {v} » not found"
+ },
+ "retimage : « {cle} » attend un nombre": {
+  "fr": "retimage : « {cle} » attend un nombre",
+  "en": "retime: « {cle} » expects a number"
+ },
+ "hitboxes : chaque entrée est un objet {os, forme, rayon, role}": {
+  "fr": "hitboxes : chaque entrée est un objet {os, forme, rayon, role}",
+  "en": "hitboxes: each entry is an object {os, forme, rayon, role}"
+ },
+ "hitboxes : os « {v} » absent du squelette": {
+  "fr": "hitboxes : os « {v} » absent du squelette",
+  "en": "hitboxes: bone « {v} » not in the skeleton"
+ },
+ "hitboxes : forme « capsule » ou « boite »": {
+  "fr": "hitboxes : forme « capsule » ou « boite »",
+  "en": "hitboxes: shape « capsule » or « boite »"
+ },
+ "hitboxes : rayon (part de la longueur de l'os) entre 0,05 et 1": {
+  "fr": "hitboxes : rayon (part de la longueur de l'os) entre 0,05 et 1",
+  "en": "hitboxes: radius (share of the bone length) between 0.05 and 1"
+ },
+ "hitboxes : rôle « hurt » (reçoit) ou « hit » (frappe)": {
+  "fr": "hitboxes : rôle « hurt » (reçoit) ou « hit » (frappe)",
+  "en": "hitboxes: role « hurt » (receives) or « hit » (strikes)"
+ },
+ "mouvement introuvable : {nom}": {
+  "fr": "mouvement introuvable : {nom}",
+  "en": "motion not found: {nom}"
+ },
+ "BVH : « End Site » sans accolade": {
+  "fr": "BVH : « End Site » sans accolade",
+  "en": "BVH: « End Site » without a brace"
+ },
+ "BVH : canal inconnu dans {noms}": {
+  "fr": "BVH : canal inconnu dans {noms}",
+  "en": "BVH: unknown channel in {noms}"
+ },
+ "BVH : mot inattendu « {v} »": {
+  "fr": "BVH : mot inattendu « {v} »",
+  "en": "BVH: unexpected word « {v} »"
+ },
+ "vidéo illisible : durée inconnue (ffprobe)": {
+  "fr": "vidéo illisible : durée inconnue (ffprobe)",
+  "en": "unreadable video: unknown duration (ffprobe)"
+ },
+ "rognage hors de la vidéo (0 à {total} s, début avant la fin)": {
+  "fr": "rognage hors de la vidéo (0 à {total} s, début avant la fin)",
+  "en": "trim outside the video (0 to {total} s, start before end)"
+ },
+ "Uthana lit de {DUREE_MIN} à {DUREE_MAX} s de vidéo : rogne la vidéo ({s} s retenues)": {
+  "fr": "Uthana lit de {DUREE_MIN} à {DUREE_MAX} s de vidéo : rogne la vidéo ({s} s retenues)",
+  "en": "Uthana reads {DUREE_MIN} to {DUREE_MAX} s of video: trim the video ({s} s kept)"
+ },
+ "cadence de {fps} i/s : Uthana attend 24 à 120 i/s": {
+  "fr": "cadence de {fps} i/s : Uthana attend 24 à 120 i/s",
+  "en": "frame rate of {fps} fps: Uthana expects 24 to 120 fps"
+ },
+ "ffmpeg n'a pas préparé la vidéo ({v})": {
+  "fr": "ffmpeg n'a pas préparé la vidéo ({v})",
+  "en": "ffmpeg did not prepare the video ({v})"
+ },
+ "clé Uthana absente": {
+  "fr": "clé Uthana absente",
+  "en": "Uthana key missing"
+ },
+ "Uthana a refusé la vidéo : {err}": {
+  "fr": "Uthana a refusé la vidéo : {err}",
+  "en": "Uthana refused the video: {err}"
+ },
+ "Uthana n'a rendu aucun identifiant de travail": {
+  "fr": "Uthana n'a rendu aucun identifiant de travail",
+  "en": "Uthana returned no job id"
+ },
+ "résolution hors bornes : {COTE_MIN} à {COTE_MAX} px par côté": {
+  "fr": "résolution hors bornes : {COTE_MIN} à {COTE_MAX} px par côté",
+  "en": "resolution out of bounds: {COTE_MIN} to {COTE_MAX} px per side"
+ },
+ "suivi Uthana : {err}": {
+  "fr": "suivi Uthana : {err}",
+  "en": "Uthana tracking: {err}"
+ },
+ "Uthana : le travail a échoué (une personne entière, plan fixe, fond simple)": {
+  "fr": "Uthana : le travail a échoué (une personne entière, plan fixe, fond simple)",
+  "en": "Uthana: the job failed (one full-body person, fixed shot, plain background)"
+ },
+ "Uthana : pas de résultat après 15 minutes": {
+  "fr": "Uthana : pas de résultat après 15 minutes",
+  "en": "Uthana: no result after 15 minutes"
+ },
+ "Uthana a fini sans identifiant de mouvement": {
+  "fr": "Uthana a fini sans identifiant de mouvement",
+  "en": "Uthana finished without a motion id"
+ },
+ "Uthana : le clip rapatrié n'est pas un GLB": {
+  "fr": "Uthana : le clip rapatrié n'est pas un GLB",
+  "en": "Uthana: the downloaded clip is not a GLB"
  }
 }

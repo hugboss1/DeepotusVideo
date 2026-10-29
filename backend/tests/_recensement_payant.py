@@ -29,6 +29,7 @@ MODULES = {
     "inspiration": RACINE / "api" / "inspiration_routes.py",   # t313 : matière, angles et rédaction d'une inspiration (Anthropic)
     "schema": RACINE / "api" / "schema_routes.py",   # t314 : le détourage fal d'un schéma (calques du Vectorlab)
     "comparatif3d": RACINE / "api" / "comparatif3d_routes.py",   # t344 : N moteurs image → 3D en un clic (fal)
+    "mouvement": RACINE / "api" / "mouvement_routes.py",   # t343 : vidéo → mouvement sur le rig (Uthana)
     "parallaxe": RACINE / "api" / "parallaxe_routes.py",   # t341 : décor en calques de parallaxe (Qwen-Image-Layered / Seedream Layerize, fal)
 }
 
@@ -50,6 +51,7 @@ PUITS = {
     "generer_sfx",   # t187 : le registre des bruitages (fal) — texte (/audio/sfx avec modele) et vidéo (/audio/sfx-video)
     "appliquer_vfx",   # t188 : le registre des VFX IA (fal) — POST /vfx-ia
     "reconstruire",   # t189 : le storyboard 3D (SAM 3 objets / corps, fal) — POST /shots/{shot_id}/objets3d
+    "video_vers_mouvement",   # t343 : vidéo → mouvement (Uthana) — POST /api/etabli/mouvement/video
     "tirer_previs",   # t335 : previs → plan (Seedance 2.5 reference-to-video / Veo 3.1 références, fal) — POST /shots/{shot_id}/previs
     "detourer",   # T103 : le matte vidéo BiRefNet (fal)
     "detourer_image",   # t186 : le registre unique du détourage (fal, ou local gratuit ; la vidéo passe par MT.detourer)

@@ -572,6 +572,9 @@ app.include_router(tutoriels_router, prefix="/api/tutoriels")
 # t344 (29/10/2026) : /api/comparatif3d — banc comparatif des moteurs image -> 3D (tir payant gardé, existants gratuit)
 from app.api.comparatif3d_routes import router as comparatif3d_router
 app.include_router(comparatif3d_router, prefix="/api/comparatif3d")
+# t343 (29/10/2026) : /api/etabli/mouvement — mouvement sur le rig (BVH/GLB, vidéo par Uthana), retimage, Godot
+from app.api.mouvement_routes import router as mouvement_router
+app.include_router(mouvement_router, prefix="/api/etabli/mouvement")
 # t346 (29/10/2026) : /api/recettes — exporter la recette (rendu, plan, asset) en skill ZIP + PDF de fabrication, gratuit, local seulement
 from app.api.recette_export_routes import router as recette_export_router
 app.include_router(recette_export_router, prefix="/api/recettes")

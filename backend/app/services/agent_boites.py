@@ -91,7 +91,8 @@ BOITES: dict[str, dict] = {
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)
     "assets3d": {
         "libelle": "agent.boites.assets3d",
-        "outils": ["pieces_analyser", "budgets_triangles", "comparatif3d_lire"],   # t344 : + le tableau d'un comparatif
+        "outils": ["pieces_analyser", "budgets_triangles", "comparatif3d_lire",   # t344 : + le tableau d'un comparatif
+                   "mouvement_lire"],   # t343 : + le mouvement sur le rig (lecture)
         "agents": ["mcp"],   # t345 : Claude Code lit pièces, budgets et comparatifs (lecture)
         "mobile": False,
     },

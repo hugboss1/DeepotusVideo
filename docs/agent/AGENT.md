@@ -155,6 +155,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Pièces mobiles et budgets 3D** (t342) : Établi, Parties › « Pièces mobiles » (« Chercher les pièces », gratuit ;
   IA Tripo payante, catégorie « moteurs3d ») ; Export › « Budgets de triangles » (rôle, 3 densités, gratuit).
   → [ALLER:assets3d] [GUIDE:etabli]
+- **Mouvement sur le rig** (t343) : Établi › Rig › « Mouvement » : BVH/GLB (gratuit) ou vidéo (Uthana, payant,
+  « moteurs3d ») ; retimage, « Appliquer au rig » ; hitboxes Godot en ZIP. → [ALLER:assets3d] [GUIDE:etabli]
 - **Comparer les moteurs 3D** (t344) : 3D Studio › « Comparer les moteurs » : N moteurs sur une image (total puis
   confirmation, « moteurs3d ») ou modèles existants (gratuit) ; « Garder celui-ci ». → [ALLER:assets3d] [GUIDE:forge3d]
 - **Voir le modèle d'une étape Meshy** (t344) : 3D Studio, clic sur un nœud (sa vignette) → l'aperçu le montre ;
