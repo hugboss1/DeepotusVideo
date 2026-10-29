@@ -103,6 +103,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   (mouvement, caméra) + 1 à 4 style frames (look) ; Seedance 2.5 (sans clip : Veo 3.1). Payant (entrée + sortie
   facturées), catégorie « chapitres ». Clip trop court : étiré ou complété au noir (la boîte dit la durée facturée) ;
   après rendu, dérive mesurée et recalée (« dérive : +2 images, recalée »). → [ALLER:episodes] [GUIDE:chapitres]
+- **Previs colorée et couverture** (t333, t338) : Plateau du plan. Chaque forme prend la couleur de son entité ou de sa « Matière » ; la légende part dans les prompts ; faisceaux jamais capturés. « Générer la couverture » : plan large, contre-champ (règle des 180°), gros plan — gratuit. → [ALLER:episodes]
 - **Revoir un plan rendu** (t337) : carte du plan, « Revue du plan ». Mesures gratuites (dérive, structure, identité ;
   pas de profondeur), comparateur (O, C, ← →), avis Claude payant sur devis — jamais une garantie. → [ALLER:episodes]
 - **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles

@@ -52,6 +52,7 @@
   "agent.boites.recette": {"fr": "Recette exportable", "en": "Exportable recipe"},
   "agent.boites.chapitres": {"fr": "Chapitres", "en": "Chapters"},
   "agent.boites.assets3d": {"fr": "Pièces, budgets et comparatifs 3D", "en": "3D parts, budgets and comparisons"},
+  "agent.boites.plateau": {"fr": "Previs et couverture du Plateau", "en": "Stage previs and coverage"},
   "agent.onglet.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
   "agent.campagnes.espace": {"fr": "Espace de marque de la campagne", "en": "Campaign brand space"},
   "agent.campagnes.sans_espace": {"fr": "Aucun espace", "en": "No space"},

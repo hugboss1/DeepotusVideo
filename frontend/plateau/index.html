@@ -92,6 +92,22 @@
     <ol class="liste-kf" id="listeKf"></ol>
     <div class="mouvement" id="mouvement"></div>
 
+    <!-- t333 (lot Scenario A3) : la previs colorée et nommée — légende servie par /api/scenes3d/{id}/palette -->
+    <div class="dt-label">Previs colorée</div>
+    <div class="sous">Une couleur par entité de la bible ou matière ; la légende part dans les prompts du plan.</div>
+    <ul class="legende" id="legende"></ul>
+    <div class="sous" id="faisceaux"></div>
+    <div class="prompt" id="legPrompt" title="Phrase ajoutée aux prompts de Previs → plan et de l'image du plan"></div>
+
+    <!-- t338 (lot Scenario A8) : la couverture du plan — plan large, contre-champ, gros plan -->
+    <div class="dt-label">Couverture</div>
+    <div class="ligne"><span>Interlocuteur</span><select id="covPartenaire" class="champ" aria-label="Interlocuteur : l'axe du contre-champ"></select></div>
+    <div class="ligne"><span>Gros plan</span><select id="covGrosPlan" class="champ" aria-label="Cible du gros plan"></select></div>
+    <div class="ligne"><button class="btn primaire" id="btnCouverture" title="Plan large, contre-champ et gros plan depuis la caméra du plan (son premier keyframe, sinon la caméra courante) — gratuit, tout local"><svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#dz-lab3d-camera"></use></svg> Générer la couverture</button></div>
+    <details class="regle"><summary>La règle des 180°</summary><p>L'axe d'action relie le sujet à son interlocuteur. Le contre-champ reste du même côté de cet axe que la caméra du plan : les regards restent raccord, l'un regarde à gauche, l'autre à droite.</p></details>
+    <div class="sous" id="covAvert"></div>
+    <ul class="cameras" id="cameras"></ul>
+
     <div class="dt-label">Sorties</div>
     <div class="ligne">
       <button class="btn" id="btnCompose" title="Composer le GLB de scène (versionné, avec sa fiche)">Composer le GLB</button>
