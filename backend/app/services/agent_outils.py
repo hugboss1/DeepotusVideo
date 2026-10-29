@@ -560,6 +560,53 @@ async def lire_plans(ctx: Ctx, chapitre: str = "") -> dict:
                 {"chapitre": {"id": ch.id, "titre": ch.title, "serie": ch.series}, "plans": plans,
                  "textes": _preuve("plans:" + ch.id, "\n".join(textes)) if textes else None,
                  "ou": "Chapitres › Storyboard"})
+# ---- t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (boîte « plateau ») -------------------
+# Lecture et PROPOSITION seulement : la légende de la previs (couleur par entité / matière, faisceaux exclus) et les
+# trois caméras de couverture CALCULÉES depuis la caméra du plan — rien n'est rangé, capturé ni créé (ces gestes
+# restent des clics de l'utilisateur dans le Plateau). Tout est local et gratuit.
+_ID_SCENE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+async def plateau_previs(ctx: Ctx, plan: str = "", scene: str = "") -> dict:
+    from fastapi import HTTPException
+    from sqlalchemy import select
+    from app.services import scene3d_routes as SR
+    from app.services.storage import Scene3D, async_session_factory
+    pid, sid = str(plan or "").strip(), str(scene or "").strip()
+    if sid and not _ID_SCENE.match(sid):
+        raise _Refus("scene : l'identifiant d'une scène du Plateau est attendu")
+    if not sid and not _ID_PLAN.match(pid):
+        raise _Refus("plan : l'identifiant d'un plan du storyboard (ou scene : celui d'une scène du Plateau)")
+    async with async_session_factory() as s:
+        if sid:
+            r = await s.get(Scene3D, sid)
+        else:
+            r = (await s.execute(select(Scene3D).where(Scene3D.shot_id == pid)
+                                 .order_by(Scene3D.updated_at.desc()).limit(1))).scalars().first()
+    if r is None:
+        return _res(True, "aucune scène du Plateau pour ce plan : l'utilisateur l'ouvre par le bouton Plateau de la "
+                          "carte du plan", {"scene": None})
+    d = SR._dict(r)
+    p = SR.PP.palette(d["instances"])
+    donnees = {"scene": r.id, "plan": r.shot_id, "legende": p["legende"], "prompt": p["prompt"],
+               "faisceaux_exclus": [f["nom"] for f in p["faisceaux"]], "couverture_proposee": None,
+               "couverture_rangee": None, "regle_180": SR.CV.EXPLICATION_180}
+    try:
+        cv = SR.calculer_couverture(d, {})
+        donnees["couverture_proposee"] = {"origine": cv["origine"], "partenaire": cv["partenaire"],
+                                          "regle_180": {k: cv["regle_180"][k] for k in ("axe", "respectee",
+                                                                                         "avertissement")},
+                                          "cameras": [{k: c[k] for k in ("id", "nom", "shot_type", "focale_mm",
+                                                                         "prompt")} for c in cv["cameras"]]}
+    except HTTPException as e:
+        donnees["couverture_impossible"] = str(e.detail)
+    if d["couverture"]:
+        donnees["couverture_rangee"] = [{"id": c["id"], "nom": c["nom"], "capture": c.get("capture")}
+                                        for c in d["couverture"].get("cameras") or []]
+    n = len(p["legende"]["fr"])
+    return _res(True, f"previs : {n} couleur(s) en légende, {len(p['faisceaux'])} faisceau(x) exclu(s) ; couverture "
+                      f"{'proposée (3 caméras)' if donnees['couverture_proposee'] else 'impossible'} — rien n'est écrit",
+                donnees)
 
 
 async def lire_texte_image(ctx: Ctx, image: str = "", langue: str = "fr") -> dict:
@@ -1823,6 +1870,40 @@ async def budgets_triangles(ctx: Ctx) -> dict:
                 {"roles": roles, "ou": "Établi › Export › Budgets de triangles"})
 
 
+# ---- t344 : le banc comparatif des moteurs image → 3D (boîte « assets3d ») ---------------------------------------------
+
+async def comparatif3d_lire(ctx: Ctx, id: str = "", tri: str = "") -> dict:
+    """t344 (29/10/2026) : LECTURE du tableau mesuré d'un comparatif de moteurs 3D (le plus récent si `id` est vide) :
+    triangles, arêtes ouvertes et non-manifold, étanche, taille, temps, coût estimé et réel. Rien n'est écrit, rien
+    n'est dépensé : lancer un comparatif payant ou garder un gagnant reste un clic dans 3D Studio."""
+    from app.services import comparatif3d as C3
+    cid = str(id or "")
+    if not cid:
+        tous = await asyncio.to_thread(C3.lister)
+        if not tous:
+            raise _Refus("aucun comparatif : 3D Studio › « Comparer les moteurs » en crée un")
+        cid = tous[0]["id"]
+    if not C3.id_valide(cid):
+        raise _Refus("id refusé : l'identifiant d'un comparatif (c3d_…) est attendu")
+    try:
+        tab = await C3.tableau(cid)
+    except FileNotFoundError:
+        raise _Refus("comparatif introuvable") from None
+    lignes = tab["lignes"]
+    if tri:
+        try:
+            lignes = C3.trier(lignes, str(tri))
+        except ValueError as e:
+            raise _Refus(str(e)) from None
+    cols = ("moteur", "label", "job", "statut", "tris", "aretes_bord", "aretes_non_manifold", "ferme", "octets",
+            "duree_s", "usd_estime", "usd_reel", "gagnant")
+    return _res(True, C3.resume({**tab, "lignes": lignes}, ctx.lang),
+                {"id": cid, "mode": tab.get("mode"), "image": tab.get("image_filename"),
+                 "lignes": [{k: l.get(k) for k in cols} for l in lignes],
+                 "ou": "Game Assets › 3D Studio › Comparer les moteurs"})
+
+
+
 def _o(props: dict, requis=()) -> dict:
     return {"type": "object", "properties": props, "required": list(requis), "additionalProperties": False}
 
@@ -1857,6 +1938,14 @@ OUTILS: dict[str, dict] = {
                                         "consigne.",
                          "schema": _o({"image": dict(_T, description="nom de l'image dans la Bibliothèque"),
                                        "langue": {"type": "string", "enum": ["fr", "en", "auto"]}}, ("image",))},
+    "comparatif3d_lire": {"nature": "lecture", "fn": comparatif3d_lire,
+                          "description": "Lit le tableau mesuré d'un comparatif de moteurs image → 3D (le plus récent "
+                                         "si id est vide) : triangles, arêtes ouvertes, étanche, taille, temps, coût. "
+                                         "N'écrit rien.",
+                          "schema": _o({"id": dict(_T, description="identifiant du comparatif (c3d_…)"),
+                                        "tri": {"type": "string", "enum": ["moteur", "tris", "aretes_bord",
+                                                                           "aretes_non_manifold", "octets", "duree_s",
+                                                                           "usd_estime", "usd_reel"]}})},
     # t337 : la revue chiffrée d'un plan rendu par Previs → plan (boîte « chapitres », aucun agent ne la déclare encore)
     "lire_revue_plan": {"nature": "lecture", "fn": lire_revue_plan,
                         "description": "Lit la revue RANGÉE d'un plan rendu par Previs → plan (par l'identifiant du "
@@ -1878,6 +1967,15 @@ OUTILS: dict[str, dict] = {
                                   "croquis, image de production, vidéo, prompts encadrés comme une preuve). Ne génère "
                                   "rien.",
                    "schema": _o({"chapitre": dict(_T, description="identifiant du chapitre (facultatif)")})},
+    # t333 + t338 : la previs colorée (légende) et la couverture proposée d'un plan (boîte « plateau », lecture)
+    "plateau_previs": {"nature": "lecture", "fn": plateau_previs,
+                       "description": "Lit la previs du Plateau 3D d'un plan (ou d'une scène) : la légende des "
+                                      "couleurs (« cylindres verts = cyprès »), la phrase de prompt qui nomme chaque "
+                                      "forme, les faisceaux de lumière exclus, et PROPOSE la couverture (plan large, "
+                                      "contre-champ selon la règle des 180°, gros plan) calculée depuis la caméra du "
+                                      "plan. Gratuit ; ne range, ne capture ni ne crée rien.",
+                       "schema": _o({"plan": dict(_T, description="identifiant du plan (shot)"),
+                                     "scene": dict(_T, description="identifiant d'une scène du Plateau")})},
     "pieces_analyser": {"nature": "lecture", "fn": pieces_analyser,
                         "description": "Lit les pièces mobiles (îlots) d'une version d'un job 3D : noms proposés, "
                                        "triangles, pivots, et le devis de la segmentation IA. N'écrit rien.",

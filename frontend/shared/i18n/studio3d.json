@@ -278,5 +278,7 @@
   "studio3d.t186.modele": {"fr": "Modèle de détourage", "en": "Cutout model"},
   "studio3d.t186.sujet": {"fr": "Sujet à garder", "en": "Subject to keep"},
   "studio3d.t186.sujet_requis": {"fr": "Dites quel sujet garder.", "en": "Say which subject to keep."},
-  "studio3d.t186.titre": {"fr": "Détourer une vue", "en": "Cut out a view"}
+  "studio3d.t186.titre": {"fr": "Détourer une vue", "en": "Cut out a view"},
+  "studio3d.t344_h.comparer": {"fr": "Comparer les moteurs", "en": "Compare engines"},
+  "studio3d.t344_h.comparer_aide": {"fr": "Une image, plusieurs moteurs, le même éclairage : triangles, arêtes ouvertes, temps et coût côte à côte", "en": "One image, several engines, the same lighting: triangles, open edges, time and cost side by side"}
 }

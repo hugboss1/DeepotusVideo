@@ -546,6 +546,8 @@ class Scene3D(Base):
     instances: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON
     camera: Mapped[Optional[str]] = mapped_column(Text, nullable=True)      # JSON
     keyframes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON
+    # t338 (A8 Scenario, 29/10/2026) : la COUVERTURE du plan (plan large, contre-champ, gros plan), caméras nommées
+    couverture: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
     glb_file: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     glb_version: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -812,6 +814,8 @@ LIBRARY_ASSETS_COLUMNS = [
 # colonne de la même façon sur une base ouverte sans init_db. t307 (25/10/2026) : `canaux` (les canaux du projet).
 LIBRARY_PROJECTS_COLUMNS = [("espace_id", "VARCHAR(40)"), ("canaux", "TEXT")]
 DEPENSES_COLUMNS = [("espace_id", "VARCHAR(40)")]
+# t338 (A8 Scenario, 29/10/2026) : la couverture d'un plan du Plateau 3D (caméras nommées, en JSON)
+SCENES3D_COLUMNS = [("couverture", "TEXT")]
 
 
 async def _auto_migrate():
@@ -890,7 +894,8 @@ async def _auto_migrate():
                                ("vector_docs", VECTOR_DOCS_COLUMNS),
                                ("library_assets", LIBRARY_ASSETS_COLUMNS),
                                ("library_projects", LIBRARY_PROJECTS_COLUMNS),
-                               ("depenses", DEPENSES_COLUMNS)):
+                               ("depenses", DEPENSES_COLUMNS),
+                               ("scenes3d", SCENES3D_COLUMNS)):
             result = await conn.execute(text(f"PRAGMA table_info({table})"))
             existing_cols = {row[1] for row in result.fetchall()}
             if not existing_cols:
