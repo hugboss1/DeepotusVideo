@@ -61,6 +61,9 @@ PARTAGES = {
     # la forme positionnelle à attributs en objet ; leurs messages (div, span) ne sont pas des éléments
     "frontend/shared/dz-scan.js": ("scan.",),
     "frontend/shared/dz-inspiration.js": ("inspiration.",),
+    # t372 (29/10/2026) : la barre du lecteur audio/vidéo commun (Lire/Pause, position, son, volume, plein écran) ;
+    # posée par l'observateur sur tout <audio controls> / <video controls>, donc sur presque chaque écran
+    "frontend/shared/dz-lecteur.js": ("lecteur.action.", "lecteur.curseur.position", "lecteur.curseur.volume"),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")

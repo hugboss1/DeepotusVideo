@@ -1,0 +1,12 @@
+{
+  "lecteur.barre.groupe": {"fr": "Lecteur", "en": "Player"},
+  "lecteur.action.lire": {"fr": "Lancer la lecture", "en": "Play"},
+  "lecteur.action.pause": {"fr": "Pause", "en": "Pause"},
+  "lecteur.action.couper_son": {"fr": "Couper le son", "en": "Mute"},
+  "lecteur.action.retablir_son": {"fr": "Rétablir le son", "en": "Unmute"},
+  "lecteur.action.plein_ecran": {"fr": "Plein écran", "en": "Full screen"},
+  "lecteur.curseur.position": {"fr": "Position de lecture", "en": "Playback position"},
+  "lecteur.curseur.position_valeur": {"fr": "{t} sur {d}", "en": "{t} of {d}"},
+  "lecteur.curseur.volume": {"fr": "Volume", "en": "Volume"},
+  "lecteur.etat.erreur": {"fr": "Lecture impossible", "en": "Cannot play"}
+}
