@@ -1996,6 +1996,30 @@ async def blender_regarder(ctx: Ctx, mode: str = "camera") -> dict:
                  "licences": m.get("licences") or [], "ou": "Chapitres › Passes Blender"})
 
 
+async def blender_retour(ctx: Ctx, plan: str = "") -> dict:
+    """t332 : le DERNIER retour de Blender d'un plan (« Reprendre depuis Blender ») — caméra proposée, avant/après,
+    objets DZ_, .blend rangé. Lit le disque seulement : n'appelle pas Blender, n'écrit rien au Plateau."""
+    from app.services import blender_mcp as BM
+    pid = str(plan or "").strip()
+    if not _ID_PLAN.match(pid):
+        raise _Refus("plan : identifiant attendu")
+    rids = BM.retours_du_plan(pid)
+    m = BM.lire_retour(pid, rids[0]) if rids else None
+    if not m:
+        return _res(True, "aucun retour de Blender pour ce plan (bouton « Reprendre depuis Blender » de la fiche)",
+                    {"retours": 0, "ou": "Chapitres › Passes Blender"})
+    p = m.get("proposition") or {}
+    av, ap = p.get("avant") or {}, p.get("apres") or {}
+    return _res(True, f"retour du {m.get('date')} : caméra {p.get('camera_nom') or '?'} "
+                      f"({av.get('focale_mm', '?')} → {ap.get('focale_mm', '?')} mm, {ap.get('keyframes', 0)} keyframe(s)) "
+                      f"— rien n'est appliqué au Plateau",
+                {"retours": len(rids), "id": m["id"], "camera": p.get("camera_nom"), "avant": av, "apres": ap,
+                 "ecart_m": p.get("ecart_m"), "erreur": m.get("proposition_erreur"),
+                 "cameras": [_preuve("blender", c.get("nom") or "") for c in m.get("cameras") or []],
+                 "objets": len(m.get("objets") or []), "blend": f"/api/blender/retour/{m['id']}/blend",
+                 "bibliotheque": m.get("bibliotheque"), "ou": "Chapitres › Passes Blender"})
+
+
 
 
 def _o(props: dict, requis=()) -> dict:
@@ -2095,6 +2119,11 @@ OUTILS: dict[str, dict] = {
                                         "l'utilisateur ou plusieurs angles) et la range ; rend son adresse, sa "
                                         "légende et les licences des assets importés visibles. Ne modifie rien.",
                          "schema": _o({"mode": {"type": "string", "enum": ["camera", "viewport", "angles"]}})},
+    "blender_retour": {"nature": "lecture", "fn": blender_retour,
+                       "description": "Lit le dernier retour de Blender d'un plan (« Reprendre depuis Blender ») : "
+                                      "caméra relue, focale et keyframes avant/après, objets DZ_, .blend rangé. "
+                                      "N'appelle pas Blender et n'applique rien au Plateau.",
+                       "schema": _o({"plan": dict(_T, description="identifiant du plan (shot)")}, ["plan"])},
     "pieces_analyser": {"nature": "lecture", "fn": pieces_analyser,
                         "description": "Lit les pièces mobiles (îlots) d'une version d'un job 3D : noms proposés, "
                                        "triangles, pivots, et le devis de la segmentation IA. N'écrit rien.",

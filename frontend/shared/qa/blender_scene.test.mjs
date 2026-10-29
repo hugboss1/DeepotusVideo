@@ -179,6 +179,74 @@ const ETAT = () => ({ status: 200, json: { exe: { trouve: true, port: 9876 }, pr
   await ticks();
   ok("5a la boîte « Passes Blender » contient la section « Blender ouvert »", !!marque(w.body, "section"));
 }
+// ── 7. t332 : l'aller-retour Plateau ↔ Blender ──
+{
+  const RID = "20261029-130000-beef";
+  const PROP = { camera_nom: "DZ_Camera", keyframes: [{ t: 0 }, { t: 2 }], ecart_m: 0.4,
+    avant: { focale_mm: 32.97, keyframes: 2 }, apres: { focale_mm: 50, keyframes: 2 } };
+  const RET = { id: RID, date: "2026-10-29T13:00:00", camera_nom: "DZ_Camera", version: "5.2.0", bibliotheque: "blender_" + RID + ".png",
+    cameras: [{ nom: "DZ_Camera", perspective: true, cles: 2 }, { nom: "Camera", perspective: true, cles: 0 }, { nom: "Ortho", perspective: false, cles: 0 }],
+    objets: [{ nom: "DZ_Camera" }], proposition: PROP, blend_url: "/api/blender/retour/" + RID + "/blend",
+    blend_nom: "blender_plan_" + RID + ".blend", vignette_url: "/api/blender/retour/" + RID + "/vignette" };
+  let confirme = false;
+  const w = monde({
+    "GET /api/blender/etat": ETAT,
+    "GET /api/blender/plan/s1/retours": () => ({ status: 200, json: { retours: [] } }),
+    "POST /api/blender/plan/s1/aller": () => ({ status: 200, json: { camera: { focale_mm: 32.97 }, cles: 2, maquette: 3 } }),
+    "POST /api/blender/plan/s1/reprendre": () => ({ status: 200, json: RET }),
+    ["POST /api/blender/plan/s1/retour/" + RID + "/appliquer"]: (init) => {
+      const c = JSON.parse(init.body);
+      return { status: 200, json: { applique: !!c.confirmer, proposition: c.camera === "Camera"
+        ? Object.assign({}, PROP, { keyframes: [], apres: { focale_mm: 50, keyframes: 0 } }) : PROP } };
+    },
+  });
+  w.ctx.__dzDialogue = { confirmer: async () => confirme };
+  const hote = new Node("div");
+  w.B.monter(hote, { shot: { id: "s1" }, toast: w.ctx.toast });
+  await ticks();
+  ok("7a les deux boutons et « gratuit » avant le clic ; aucun retour encore : bloc caché",
+     marque(hote, "aller").textContent === FR("blenderscene.ar.aller") && marque(hote, "reprendre").textContent === FR("blenderscene.ar.reprendre")
+     && marque(hote, "ar-prix").textContent === FR("blenderscene.ar.gratuit") && marque(hote, "retour").hasAttribute("hidden"));
+  marque(hote, "aller").click();
+  await ticks();
+  const a = w.appels.find((x) => x.url === "/api/blender/plan/s1/aller");
+  ok("7b aller : corps vide, statut (focale, clés, maquette)", a && JSON.stringify(a.corps) === "{}"
+     && marque(hote, "statut").textContent === FR("blenderscene.ar.envoye", { f: 33, k: 2, m: 3 }), marque(hote, "statut").textContent);
+  marque(hote, "reprendre").click();
+  await ticks();
+  ok("7c reprendre : vignette, avant/après, caméras en perspective seulement, lien .blend",
+     !marque(hote, "retour").hasAttribute("hidden") && marque(hote, "retour-image").getAttribute("src").startsWith(RET.vignette_url)
+     && marque(hote, "retour-avant-apres").textContent === FR("blenderscene.ar.avant_apres", { fa: 33, fb: 50, ka: 2, kb: 2, d: 0.4 })
+     && marque(hote, "retour-camera").children.length === 2 && marque(hote, "retour-blend").getAttribute("href") === RET.blend_url
+     && marque(hote, "retour-resume").textContent.includes(RET.bibliotheque), marque(hote, "retour-avant-apres").textContent);
+  const n0 = w.appels.length;
+  marque(hote, "appliquer").click();
+  await ticks();
+  ok("7d appliquer refusé à la confirmation : rien n'est envoyé", w.appels.length === n0);
+  marque(hote, "retour-camera").value = "Camera";
+  marque(hote, "retour-camera").dispatch("change");
+  await ticks();
+  const p = w.appels[w.appels.length - 1];
+  ok("7e une autre caméra : avant/après recalculé SANS confirmer", p.corps.camera === "Camera" && !("confirmer" in p.corps)
+     && marque(hote, "retour-avant-apres").textContent.includes("2 → 0"), JSON.stringify(p.corps));
+  confirme = true;
+  marque(hote, "appliquer").click();
+  await ticks();
+  const q = w.appels[w.appels.length - 1];
+  ok("7f confirmé : {camera, confirmer: true}, statut et toast", q.corps.confirmer === true && q.corps.camera === "Camera"
+     && w.toasts.includes(FR("blenderscene.ar.applique_toast")), JSON.stringify(q.corps));
+}
+{
+  const w = monde({ "GET /api/blender/etat": ETAT,
+    "GET /api/blender/plan/s2/retours": () => ({ status: 200, json: { retours: [{ id: "20261029-130000-0000", cameras: [], objets: [],
+      proposition: null, proposition_erreur: "aucune caméra", blend_url: "/b" }] } }) });
+  const hote = new Node("div");
+  w.B.monter(hote, { shot: { id: "s2" } });
+  await ticks();
+  ok("7g au montage : le dernier retour revient ; sans proposition, « Appliquer » est grisé et la raison dite",
+     !marque(hote, "retour").hasAttribute("hidden") && marque(hote, "appliquer").hasAttribute("disabled")
+     && marque(hote, "retour-avant-apres").textContent === FR("blenderscene.ar.sans_proposition", { msg: "aucune caméra" }));
+}
 ok("6 aucun innerHTML dans le code", !/innerHTML/.test(SRC.replace(/\/\*[\s\S]*?\*\//g, "")));
 
 if (echecs.length) { console.log(echecs.map((e) => "FAIL " + e).join("\n")); console.log(`${n - echecs.length}/${n}`); process.exit(1); }

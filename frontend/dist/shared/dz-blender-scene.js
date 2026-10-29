@@ -15,6 +15,12 @@
                                  légende et les licences des assets importés visibles ; « Garder dans la Bibliothèque »
                                  → POST …/garder {plan} ;
        « Retirer de Blender »    POST /api/blender/nettoyer — seulement la collection DZ_Deepotus posée par l'app.
+     t332 (A2) — l'ALLER-RETOUR avec le Plateau (même section, sous-bloc « Plateau ↔ Blender ») :
+       « Envoyer le plan vers Blender »  POST /api/blender/plan/{id}/aller {} — caméra, focale, clés et maquette GLB ;
+       « Reprendre depuis Blender »      POST …/reprendre {} — caméras et objets DZ_ relus, copie .blend, vignette en
+                                         Bibliothèque ; le dernier retour est relu au montage (GET …/retours) ;
+       « Appliquer au Plateau »          POST …/retour/{rid}/appliquer {camera} (avant/après) puis, après confirmation,
+                                         {camera, confirmer: true} — seule écriture au Plateau.
      Gratuit : rien n'est généré ni acheté (dit avant le clic). Exe absent / Blender fermé : le 503 du serveur dit quoi
      faire, les boutons restent cliquables.
    CHARTE : celle de dz-passes-plan.js (aucun arrondi, IBM Plex Mono en capitales, jetons --srf-* / --brd-* / --txt-*).
@@ -120,9 +126,133 @@
     E.btnGarder.addEventListener("click", function () { garder(E); });
     E.vue.appendChild(E.image); E.vue.appendChild(E.legende); E.vue.appendChild(E.licences); E.vue.appendChild(E.btnGarder);
     s.appendChild(E.vue);
+    monterAllerRetour(E, s);
     hote.appendChild(s);
     lireEtat(E);
+    lireRetours(E);
     return E;
+  }
+
+  // ── t332 (A2) : l'ALLER-RETOUR Plateau ↔ Blender. Le Plateau reste l'éditeur léger, Blender l'étage pro. ──
+  function monterAllerRetour(E, s) {
+    var b = el("div", { style: "display:flex;flex-direction:column;gap:6px;padding-top:8px;border-top:1px dashed var(--brd-soft,var(--stroke,#222830))", "data-dz-blender": "allerretour" });
+    b.appendChild(el("div", { style: S.titre }, T("blenderscene.ar.titre")));
+    b.appendChild(el("div", { style: S.note }, T("blenderscene.ar.aide")));
+    b.appendChild(el("div", { style: S.prix, "data-dz-blender": "ar-prix" }, T("blenderscene.ar.gratuit")));
+    var l = el("div", { style: S.ligne });
+    E.btnAller = bouton("aller", T("blenderscene.ar.aller"), S.primaire);
+    E.btnAller.setAttribute("title", T("blenderscene.ar.aller_aide"));
+    E.btnAller.addEventListener("click", function () { aller(E); });
+    E.btnReprendre = bouton("reprendre", T("blenderscene.ar.reprendre"));
+    E.btnReprendre.setAttribute("title", T("blenderscene.ar.reprendre_aide"));
+    E.btnReprendre.addEventListener("click", function () { reprendre(E); });
+    l.appendChild(E.btnAller); l.appendChild(E.btnReprendre);
+    b.appendChild(l);
+    E.retour = el("div", { style: "display:flex;flex-direction:column;gap:6px", hidden: "", "data-dz-blender": "retour" });
+    E.retourImage = el("img", { style: S.image, alt: T("blenderscene.ar.vignette_alt"), "data-dz-blender": "retour-image" });
+    E.retourResume = el("div", { style: S.note, "data-dz-blender": "retour-resume" });
+    E.retourAvantApres = el("div", { style: "font-size:12px", "data-dz-blender": "retour-avant-apres" });
+    var l2 = el("div", { style: S.ligne });
+    E.retourCamera = el("select", { style: S.choix, "data-dz-blender": "retour-camera", title: T("blenderscene.ar.camera_titre") });
+    E.retourCamera.addEventListener("change", function () { proposer(E); });
+    E.btnAppliquer = bouton("appliquer", T("blenderscene.ar.appliquer"), S.primaire);
+    E.btnAppliquer.setAttribute("title", T("blenderscene.ar.appliquer_aide"));
+    E.btnAppliquer.addEventListener("click", function () { appliquer(E); });
+    E.lienBlend = el("a", { "data-dz-blender": "retour-blend", style: "font-size:12px;color:var(--accent,#2b6fd6)" }, T("blenderscene.ar.blend"));
+    l2.appendChild(E.retourCamera); l2.appendChild(E.btnAppliquer); l2.appendChild(E.lienBlend);
+    [E.retourImage, E.retourResume, E.retourAvantApres, l2].forEach(function (n) { E.retour.appendChild(n); });
+    b.appendChild(E.retour);
+    s.appendChild(b);
+  }
+
+  function mm(v) { return v == null ? "?" : String(Math.round(v)); }
+  function montrerRetour(E, r) {
+    E.dernier = r;
+    montrer(E.retour, true);
+    if (r.vignette_url) { E.retourImage.setAttribute("src", r.vignette_url + "?v=" + encodeURIComponent(r.id)); montrer(E.retourImage, true); }
+    else montrer(E.retourImage, false);
+    E.retourResume.textContent = T("blenderscene.ar.resume", { date: (r.date || "").replace("T", " "),
+      c: (r.cameras || []).length, o: (r.objets || []).length, version: r.version || "?" })
+      + (r.bibliotheque ? " " + T("blenderscene.ar.bibliotheque", { nom: r.bibliotheque }) : "");
+    E.lienBlend.setAttribute("href", r.blend_url);
+    E.lienBlend.setAttribute("download", r.blend_nom || "");
+    E.retourCamera.textContent = "";
+    (r.cameras || []).filter(function (c) { return c.perspective; }).forEach(function (c) {
+      var o = el("option", { value: c.nom }, c.nom + (c.cles ? " · " + T("blenderscene.ar.cles", { n: c.cles }) : ""));
+      if (c.nom === r.camera_nom) o.setAttribute("selected", "");
+      E.retourCamera.appendChild(o);
+    });
+    E.retourCamera.value = r.camera_nom || "";
+    peindreProposition(E, r.proposition, r.proposition_erreur);
+  }
+  function peindreProposition(E, p, erreur) {
+    E.proposition = p || null;
+    griser(E.btnAppliquer, !p);
+    if (!p) { E.retourAvantApres.textContent = T("blenderscene.ar.sans_proposition", { msg: erreur || "?" }); return; }
+    E.retourAvantApres.textContent = T("blenderscene.ar.avant_apres", {
+      fa: mm(p.avant.focale_mm), fb: mm(p.apres.focale_mm), ka: p.avant.keyframes, kb: p.apres.keyframes, d: p.ecart_m });
+  }
+
+  function occuperAR(E, oui, texte) {
+    occuper(E, oui, texte);
+    [E.btnAller, E.btnReprendre].forEach(function (b) { griser(b, oui); });
+    griser(E.btnAppliquer, oui || !E.proposition);
+  }
+  function echecAR(E, e) { occuperAR(E, false, ""); montrer(E.erreur, true); E.erreur.textContent = T("blenderscene.section.ko", { msg: e.message }); }
+
+  async function lireRetours(E) {
+    try {
+      var j = await appel("/api/blender/plan/" + encodeURIComponent(E.shot.id) + "/retours");
+      if (j && j.retours && j.retours.length) montrerRetour(E, j.retours[0]);
+    } catch (e) { /* aucun retour encore : rien à montrer */ }
+  }
+
+  async function aller(E) {
+    if (E.occupe) return;
+    occuperAR(E, true, T("blenderscene.section.envoi"));
+    try {
+      var j = await appel("/api/blender/plan/" + encodeURIComponent(E.shot.id) + "/aller", {});
+      occuperAR(E, false, T("blenderscene.ar.envoye", { f: Math.round((j.camera || {}).focale_mm || 0), k: j.cles || 0, m: j.maquette || 0 }));
+      if (E.opts.toast) E.opts.toast(T("blenderscene.section.envoye_toast"));
+    } catch (e) { echecAR(E, e); }
+  }
+
+  async function reprendre(E) {
+    if (E.occupe) return;
+    occuperAR(E, true, T("blenderscene.section.envoi"));
+    try {
+      var j = await appel("/api/blender/plan/" + encodeURIComponent(E.shot.id) + "/reprendre", {});
+      montrerRetour(E, j);
+      occuperAR(E, false, T("blenderscene.ar.repris"));
+      if (E.opts.toast) E.opts.toast(T("blenderscene.ar.repris"));
+    } catch (e) { echecAR(E, e); }
+  }
+
+  function urlAppliquer(E) {
+    return "/api/blender/plan/" + encodeURIComponent(E.shot.id) + "/retour/" + encodeURIComponent(E.dernier.id) + "/appliquer";
+  }
+  async function proposer(E) {
+    if (E.occupe || !E.dernier) return;
+    occuperAR(E, true, "");
+    try {
+      var j = await appel(urlAppliquer(E), { camera: E.retourCamera.value });
+      occuperAR(E, false, "");
+      peindreProposition(E, j.proposition);
+      griser(E.btnAppliquer, false);
+    } catch (e) { peindreProposition(E, null, e.message); occuperAR(E, false, ""); }
+  }
+  async function appliquer(E) {
+    if (E.occupe || !E.dernier || !E.proposition) return;
+    var texte = T("blenderscene.ar.confirmer", { cam: E.retourCamera.value || E.dernier.camera_nom || "?" }) + "\n" + E.retourAvantApres.textContent;
+    var D = window.__dzDialogue;
+    var oui = D && typeof D.confirmer === "function" ? await D.confirmer(texte) : (typeof window.confirm === "function" ? window.confirm(texte) : false);
+    if (!oui) return;
+    occuperAR(E, true, "");
+    try {
+      var j = await appel(urlAppliquer(E), { camera: E.retourCamera.value, confirmer: true });
+      occuperAR(E, false, T("blenderscene.ar.applique", { n: (j.proposition || {}).keyframes ? j.proposition.keyframes.length : 0 }));
+      if (E.opts.toast) E.opts.toast(T("blenderscene.ar.applique_toast"));
+    } catch (e) { echecAR(E, e); }
   }
 
   async function lireEtat(E) {

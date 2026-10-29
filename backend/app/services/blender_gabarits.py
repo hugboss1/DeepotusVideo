@@ -41,12 +41,16 @@ import unicodedata
 from app.services import scene3d as S
 
 ELEMENTS = ("camera", "eclairage", "blocking", "cles")
+TOUS = ELEMENTS + ("maquette",)          # t332 : « maquette » = le GLB de la scène, envoyé par l'aller-retour
 COLLECTION = "DZ_Deepotus"
 FPS = 24
 CAPTEUR_H_MM = 24.0
 MAX_BLOCKING = 200
 MAX_CLES = 64
 MAX_NOM = 48
+MAX_CHEMIN = 400
+MAX_CAMERAS_RETOUR = 8
+MAX_OBJETS_RETOUR = 150
 _HEX = re.compile(r"^#[0-9A-Fa-f]{6}$")
 _NOM_SUR = re.compile(r"[^0-9A-Za-z _\-().']+")
 
@@ -164,12 +168,13 @@ def _eclairage(cam: dict, centre: list) -> list:
              "taille": _r(max(0.4, dist / 5), 3)}]
 
 
-def depuis_scene(scene: dict, elements) -> dict:
-    """PUR — les paramètres du gabarit pour la scène du Plateau VÉRIFIÉE et les éléments choisis."""
+def depuis_scene(scene: dict, elements, glb: str | None = None) -> dict:
+    """PUR — les paramètres du gabarit pour la scène du Plateau VÉRIFIÉE et les éléments choisis. `glb` (t332) : le
+    chemin LOCAL du GLB de scène composé par le serveur (élément « maquette »), jamais un chemin venu de la page."""
     if not isinstance(elements, (list, tuple)) or not elements or not all(isinstance(e, str) for e in elements) \
-            or set(elements) - set(ELEMENTS):
-        raise GabaritRefuse(f"éléments : {', '.join(ELEMENTS)}")
-    voulus = [e for e in ELEMENTS if e in set(elements)]
+            or set(elements) - set(TOUS):
+        raise GabaritRefuse(f"éléments : {', '.join(TOUS)}")
+    voulus = [e for e in TOUS if e in set(elements)]
     aspect = scene.get("aspect", "16:9")
     if aspect not in S.ASPECTS:
         raise GabaritRefuse(f"format inconnu ({aspect})")
@@ -204,7 +209,12 @@ def depuis_scene(scene: dict, elements) -> dict:
         raise GabaritRefuse("clés : le plan n'a pas de mouvement de caméra (deux keyframes au moins au Plateau)")
     if "blocking" in voulus and not blocs:
         raise GabaritRefuse("blocking : aucune forme à poser (le Plateau du plan est vide)")
-    return {"version": 1, "collection": COLLECTION, "elements": voulus, "fps": FPS,
+    maquette = None
+    if "maquette" in voulus:
+        if not glb:
+            raise GabaritRefuse("maquette : le GLB de la scène n'est pas composé")
+        maquette = {"glb": str(glb)}
+    return {"version": 1, "collection": COLLECTION, "elements": voulus, "fps": FPS, "maquette": maquette,
             "camera": {**cam, "nom": "DZ_Camera", "capteur_mm": CAPTEUR_H_MM, "largeur": largeur,
                        "hauteur": hauteur},
             "eclairage": _eclairage(cam, centre), "centre": centre, "blocking": blocs, "cles": cles}
@@ -242,7 +252,7 @@ def verifier(p: dict) -> None:
     if not isinstance(p, dict) or p.get("version") != 1 or p.get("collection") != COLLECTION:
         raise GabaritRefuse("paramètres illisibles")
     el = p.get("elements")
-    if el != ["nettoyer"] and (not isinstance(el, list) or not el or set(el) - set(ELEMENTS)):
+    if el != ["nettoyer"] and (not isinstance(el, list) or not el or set(el) - set(TOUS)):
         raise GabaritRefuse("éléments inconnus")
     if p.get("fps") != FPS:
         raise GabaritRefuse("cadence inattendue")
@@ -281,6 +291,22 @@ def verifier(p: dict) -> None:
     for c in cles:
         for k in ("image", "pos", "cible", "focale_mm"):
             _nombres(c.get(k))
+    m = p.get("maquette")
+    if ("maquette" in el) != (m is not None):
+        raise GabaritRefuse("maquette illisible")
+    if m is not None:
+        if not isinstance(m, dict) or set(m) != {"glb"}:
+            raise GabaritRefuse("maquette illisible")
+        _chemin_local(m["glb"], ".glb")
+
+
+def _chemin_local(v, suffixe: str) -> None:
+    """Un chemin ABSOLU calculé par le serveur (outputs/…), d'un seul tenant : pas de saut de ligne, pas de « .. »."""
+    if not isinstance(v, str) or not v or len(v) > MAX_CHEMIN or not v.lower().endswith(suffixe) \
+            or any(ord(ch) < 32 for ch in v) or ".." in v.replace("\\", "/").split("/"):
+        raise GabaritRefuse("chemin illisible")
+    if not (re.match(r"^[A-Za-z]:[\\/]", v) or v.startswith("/")):
+        raise GabaritRefuse("chemin illisible")
 
 
 def generer_script(params: dict) -> str:
@@ -338,6 +364,8 @@ def retirer(prefixe):
                     bpy.data.cameras.remove(donnee)
                 elif genre == "LIGHT":
                     bpy.data.lights.remove(donnee)
+                elif genre == "MESH":
+                    bpy.data.meshes.remove(donnee)
             n += 1
     return n
 
@@ -396,6 +424,22 @@ def poser_blocking():
         cree.append(vide.name)
 
 
+def poser_maquette():
+    retirer("DZ_Maquette_")
+    avant = set(o.name for o in bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=P["maquette"]["glb"])
+    col = collection()
+    for o in list(bpy.data.objects):
+        if o.name in avant:
+            continue
+        for c in list(o.users_collection):
+            c.objects.unlink(o)
+        col.objects.link(o)
+        o.name = "DZ_Maquette_" + o.name
+        o["dz_maquette"] = 1
+        cree.append(o.name)
+
+
 def poser_cles(cam):
     if cam.animation_data is not None:
         cam.animation_data_clear()
@@ -413,13 +457,48 @@ def poser_cles(cam):
     scene.frame_set(scene.frame_start)
 
 
+def memoriser():
+    col = collection()
+    if col.get("dz_avant") is None:
+        r = scene.render
+        col["dz_avant"] = json.dumps({
+            "camera": scene.camera.name if scene.camera is not None else None,
+            "resolution_x": r.resolution_x, "resolution_y": r.resolution_y,
+            "resolution_percentage": r.resolution_percentage, "fps": r.fps, "fps_base": r.fps_base,
+            "frame_start": scene.frame_start, "frame_end": scene.frame_end, "frame_current": scene.frame_current})
+
+
+def restaurer():
+    col = bpy.data.collections.get(P["collection"])
+    if col is None or col.get("dz_avant") is None:
+        return False
+    a = json.loads(col["dz_avant"])
+    ancienne = bpy.data.objects.get(a["camera"]) if a["camera"] is not None else None
+    if ancienne is not None and (ancienne.type != "CAMERA" or ancienne.name.startswith("DZ_")):
+        ancienne = None
+    scene.camera = ancienne
+    r = scene.render
+    r.resolution_x = a["resolution_x"]
+    r.resolution_y = a["resolution_y"]
+    r.resolution_percentage = a["resolution_percentage"]
+    r.fps = a["fps"]
+    r.fps_base = a["fps_base"]
+    scene.frame_start = a["frame_start"]
+    scene.frame_end = a["frame_end"]
+    scene.frame_set(a["frame_current"])
+    del col["dz_avant"]
+    return True
+
+
 if P["elements"] == ["nettoyer"]:
+    rendu = restaurer()
     n = retirer("DZ_")
     col = bpy.data.collections.get(P["collection"])
     if col is not None and len(col.objects) == 0:
         bpy.data.collections.remove(col)
-    print("DZBLENDER " + json.dumps({"retires": n}))
+    print("DZBLENDER " + json.dumps({"retires": n, "reglages_rendus": rendu}))
 else:
+    memoriser()
     cam = None
     if "camera" in P["elements"] or "cles" in P["elements"]:
         cam = poser_camera()
@@ -427,7 +506,301 @@ else:
         poser_eclairage()
     if "blocking" in P["elements"]:
         poser_blocking()
+    if "maquette" in P["elements"]:
+        poser_maquette()
     if "cles" in P["elements"]:
         poser_cles(cam)
     print("DZBLENDER " + json.dumps({"elements": P["elements"], "crees": cree, "blocking": len(P["blocking"])}))
+'''
+
+
+# ══════════════════════════════════ t332 (A2) : le RETOUR depuis Blender ══════════════════════════════════
+# « Reprendre depuis Blender » : un second texte FIXE, même discipline (un seul trou, le JSON vérifié). Il LIT les caméras
+# de la scène et les objets DZ_ de la collection DZ_Deepotus (positions, visées, focales, capteurs, clés de la caméra
+# retenue) et enregistre une COPIE du fichier ouvert (`save_as_mainfile(copy=True)`) au chemin calculé par le serveur :
+# le fichier de l'utilisateur n'est ni renommé ni écrasé, la scène n'est pas modifiée (l'image courante est rendue).
+
+def retour(blend: str | None, camera: str = "DZ_Camera") -> dict:
+    """PUR — les paramètres du gabarit de retour : la copie .blend (chemin absolu du serveur, ou None) et le nom de la
+    caméra dont on lit les clés (DZ_Camera d'abord ; à défaut la caméra de la scène)."""
+    return {"version": 1, "collection": COLLECTION, "elements": ["lire"], "blend": blend,
+            "camera": nom_sur(camera, "DZ_Camera"), "max_cameras": MAX_CAMERAS_RETOUR,
+            "max_objets": MAX_OBJETS_RETOUR, "max_cles": MAX_CLES}
+
+
+def verifier_retour(p: dict) -> None:
+    if not isinstance(p, dict) or p.get("version") != 1 or p.get("collection") != COLLECTION \
+            or p.get("elements") != ["lire"] or set(p) != {"version", "collection", "elements", "blend", "camera",
+                                                          "max_cameras", "max_objets", "max_cles"}:
+        raise GabaritRefuse("paramètres illisibles")
+    if p["blend"] is not None:
+        _chemin_local(p["blend"], ".blend")
+    _texte(p["camera"])
+    if (p["max_cameras"], p["max_objets"], p["max_cles"]) != (MAX_CAMERAS_RETOUR, MAX_OBJETS_RETOUR, MAX_CLES):
+        raise GabaritRefuse("bornes inattendues")
+
+
+def generer_script_retour(params: dict) -> str:
+    verifier_retour(params)
+    brut = json.dumps(params, ensure_ascii=True, sort_keys=True)
+    return GABARIT_RETOUR.replace("__PARAMS__", repr(brut), 1)
+
+
+def _vec_fini(v, n=3, nom="vecteur") -> list:
+    if not isinstance(v, list) or len(v) != n or not all(isinstance(x, (int, float)) and not isinstance(x, bool)
+                                                         and math.isfinite(x) and abs(x) < 1e6 for x in v):
+        raise GabaritRefuse(f"{nom} illisible")
+    return [float(x) for x in v]
+
+
+def _etat_camera(c: dict) -> dict:
+    """Un état de caméra relu (positions Blender), contrôlé : rien de ce que Blender renvoie n'est cru sur parole."""
+    if not isinstance(c, dict):
+        raise GabaritRefuse("caméra illisible")
+    out = {"pos": _vec_fini(c.get("pos"), nom="position"), "visee": _vec_fini(c.get("visee"), nom="visée")}
+    lens = c.get("lens")
+    if not isinstance(lens, (int, float)) or isinstance(lens, bool) or not 1 <= lens <= 5000:
+        raise GabaritRefuse("focale illisible")
+    out["lens"] = float(lens)
+    if math.sqrt(sum(x * x for x in out["visee"])) < 1e-6:
+        raise GabaritRefuse("visée nulle")
+    if "image" in c:
+        if not isinstance(c["image"], int) or isinstance(c["image"], bool) or abs(c["image"]) > 10 ** 6:
+            raise GabaritRefuse("image illisible")
+        out["image"] = c["image"]
+    return out
+
+
+def lire_retour(resume: dict | None) -> dict:
+    """PUR — le JSON imprimé par GABARIT_RETOUR, vérifié et borné. Noms d'objets NETTOYÉS (ils viennent du fichier de
+    l'utilisateur : des données, affichées, jamais exécutées)."""
+    if not isinstance(resume, dict) or resume.get("dz") != "retour":
+        raise GabaritRefuse("réponse de Blender illisible")
+    rendu = resume.get("rendu") or {}
+    try:
+        largeur, hauteur = int(rendu.get("x")), int(rendu.get("y"))
+        fps = float(rendu.get("fps"))
+    except (TypeError, ValueError):
+        raise GabaritRefuse("rendu illisible") from None
+    if not (1 <= largeur <= 65536 and 1 <= hauteur <= 65536 and 0 < fps <= 1000):
+        raise GabaritRefuse("rendu illisible")
+    cams = []
+    for c in (resume.get("cameras") or [])[:MAX_CAMERAS_RETOUR]:
+        e = _etat_camera(c)
+        cap_l, cap_h = c.get("capteur_l"), c.get("capteur_h")
+        if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and 0.1 <= v <= 1000 for v in (cap_l, cap_h)):
+            raise GabaritRefuse("capteur illisible")
+        ajuste = c.get("ajuste") if c.get("ajuste") in ("AUTO", "HORIZONTAL", "VERTICAL") else "AUTO"
+        cles = [_etat_camera(k) for k in (c.get("cles") or [])[:MAX_CLES]]
+        if any("image" not in k for k in cles):
+            raise GabaritRefuse("clé sans image")
+        cles.sort(key=lambda k: k["image"])
+        cams.append({**e, "nom": nom_sur(c.get("nom"), "Camera"), "capteur_l": float(cap_l),
+                     "capteur_h": float(cap_h), "ajuste": ajuste, "perspective": c.get("type") in (None, "PERSP"),
+                     "active": c.get("active") is True, "cles": cles})
+    objets = []
+    for o in (resume.get("objets") or [])[:MAX_OBJETS_RETOUR]:
+        if not isinstance(o, dict) or not str(o.get("nom") or "").startswith("DZ_"):
+            continue
+        objets.append({"nom": nom_sur(o.get("nom"), "DZ_objet")[:MAX_NOM + 12],
+                       "type": nom_sur(o.get("type"), "OBJECT")[:16], "pos": _vec_fini(o.get("pos"), nom="position"),
+                       "rot": _vec_fini(o.get("rot"), nom="rotation"),
+                       "dims": _vec_fini(o.get("dims"), nom="dimensions"),
+                       "cle": nom_sur(o.get("cle"), "")[:MAX_NOM] or None})
+    plage = [rendu.get(k) for k in ("pourcent", "debut", "fin", "courante")]
+    plage = plage if all(isinstance(v, int) and not isinstance(v, bool) and abs(v) < 10 ** 7 for v in plage) else None
+    return {"cameras": cams, "objets": objets, "rendu": {"largeur": largeur, "hauteur": hauteur, "fps": fps,
+                                                          "pourcent": plage[0] if plage else None,
+                                                          "plage": plage[1:] if plage else None},
+            "blend": resume.get("blend") is True, "version": nom_sur(resume.get("version"), "")[:24],
+            "fichier": nom_sur(resume.get("fichier"), "")[:MAX_NOM]}
+
+
+def depuis_blender(p) -> list:
+    """Blender (Z en haut) → glTF (Y en haut) : (x, y, z) → (x, z, −y), l'inverse de `vers_blender`."""
+    x, y, z = (float(v) for v in p)
+    return [x, z, -y]
+
+
+def fov_vertical(lens: float, capteur_l: float, capteur_h: float, ajuste: str, largeur: int, hauteur: int) -> float:
+    """Le champ VERTICAL (degrés) d'une caméra Blender, selon l'ajustement du capteur et le format du rendu :
+    AUTO = la largeur du capteur sur le plus GRAND côté de l'image ; HORIZONTAL = sur la largeur ; VERTICAL = la
+    hauteur du capteur sur la hauteur de l'image."""
+    asp = largeur / hauteur
+    if ajuste == "VERTICAL":
+        return math.degrees(2 * math.atan(capteur_h / (2 * lens)))
+    demi = math.atan(capteur_l / (2 * lens))
+    if ajuste == "AUTO" and asp < 1:
+        return math.degrees(2 * demi)
+    return math.degrees(2 * math.atan(math.tan(demi) / asp))
+
+
+def _orbite(pos: list, cible: list) -> list:
+    """L'inverse de scene3d.position_camera : [θ, φ, r] (degrés, mètres) de la caméra autour de sa cible."""
+    d = [pos[i] - cible[i] for i in range(3)]
+    r = math.sqrt(sum(v * v for v in d))
+    if r < 1e-6:
+        raise GabaritRefuse("caméra confondue avec sa cible")
+    phi = math.degrees(math.acos(max(-1.0, min(1.0, d[1] / r))))
+    theta = math.degrees(math.atan2(d[0], d[2]))
+    return [round(theta, 4), round(phi, 4), round(r, 4)]
+
+
+def _etat_plateau(e: dict, cible_ancienne: list, fov: float) -> dict:
+    """Un état Blender → {orbit, target, fov} du Plateau. Blender n'a pas de cible : on la pose sur l'axe de visée, à la
+    profondeur où était la cible du Plateau (le sujet reste au point), sinon à sa distance."""
+    pos = depuis_blender(e["pos"])
+    v = depuis_blender(e["visee"])
+    n = math.sqrt(sum(x * x for x in v))
+    v = [x / n for x in v]
+    rel = [cible_ancienne[i] - pos[i] for i in range(3)]
+    d = sum(rel[i] * v[i] for i in range(3))
+    if d < 0.2:
+        d = max(0.5, math.sqrt(sum(x * x for x in rel)))
+    cible = [round(pos[i] + v[i] * d, 4) for i in range(3)]
+    return {"orbit": _orbite(pos, cible), "target": cible, "fov": round(fov, 4)}
+
+
+def vers_plateau(retour_lu: dict, scene: dict, camera: str | None = None) -> dict:
+    """PUR — la proposition pour le Plateau : la caméra choisie (DZ_Camera par défaut, sinon la caméra active), son
+    état initial et, si elle est animée (deux clés au moins), les keyframes (t = (image − première) / i/s). Rien n'est
+    écrit ici : la route montre l'avant/après et n'écrit qu'avec `confirmer`."""
+    cams = [c for c in retour_lu["cameras"] if c["perspective"]]
+    if not cams:
+        raise GabaritRefuse("aucune caméra en perspective dans la scène Blender")
+    choisie = None
+    if camera:
+        choisie = next((c for c in cams if c["nom"] == camera), None)
+        if choisie is None:
+            raise GabaritRefuse(f"caméra inconnue ({nom_sur(camera)})")
+    choisie = choisie or next((c for c in cams if c["nom"] == "DZ_Camera"), None) \
+        or next((c for c in cams if c["active"]), None) or cams[0]
+    rd = retour_lu["rendu"]
+    ancienne = _etat_initial(scene)
+    cible0 = list(ancienne["target"])
+    anciens = scene.get("keyframes") or []
+
+    def fov_de(e):
+        f = fov_vertical(e["lens"], choisie["capteur_l"], choisie["capteur_h"], choisie["ajuste"], rd["largeur"],
+                         rd["hauteur"])
+        if not 0 < f < 179:
+            raise GabaritRefuse("champ de caméra hors bornes")
+        return f
+    cam = _etat_plateau(choisie, cible0, fov_de(choisie))
+    kfs = []
+    if len(choisie["cles"]) >= 2:
+        i0 = choisie["cles"][0]["image"]
+        meme = len(anciens) == len(choisie["cles"])
+        for i, k in enumerate(choisie["cles"]):
+            ref = cible0
+            if meme and isinstance(anciens[i], dict):
+                try:
+                    ref = S._vec(anciens[i].get("target"), "target")
+                except ValueError:
+                    ref = cible0
+            e = _etat_plateau(k, ref, fov_de(k))
+            easing = (anciens[i].get("easing") if meme and isinstance(anciens[i], dict) else None) or "ease-in-out"
+            kfs.append({"t": round((k["image"] - i0) / rd["fps"], 4), **e,
+                        "easing": easing if easing in S.EASINGS else "ease-in-out"})
+        kfs = S.valider_keyframes(kfs)
+        cam = {k: kfs[0][k] for k in ("orbit", "target", "fov")}
+    avant = {"camera": {"orbit": list(ancienne["orbit"]), "target": cible0, "fov": ancienne["fov"]},
+             "keyframes": len(anciens), "focale_mm": focale_mm(ancienne["fov"])}
+    apres = {"camera": cam, "keyframes": len(kfs), "focale_mm": focale_mm(cam["fov"])}
+    return {"camera_nom": choisie["nom"], "camera": cam, "keyframes": kfs, "avant": avant, "apres": apres,
+            "ecart_m": round(math.dist(S.position_camera(avant["camera"]["orbit"], cible0),
+                                       S.position_camera(cam["orbit"], cam["target"])), 3)}
+
+
+# Texte FIXE du retour : bpy et mathutils seulement, aucun nom d'attribut calculé, aucun accès disque hors de
+# l'opérateur d'enregistrement (permis par le mode sûr) ; banc test_blender_aller_retour.
+GABARIT_RETOUR = r'''# Script GENERE par DeepotusVideo (t332, retour depuis Blender) : les parametres sont des donnees.
+import json
+import bpy
+import mathutils
+
+P = json.loads(__PARAMS__)
+scene = bpy.context.scene
+
+
+def r4(v):
+    return [round(float(x), 4) for x in v]
+
+
+def images_cles(bloc):
+    ad = bloc.animation_data
+    if ad is None or ad.action is None:
+        return []
+    action = ad.action
+    courbes = []
+    if hasattr(action, "layers") and len(action.layers) > 0:
+        for couche in action.layers:
+            for bande in couche.strips:
+                for sac in bande.channelbags:
+                    courbes.extend(sac.fcurves)
+    elif hasattr(action, "fcurves"):
+        courbes.extend(action.fcurves)
+    images = set()
+    for courbe in courbes:
+        for point in courbe.keyframe_points:
+            images.add(int(round(point.co[0])))
+    return sorted(images)
+
+
+def etat(cam):
+    m = cam.matrix_world.to_3x3()
+    visee = (m @ mathutils.Vector((0.0, 0.0, -1.0))).normalized()
+    return {"pos": r4(cam.matrix_world.translation), "visee": r4(visee), "lens": round(float(cam.data.lens), 4)}
+
+
+def rang(o):
+    return (o.name != P["camera"], o != scene.camera, o.name)
+
+
+def par_nom(o):
+    return o.name
+
+
+cameras = [o for o in scene.objects if o.type == "CAMERA"]
+cameras.sort(key=rang)
+cameras = cameras[:P["max_cameras"]]
+lue = cameras[0] if cameras else None
+sortie_cameras = []
+for cam in cameras:
+    d = cam.data
+    sortie_cameras.append({"nom": cam.name[:60], "type": d.type, "capteur_l": round(float(d.sensor_width), 4),
+                           "capteur_h": round(float(d.sensor_height), 4), "ajuste": d.sensor_fit,
+                           "active": cam == scene.camera, "cles": [], **etat(cam)})
+if lue is not None:
+    images = sorted(set(images_cles(lue) + images_cles(lue.data)))[:P["max_cles"]]
+    if len(images) >= 2:
+        courante = scene.frame_current
+        for image in images:
+            scene.frame_set(image)
+            sortie_cameras[0]["cles"].append(dict(etat(lue), image=image))
+        scene.frame_set(courante)
+
+objets = []
+col = bpy.data.collections.get(P["collection"])
+if col is not None:
+    for o in sorted(col.all_objects, key=par_nom)[:P["max_objets"]]:
+        if o.name.startswith("DZ_"):
+            cle = o.get("dz_cle")
+            objets.append({"nom": o.name[:60], "type": o.type, "pos": r4(o.matrix_world.translation),
+                           "rot": r4(o.matrix_world.to_euler("XYZ")), "dims": r4(o.dimensions),
+                           "cle": cle if isinstance(cle, str) else None})
+
+enregistre = False
+if P["blend"] is not None:
+    bpy.ops.wm.save_as_mainfile(filepath=P["blend"], copy=True, check_existing=False)
+    enregistre = True
+
+print("DZBLENDER " + json.dumps({"dz": "retour", "cameras": sortie_cameras, "objets": objets, "blend": enregistre,
+                                 "rendu": {"x": scene.render.resolution_x, "y": scene.render.resolution_y,
+                                           "fps": scene.render.fps / scene.render.fps_base,
+                                           "pourcent": scene.render.resolution_percentage,
+                                           "debut": scene.frame_start, "fin": scene.frame_end,
+                                           "courante": scene.frame_current},
+                                 "version": bpy.app.version_string, "fichier": bpy.path.basename(bpy.data.filepath)},
+                                separators=(",", ":")))
 '''
