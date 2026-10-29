@@ -150,6 +150,10 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Pièces mobiles et budgets 3D** (t342) : Établi, Parties › « Pièces mobiles » (« Chercher les pièces », gratuit ;
   IA Tripo payante, catégorie « moteurs3d ») ; Export › « Budgets de triangles » (rôle, 3 densités, gratuit).
   → [ALLER:assets3d] [GUIDE:etabli]
+- **Comparer les moteurs 3D** (t344) : 3D Studio › « Comparer les moteurs » : N moteurs sur une image (total puis
+  confirmation, « moteurs3d ») ou modèles existants (gratuit) ; « Garder celui-ci ». → [ALLER:assets3d] [GUIDE:forge3d]
+- **Voir le modèle d'une étape Meshy** (t344) : 3D Studio, clic sur un nœud (sa vignette) → l'aperçu le montre ;
+  « Agrandir » (ou double-clic) l'ouvre en grand (argile, fil de fer, vues), Échap revient. → [ALLER:assets3d]
 - **Sprites en 8 directions** (t339) : Sprite Lab › Bible, personnage, Directions « 8 ». S, E, N découpés (gratuit),
   SE et NE générés (payant, « sprites », devis puis confirmation), SO, O, NO en miroir (décocher = vraie vue).
   → [ALLER:assets3d] [GUIDE:spritelab]

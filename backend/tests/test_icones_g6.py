@@ -227,6 +227,7 @@ ATTENDU = {
         'dz-nav-plateau': 1,
     },
     'frontend/studio3d/index.html': {
+        'dz-action-comparer': 1,   # t344 : « Comparer les moteurs »
         'dz-action-convertir': 1,
         'dz-etat-mobile': 1,
         'dz-action-envoyer-vers': 1,

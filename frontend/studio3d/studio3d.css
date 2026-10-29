@@ -51,6 +51,8 @@ select option:disabled { color: var(--ink-muted); }
   color: var(--ink); font-size: 12px; cursor: pointer; text-align: left;
 }
 .engine-goto:hover { border-color: var(--accent); color: var(--ink-strong); }
+/* t344 : « Comparer les moteurs » est un lien vers une page à part, habillé comme les boutons voisins */
+a.engine-goto { display: block; box-sizing: border-box; text-decoration: none; }
 
 .costs { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; font-family: var(--f-mono); font-size: 11px; }
 .cost-row { display: flex; }

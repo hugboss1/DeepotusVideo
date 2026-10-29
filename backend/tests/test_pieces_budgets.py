@@ -360,7 +360,7 @@ def test_le_devis_vient_de_la_grille_des_tarifs():
 def test_les_outils_de_l_agent_lisent_sans_ecrire_ni_depenser():
     from app.services import agent_boites as B, agent_outils as ao
     assert B.verifier() == [], B.verifier()
-    assert B.BOITES["assets3d"]["outils"] == ["pieces_analyser", "budgets_triangles"]
+    assert B.BOITES["assets3d"]["outils"][:2] == ["pieces_analyser", "budgets_triangles"]   # t344 : + comparatif3d_lire
     assert B.BOITES["assets3d"]["agents"] == [] and B.boite_de("pieces_analyser") == "assets3d"
     assert all(ao.OUTILS[n]["nature"] == "lecture" for n in ("pieces_analyser", "budgets_triangles"))
     d = _job("ag_voiture", glb_voiture())

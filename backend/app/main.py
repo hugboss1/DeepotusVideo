@@ -569,6 +569,9 @@ app.include_router(parallaxe_router, prefix="/api/parallaxe")
 # t319 (28/10/2026) : /api/tutoriels — brouillon de tutoriel d'une capture et parcours partagés (.dzparcours), local seulement
 from app.api.tutoriels_routes import router as tutoriels_router
 app.include_router(tutoriels_router, prefix="/api/tutoriels")
+# t344 (29/10/2026) : /api/comparatif3d — banc comparatif des moteurs image -> 3D (tir payant gardé, existants gratuit)
+from app.api.comparatif3d_routes import router as comparatif3d_router
+app.include_router(comparatif3d_router, prefix="/api/comparatif3d")
 # t346 (29/10/2026) : /api/recettes — exporter la recette (rendu, plan, asset) en skill ZIP + PDF de fabrication, gratuit, local seulement
 from app.api.recette_export_routes import router as recette_export_router
 app.include_router(recette_export_router, prefix="/api/recettes")
