@@ -563,6 +563,9 @@ app.include_router(inspiration_router, prefix="/api/inspiration")
 # t314 (28/10/2026) : /api/schema — illustration ou schéma -> calques nommés (Vectorlab) -> base d'animation, local seulement
 from app.api.schema_routes import router as schema_router
 app.include_router(schema_router, prefix="/api/schema")
+# t341 (29/10/2026) : /api/parallaxe — décor en calques de parallaxe du Tile Lab (local ou fal), export Godot, local seulement
+from app.api.parallaxe_routes import router as parallaxe_router
+app.include_router(parallaxe_router, prefix="/api/parallaxe")
 # t319 (28/10/2026) : /api/tutoriels — brouillon de tutoriel d'une capture et parcours partagés (.dzparcours), local seulement
 from app.api.tutoriels_routes import router as tutoriels_router
 app.include_router(tutoriels_router, prefix="/api/tutoriels")

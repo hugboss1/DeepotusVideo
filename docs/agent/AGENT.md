@@ -160,6 +160,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Pixel Lock et boucle** (t340) : Sprite Lab, Pixel-art, « Approuver ce sprite » (gratuit) verrouille grille et
   palette ; Image › « Boucle » : même pose aux deux bouts (payant, « sprites », devis puis confirmation).
   → [ALLER:assets3d] [GUIDE:spritelab]
+- **Décor en parallaxe** (t341) : Tile Lab › « Décor en parallaxe ». Peinture large, 4 ou 5 calques : découpe locale
+  gratuite, ou IA payante (« tuiles », devis puis confirmation) ; facteurs sous l'aperçu ; ZIP Godot ou PNG.
+  → [ALLER:assets3d] [GUIDE:assets2d]
 - **Raccourcis clavier**. → [GUIDE:raccourcis]
 - **Ça ne marche pas**. → [GUIDE:depannage]
 
