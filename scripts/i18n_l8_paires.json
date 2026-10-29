@@ -1089,6 +1089,12 @@
     "groupe": "t335"
    },
    {
+    "pos": 46953,
+    "avant": "      </div>",
+    "apres": "        <button class=\"btn ghost act-revue\" title=\"${dzT(\"atelier.t337_revue.bouton_t\")}\" aria-label=\"${dzT(\"atelier.t337_revue.bouton\")}\">${ico(\"dz-etat-note\")}</button>\r\n      </div>",
+    "groupe": "t337"
+   },
+   {
     "pos": 47061,
     "avant": "\" alt=\"image de production\"",
     "apres": "\" alt=\"${dzT(\"atelier.at2_sb.prod_alt\")}\"",
@@ -1117,6 +1123,12 @@
     "avant": "aria-label=\"Mesurer la dérive\"",
     "apres": "aria-label=\"${dzT(\"atelier.at2_sb.derive\")}\"",
     "groupe": "at2"
+   },
+   {
+    "pos": 47473,
+    "avant": "<div class=\"shot-derive\"></div>",
+    "apres": "<div class=\"shot-derive\"></div>\r\n        <button class=\"btn ghost act-derive-cmp\" title=\"${dzT(\"atelier.t337_cmp.bouton_t\")}\" aria-label=\"${dzT(\"atelier.t337_cmp.bouton\")}\">${ico(\"dz-action-comparer\")}</button>",
+    "groupe": "t337"
    },
    {
     "pos": 47513,
@@ -1243,6 +1255,12 @@
     "avant": "    card.querySelector(\".act-plateau\").addEventListener(\"click\", () => { location.href = \"/plateau/?shot=\" + encodeURIComponent(id); });",
     "apres": "    card.querySelector(\".act-plateau\").addEventListener(\"click\", () => { location.href = \"/plateau/?shot=\" + encodeURIComponent(id); });\r\n    // t335 : « Previs → plan » — clip de previs + style frames → la vidéo du plan (boîte /shared/dz-previs-plan.js)\r\n    card.querySelector(\".act-previs\").addEventListener(\"click\", () => {\r\n      if (!window.__dzPrevisPlan) { toast(dzT(\"atelier.t335_previs.absent\"), true); return; }\r\n      const s = sh();\r\n      window.__dzPrevisPlan.ouvrir({ shot: s, numero: (s.idx || 0) + 1, toast, apres: () => loadShots(true) });\r\n    });",
     "groupe": "t335"
+   },
+   {
+    "pos": 52112,
+    "avant": "    card.querySelector(\".act-derive\")?.addEventListener(\"click\", () => deriveProduction(id, card));",
+    "apres": "    card.querySelector(\".act-derive\")?.addEventListener(\"click\", () => deriveProduction(id, card));\r\n    // t337 : la revue chiffrée du dernier rendu « Previs → plan » (boîte /shared/dz-revue-plan.js)\r\n    card.querySelector(\".act-revue\").addEventListener(\"click\", () => {\r\n      if (!window.__dzRevuePlan) { toast(dzT(\"atelier.t337_revue.absent\"), true); return; }\r\n      const s = sh();\r\n      window.__dzRevuePlan.ouvrir({ shot: s, numero: (s.idx || 0) + 1, toast });\r\n    });\r\n    // t337 (C4) : l'image de production contre la vue de l'entité la plus en dérive, dans le comparateur commun\r\n    card.querySelector(\".act-derive-cmp\")?.addEventListener(\"click\", async () => {\r\n      if (!window.__dzComparateur) { toast(dzT(\"atelier.t337_cmp.absent\"), true); return; }\r\n      try {\r\n        const d = await api.get(`/shots/${encodeURIComponent(id)}/derive`);\r\n        const vues = (d.entites || []).filter(e => e.vue != null && e.fichier);\r\n        if (!vues.length) { toast(dzT(\"atelier.t337_cmp.sans_vue\"), true); return; }\r\n        const e = vues.slice().sort((x, y) => (y.verdict === \"derive\") - (x.verdict === \"derive\")\r\n          || y.ecart_couleur - x.ecart_couleur)[0];\r\n        window.__dzComparateur.ouvrir({\r\n          a: { src: \"/api/images/\" + encodeURIComponent(e.fichier), type: \"image\", libelle: dzT(\"atelier.t337_cmp.reference\", { nom: e.name }) },\r\n          b: { src: \"/api/images/\" + encodeURIComponent(d.image), type: \"image\", libelle: dzT(\"atelier.t337_cmp.production\") },\r\n          titre: dzT(\"atelier.t337_cmp.titre\", { nom: e.name }) });\r\n      } catch (err) { toast(dzT(\"atelier.t337_cmp.ko\", { msg: err.message }), true); }\r\n    });",
+    "groupe": "t337"
    },
    {
     "pos": 52636,
