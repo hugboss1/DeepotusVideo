@@ -515,7 +515,7 @@ L = {
            "rates": "Ratés et essais rejetés", "aucun_rate": "Aucun raté connu.", "couts": "Coûts",
            "provenance": "Provenance des entrées", "refaire": "Refaire dans DeepotusVideo", "fichiers": "Fichiers",
            "estime": "estimé", "reel": "réel", "effectif": "effectif", "etat": "état", "lignes": "lignes du registre",
-           "inconnu": "inconnu", "non_garde": "non gardé", "recalage": "Recalage", "notes": "Notes",
+           "inconnu": "inconnu", "non_garde": "non gardée", "recalage": "Recalage", "notes": "Notes",
            "arguments": "Arguments envoyés", "relation": "Relation", "quand_tir": "Tiré le", "job": "Job",
            "plan_info": "Plan", "devis": "devis", "etats": {"reel": "réel", "reel-partiel": "réel partiel",
                                                            "estime": "estimé", "devis": "devis", "inconnu": "inconnu"},
@@ -561,9 +561,12 @@ def _usd(v) -> str:
 
 def slug(texte: str, ident: str = "") -> str:
     """Le `name` du skill : minuscules, chiffres et tirets, 64 caractères au plus."""
-    t = unicodedata.normalize("NFKD", str(texte or "")).encode("ascii", "ignore").decode("ascii").lower()
+    texte = re.sub(r"\.(png|jpe?g|webp|gif|mp4|webm|mov|wav|mp3|flac|ogg)$", "", str(texte or ""), flags=re.I)
+    t = unicodedata.normalize("NFKD", texte).encode("ascii", "ignore").decode("ascii").lower()
     t = re.sub(r"[^a-z0-9]+", "-", t).strip("-")
     suf = re.sub(r"[^a-z0-9]+", "", str(ident or "").lower())[:8]
+    if suf and suf in t.replace("-", ""):      # un asset : son nom EST déjà le titre
+        suf = ""
     base = "recette-" + (t[:40].strip("-") or "deepotus")
     nom = f"{base}-{suf}" if suf else base
     return re.sub(r"-+", "-", nom)[:64].strip("-")
@@ -571,6 +574,8 @@ def slug(texte: str, ident: str = "") -> str:
 
 def _ligne_cout(c: dict, T: dict) -> str:
     etat = T["etats"].get(c.get("etat"), c.get("etat"))
+    if c.get("etat") in (None, "inconnu"):       # rien au registre ni devis : on ne l'écrit pas « 0 $ »
+        return f"{T['inconnu']} (0 {T['lignes']})"
     parts = [f"{T['estime']} {_usd(c.get('estime_usd'))}"]
     if c.get("reel_usd") is not None:
         parts.append(f"{T['reel']} {_usd(c.get('reel_usd'))}")
@@ -593,7 +598,8 @@ def skill_md(d: dict, lang: str = "fr") -> str:
     desc = T["quand"].format(t=str(d.get("titre") or d.get("id"))[:120], n=len(d["etapes"]),
                              m=", ".join(modeles) or T["inconnu"])
     c = d.get("couts") or {}
-    desc += f" {T['cout']} : {_usd(c.get('effectif_usd'))} ({T['etats'].get(c.get('etat'), c.get('etat'))})."
+    desc += (f" {T['cout']} : {T['inconnu']}." if c.get("etat") in (None, "inconnu") else
+             f" {T['cout']} : {_usd(c.get('effectif_usd'))} ({T['etats'].get(c.get('etat'), c.get('etat'))}).")
     desc = desc.replace("\n", " ")[:1024]
     o = ["---", f"name: {nom}", f"description: {desc}", "---", "",
          f"# {T['recette']} — {d.get('titre') or d.get('id')}", "",
@@ -656,6 +662,9 @@ def skill_md(d: dict, lang: str = "fr") -> str:
           "|---|---|---|---|---|"]
     for e in d["etapes"]:
         ce = e.get("cout") or {}
+        if ce.get("etat") in (None, "inconnu"):
+            o.append(f"| {e['ordre']}. {e.get('genre')} | — | — | — | {T['etats']['inconnu']} |")
+            continue
         o.append(f"| {e['ordre']}. {e.get('genre')} | {_usd(ce.get('estime_usd'))} | {_usd(ce.get('reel_usd'))} | "
                  f"{_usd(ce.get('effectif_usd'))} | {T['etats'].get(ce.get('etat'), ce.get('etat'))} |")
     o.append(f"| **Total** | {_usd(c.get('estime_usd'))} | {_usd(c.get('reel_usd'))} | {_usd(c.get('effectif_usd'))} | "
@@ -865,8 +874,9 @@ def fabrication_pdf(d: dict, imgs: dict[str, bytes], lang: str = "fr") -> bytes:
         y[0] += 14
         doc.texte(cols[0], y[0], f"{e['ordre']}{'. ' if e['ordre'] != '' else ''}{e.get('genre')}"[:40],
                   "HB" if e["genre"] == "Total" else "H", 9)
+        inc = ce.get("etat") in (None, "inconnu")
         for x, v in zip(cols[1:4], (ce.get("estime_usd"), ce.get("reel_usd"), ce.get("effectif_usd"))):
-            doc.texte(x, y[0], _usd(v), "H", 9)
+            doc.texte(x, y[0], "—" if inc else _usd(v), "H", 9)
         doc.texte(cols[4], y[0], str(T["etats"].get(ce.get("etat"), ce.get("etat") or "")), "H", 9)
     y[0] += 20
     para(T["securite"].format(n=(d.get("securite") or {}).get("secrets_masques", 0)), "H", 8, 0.45)
