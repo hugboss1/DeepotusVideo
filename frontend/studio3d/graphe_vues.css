@@ -1,0 +1,59 @@
+/* t344 (29/10/2026) — vignettes des nœuds du graphe et aperçu agrandi (graphe_vues.js). Jetons Deepotus. */
+
+/* la vignette d'un nœud : un carré en haut à droite, le titre lui laisse la place */
+.node.a-vign .node-title, .node.a-vign .node-sub { padding-right: 46px; }
+.dz-vign {
+  position: absolute; top: 26px; right: 8px; width: 40px; height: 40px; border-radius: 6px;
+  border: 1px solid var(--stroke); background: var(--bg-panel-3); overflow: hidden;
+  display: flex; align-items: center; justify-content: center; pointer-events: none;
+}
+.dz-vign img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.dz-vign[data-etat="attente"], .dz-vign[data-etat="saute"] { border-style: dashed; }
+.dz-vign[data-etat="en_cours"] { border-color: var(--accent); }
+.dz-vign[data-etat="echec"] { border-color: var(--red); }
+.dz-vign.choisi { box-shadow: 0 0 0 2px var(--accent); }
+.dz-vign-vide { color: var(--ink-muted); display: inline-flex; }
+.dz-vign-texte {
+  font-size: 7px; line-height: 1.25; color: var(--ink); padding: 3px; overflow: hidden; display: -webkit-box;
+  -webkit-line-clamp: 4; -webkit-box-orient: vertical; word-break: break-word;
+}
+/* le maillage brut a déjà sa bande « node-mesh » : la vignette s'y pose, en grand */
+#node-preview.a-vign .node-title, #node-preview.a-vign .node-sub { padding-right: 0; }
+#node-preview .dz-vign { top: auto; bottom: 46px; left: 10px; right: 10px; width: auto; height: 62px; }
+
+/* l'aperçu : « Agrandir », et le liseré quand il montre le modèle d'un nœud choisi */
+.preview.a-noeud { border-color: var(--accent); }
+.dz-agrandir {
+  position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 8px; border-radius: 6px; border: 1px solid var(--stroke-strong);
+  background: color-mix(in srgb, var(--bg-panel-2) 85%, transparent); color: var(--ink);
+  font-size: 11px; cursor: pointer; z-index: 2;
+}
+.dz-agrandir:hover { border-color: var(--accent); color: var(--ink-strong); }
+
+/* l'aperçu agrandi : il couvre le canevas central, le graphe reste dessous */
+.dz-grand { position: absolute; inset: 0; z-index: 20; display: flex; flex-direction: column; background: var(--bg-base); }
+.dz-grand-barre {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px;
+  border-bottom: 1px solid var(--stroke); background: var(--bg-panel);
+}
+.dz-grand-titre { font-size: 13px; color: var(--ink-strong); margin-right: 4px; }
+.dz-seg { display: inline-flex; border: 1px solid var(--stroke-strong); border-radius: 6px; overflow: hidden; }
+.dz-seg button {
+  display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border: 0; border-right: 1px solid var(--stroke);
+  background: transparent; color: var(--ink-soft); font-size: 11.5px; cursor: pointer;
+}
+.dz-seg button:last-child { border-right: 0; }
+.dz-seg button.on { background: var(--bg-panel-2); color: var(--ink-strong); box-shadow: inset 0 -2px 0 var(--accent); }
+.dz-grand-case { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); }
+.dz-grand-aide { font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft); }
+.dz-grand-fermer {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 12px; cursor: pointer;
+}
+.dz-grand-vue { position: relative; flex: 1; min-height: 0; }
+.dz-grand-vue canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.dz-grand-vide {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+  color: var(--ink-soft); font-size: 13px; padding: 24px; pointer-events: none;
+}

@@ -7,9 +7,20 @@
 <link rel="icon" type="image/png" href="/api/branding/logo">
 <link rel="stylesheet" href="/shared/icons/dz-icons.css">
 <link rel="stylesheet" href="studio3d.css">
+<link rel="stylesheet" href="graphe_vues.css">
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
 <script src="/shared/icons/dz-icons.js"></script>
+<!-- t344 : carte EN LIGNE (identique à /assets/three/importmap.json) AVANT tout module — graphe_vues.js et
+     /lib3d/viewer.js importent « three » (vignettes des nœuds, aperçu agrandi). -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/assets/three/three.module.min.js",
+    "three/addons/": "/assets/three/addons/"
+  }
+}
+</script>
 <script type="module" src="/assets/model-viewer.min.js"></script>
 </head>
 <body>
@@ -241,5 +252,6 @@
 <script src="/shared/dialogue.js"></script>
 <script src="/shared/dz-modeles-ia.js"></script>
 <script type="module" src="studio3d.js"></script>
+<script type="module" src="graphe_vues.js"></script>
 </body>
 </html>

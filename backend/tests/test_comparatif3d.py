@@ -392,9 +392,38 @@ def test_le_calcul_de_l_ecran_sous_node():
     if not node:
         print("    (node absent : banc JS sauté)")
         return
-    r = subprocess.run([node, str(RACINE / "frontend/studio3d/qa/comparer.test.mjs")], capture_output=True,
-                       text=True, encoding="utf-8")
-    assert r.returncode == 0, r.stdout + r.stderr
+    for banc in ("comparer.test.mjs", "graphe_vues.test.mjs"):
+        r = subprocess.run([node, str(RACINE / "frontend/studio3d/qa" / banc)], capture_output=True,
+                           text=True, encoding="utf-8")
+        assert r.returncode == 0, banc + "\n" + r.stdout + r.stderr
+
+
+def test_le_graphe_montre_ses_resultats_et_l_apercu_s_agrandit():
+    """Demande de l'utilisateur (t344) : vignettes des nœuds et aperçu agrandi. studio3d.js (généré par L9) ne reçoit
+    que trois crochets ; le module graphe_vues.js est chargé APRÈS lui, la carte d'import AVANT tout module ; UN seul
+    moteur de rendu pour les vignettes (pas un contexte WebGL par nœud), un cache ; Échap referme ; FR/EN."""
+    import re
+    html = (RACINE / "frontend/studio3d/index.html").read_text(encoding="utf-8")
+    s3d = (RACINE / "frontend/studio3d/studio3d.js").read_text(encoding="utf-8")
+    gv = (RACINE / "frontend/studio3d/graphe_vues.js").read_text(encoding="utf-8")
+    dico = json.loads((RACINE / "frontend/shared/i18n/studio3dvues.json").read_text(encoding="utf-8"))
+    carte = json.loads((RACINE / "frontend/dist/assets/three/importmap.json").read_text(encoding="utf-8"))
+    i_carte = html.index('type="importmap"')
+    assert i_carte < html.index('type="module"'), "la carte d'import doit précéder le premier module"
+    assert json.loads(html[i_carte:].split(">", 1)[1].split("</script>", 1)[0]) == carte
+    assert html.index('src="studio3d.js"') < html.index('src="graphe_vues.js"') and 'href="graphe_vues.css"' in html
+    for crochet in ("window.__dzStudio3d = { S, NODES };", 'new CustomEvent("studio3d:peint")',
+                    'window.__dzApercuNoeud === "function" && window.__dzApercuNoeud()'):
+        assert s3d.count(crochet) == 1, crochet
+    assert gv.count("new THREE.WebGLRenderer(") == 1 and "V.cache" in gv and "creerCanevas(" in gv
+    assert gv.count("creerCanevas(") == 1                              # l'aperçu agrandi : un canevas, réutilisé
+    assert '"Escape"' in gv and "window.__dzApercuNoeud = glbChoisi" in gv
+    for k in {k for k in re.findall(r'\bT\("([a-z_.]+)"', gv) if not k.endswith(".")}:
+        assert "studio3dvues." + k in dico, k
+    for e in ("pret", "en_cours", "attente", "echec", "saute"):
+        assert "studio3dvues.etat." + e in dico, e
+    for k, v in dico.items():
+        assert len(k.split(".")) == 3 and v["fr"] and v["en"], k
 
 
 def lancer_tous():

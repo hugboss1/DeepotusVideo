@@ -8,10 +8,10 @@
 
    Les viewers sont ceux de /lib3d/viewer.js (mêmes lumières pour tous) ; chaque modèle est ramené à une boîte de 1
    posée au sol, si bien qu'une SEULE pose de caméra vaut pour toutes les cases : la case que l'on tourne pilote les
-   autres. Comparateur commun (dz-comparateur, t337) : pas encore là, cette grille est propre au banc. */
+   autres. Le comparateur commun (dz-comparateur, t337) compare des images : cette grille de viewers est propre au banc. */
 "use strict";
-import * as THREE from "three";
 import { creerCanevas, charger, cadrer, orienter } from "/lib3d/viewer.js";
+import { appliquerRendu as rendre, normaliser as ramener } from "./rendu3d.js";
 import { T, COLONNES, trier, meilleur, cellule, totalCoches, avisCle, grouperParImage, usd, nb } from "./comparer_calc.js";
 
 const $ = (s) => document.querySelector(s);
@@ -165,30 +165,9 @@ async function chargerHistorique() {
 
 /* ── la grille : un viewer par moteur, caméra synchronisée ─────────────── */
 
-const ARGILE = new THREE.MeshStandardMaterial({ color: 0xb9b2a6, roughness: 0.9, metalness: 0 });
-const FIL = new THREE.MeshBasicMaterial({ color: 0x9fc3e8, wireframe: true });
+function appliquerRendu(api) { rendre(api.racine, E.rendu); }
 
-function appliquerRendu(api) {
-  if (!api.racine) return;
-  api.racine.traverse((o) => {
-    if (!o.isMesh) return;
-    if (!o.userData.dzMatOrigine) o.userData.dzMatOrigine = o.material;
-    o.material = E.rendu === "argile" ? ARGILE : E.rendu === "fil" ? FIL : o.userData.dzMatOrigine;
-  });
-}
-
-/* ramène le modèle à une boîte de 1 posée au sol, centrée : la même pose de caméra vaut pour toutes les cases */
-function normaliser(api) {
-  const r = api.racine;
-  r.scale.setScalar(1);
-  r.position.set(0, 0, 0);
-  r.updateMatrixWorld(true);
-  const b = new THREE.Box3().setFromObject(r), t = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
-  const s = 1 / (Math.max(t.x, t.y, t.z) || 1);
-  r.scale.setScalar(s);
-  r.position.set(-c.x * s, -b.min.y * s, -c.z * s);
-  r.updateMatrixWorld(true);
-}
+function normaliser(api) { ramener(api.racine); }
 
 function synchroniser(source) {
   for (const k of E.cases.values()) {
