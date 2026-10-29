@@ -1,0 +1,59 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Deepotus — jetons communs de la charte (t370, 29/10/2026)
+   UNE feuille, chargée par la coque (frontend/dist/index.html, APRÈS la feuille
+   du bundle) ET par chaque lab (@import en tête de deepotus.tokens.css, ou de la
+   feuille du lab qui recopie les jetons : atelier.css, spritelab.css).
+   Relevé et règles : docs/superpowers/specs/2026-10-29-charte-jetons-releve.md.
+
+   RÈGLES — banc backend/tests/test_charte_jetons.py :
+   • rien d'autre que des propriétés personnalisées sur :root : la charger ne
+     change AUCUN sélecteur d'élément, donc ne casse aucun écran ;
+   • chaque jeton passe par une variable : la palette personnalisable (t382) et
+     le thème clair (t383) redéfinissent les jetons de BASE (--bg-*, --ink-*,
+     --accent…) et tout ce qui suit ici les suit, sans copie d'hexadécimal ;
+   • angles vifs : --radius vaut 0 et les anciens rayons --r-sm/--r/--r-lg y
+     sont rebranchés. Seule exception de forme : --r-pill (pastilles d'état
+     rondes), inchangée.
+   ════════════════════════════════════════════════════════════════════════════ */
+:root{
+  /* ── texte : quatre niveaux, du plus fort au plus discret ─────────────────
+     Mesuré au relevé : la coque et les labs écrivent déjà ces quatre encres
+     (--ink-strong ×226, --ink ×206, --ink-soft ×348, --ink-muted ×158 dans la
+     coque) ; --fg-* les nomment une fois pour toutes. Les replis sont les
+     valeurs Cinema de deepotus.tokens.css. */
+  --fg-1:var(--ink-strong,#f2efe9);  /* titres, valeurs, libellé sélectionné */
+  --fg-2:var(--ink,#c4bfb6);         /* corps de texte, libellés */
+  --fg-3:var(--ink-soft,#8a857d);    /* méta, légendes, libellés de panneau */
+  --fg-4:var(--ink-muted,#55514c);   /* indices, placeholders, désactivé */
+  --fg-accent:var(--accent,#f0b429); /* action, coût, sélection (= --amber) */
+  --fg-on-accent:var(--accent-ink,#1a1206);
+
+  /* ── polices : sans pour l'interface, mono pour les mesures et en-têtes ── */
+  --font-ui:var(--f-ui,"IBMPlex Local","IBM Plex Sans","Inter Local","Segoe UI",system-ui,sans-serif);
+  --font-mono:var(--f-mono,"JBMono Local","JetBrains Mono",Consolas,monospace);
+  --font-display:var(--f-display,"Grotesk Local","Space Grotesk",var(--font-ui));
+
+  /* ── tailles (px) : cinq paliers ───────────────────────────────────────── */
+  /* 54 % des tailles relevées tombent pile sur un palier, 91 % à ±0,5 px près */
+  --fs-1:10px;    /* en-tête mono en capitales, pastille */
+  --fs-2:11px;    /* méta, aide, valeur mono */
+  --fs-3:12px;    /* libellé de contrôle, champ dense */
+  --fs-4:13.5px;  /* corps (socle html,body des labs) */
+  --fs-5:16px;    /* titre de panneau / de dialogue */
+  /* graisses : trois seulement */
+  --fw-1:400; --fw-2:500; --fw-3:600;
+  /* interlettrage des en-têtes mono en capitales (DESIGN.md §15 : .12em) */
+  --ls-caps:.12em;
+
+  /* ── espacements internes, base 4 ───────────────────────────────────────── */
+  --pad-1:4px;    /* puce, pastille, bouton d'icône */
+  --pad-2:8px;    /* contrôle, cellule, marge interne d'un panneau (t371) */
+  --pad-3:12px;   /* carte, section */
+  --pad-4:16px;   /* dialogue, page */
+
+  /* ── angles vifs ────────────────────────────────────────────────────────── */
+  --radius:0;
+  --r-sm:var(--radius);
+  --r:var(--radius);
+  --r-lg:var(--radius);
+}

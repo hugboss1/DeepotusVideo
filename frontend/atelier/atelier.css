@@ -8,6 +8,8 @@
    <html data-theme="light"> = thème clair · data-direction="deep" = ancien thème
    ════════════════════════════════════════════════════════════════════════════ */
 
+@import url("/shared/dz-charte.css"); /* t370 : jetons communs de la charte, en TÊTE (un @import après une règle est ignoré) */
+
 @font-face { font-family: "IBMPlex Local";      src: url("/fonts/IBMPlexSans.ttf")  format("truetype"); font-weight: 400 600; font-display: swap; }
 @font-face { font-family: "Inter Local";        src: url("/fonts/Inter.ttf")        format("truetype"); font-weight: 400 700; font-display: swap; }
 @font-face { font-family: "Space Grotesk Local"; src: url("/fonts/SpaceGrotesk.ttf") format("truetype"); font-weight: 400 700; font-display: swap; }
@@ -28,7 +30,7 @@
   --k-character:#f0b429; --k-place:#6fbf9b; --k-object:#c98f5a;
   --k-date:#9b8ec4; --k-ambiance:#e35d4a; --k-decor:#6d9dc5;
   /* forme */
-  --r-sm:6px; --r:10px; --r-lg:14px;
+  --r-sm:var(--radius); --r:var(--radius); --r-lg:var(--radius); /* t370 : angles vifs */
   --topbar:52px;
   --f-ui:"IBMPlex Local","IBM Plex Sans","Inter Local","Segoe UI",system-ui,sans-serif;
   --f-display:"Space Grotesk Local","Space Grotesk",var(--f-ui);
