@@ -13627,7 +13627,11 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
                               aspect_ratio="9:16", duration_s=int(round(calc["secondes_sortie"] or 0)) or None,
                               provider="previs", current_step="Previs → plan",
                               cost_meta=json.dumps({"usd": calc["usd"], "kind": "video_refs", "modele": mid, "plan": shot_id,
-                                                    "conform": conf})))
+                                                    "conform": conf,
+                                                    # t337 : la previs et les style frames, que la revue relit
+                                                    "clip": ({"job_id": (calc["clip"] or {}).get("job_id"),
+                                                              "chemin": str(clip)} if clip is not None else None),
+                                                    "style_frames": [f.name for f in frames]})))
         s.video = job_id
         s.updated_at = datetime.utcnow()
         await session.commit()
@@ -13727,6 +13731,191 @@ async def shot_drift(shot_id: str):
     return {"shot_id": shot_id, "image": img.name, "entites": out,
             "seuils": {"couleur": ID.SEUIL_COULEUR, "silhouette": ID.SEUIL_SILHOUETTE},
             "angle_mort": ID.CE_QUE_CA_NE_MESURE_PAS}
+
+
+# ── t337 (A7 du lot Scenario, 29/10/2026) : la REVUE CHIFFRÉE du plan rendu par « Previs → plan » ──────────────────
+# services/revue_plan.py. Mesures GRATUITES (dérive résiduelle, structure bords + luminance, identité ; la profondeur
+# n'est PAS mesurée et le dit) ; avis « directeur artistique » PAYANT : devis gratuit, puis 404 → 400 → 503 clé →
+# 409 sans `confirme_cout` (devis joint) → accord `max_usd` (CoutChange = 409) → garde « chapitres » (tirer_garde).
+# La revue est rangée dans le cost_meta du job rendu (clé « revue ») : GET la relit sans rien recalculer.
+
+async def _revue_cible(shot_id: str, http=None) -> dict:
+    """Le plan, son dernier rendu « previs » et la previs qui l'a guidé. 404 plan, 400 sans rendu previs fini.
+    La previs : cost_meta.clip (t337), sinon la mère du rendu dans la Bibliothèque (rendus de t335/t336)."""
+    import json as _json
+    from sqlalchemy import select as _sel
+    from app.services.storage import Shot, JobRecord, LibraryAsset, BibleEntity, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        jv = await session.get(JobRecord, s.video) if getattr(s, "video", None) else None
+        if jv is None or jv.provider != "previs":
+            raise HTTPException(400, _msg_g("revue.sans_rendu", http))
+        rendu = Path(str(jv.final_video_path or ""))
+        if jv.status != JobStatus.DONE.value or not rendu.is_file():
+            raise HTTPException(400, _msg_g("revue.rendu_pas_pret", http))
+        try:
+            meta = _json.loads(jv.cost_meta or "{}")
+        except (TypeError, ValueError):
+            meta = {}
+        clip = meta.get("clip") if isinstance(meta.get("clip"), dict) else None
+        previs, previs_job = None, None
+        if clip and clip.get("chemin") and Path(str(clip["chemin"])).is_file():
+            previs, previs_job = Path(str(clip["chemin"])), clip.get("job_id")
+        if previs is None:              # repli : la mère du rendu dans la Bibliothèque, puis le job qui la porte
+            la = await session.get(LibraryAsset, rendu.name)
+            mere = getattr(la, "parent_filename", None) if la is not None else None
+            if mere and Path(mere).suffix.lower() in (".mp4", ".mov", ".m4v", ".mkv", ".webm"):
+                res = await session.execute(_sel(JobRecord.id, JobRecord.final_video_path)
+                                            .where(JobRecord.final_video_path.like(f"%{mere}")))
+                for jid, fv in res.fetchall():
+                    if Path(str(fv or "")).name == mere and Path(str(fv)).is_file():
+                        previs, previs_job = Path(str(fv)), jid
+                        break
+        if previs is not None and not previs_job:
+            res = await session.execute(_sel(JobRecord.id).where(JobRecord.final_video_path == str(previs)))
+            previs_job = res.scalars().first()
+        frames = [str(f) for f in (meta.get("style_frames") or []) if isinstance(f, str)]
+        try:
+            eids = _json.loads(s.entities) if s.entities else []
+        except Exception:
+            eids = []
+        ents = [e for e in [await session.get(BibleEntity, eid) for eid in eids] if e]
+    return {"shot": s, "job": jv, "rendu": rendu, "meta": meta, "previs": previs, "previs_job": previs_job,
+            "frames": frames, "entites": ents}
+
+
+def _revue_public(c: dict, http=None) -> dict:
+    from app.services import revue_plan as RV
+    jv = c["job"]
+    return {"shot_id": c["shot"].id, "rendu": {"job_id": jv.id, "url": f"/api/jobs/{jv.id}/video"},
+            "previs": ({"job_id": c["previs_job"], "url": f"/api/jobs/{c['previs_job']}/video"}
+                       if c["previs_job"] else None),
+            "fps": (c["meta"].get("recalage") or {}).get("fps"),
+            "style_frame": c["frames"][0] if c["frames"] else None,
+            "revue": RV.lire_meta(jv.cost_meta), "avertissement": _msg_g("revue.avertissement", http)}
+
+
+async def _revue_ranger(job_id: str, cle: str, valeur: dict) -> dict:
+    """Range `valeur` sous cost_meta.revue[cle] du job ; rend la revue complète."""
+    import json as _json
+    from app.services.storage import JobRecord, async_session_factory
+    async with async_session_factory() as session:
+        jr = await session.get(JobRecord, job_id)
+        try:
+            meta = _json.loads(jr.cost_meta or "{}")
+        except (TypeError, ValueError):
+            meta = {}
+        rv = meta.get("revue") if isinstance(meta.get("revue"), dict) else {}
+        rv[cle] = valeur
+        meta["revue"] = rv
+        jr.cost_meta = _json.dumps(meta)
+        await session.commit()
+    return rv
+
+
+@router.get("/shots/{shot_id}/revue")
+async def shot_revue(shot_id: str, http: Request = None):
+    """t337 — la revue RANGÉE du dernier rendu « previs » du plan (rien n'est recalculé, gratuit) et les adresses du
+    rendu et de la previs pour le comparateur. 400 si le plan n'a pas de rendu previs fini."""
+    c = await _revue_cible(shot_id, http)
+    return _revue_public(c, http)
+
+
+@router.post("/shots/{shot_id}/revue/mesurer")
+async def shot_revue_mesurer(shot_id: str, http: Request = None):
+    """t337 — les MESURES gratuites (ffmpeg + Pillow, aucun réseau) : dérive résiduelle en images, structure image par
+    image (bords + luminance, la profondeur n'est pas mesurée), identité contre les vues des entités. Rangées."""
+    from app.services import revue_plan as RV
+    c = await _revue_cible(shot_id, http)
+    refs = []
+    for e in c["entites"]:
+        source, vues = await _entity_ref_views(e)
+        cle = next((k for k in ("front",) + _ORDRE_VUES + ("planche",) if k in vues), None)
+        ref = settings.images_path / Path(vues[cle]).name if cle else None
+        refs.append({"entity_id": e.id, "name": e.name, "source": source, "vue": cle if ref and ref.is_file() else None,
+                     "fichier": ref.name if ref else None, "chemin": str(ref) if ref else None})
+    import subprocess as _sp
+    try:
+        m = await asyncio.to_thread(RV.mesurer, c["rendu"], c["previs"], conform=c["meta"].get("conform"),
+                                    recalage=c["meta"].get("recalage"), refs=refs)
+    except (RuntimeError, OSError, _sp.TimeoutExpired) as e:
+        raise HTTPException(500, _msg_g("revue.mesure_echec", http, msg=str(e)[:300]))
+    if c["previs"] is None:
+        m["sans_previs"] = _msg_g("revue.sans_previs", http)
+    await _revue_ranger(c["job"].id, "mesures", m)
+    from app.services.storage import async_session_factory as _asf
+    async with _asf() as session:
+        from app.services.storage import JobRecord
+        c["job"] = await session.get(JobRecord, c["job"].id)
+    return _revue_public(c, http)
+
+
+def _revue_devis_de(c: dict, http=None) -> dict:
+    from app.services import revue_plan as RV
+    from app import i18n as _i18n
+    lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
+    style = bool(c["frames"]) and (settings.images_path / Path(c["frames"][0]).name).is_file()
+    n = len(RV.POSITIONS) + (1 if style else 0)
+    d = RV.devis(n, style, (c["shot"].action or ""), "en" if lang == "en" else "fr")
+    d["style"] = style
+    d["avec_previs"] = c["previs"] is not None
+    return d
+
+
+@router.post("/shots/{shot_id}/revue/devis")
+async def shot_revue_devis(shot_id: str, http: Request = None):
+    """t337 — le devis GRATUIT de l'avis « directeur artistique » (Claude vision) : rien n'est lu ni envoyé.
+    {usd, disponible, raison ("" | "cle" | "vision"), nom, modele, n_images, style, avec_previs}."""
+    c = await _revue_cible(shot_id, http)
+    d = _revue_devis_de(c, http)
+    d.pop("op", None)
+    d["message"] = _msg_g({"cle": "revue.cle_absente", "vision": "revue.sans_vision"}[d["raison"]], http) \
+        if d["raison"] else None
+    return d
+
+
+@router.post("/shots/{shot_id}/revue/note", dependencies=[Depends(_require_local_depense)])
+async def shot_revue_note(shot_id: str, body: dict | None = None, http: Request = None):
+    """t337 — l'avis du « directeur artistique » : PAYANT. Body : {confirme_cout: true, max_usd}. 503 moteur non
+    configuré, 400 modèle sans vision, 409 sans confirmation (devis joint) ou coût hors accord, 402 plafond
+    « chapitres » (dans RV.noter, par tirer_garde, avant l'appel). Jamais une garantie : l'avertissement est rangé."""
+    from app.services import revue_plan as RV
+    from app.services.scan_vision import CoutChange
+    from app import i18n as _i18n
+    body = body if isinstance(body, dict) else {}
+    c = await _revue_cible(shot_id, http)
+    d = _revue_devis_de(c, http)
+    if d["raison"] == "cle":
+        raise HTTPException(503, _msg_g("revue.cle_absente", http))
+    if d["raison"] == "vision":
+        raise HTTPException(400, _msg_g("revue.sans_vision", http))
+    pub = {k: v for k, v in d.items() if k != "op"}
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": _msg_g("revue.confirmer", http), "usd": d["usd"], "devis": pub})
+    import subprocess as _sp
+    style = settings.images_path / Path(c["frames"][0]).name if d["style"] else None
+    try:
+        images = await asyncio.to_thread(RV.images_juge, c["rendu"], c["previs"], style)
+    except (RuntimeError, OSError, _sp.TimeoutExpired) as e:
+        raise HTTPException(500, _msg_g("revue.mesure_echec", http, msg=str(e)[:300]))
+    lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
+    try:
+        note = await RV.noter(images, style=d["style"], max_usd=body.get("max_usd", d["usd"]),
+                              contexte=(c["shot"].action or ""), langue="en" if lang == "en" else "fr", ref=shot_id)
+    except CoutChange as e:
+        raise HTTPException(409, {"message": _txt_g(e, http), "usd": e.usd, "devis": pub | {"usd": e.usd}})
+    except ValueError as e:
+        raise HTTPException(400, _txt_g(e, http))
+    except RuntimeError as e:
+        raise HTTPException(502, _txt_g(e, http))
+    await _revue_ranger(c["job"].id, "note", note)
+    from app.services.storage import JobRecord
+    from app.services.storage import async_session_factory as _asf
+    async with _asf() as session:
+        c["job"] = await session.get(JobRecord, c["job"].id)
+    return _revue_public(c, http)
 
 
 # ── Vectorlab (phase 0) : documents vectoriels versionnés ────────────────────

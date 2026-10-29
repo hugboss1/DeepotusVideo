@@ -827,11 +827,13 @@ function renderBoard() {
         <button class="btn ghost act-video" title="${dzT("atelier.at2_video.bouton_t")}" aria-label="${dzT("atelier.plan.video")}">${ico("dz-media-generer-video")}</button>
         <button class="btn ghost act-plateau" title="${dzT("atelier.at2_sb.plateau_t")}" aria-label="${dzT("atelier.at2_sb.plateau")}">${ico("dz-nav-plateau")}</button>
         <button class="btn ghost act-previs" title="${dzT("atelier.t335_previs.bouton_t")}" aria-label="${dzT("atelier.t335_previs.bouton")}">${ico("dz-media-film")}</button>
+        <button class="btn ghost act-revue" title="${dzT("atelier.t337_revue.bouton_t")}" aria-label="${dzT("atelier.t337_revue.bouton")}">${ico("dz-etat-note")}</button>
       </div>
       ${s.image ? `<div class="shot-prod"><img src="/api/images/${encodeURIComponent(s.image)}" alt="${dzT("atelier.at2_sb.prod_alt")}"
         title="${dzT("atelier.at2_sb.prod_refs", { n: s.image_refs || 0 })}"><span>${ico("dz-media-image")} ${s.image_refs || 0} ${dzT("atelier.at2_sb.ref_abr")}</span>
         <button class="btn ghost act-derive" title="${dzT("atelier.at2_sb.derive_t")}" aria-label="${dzT("atelier.at2_sb.derive")}">${ico("dz-action-mesurer")}</button></div>
-        <div class="shot-derive"></div>` : ""}
+        <div class="shot-derive"></div>
+        <button class="btn ghost act-derive-cmp" title="${dzT("atelier.t337_cmp.bouton_t")}" aria-label="${dzT("atelier.t337_cmp.bouton")}">${ico("dz-action-comparer")}</button>` : ""}
     ${vignetteVideo(s)}
     </div>
     <div class="shot-main">
@@ -910,6 +912,27 @@ function renderBoard() {
       window.__dzPrevisPlan.ouvrir({ shot: s, numero: (s.idx || 0) + 1, toast, apres: () => loadShots(true) });
     });
     card.querySelector(".act-derive")?.addEventListener("click", () => deriveProduction(id, card));
+    // t337 : la revue chiffrée du dernier rendu « Previs → plan » (boîte /shared/dz-revue-plan.js)
+    card.querySelector(".act-revue").addEventListener("click", () => {
+      if (!window.__dzRevuePlan) { toast(dzT("atelier.t337_revue.absent"), true); return; }
+      const s = sh();
+      window.__dzRevuePlan.ouvrir({ shot: s, numero: (s.idx || 0) + 1, toast });
+    });
+    // t337 (C4) : l'image de production contre la vue de l'entité la plus en dérive, dans le comparateur commun
+    card.querySelector(".act-derive-cmp")?.addEventListener("click", async () => {
+      if (!window.__dzComparateur) { toast(dzT("atelier.t337_cmp.absent"), true); return; }
+      try {
+        const d = await api.get(`/shots/${encodeURIComponent(id)}/derive`);
+        const vues = (d.entites || []).filter(e => e.vue != null && e.fichier);
+        if (!vues.length) { toast(dzT("atelier.t337_cmp.sans_vue"), true); return; }
+        const e = vues.slice().sort((x, y) => (y.verdict === "derive") - (x.verdict === "derive")
+          || y.ecart_couleur - x.ecart_couleur)[0];
+        window.__dzComparateur.ouvrir({
+          a: { src: "/api/images/" + encodeURIComponent(e.fichier), type: "image", libelle: dzT("atelier.t337_cmp.reference", { nom: e.name }) },
+          b: { src: "/api/images/" + encodeURIComponent(d.image), type: "image", libelle: dzT("atelier.t337_cmp.production") },
+          titre: dzT("atelier.t337_cmp.titre", { nom: e.name }) });
+      } catch (err) { toast(dzT("atelier.t337_cmp.ko", { msg: err.message }), true); }
+    });
     card.querySelector(".act-resketch").addEventListener("click", () => sketchShot(id, null));
     card.querySelector(".act-insert").addEventListener("click", async () => {
       await api.send("POST", `/chapters/${chapter.id}/shots`, { after_id: id });

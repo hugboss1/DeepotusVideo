@@ -50,6 +50,7 @@ PAYANTES = {
     ("routes", "POST", "/chapters/{chapter_id}/animatique"),   # tâche #63 : la voix témoin de l'animatique (sur demande)
     ("routes", "POST", "/shots/{shot_id}/image"),        # tâche #62 : l'image de production d'un plan (Nano Banana)
     ("routes", "POST", "/shots/{shot_id}/previs"),       # t335 : previs → plan (Seedance v2v / Veo références, fal)
+    ("routes", "POST", "/shots/{shot_id}/revue/note"),   # t337 : l'avis « directeur artistique » (Claude vision, garde « chapitres » dans RV.noter)
     ("routes", "POST", "/layout-templates/{template_id}/render"), ("routes", "POST", "/assets/3d"),
     ("routes", "POST", "/assets/3d/{job}/refine"), ("routes", "POST", "/assets/3d/{job}/texturer"),
     ("routes", "POST", "/assets/3d/views"), ("routes", "POST", "/assets/3d/{job}/views/{index}/rejouer"),   # T106
@@ -189,6 +190,12 @@ _ad = _wd[_wd.find("async def _publier("):]
 check("A2l lancer mène à _lancer_sous_verrou ; l'adaptateur « whatsapp » ne dépense que par lancer",
       "_lancer_sous_verrou(" in _la and _wd.count("kapso.envoyer_broadcast(") == 1 and "await lancer(" in _ad
       and "kapso." not in _ad.replace("kapso.KapsoErreur", ""), "")
+# t337 : la route de l'avis délègue sa garde à revue_plan.noter — l'accord (CoutChange) AVANT MT.tirer_garde, et aucun
+# appel nu au modèle
+_rv = (RP.RACINE / "services" / "revue_plan.py").read_text(encoding="utf-8")
+_rn = _rv[_rv.find("async def noter("):_rv.find("def lire_meta(")]
+check("A2m l'avis du directeur artistique refuse un coût hors accord AVANT MT.tirer_garde, sans appel nu au modèle",
+      0 < _rn.find("raise CoutChange(") < _rn.find("MT.tirer_garde(") and "MT.tirer(" not in _rv, "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes

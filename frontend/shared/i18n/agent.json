@@ -50,6 +50,7 @@
   "agent.boites.scan": {"fr": "Scan", "en": "Scan"},
   "agent.boites.capture": {"fr": "Capture de l'app", "en": "App recording"},
   "agent.boites.recette": {"fr": "Recette exportable", "en": "Exportable recipe"},
+  "agent.boites.chapitres": {"fr": "Chapitres", "en": "Chapters"},
   "agent.boites.assets3d": {"fr": "Pièces et budgets 3D", "en": "3D parts and budgets"},
   "agent.onglet.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
   "agent.campagnes.espace": {"fr": "Espace de marque de la campagne", "en": "Campaign brand space"},
