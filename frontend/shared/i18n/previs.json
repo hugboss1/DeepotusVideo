@@ -62,6 +62,8 @@
   "previs.recalage.derive_n": {"fr": "dérive : {d} images, recalée", "en": "drift: {d} frames, realigned"},
   "previs.recalage.non_mesurable": {"fr": "dérive non mesurable (plan sans mouvement), longueur recalée", "en": "drift not measurable (shot without motion), length realigned"},
   "previs.recalage.echec": {"fr": "Dernier rendu de ce plan : recalage impossible, vidéo brute gardée ({msg}).", "en": "Last render of this shot: realignment failed, raw video kept ({msg})."},
+  "previs.export.lien": {"fr": "Exporter la recette du plan (skill ZIP + PDF) · gratuit", "en": "Export the shot recipe (skill ZIP + PDF) · free"},
+  "previs.export.aide": {"fr": "Croquis, image de production, previs, ratés et coûts réels du plan, dans un SKILL.md et un PDF de fabrication. Aucune clé n'y figure.", "en": "The shot's sketch, production image, previs, failures and actual costs, in a SKILL.md and a making-of PDF. No key is included."},
   "previs.recalage.comparer": {"fr": "Comparer previs / rendu", "en": "Compare previs / render"},
   "previs.recalage.comparer_t": {"fr": "Le dernier rendu contre sa previs, sous un rideau glissant : O l'original, C comparer, ← → une image", "en": "The last render against its previs, under a sliding curtain: O the original, C compare, ← → one frame"},
   "previs.recalage.comparer_absent": {"fr": "le comparateur n'est pas chargé, ou la previs est introuvable", "en": "the comparer is not loaded, or the previs cannot be found"},

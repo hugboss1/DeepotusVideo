@@ -88,6 +88,7 @@ PAYANTES = {
     ("routes", "POST", "/materials/from-photo"),
     ("routes", "POST", "/assets/3d/{job}/rig"),
     ("routes", "POST", "/etabli/pieces/ia"),   # t342 : Tripo Segmentation (fal), garde « moteurs3d » après confirme_cout
+    ("parallaxe", "POST", "/decouper"),   # t341 : décor en calques (fal), garde « tuiles » après la clé et confirme_cout
     ("routes", "POST", "/assets/3d/{job}/convert"),   # T105 : fbx/usdz/blend par Meshy convert   # T104 : rig + animations Meshy d'un job fal (crédits)
     ("routes", "POST", "/audio/sfx-video"),   # t187 (G5) : le bruitage d'une vidéo (Sonilo, Mirelo, Kling, Hunyuan, ThinkSound)
     ("routes", "POST", "/vfx-ia"),   # t188 (G6) : les 12 VFX IA vidéo -> vidéo (MiniMax H3, LTX 2.3, VOID, Kling O3, FLUX 3, Topaz, PixVerse)
@@ -231,6 +232,9 @@ anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I
 # t314 : la boîte « schéma » n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
 _shr = (RP.MODULES["schema"]).read_text(encoding="utf-8")
 anciens["schema"] = _shr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _shr else None
+# t341 : le décor en calques de parallaxe n'existait pas en bfec23e — même témoin
+_pxr = (RP.MODULES["parallaxe"]).read_text(encoding="utf-8")
+anciens["parallaxe"] = _pxr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _pxr else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]
