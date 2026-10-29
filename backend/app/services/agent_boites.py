@@ -60,6 +60,13 @@ BOITES: dict[str, dict] = {
         "agents": [],
         "mobile": False,
     },
+    # t337 (29/10/2026) : lire la revue chiffrée d'un plan du storyboard ; aucun agent ne la déclare encore (§11 bis)
+    "chapitres": {
+        "libelle": "agent.boites.chapitres",
+        "outils": ["lire_revue_plan"],
+        "agents": [],
+        "mobile": False,
+    },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)
     "assets3d": {
         "libelle": "agent.boites.assets3d",

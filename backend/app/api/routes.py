@@ -2725,6 +2725,129 @@ async def reassemble_sprite(job: str, body: dict):
     return {"ok": True, "frames": r["frames"], "grid": r["grid"]}
 
 
+# ---- t340 (lot Scenario, B1 + B2) : sprite approuvé (Pixel Lock) et préréglage « Boucle » ----
+
+@router.post("/assets/sprite/{job}/approuver")
+async def sprite_approuver(job: str):
+    """t340 (B1) — « Approuver ce sprite » : sa grille (`target_px`) et sa palette sont FIGÉES (approbation.json du
+    job) ; une génération qui envoie `pixel_verrou: <job>` les reçoit du serveur, quoi que dise son `pixel`. Local et
+    gratuit. 404 job inconnu ; 400 sans pixel-art (ou plus de 256 couleurs)."""
+    from app.services import sprite_service as SS
+    try:
+        return await asyncio.to_thread(SS.approuver, job)
+    except FileNotFoundError:
+        raise HTTPException(404, "Not found")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/assets/sprite/{job}/approbation")
+async def sprite_approbation(job: str):
+    """t340 (B1) — l'approbation d'un sprite (grille + palette figées), ou 404 s'il n'a pas été approuvé."""
+    from app.services import sprite_service as SS
+    try:
+        return SS.lire_approbation(job)
+    except ValueError:
+        raise HTTPException(404, "Not found")
+
+
+def _sprite_boucle_calc(body: dict) -> dict:
+    """t340 (B2) — le devis du préréglage « Boucle » : une vidéo dont la 1re ET la dernière image sont la pose
+    choisie (Seedance par défaut, modèle à image de fin), puis 1 image sur `une_sur`, re-pixelisées sur la grille
+    verrouillée. Aucun effet de bord : lu par le Spritelab avant le clic, par la route de tir et par l'assistant."""
+    from app.services import pricing as _pricing, sprite_service as SS
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL, accepte_fin
+    pose = body.get("image_filename")
+    if not isinstance(pose, str) or not pose or Path(pose).name != pose:
+        raise HTTPException(400, f"image_filename : un nom NU d'image de la Library est attendu, reçu {pose!r}")
+    if not (settings.images_path / pose).is_file():
+        raise HTTPException(404, f"Start image not found: {pose}")
+    mid = str(body.get("video_model") or "").strip() or DEFAULT_VIDEO_MODEL
+    m = VIDEO_MODELS.get(mid)
+    if m is None:
+        raise HTTPException(400, f"video_model inconnu : {mid!r}")
+    try:
+        duree = int(body.get("duration_s") or 5)
+    except (TypeError, ValueError):
+        duree = 0
+    if not 3 <= duree <= 10:
+        raise HTTPException(400, "duration_s : un entier de 3 à 10 s est attendu")
+    ratio = str(body.get("aspect_ratio") or "1:1")
+    if ratio not in ("1:1", "9:16", "16:9"):
+        raise HTTPException(400, "aspect_ratio : 1:1, 9:16 ou 16:9")
+    try:
+        boucle = SS.normalize_opts({"boucle": {"une_sur": body.get("une_sur", 2)}})["boucle"]
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    verrou = None
+    if body.get("pixel_verrou") not in (None, ""):
+        try:
+            a = SS.lire_approbation(body["pixel_verrou"])
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        verrou = {"job": a["job"], "target_px": a["target_px"], "palette": a.get("palette"),
+                  "n_couleurs": len(a["palette_hex"])}
+    op = _pricing.video_request_op(mid, duree, "720p")
+    usd = float(_pricing.estimate(op)["total_usd"])
+    return {"image_filename": pose, "video_model": mid, "label": m.get("label") or mid, "duration_s": duree,
+            "secondes": op["duration_s"], "aspect_ratio": ratio, "resolution": "720p", "op": op,
+            "usd": round(usd, 4), "accepte_fin": accepte_fin(m), "cle_manquante": _cle_video_manquante(mid),
+            "une_sur": boucle["une_sur"], "pixel_verrou": verrou, "prompt_suffixe": SS.BOUCLE_SUFFIXE}
+
+
+def _sprite_boucle_public(calc: dict) -> dict:
+    return {k: v for k, v in calc.items() if k != "op"}
+
+
+@router.post("/assets/sprite/boucle/devis")
+async def sprite_boucle_devis(body: dict):
+    """t340 (B2) — le DEVIS d'une boucle, sans rien dépenser ni écrire : modèle, secondes générées, coût, clé
+    manquante éventuelle, et si le modèle accepte une image de fin (sinon la boucle n'est pas possible)."""
+    return _sprite_boucle_public(_sprite_boucle_calc(body if isinstance(body, dict) else {}))
+
+
+@router.post("/assets/sprite/boucle", dependencies=[Depends(_require_local_depense)])
+async def sprite_boucle(body: dict, background_tasks: BackgroundTasks, http: Request = None):
+    """t340 (B2) — préréglage « Boucle » : PAYANT. La vidéo part par LE pipeline de /generate (même job, même
+    registre), avec la pose en 1re ET en dernière image. Ordre des refus : corps 400 / pose 404 → clé absente 503 →
+    modèle sans image de fin 400 → prompt vide 400 → `confirme_cout` absent 409 (avec le devis) → garde de coût 402 →
+    plafonds 402 → rendu. Rend {job_id, usd, devis} : l'écran suit le job, puis extrait 1 image sur `une_sur`
+    (`boucle`) et re-pixelise sur la grille du sprite approuvé (`pixel_verrou`) — feuille + GIF."""
+    from app.services import sprite_service as SS
+    body = body if isinstance(body, dict) else {}
+    calc = _sprite_boucle_calc(body)
+    _cle_video_ou_503(calc["video_model"], http)                       # 503 AVANT toute garde de dépense
+    _fin_video_ou_400(calc["video_model"], calc["image_filename"], http)
+    action = str(body.get("prompt") or "").strip()
+    if not action:
+        raise HTTPException(400, "prompt : décris le mouvement à boucler (ex : walks in place)")
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": "la boucle est une génération vidéo payante : confirmez le devis",
+                                  "usd": calc["usd"], "devis": _sprite_boucle_public(calc)})
+    try:
+        req = GenerateRequest(image_filename=calc["image_filename"], image_filename_end=calc["image_filename"],
+                              custom_prompt=f"{action[:600]}, {SS.BOUCLE_SUFFIXE}", prompt_source="custom",
+                              video_model=calc["video_model"], duration_s=calc["duration_s"],
+                              aspect_ratio=calc["aspect_ratio"], resolution="720p", voiceover_enabled=False,
+                              source="sprites", max_usd=body.get("max_usd"))
+    except Exception as e:  # noqa: BLE001 — la validation pydantic devient un 400 lisible
+        raise HTTPException(400, str(e)[:400])
+    _garde_cout([calc["op"]], req.max_usd)
+    await _plafond(calc["op"], "sprites")
+    job_id = str(uuid4())
+    await Pipeline.creer_job(req, job_id)
+
+    async def _run():
+        try:
+            await pipeline.run(req, job_id=job_id)   # REPREND le job créé ci-dessus
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"sprite boucle ({job_id}) : {e}")
+            await Pipeline.echouer_si_en_attente(job_id, str(e))   # jamais de job fantôme en QUEUED
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "usd": calc["usd"], "devis": _sprite_boucle_public(calc)}
+
+
 _EXT_PLANCHE = (".png", ".jpg", ".jpeg", ".webp")
 
 
@@ -13504,7 +13627,11 @@ async def shot_previs(shot_id: str, body: dict, background_tasks: BackgroundTask
                               aspect_ratio="9:16", duration_s=int(round(calc["secondes_sortie"] or 0)) or None,
                               provider="previs", current_step="Previs → plan",
                               cost_meta=json.dumps({"usd": calc["usd"], "kind": "video_refs", "modele": mid,
-                                                    "conform": conf})))
+                                                    "conform": conf,
+                                                    # t337 : la previs et les style frames, que la revue relit
+                                                    "clip": ({"job_id": (calc["clip"] or {}).get("job_id"),
+                                                              "chemin": str(clip)} if clip is not None else None),
+                                                    "style_frames": [f.name for f in frames]})))
         s.video = job_id
         s.updated_at = datetime.utcnow()
         await session.commit()
@@ -13604,6 +13731,191 @@ async def shot_drift(shot_id: str):
     return {"shot_id": shot_id, "image": img.name, "entites": out,
             "seuils": {"couleur": ID.SEUIL_COULEUR, "silhouette": ID.SEUIL_SILHOUETTE},
             "angle_mort": ID.CE_QUE_CA_NE_MESURE_PAS}
+
+
+# ── t337 (A7 du lot Scenario, 29/10/2026) : la REVUE CHIFFRÉE du plan rendu par « Previs → plan » ──────────────────
+# services/revue_plan.py. Mesures GRATUITES (dérive résiduelle, structure bords + luminance, identité ; la profondeur
+# n'est PAS mesurée et le dit) ; avis « directeur artistique » PAYANT : devis gratuit, puis 404 → 400 → 503 clé →
+# 409 sans `confirme_cout` (devis joint) → accord `max_usd` (CoutChange = 409) → garde « chapitres » (tirer_garde).
+# La revue est rangée dans le cost_meta du job rendu (clé « revue ») : GET la relit sans rien recalculer.
+
+async def _revue_cible(shot_id: str, http=None) -> dict:
+    """Le plan, son dernier rendu « previs » et la previs qui l'a guidé. 404 plan, 400 sans rendu previs fini.
+    La previs : cost_meta.clip (t337), sinon la mère du rendu dans la Bibliothèque (rendus de t335/t336)."""
+    import json as _json
+    from sqlalchemy import select as _sel
+    from app.services.storage import Shot, JobRecord, LibraryAsset, BibleEntity, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        jv = await session.get(JobRecord, s.video) if getattr(s, "video", None) else None
+        if jv is None or jv.provider != "previs":
+            raise HTTPException(400, _msg_g("revue.sans_rendu", http))
+        rendu = Path(str(jv.final_video_path or ""))
+        if jv.status != JobStatus.DONE.value or not rendu.is_file():
+            raise HTTPException(400, _msg_g("revue.rendu_pas_pret", http))
+        try:
+            meta = _json.loads(jv.cost_meta or "{}")
+        except (TypeError, ValueError):
+            meta = {}
+        clip = meta.get("clip") if isinstance(meta.get("clip"), dict) else None
+        previs, previs_job = None, None
+        if clip and clip.get("chemin") and Path(str(clip["chemin"])).is_file():
+            previs, previs_job = Path(str(clip["chemin"])), clip.get("job_id")
+        if previs is None:              # repli : la mère du rendu dans la Bibliothèque, puis le job qui la porte
+            la = await session.get(LibraryAsset, rendu.name)
+            mere = getattr(la, "parent_filename", None) if la is not None else None
+            if mere and Path(mere).suffix.lower() in (".mp4", ".mov", ".m4v", ".mkv", ".webm"):
+                res = await session.execute(_sel(JobRecord.id, JobRecord.final_video_path)
+                                            .where(JobRecord.final_video_path.like(f"%{mere}")))
+                for jid, fv in res.fetchall():
+                    if Path(str(fv or "")).name == mere and Path(str(fv)).is_file():
+                        previs, previs_job = Path(str(fv)), jid
+                        break
+        if previs is not None and not previs_job:
+            res = await session.execute(_sel(JobRecord.id).where(JobRecord.final_video_path == str(previs)))
+            previs_job = res.scalars().first()
+        frames = [str(f) for f in (meta.get("style_frames") or []) if isinstance(f, str)]
+        try:
+            eids = _json.loads(s.entities) if s.entities else []
+        except Exception:
+            eids = []
+        ents = [e for e in [await session.get(BibleEntity, eid) for eid in eids] if e]
+    return {"shot": s, "job": jv, "rendu": rendu, "meta": meta, "previs": previs, "previs_job": previs_job,
+            "frames": frames, "entites": ents}
+
+
+def _revue_public(c: dict, http=None) -> dict:
+    from app.services import revue_plan as RV
+    jv = c["job"]
+    return {"shot_id": c["shot"].id, "rendu": {"job_id": jv.id, "url": f"/api/jobs/{jv.id}/video"},
+            "previs": ({"job_id": c["previs_job"], "url": f"/api/jobs/{c['previs_job']}/video"}
+                       if c["previs_job"] else None),
+            "fps": (c["meta"].get("recalage") or {}).get("fps"),
+            "style_frame": c["frames"][0] if c["frames"] else None,
+            "revue": RV.lire_meta(jv.cost_meta), "avertissement": _msg_g("revue.avertissement", http)}
+
+
+async def _revue_ranger(job_id: str, cle: str, valeur: dict) -> dict:
+    """Range `valeur` sous cost_meta.revue[cle] du job ; rend la revue complète."""
+    import json as _json
+    from app.services.storage import JobRecord, async_session_factory
+    async with async_session_factory() as session:
+        jr = await session.get(JobRecord, job_id)
+        try:
+            meta = _json.loads(jr.cost_meta or "{}")
+        except (TypeError, ValueError):
+            meta = {}
+        rv = meta.get("revue") if isinstance(meta.get("revue"), dict) else {}
+        rv[cle] = valeur
+        meta["revue"] = rv
+        jr.cost_meta = _json.dumps(meta)
+        await session.commit()
+    return rv
+
+
+@router.get("/shots/{shot_id}/revue")
+async def shot_revue(shot_id: str, http: Request = None):
+    """t337 — la revue RANGÉE du dernier rendu « previs » du plan (rien n'est recalculé, gratuit) et les adresses du
+    rendu et de la previs pour le comparateur. 400 si le plan n'a pas de rendu previs fini."""
+    c = await _revue_cible(shot_id, http)
+    return _revue_public(c, http)
+
+
+@router.post("/shots/{shot_id}/revue/mesurer")
+async def shot_revue_mesurer(shot_id: str, http: Request = None):
+    """t337 — les MESURES gratuites (ffmpeg + Pillow, aucun réseau) : dérive résiduelle en images, structure image par
+    image (bords + luminance, la profondeur n'est pas mesurée), identité contre les vues des entités. Rangées."""
+    from app.services import revue_plan as RV
+    c = await _revue_cible(shot_id, http)
+    refs = []
+    for e in c["entites"]:
+        source, vues = await _entity_ref_views(e)
+        cle = next((k for k in ("front",) + _ORDRE_VUES + ("planche",) if k in vues), None)
+        ref = settings.images_path / Path(vues[cle]).name if cle else None
+        refs.append({"entity_id": e.id, "name": e.name, "source": source, "vue": cle if ref and ref.is_file() else None,
+                     "fichier": ref.name if ref else None, "chemin": str(ref) if ref else None})
+    import subprocess as _sp
+    try:
+        m = await asyncio.to_thread(RV.mesurer, c["rendu"], c["previs"], conform=c["meta"].get("conform"),
+                                    recalage=c["meta"].get("recalage"), refs=refs)
+    except (RuntimeError, OSError, _sp.TimeoutExpired) as e:
+        raise HTTPException(500, _msg_g("revue.mesure_echec", http, msg=str(e)[:300]))
+    if c["previs"] is None:
+        m["sans_previs"] = _msg_g("revue.sans_previs", http)
+    await _revue_ranger(c["job"].id, "mesures", m)
+    from app.services.storage import async_session_factory as _asf
+    async with _asf() as session:
+        from app.services.storage import JobRecord
+        c["job"] = await session.get(JobRecord, c["job"].id)
+    return _revue_public(c, http)
+
+
+def _revue_devis_de(c: dict, http=None) -> dict:
+    from app.services import revue_plan as RV
+    from app import i18n as _i18n
+    lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
+    style = bool(c["frames"]) and (settings.images_path / Path(c["frames"][0]).name).is_file()
+    n = len(RV.POSITIONS) + (1 if style else 0)
+    d = RV.devis(n, style, (c["shot"].action or ""), "en" if lang == "en" else "fr")
+    d["style"] = style
+    d["avec_previs"] = c["previs"] is not None
+    return d
+
+
+@router.post("/shots/{shot_id}/revue/devis")
+async def shot_revue_devis(shot_id: str, http: Request = None):
+    """t337 — le devis GRATUIT de l'avis « directeur artistique » (Claude vision) : rien n'est lu ni envoyé.
+    {usd, disponible, raison ("" | "cle" | "vision"), nom, modele, n_images, style, avec_previs}."""
+    c = await _revue_cible(shot_id, http)
+    d = _revue_devis_de(c, http)
+    d.pop("op", None)
+    d["message"] = _msg_g({"cle": "revue.cle_absente", "vision": "revue.sans_vision"}[d["raison"]], http) \
+        if d["raison"] else None
+    return d
+
+
+@router.post("/shots/{shot_id}/revue/note", dependencies=[Depends(_require_local_depense)])
+async def shot_revue_note(shot_id: str, body: dict | None = None, http: Request = None):
+    """t337 — l'avis du « directeur artistique » : PAYANT. Body : {confirme_cout: true, max_usd}. 503 moteur non
+    configuré, 400 modèle sans vision, 409 sans confirmation (devis joint) ou coût hors accord, 402 plafond
+    « chapitres » (dans RV.noter, par tirer_garde, avant l'appel). Jamais une garantie : l'avertissement est rangé."""
+    from app.services import revue_plan as RV
+    from app.services.scan_vision import CoutChange
+    from app import i18n as _i18n
+    body = body if isinstance(body, dict) else {}
+    c = await _revue_cible(shot_id, http)
+    d = _revue_devis_de(c, http)
+    if d["raison"] == "cle":
+        raise HTTPException(503, _msg_g("revue.cle_absente", http))
+    if d["raison"] == "vision":
+        raise HTTPException(400, _msg_g("revue.sans_vision", http))
+    pub = {k: v for k, v in d.items() if k != "op"}
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": _msg_g("revue.confirmer", http), "usd": d["usd"], "devis": pub})
+    import subprocess as _sp
+    style = settings.images_path / Path(c["frames"][0]).name if d["style"] else None
+    try:
+        images = await asyncio.to_thread(RV.images_juge, c["rendu"], c["previs"], style)
+    except (RuntimeError, OSError, _sp.TimeoutExpired) as e:
+        raise HTTPException(500, _msg_g("revue.mesure_echec", http, msg=str(e)[:300]))
+    lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
+    try:
+        note = await RV.noter(images, style=d["style"], max_usd=body.get("max_usd", d["usd"]),
+                              contexte=(c["shot"].action or ""), langue="en" if lang == "en" else "fr", ref=shot_id)
+    except CoutChange as e:
+        raise HTTPException(409, {"message": _txt_g(e, http), "usd": e.usd, "devis": pub | {"usd": e.usd}})
+    except ValueError as e:
+        raise HTTPException(400, _txt_g(e, http))
+    except RuntimeError as e:
+        raise HTTPException(502, _txt_g(e, http))
+    await _revue_ranger(c["job"].id, "note", note)
+    from app.services.storage import JobRecord
+    from app.services.storage import async_session_factory as _asf
+    async with _asf() as session:
+        c["job"] = await session.get(JobRecord, c["job"].id)
+    return _revue_public(c, http)
 
 
 # ── Vectorlab (phase 0) : documents vectoriels versionnés ────────────────────

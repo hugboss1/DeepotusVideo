@@ -18,7 +18,7 @@ from PIL import Image, ImageChops, ImageStat
 
 __all__ = ["PALETTES", "normalize_pixel_opts", "pixelate", "tile_preview",
            "seam_score", "normalize_seamless_opts", "make_seamless",
-           "chroma_key"]
+           "chroma_key", "palette_rgb", "palette_utilisee", "verifier_pixel"]
 
 
 def _hex(s: str) -> tuple[int, int, int]:
@@ -86,6 +86,18 @@ def normalize_pixel_opts(spec: dict) -> dict:
 
     palette = spec.get("palette")
     colors = None
+    # t340 (B1, Pixel Lock) : une palette EXPLICITE (liste de couleurs #RRGGBB) — celle d'un sprite approuvé. Elle
+    # exclut les deux autres voies ; la clé n'apparaît que lorsqu'elle est donnée (les options d'avant restent égales).
+    brut_hex = spec.get("palette_hex")
+    if brut_hex not in (None, "", []):
+        if palette not in (None, "") or spec.get("colors") not in (None, ""):
+            raise ValueError("palette_hex excludes palette and colors — give only one")
+        hexes = _hex_liste(brut_hex)
+        dither = str(spec.get("dither") or "none").lower()
+        if dither not in ("none", "ordered", "floyd"):
+            raise ValueError("dither must be one of: none, ordered, floyd")
+        return {"target_px": target, "colors": None, "palette": None,
+                "dither": dither, "scale": scale, "palette_hex": hexes}
     if palette not in (None, ""):
         palette = str(palette).lower()
         if palette not in PALETTES:
@@ -104,6 +116,93 @@ def normalize_pixel_opts(spec: dict) -> dict:
 
     return {"target_px": target, "colors": colors, "palette": palette,
             "dither": dither, "scale": scale}
+
+
+# ── t340 (B1) : palette explicite, palette d'un sprite, vérification de la grille ──
+_MAX_PALETTE = 256
+
+
+def _hex_liste(brut) -> list[str]:
+    """Liste de couleurs -> « #RRGGBB » majuscules, sans doublon, dans l'ordre reçu (2 à 256). ValueError sinon."""
+    if not isinstance(brut, (list, tuple)):
+        raise ValueError("palette_hex must be a list of #RRGGBB colours")
+    out = []
+    for c in brut:
+        s = str(c or "").strip().lstrip("#").upper()
+        if len(s) != 6 or any(ch not in "0123456789ABCDEF" for ch in s):
+            raise ValueError(f"palette_hex: {c!r} is not a #RRGGBB colour")
+        out.append("#" + s)
+    out = list(dict.fromkeys(out))
+    if not 2 <= len(out) <= _MAX_PALETTE:
+        raise ValueError(f"palette_hex must hold between 2 and {_MAX_PALETTE} distinct colours")
+    return out
+
+
+def palette_rgb(opts: dict):
+    """La palette IMPOSÉE par les options (tuple de triplets RGB), ou None pour une palette adaptative."""
+    if opts.get("palette_hex"):
+        return tuple(_hex(h.lstrip("#")) for h in opts["palette_hex"])
+    if opts.get("palette"):
+        return PALETTES[opts["palette"]]
+    return None
+
+
+def palette_utilisee(images) -> list[str]:
+    """Les couleurs RÉELLEMENT posées (pixels d'alpha > 0) d'une ou plusieurs images, en « #RRGGBB » triées — la
+    palette qu'un sprite approuvé fige pour la suite. ValueError au-delà de 256 couleurs (ce n'est pas du pixel-art)."""
+    if isinstance(images, Image.Image):
+        images = [images]
+    vues = set()
+    for im in images:
+        rgba = im.convert("RGBA")
+        for _n, (r, g, b, a) in rgba.getcolors(rgba.width * rgba.height) or []:
+            if a > 0:
+                vues.add(f"#{r:02X}{g:02X}{b:02X}")
+        if len(vues) > _MAX_PALETTE:
+            raise ValueError(f"more than {_MAX_PALETTE} colours: this sprite is not pixel art — "
+                             "turn Pixel art on before approving it")
+    if not vues:
+        raise ValueError("the sprite has no visible pixel")
+    return sorted(vues)
+
+
+def _bornes(longueur: int, bloc: int, origine: int) -> list[tuple[int, int]]:
+    """Découpe [0, longueur) en blocs de `bloc` alignés sur `origine` (les blocs du bord peuvent être partiels)."""
+    o = origine % bloc
+    coupes = sorted({0, longueur, *range(o, longueur, bloc)})
+    return [(a, b) for a, b in zip(coupes, coupes[1:]) if b > a]
+
+
+def verifier_pixel(img: Image.Image, bloc: int = 1, palette=None, origine=(0, 0)) -> dict:
+    """La PREUVE d'une grille pixel : chaque bloc `bloc`×`bloc` (aligné sur `origine`) est-il UNI, chaque pixel
+    visible est-il d'une couleur de `palette` (hex ou triplets ; None = pas de contrôle), l'alpha est-il binaire ?
+    Rend {bloc, blocs, blocs_non_unis, hors_palette (couleurs distinctes), pixels_hors_palette, alpha_partiel,
+    couleurs, ok}. Pur, déterministe ; aucun réglage n'est lu."""
+    rgba = img.convert("RGBA")
+    w, h = rgba.size
+    bloc = max(1, int(bloc))
+    non_unis = total = 0
+    for y0, y1 in _bornes(h, bloc, origine[1]):
+        for x0, x1 in _bornes(w, bloc, origine[0]):
+            total += 1
+            if rgba.crop((x0, y0, x1, y1)).getcolors(1) is None:   # plus d'une couleur RGBA dans le bloc
+                non_unis += 1
+    pal = None
+    if palette:
+        pal = {(_hex(c.lstrip("#")) if isinstance(c, str) else tuple(c)) for c in palette}
+    hors, px_hors, partiel, couleurs = set(), 0, 0, set()
+    for n, (r, g, b, a) in rgba.getcolors(w * h) or []:
+        if a == 0:
+            continue
+        couleurs.add((r, g, b))
+        if a != 255:
+            partiel += n
+        if pal is not None and (r, g, b) not in pal:
+            hors.add((r, g, b))
+            px_hors += n
+    return {"bloc": bloc, "blocs": total, "blocs_non_unis": non_unis, "hors_palette": len(hors),
+            "pixels_hors_palette": px_hors, "alpha_partiel": partiel, "couleurs": len(couleurs),
+            "ok": non_unis == 0 and not hors and partiel == 0}
 
 
 # ── dither ordonné (Bayer 4x4, sans numpy) ───────────────────────────────────
@@ -140,8 +239,8 @@ def _palette_image(pal) -> Image.Image:
 def _quantize_rgb(rgb: Image.Image, opts: dict) -> Image.Image:
     """RGB -> P : palette preset ou adaptative (MEDIANCUT sur l'image NON
     biaisée, puis remap — le biais ordered ne doit pas polluer la palette)."""
-    if opts["palette"]:
-        pal = PALETTES[opts["palette"]]
+    pal = palette_rgb(opts)
+    if pal:
         target, n = _palette_image(pal), len(pal)
     else:
         n = opts["colors"]

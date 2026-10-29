@@ -685,5 +685,16 @@
   "atelier.t312_scan.ms_en_cours": {"fr": "Un manuscrit est déjà en cours d'import : attends sa fin.", "en": "A manuscript is already being imported: wait for it to finish."},
   "atelier.t335_previs.absent": {"fr": "La boîte Previs → plan n'est pas chargée : recharge la page.", "en": "The Previs → shot box is not loaded: reload the page."},
   "atelier.t335_previs.bouton": {"fr": "Previs → plan", "en": "Previs → shot"},
-  "atelier.t335_previs.bouton_t": {"fr": "Previs → plan : votre clip de previs (mouvement, caméra) rendu avec le look de style frames — Seedance 2.5 video-to-video, coût affiché et confirmé avant", "en": "Previs → shot: your previs clip (motion, camera) rendered with the look of style frames — Seedance 2.5 video-to-video, cost shown and confirmed first"}
+  "atelier.t335_previs.bouton_t": {"fr": "Previs → plan : votre clip de previs (mouvement, caméra) rendu avec le look de style frames — Seedance 2.5 video-to-video, coût affiché et confirmé avant", "en": "Previs → shot: your previs clip (motion, camera) rendered with the look of style frames — Seedance 2.5 video-to-video, cost shown and confirmed first"},
+  "atelier.t337_cmp.absent": {"fr": "Le comparateur n'est pas chargé : recharge la page.", "en": "The comparer is not loaded: reload the page."},
+  "atelier.t337_cmp.bouton": {"fr": "Comparer à la référence", "en": "Compare with the reference"},
+  "atelier.t337_cmp.bouton_t": {"fr": "Comparer l'image de production à la vue de référence de l'entité la plus en dérive (rideau glissant, O : l'original, C : comparer) — gratuit", "en": "Compare the production image with the reference view of the entity that drifts most (sliding curtain, O: the original, C: compare) — free"},
+  "atelier.t337_cmp.ko": {"fr": "Comparaison impossible : {msg}", "en": "Comparison failed: {msg}"},
+  "atelier.t337_cmp.production": {"fr": "Production", "en": "Production"},
+  "atelier.t337_cmp.reference": {"fr": "Référence · {nom}", "en": "Reference · {nom}"},
+  "atelier.t337_cmp.sans_vue": {"fr": "Aucune entité de ce plan n'a de vue de référence à comparer.", "en": "No entity of this shot has a reference view to compare."},
+  "atelier.t337_cmp.titre": {"fr": "Image de production / référence de {nom}", "en": "Production image / {nom}'s reference"},
+  "atelier.t337_revue.absent": {"fr": "La boîte Revue du plan n'est pas chargée : recharge la page.", "en": "The Shot review box is not loaded: reload the page."},
+  "atelier.t337_revue.bouton": {"fr": "Revue du plan", "en": "Shot review"},
+  "atelier.t337_revue.bouton_t": {"fr": "Revue du plan : le dernier rendu Previs → plan contre sa previs — dérive en images, structure, identité (gratuit), avis du directeur artistique (payant, sur devis), comparateur", "en": "Shot review: the last Previs → shot render against its previs — drift in frames, structure, identity (free), art director's opinion (paid, quoted first), comparer"}
 }

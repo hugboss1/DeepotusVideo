@@ -211,6 +211,8 @@ ECARTS = [
     ("dz-action-retirer", +1, "aide de l'éditeur : « supprime (✕) » montre le bouton de la cellule"),
     ("dz-media-pause", +1, "playIcone() rend pause OU lecture : la pause y figure aussi"),
     ("dz-etat-avertissement", +1, "t339 : rappel « objet tenu asymétrique : ne pas miroiter » de l'onglet Bible"),
+    ("dz-etat-verrouille", +1, "t340 : en-tête « Grille et palette verrouillées » du cadre Pixel-art (Pixel Lock)"),
+    ("dz-action-valider", +1, "t340 : bouton « Approuver ce sprite » de la sortie (Pixel Lock)"),
     ("dz-etat-succes", 2 - 9, "neuf réussites passent par toastOk, une aide par lab (Spritelab, Tilelab)"),
 ]
 
