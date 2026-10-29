@@ -487,6 +487,34 @@ async def lire_revue_plan(ctx: Ctx, plan: str = "") -> dict:
     return _res(True, f"revue du plan : {quoi} (jamais une garantie)", d)
 
 
+# ---- t334 (29/10/2026) : lire les PASSES BLENDER d'un plan (boîte « chapitres ») --------------------------------------
+# Lecture SEULE des manifestes rangés (outputs/passes/<plan>/<run>/passes.json) et de l'état de Blender : rien n'est
+# rendu ici — le rendu (gratuit, local) reste un clic de l'utilisateur sur « Passes Blender » de la carte du plan.
+async def lire_passes_plan(ctx: Ctx, plan: str = "") -> dict:
+    import asyncio as _aio
+    from app.services import passes_blender as PB
+    from app.services.storage import Scene3D, Shot, async_session_factory
+    from sqlalchemy import select
+    pid = str(plan or "").strip()
+    if not _ID_PLAN.match(pid):
+        raise _Refus("plan : l'identifiant d'un plan du storyboard est attendu")
+    async with async_session_factory() as s:
+        if await s.get(Shot, pid) is None:
+            raise _Refus(f"plan introuvable : {pid}")
+        sc = (await s.execute(select(Scene3D.id).where(Scene3D.shot_id == pid).limit(1))).scalars().first()
+    bl = await _aio.to_thread(PB.etat_blender)
+    runs = PB.lire_runs(PB.dossier_plan(config.settings.outputs_path, pid))
+    d = {"blender": {k: bl.get(k) for k in ("dispo", "version", "raison")}, "scene_plateau": bool(sc),
+         "runs": [{"run": m.get("run"), "date": m.get("date"), "sequence": m.get("sequence"), "images": m.get("images"),
+                   "passes": {p: {"bibliotheque": (e or {}).get("bibliotheque"), "fichiers": len((e or {}).get("fichiers") or [])}
+                              for p, e in (m.get("passes") or {}).items()},
+                   "profondeur": m.get("profondeur"), "palette": m.get("palette")} for m in runs]}
+    if not runs:
+        quoi = ("aucune passe rendue : l'utilisateur les lance par « Passes Blender » sur la carte du plan (gratuit, "
+                "local)" + ("" if sc else " — il faut d'abord une scène au Plateau 3D pour ce plan")
+                + ("" if bl.get("dispo") else " ; Blender est introuvable sur ce PC (4.2 ou plus récent à installer)"))
+        return _res(True, quoi, d)
+    return _res(True, f"{len(runs)} rendu(s) de passes Blender pour ce plan, le plus récent d'abord", d)
 # ---- t345 (29/10/2026, D1 du lot Scenario) : la bible et les plans des Chapitres (boîte « chapitres », lecture) -------
 
 GENRES_BIBLE = ("character", "place", "object", "date", "ambiance", "decor")
@@ -1954,6 +1982,14 @@ OUTILS: dict[str, dict] = {
                                        "été demandé (notes par critère, défauts ; textes encadrés). Ne mesure ni ne "
                                        "paie rien ; une note n'est jamais une garantie.",
                         "schema": _o({"plan": dict(_T, description="identifiant du plan (shot)")}, ("plan",))},
+    # t334 : les passes Blender d'un plan (boîte « chapitres », lecture ; le rendu reste un clic de l'utilisateur)
+    "lire_passes_plan": {"nature": "lecture", "fn": lire_passes_plan,
+                         "description": "Lit les passes Blender RANGÉES d'un plan (par l'identifiant du plan) : clay, "
+                                        "look, profondeur (plage en mètres), normales, masques, image fixe ou "
+                                        "séquence, noms des images dans la Bibliothèque, et si Blender est installé. "
+                                        "Ne rend rien : le rendu (gratuit, local) se lance par « Passes Blender » sur "
+                                        "la carte du plan.",
+                         "schema": _o({"plan": dict(_T, description="identifiant du plan (shot)")}, ("plan",))},
     # t345 : la bible et les plans des Chapitres (boîte « chapitres », lecture)
     "lire_bible": {"nature": "lecture", "fn": lire_bible,
                    "description": "Lit la bible des Chapitres : personnages, lieux, objets, dates, ambiances et décors "

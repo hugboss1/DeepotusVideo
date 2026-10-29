@@ -1281,6 +1281,12 @@
     "groupe": "at2"
    },
    {
+    "pos": 53488,
+    "avant": "  });\r\n}\r\n\r\nasync function moveShot",
+    "apres": "  });\r\n  // t334 : le bouton « Passes Blender » de chaque carte et la bande des passes du dernier rendu (dz-passes-plan.js)\r\n  if (window.__dzPassesPlan) window.__dzPassesPlan.vignettes(list, chapter.id);\r\n}\r\n\r\nasync function moveShot",
+    "groupe": "t334"
+   },
+   {
     "pos": 53994,
     "avant": "\"Décris l'action du plan d'abord.\"",
     "apres": "dzT(\"atelier.at2_cq.action_dabord\")",
