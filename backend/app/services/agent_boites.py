@@ -93,7 +93,7 @@ BOITES: dict[str, dict] = {
     # sur le téléphone (le pont est local, ses routes refusent le compagnon)
     "blender": {
         "libelle": "agent.boites.blender",
-        "outils": ["blender_scene", "blender_regarder"],
+        "outils": ["blender_scene", "blender_regarder", "blender_retour"],   # t332 : + le dernier retour d'un plan
         "agents": [],
         "mobile": False,
     },

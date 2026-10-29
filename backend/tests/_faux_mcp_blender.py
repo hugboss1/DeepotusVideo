@@ -59,11 +59,61 @@ def outil(nom, a):
         return texte("Successfully imported model.\nCreated objects: Chaise_Bois\n"
                      "Dimensions (X, Y, Z): 1.000 x 1.000 x 1.000 meters\n")
     if nom == "execute_blender_code":
+        p = parametres(a.get("code") or "") or {}
+        if p.get("elements") == ["lire"] or "maquette" in (p.get("elements") or []):
+            return executer(p)
         return texte('Code executed successfully: DZBLENDER {"elements": ["camera"], "crees": ["DZ_Camera"], '
                      '"blocking": 0}\n')
     if nom == "generate_3d":
         return texte("Successfully generated and imported 'Coffre' (tripo).")
     return texte(f"Error: unknown tool {nom}", True)
+
+
+def parametres(code):
+    """t332 : le faux relit le JSON du gabarit comme le ferait Blender (le littéral unique de `P = json.loads(...)`)."""
+    import ast
+    try:
+        arbre = ast.parse(code)
+    except SyntaxError:
+        return None
+    for n in ast.walk(arbre):
+        if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", None) == "P":
+            return json.loads(n.value.args[0].value)
+    return None
+
+
+# t332 : la scène relue par le gabarit de retour (FAUX_RETOUR la remplace ; FAUX_SANS_BLEND=1 : pas de copie .blend)
+RETOUR = {"dz": "retour", "cameras": [
+    {"nom": "DZ_Camera", "type": "PERSP", "capteur_l": 36.0, "capteur_h": 24.0, "ajuste": "VERTICAL", "active": True,
+     "pos": [0.0, -5.0, 1.0], "visee": [0.0, 1.0, 0.0], "lens": 50.0,
+     "cles": [{"pos": [0.0, -5.0, 1.0], "visee": [0.0, 1.0, 0.0], "lens": 50.0, "image": 1},
+              {"pos": [1.0, -4.0, 1.5], "visee": [-0.2, 0.97, -0.1], "lens": 35.0, "image": 49}]},
+    {"nom": "Camera", "type": "PERSP", "capteur_l": 36.0, "capteur_h": 24.0, "ajuste": "AUTO", "active": False,
+     "pos": [7.0, -6.0, 5.0], "visee": [-0.6, 0.5, -0.4], "lens": 50.0, "cles": []}],
+    "objets": [{"nom": "DZ_Camera", "type": "CAMERA", "pos": [0.0, -5.0, 1.0], "rot": [1.5708, 0.0, 0.0],
+                "dims": [0.0, 0.0, 0.0], "cle": None},
+               {"nom": "DZ_Maquette_Marie", "type": "MESH", "pos": [0.2, 0.0, 0.0], "rot": [0.0, 0.0, 0.0],
+                "dims": [0.5, 0.4, 1.7], "cle": None}],
+    "blend": True, "rendu": {"x": 1920, "y": 1080, "fps": 24.0}, "version": "5.2.0", "fichier": "atelier.blend"}
+
+
+def executer(p):
+    if p.get("elements") == ["lire"]:
+        r = json.loads(os.environ.get("FAUX_RETOUR") or json.dumps(RETOUR))
+        if p.get("blend") and os.environ.get("FAUX_SANS_BLEND") != "1":
+            with open(p["blend"], "wb") as f:
+                f.write(b"BLENDER-v502REND" + bytes(64))
+        else:
+            r["blend"] = False
+        return texte("Code executed successfully: DZBLENDER " + json.dumps(r) + "\n")
+    els = p.get("elements") or []
+    crees = ["DZ_Camera"] if ("camera" in els or "cles" in els) else []
+    glb = (p.get("maquette") or {}).get("glb") or ""
+    if not os.path.isfile(glb):
+        return texte("Error executing code: RuntimeError: glb absent", True)
+    crees += ["DZ_Maquette_Marie", "DZ_Maquette_cypres"]
+    return texte("Code executed successfully: DZBLENDER " + json.dumps({"elements": els, "crees": crees,
+                                                                        "blocking": len(p.get("blocking") or [])}) + "\n")
 
 
 def main():

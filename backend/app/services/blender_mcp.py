@@ -541,6 +541,57 @@ def executer_gabarit(params: dict) -> dict:
     return {"resume": G.lire_resume(t), "texte": t.strip()[:600]}
 
 
+def reprendre(params: dict, vignette: bool = True) -> dict:
+    """t332 — « Reprendre depuis Blender » : le gabarit de RETOUR (lecture des caméras et des objets DZ_, copie .blend
+    au chemin du serveur), puis, dans la même session et si possible, une vignette par `look` (vue caméra). La vignette
+    est facultative : son échec ne fait pas échouer le retour."""
+    from app.services import blender_gabarits as G
+    try:
+        script = G.generer_script_retour(params)
+    except G.GabaritRefuse as e:
+        raise RefusBlender("blender.gabarit", 400, msg=str(e)[:200]) from None
+    with Session() as s:
+        r = _juger(s.appeler("execute_blender_code", {"code": script}))
+        image = None
+        if vignette:
+            try:
+                ims = images_de(appeler("look", {"mode": "camera", "max_size": 640}, session=s))
+                image = ims[0] if ims and ims[0][:8] == b"\x89PNG\r\n\x1a\n" else None
+            except RefusBlender:
+                image = None
+        try:
+            objets = objets_listes(texte_de(s.appeler("get_scene_info", {"limit": 200, "fields": ["hidden"]})))
+        except RefusBlender:
+            objets = []
+    return {"resume": G.lire_resume(texte_de(r)), "image": image, "licences": licences_en_scene(objets)}
+
+
+_ID_PLAN = re.compile(r"^[0-9A-Za-z-]{1,40}$")
+
+
+def dossier_plans() -> Path:
+    """t332 : outputs/blender/plans/<plan>/ (maquette.glb) et <plan>/<retour>/ (copie .blend, retour.json, vignette)."""
+    d = config.settings.outputs_path / "blender" / "plans"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def lire_retour(shot_id: str, rid: str) -> dict | None:
+    """Le retour.json d'un « Reprendre depuis Blender » (identifiants vérifiés), ou None."""
+    if not _ID_PLAN.match(shot_id or "") or not regard_valide(rid):
+        return None
+    m = _lire_json(dossier_plans() / shot_id / rid / "retour.json", {})
+    return m or None
+
+
+def retours_du_plan(shot_id: str) -> list[str]:
+    """Les identifiants des retours d'un plan, le plus récent d'abord."""
+    d = dossier_plans() / shot_id
+    if not _ID_PLAN.match(shot_id or "") or not d.is_dir():
+        return []
+    return sorted((x.name for x in d.iterdir() if x.is_dir() and regard_valide(x.name)), reverse=True)
+
+
 def generer_3d(prompt: str, fournisseur: str = "auto", nom: str = "", job: str = "") -> dict:
     """generate_3d — APPELÉE SEULEMENT par la route POST /api/blender/generer, après le 409 `confirme_cout` et la
     garde des plafonds. `job` reprend une génération déjà payée (aucun nouveau paiement : le serveur la reprend)."""

@@ -361,7 +361,7 @@ check("R18 nettoyer : le gabarit de retrait part (élément « nettoyer » seul)
 # ═══════════════════════════════════════ [A] agent ═══════════════════════════════════════
 print("[A] les outils d'agent")
 check("A1 boîte « blender » : deux outils en lecture, hors téléphone, registre sain",
-      B.BOITES["blender"]["outils"] == ["blender_scene", "blender_regarder"] and not B.BOITES["blender"]["mobile"]
+      B.BOITES["blender"]["outils"][:2] == ["blender_scene", "blender_regarder"] and not B.BOITES["blender"]["mobile"]
       and all(ao.OUTILS[o]["nature"] == "lecture" for o in B.BOITES["blender"]["outils"]) and B.verifier() == [])
 check("A2 Campagnes ne la voit pas (fixture figée)", "blender_scene" not in B.outils_pour("campagnes"))
 ctx = ao.Ctx(cid="banc", agent="campagnes")
