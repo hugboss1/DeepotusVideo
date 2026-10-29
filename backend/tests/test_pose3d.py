@@ -147,6 +147,22 @@ for eng in ("tripo", "tripo-h3.1", "hunyuan", "trellis", "triposr", "hunyuan-loc
     check(f"D {eng} : aucun paramètre de pose inventé",
           not any(k.lower() in ("tapose", "pose", "pose_mode", "prompt") for k in a), str(a))
 
+# ══ D bis. l'adaptateur Rodin au schéma fal (Hyper3dRodinInput relu le 29/10/2026) ══════════════════════════════════
+print("D bis. Rodin au schéma fal")
+SCHEMA_RODIN = {"TAPose", "addons", "bbox_condition", "condition_mode", "geometry_file_format", "input_image_urls",
+                "material", "prompt", "quality", "seed", "tier", "use_hyper"}
+for o in ({}, {"pose": "t-pose", "quality": "hd"}, {"pose": "", "quality": "low", "format": "fbx"}):
+    a = A3.build_engine_args("rodin", ["u1", "u2"], o)
+    check(f"D2 rodin {o} : aucune clé hors schéma", set(a) <= SCHEMA_RODIN, str(sorted(set(a) - SCHEMA_RODIN)))
+QUAL = {None: "medium", "medium": "medium", "high": "high", "hd": "high", "HD": "high", "low": "low",
+        "extra-low": "extra-low", "ultra": "medium", "": "medium"}
+for q, attendu in QUAL.items():
+    a = A3.build_engine_args("rodin", ["u"], {} if q is None else {"quality": q})
+    check(f"D2 rodin qualité {q!r} -> quality={attendu}", a.get("quality") == attendu, str(a.get("quality")))
+a = A3.build_engine_args("rodin", ["u"], {"quality": "high", "format": "obj"})
+check("D2 rodin : format et matériau transmis", a["geometry_file_format"] == "obj" and a["material"] == "PBR"
+      and a["input_image_urls"] == ["u"])
+
 # ══ E. routes ══════════════════════════════════════════════════════════════════════════════════════════════════
 print("E. routes")
 from fastapi.testclient import TestClient                           # noqa: E402

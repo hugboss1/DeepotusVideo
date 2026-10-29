@@ -46,7 +46,7 @@ def fonction(nom):
 OPT = fonction("DzOptimize")
 check("L1 DzLod défini une fois, greffé une fois", BUN.count("function DzLod(") == 1 and BUN.count("r.jsx(DzLod,") == 1)
 check("L2 la greffe est DANS DzOptimize, juste après sa rangée de boutons",
-      'children:cmp?__dzGlT("dz-action-comparer","▣ Simple","▣"):__dzGlT("dz-action-comparer","⇆ Comparer","⇆")},"cp"):null]},"row"),'
+      'children:cmp?__dzGlT("dz-action-comparer","▣ "+dzT("ga3d.opt.simple"),"▣"):__dzGlT("dz-action-comparer","⇆ "+dzT("ga3d.opt.comparer"),"⇆")},"cp"):null]},"row"),'   # t376 : dzga3d
       'r.jsx(DzLod,{sh:sh},"lod"+sh),' in OPT)
 check("L3 les budgets ne sont pas recopiés dans le bundle (ils viennent du serveur)",
       "60000" not in fonction("DzLod") and "Mobile / WebGL" not in fonction("DzLod"))
@@ -56,7 +56,8 @@ COUCHE = fonction("DzOptFmt") + "\n" + fonction("DzLodNum") + "\n" + fonction("D
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import _i18n_l1_aide as AIDE  # noqa: E402  (icônes G1 : __dzGl & co. sous node)
 
-HARNAIS = AIDE.PRELUDE_DZGLYPH + r"""
+# t376 : les textes passent par dzT (maillon dzga3d) — PRELUDE_DZT (dictionnaire, dzT en français, glyphes G1)
+HARNAIS = AIDE.PRELUDE_DZT + r"""
 var H=[],hi=0,EFF=[],CALLS=[],REP={};
 var x={useState:function(v){var i=hi++;if(!(i in H))H[i]=v;return [H[i],function(n){H[i]=typeof n==="function"?n(H[i]):n}]},
   useEffect:function(f){var i=hi++;if(!(i in H)){H[i]=1;EFF.push(f)}}};

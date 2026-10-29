@@ -83,9 +83,11 @@
         return D && D.informer(t("pose3d.vision.indispo_" + (d.raison || "cle")), { titre: t("pose3d.vision.titre") });
       }
       var usd = Number(d.usd || 0);
+      // sans le dialogue de l'app (/shared/dialogue.js), aucun accord possible : rien n'est envoyé, jamais de
+      // boîte native (banc test_dialogues_partout)
       return (D ? D.confirmer(t("pose3d.vision.confirmer", { usd: usd.toFixed(4) }),
                               { titre: t("pose3d.vision.titre"), ok: t("pose3d.vision.ok") })
-                : Promise.resolve(window.confirm(t("pose3d.vision.confirmer", { usd: usd.toFixed(4) }))))
+                : Promise.resolve(false))
         .then(function (oui) {
           if (!oui) return null;
           return fetch("/api/assets3d/pose/classer", {

@@ -133,7 +133,8 @@ check("3.1 le maillon est appliqué (--check)", r.returncode == 0 and "déjà ap
 import patch_bundle_dzpose as M                                      # noqa: E402
 avant = AIDE.avant_dzpose(bundle)
 check("3.2 l'inverse avant_dzpose défait le maillon, et le rejouer redonne le bundle à l'octet",
-      M.MARKER not in avant and 'label:"T-pose"' in avant and "dzPoseChoix" not in avant and M.appliquer(avant) == bundle)
+      M.MARKER not in avant and 'label:"T-pose"' in avant and "dzPoseChoix" not in avant
+      and M.appliquer(avant) == (AIDE.avant_dzga3d(bundle) if hasattr(AIDE, "avant_dzga3d") else bundle))   # dzga3d suit dzpose
 src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
 _ec = src_aide[src_aide.index("def avant_dzecartes("):]
 _ec = _ec[:_ec.index("\ndef ", 5)]

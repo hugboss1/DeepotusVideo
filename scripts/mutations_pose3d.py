@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""Mutations t376 (29/10/2026) : le choix de pose de la génération 3D (pose3d, asset3d_service, routes, maillon
+"""Mutations t376 (29/10/2026) : l'adaptateur Rodin au schéma fal, l'écran Game Assets 3D traduit (maillon
+patch_bundle_dzga3d, banc backend/tests/test_ga3d_traduction_ecran.py) et le choix de pose de la génération 3D (pose3d, asset3d_service, routes, maillon
 patch_bundle_dzpose, /shared/dz-pose3d.js, dictionnaire pose3d.json, crochet L9 du 3D Studio). Chaque mutation doit
 faire ÉCHOUER son banc : backend/tests/test_pose3d.py (serveur) ou backend/tests/test_pose3d_ecran.py (écran, qui
 joue aussi frontend/shared/qa/pose3d.test.mjs). Les fichiers sont copiés AVANT, restaurés après chaque mutation et
@@ -14,10 +15,13 @@ F = {"pose": RACINE / "backend/app/services/pose3d.py", "a3": RACINE / "backend/
      "bundle": RACINE / "frontend/dist/assets/index-BEOJX8L5.js", "js": RACINE / "frontend/shared/dz-pose3d.js",
      "jsd": RACINE / "frontend/dist/shared/dz-pose3d.js", "dico": RACINE / "frontend/shared/i18n/pose3d.json",
      "aide": RACINE / "backend/tests/_i18n_l1_aide.py", "maillon": RACINE / "scripts/patch_bundle_dzpose.py",
-     "sj": RACINE / "frontend/studio3d/studio3d.js", "s3html": RACINE / "frontend/studio3d/index.html"}
+     "sj": RACINE / "frontend/studio3d/studio3d.js", "s3html": RACINE / "frontend/studio3d/index.html",
+     "ga3d": RACINE / "frontend/shared/i18n/ga3d.json", "dicod": RACINE / "frontend/dist/shared/dz-i18n-dico.js",
+     "mga": RACINE / "scripts/patch_bundle_dzga3d.py"}
 for k, p in F.items(): shutil.copy2(p, SAUVE / (k + ".orig"))
 SERVEUR = [sys.executable, "backend/tests/test_pose3d.py"]
 ECRAN = [sys.executable, "backend/tests/test_pose3d_ecran.py"]
+TRAD = [sys.executable, "backend/tests/test_ga3d_traduction_ecran.py"]   # l'écran Game Assets 3D traduit (dzga3d)
 M = [
  # ── serveur : détection D6 ──
  ("pose", SERVEUR, "    if any(_dans(m, PERSONNAGES) for m in mots):\r\n        return \"personnage\"\r\n    if any(_dans(m, DOUTES) for m in mots):",
@@ -48,7 +52,12 @@ M = [
  ("a3", SERVEUR, '    return [f"{subj}, {a}, {ph + \', \' if ph else \'\'}{_CADRAGE}" for a in angles[:n]]',
   '    return [f"{subj}, {a}, {ph + \', \' if (ph and a == angles[0]) else \'\'}{_CADRAGE}" for a in angles[:n]]'),
  ("a3", SERVEUR, '            a["prompt"] = pose3d.phrase(pose)', '            a["prompt"] = pose3d.phrase("t-pose")'),
- ("a3", SERVEUR, '"TAPose": bool(pose), "use_original_alpha"', '"TAPose": bool(opts.get("tpose")), "use_original_alpha"'),
+ ("a3", SERVEUR, '"quality": q, "TAPose": bool(pose)}', '"quality": q, "TAPose": bool(opts.get("tpose"))}'),
+ # ── serveur : Rodin au schéma fal ──
+ ("a3", SERVEUR, 'q = "high" if q == "hd" else q if q in _QUALITES_RODIN else "medium"',
+  'q = q if q in _QUALITES_RODIN else "medium"'),
+ ("a3", SERVEUR, '"material": "PBR", "quality": q,', '"material": "PBR", "quality_mesh_option": q,'),
+ ("a3", SERVEUR, '_QUALITES_RODIN = ("high", "medium", "low", "extra-low")', '_QUALITES_RODIN = ("high", "medium", "low")'),
  ("a3", SERVEUR, 'enumerate(view_prompts(_nv, payload.get("subject", ""), pose_de(payload)), 1)',
   'enumerate(view_prompts(_nv, payload.get("subject", "")), 1)'),
  ("a3", SERVEUR, '        "pose": base_opts["pose"] or "",\r\n', ''),
@@ -78,6 +87,7 @@ M = [
  ("js", ECRAN, "      sel.disabled = !e.actif;", "      sel.disabled = false;"),
  ("js", ECRAN, 'if (e.actif && e.mode === "moteur" && moteur === "rodin") o.precision', 'if (e.actif && e.mode === "moteur") o.precision'),
  ("jsd", ECRAN, "    delete b.tpose;\r\n", ""),
+ ("js", ECRAN, ": Promise.resolve(false))", ': Promise.resolve(window.confirm("?")))'),
  # ── écran : dictionnaire, inverse, maillon, 3D Studio ──
  ("dico", ECRAN, '"en": "None"}', '"en": "Aucune"}'),
  ("dico", ECRAN, '  "pose3d.raison.vues"', '  "pose3d.raison.vuesX"'),
@@ -86,6 +96,23 @@ M = [
  ("sj", ECRAN, 'subject: c.source === "text" ? c.prompt : ""', 'subject: c.prompt'),
  ("sj", ECRAN, 'if (id === "preview" && window.__dzPose3d)', 'if (window.__dzPose3d)'),
  ("s3html", ECRAN, '<script src="/shared/dz-pose3d.js"></script>\r\n', ''),
+ # ── l'écran Game Assets 3D traduit (maillon dzga3d) ──
+ ("bundle", TRAD, 'r.jsx(O,{label:dzT("ga3d.form.source"),children:picker})', 'r.jsx(O,{label:"Source image",children:picker})'),
+ ("bundle", TRAD, 'children:busy?dzT("ga3d.form.generation"):dzT("ga3d.form.generer")}',
+  'children:busy?"Generating…":dzT("ga3d.form.generer")}'),
+ ("bundle", TRAD, 'label:dzT("ga3d.graphe.vue",{n:i}),', 'label:"View "+i,'),
+ ("bundle", TRAD, 'alert(dzT("ga3d.form.refus",{detail:', 'alert(dzT("ga3d.form.echec_reseau",{detail:'),
+ ("bundle", TRAD, '{titre:dzT("ga3d.carte.renommer"),valeur:z.title', '{titre:"Renommer",valeur:z.title'),
+ ("bundle", TRAD, 'confirmer(dzT("ga3d.carte.supprimer_question"))', 'confirmer("Supprimer définitivement ce rendu 3D ?")'),
+ ("bundle", TRAD, '["game",dzT("ga3d.opt.game")]', '["game","Game Ready (10k)"]'),
+ ("bundle", TRAD, 'dzT("ga3d.opt.optimise",{n:DzOptFmt(info.after.tris)})', 'dzT("ga3d.opt.optimise",{n:DzOptFmt(info.before.tris)})'),
+ ("bundle", TRAD, 'valeur:"80",ok:dzT("ga3d.impr.continuer")}', 'valeur:"80",ok:"Continuer"}'),
+ ("ga3d", TRAD, '"en": "Rename this 3D render:"', '"en": "Renommer ce rendu 3D :"'),
+ ("ga3d", TRAD, '"fr": "Optimisation…", "en": "Optimizing…"', '"fr": "Optimisation en cours…", "en": "Optimizing…"'),
+ ("ga3d", TRAD, '  "ga3d.graphe.reponse"', '  "ga3d.graphe.reponseX"'),
+ ("dicod", TRAD, '"ga3d.form.generer"', '"ga3d.form.genererX"'),
+ ("aide", TRAD, "    bundle = avant_dzga3d(bundle)                # 29/10 (t376)", "    # 29/10 (t376)"),
+ ("mga", TRAD, '("dzpose", "/*dzpose*/", 1),', '("dzecartes", "/*dzecartes*/", 1),'),
 ]
 tues = 0
 try:
@@ -95,7 +122,7 @@ try:
     p.write_bytes(s.replace(a, b).encode("utf-8"))
     r = subprocess.run(banc, cwd=RACINE / "backend" if banc is SERVEUR else RACINE, capture_output=True, text=True,
                        encoding="utf-8", errors="replace",
-                       env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}) if banc is ECRAN else \
+                       env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}) if banc is not SERVEUR else \
         subprocess.run([sys.executable, "tests/test_pose3d.py"], cwd=RACINE / "backend", capture_output=True, text=True,
                        encoding="utf-8", errors="replace", env={**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"})
     for k2, p2 in F.items(): shutil.copy2(SAUVE / (k2 + ".orig"), p2)

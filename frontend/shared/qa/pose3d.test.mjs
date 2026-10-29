@@ -151,6 +151,14 @@ for (const [lang, attendu] of [["fr", { moteur: "trellis ne sait pas poser le su
   ok("4.6 refus du serveur : son message est montré", dialogues.length === 2 && dialogues[1].m.startsWith("Le coût a changé"));
 }
 
+{
+  const { w, P, appels } = monde("fr", (url) => (url.endsWith("/devis") ? { corps: { usd: 0.01, disponible: true } } : { corps: {} }));
+  delete w.__dzDialogue;
+  w.confirm = () => { throw new Error("boîte native appelée"); };
+  const e = await P.classer({ engine: "rodin", image: "k.png" }, () => {});
+  ok("4.7 sans le dialogue de l'app : ni boîte native, ni POST", e === null && appels.length === 1, appels.map((a) => a.url).join(" ; "));
+}
+
 // ── 3D Studio ───────────────────────────────────────────────────────────────────────────────────────────────────
 {
   const { P, appels } = monde("fr", (url) => ({ corps: url.includes("subject=un%20tonneau")

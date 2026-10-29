@@ -82,9 +82,8 @@ def pose_de(payload: dict) -> str | None:
 #     Ce que ce drapeau ne dit PAS : l'app ne valide pas la valeur contre
 #     l'énumération du moteur. Pour tripo, `quality` ne sert qu'à choisir le
 #     palier de texture (voir `texture_mode`) ; pour rodin elle part dans
-#     `quality_mesh_option`, dont les valeurs admises sont celles du
-#     fournisseur — passer « hd » à rodin est une erreur d'appelant que le
-#     registre n'intercepte pas.
+#     `quality` (high | medium | low | extra-low) : « hd » y vaut high, une
+#     valeur inconnue medium (t376, schéma fal relu le 29/10/2026).
 ENGINES = {
     "tripo": {
         "endpoint": "tripo3d/tripo/v2.5/image-to-3d",
@@ -347,6 +346,9 @@ def resolve_endpoint(engine: str, n_images: int = 1) -> str:
     return e["endpoint"]
 
 
+_QUALITES_RODIN = ("high", "medium", "low", "extra-low")
+
+
 def build_engine_args(engine: str, image_urls: list[str], opts: dict) -> dict:
     """Map the common request to the chosen engine's fal arguments."""
     fmt = (opts.get("format") or "glb").lower()
@@ -382,9 +384,13 @@ def build_engine_args(engine: str, image_urls: list[str], opts: dict) -> dict:
         pose = opts.get("pose")
         if pose is None:
             pose = "t-pose" if opts.get("tpose") else ""
+        # Schéma Hyper3dRodinInput relu sur fal le 29/10/2026 : la qualité s'appelle `quality` (high | medium | low |
+        # extra-low) ; `quality_mesh_option`, `use_original_alpha` et `preview_render` n'y figurent pas et étaient
+        # ignorés (la qualité choisie ne changeait rien). « hd » vaut high ; une valeur inconnue, medium.
+        q = str(opts.get("quality") or "medium").strip().lower()
+        q = "high" if q == "hd" else q if q in _QUALITES_RODIN else "medium"
         a = {"input_image_urls": image_urls, "geometry_file_format": fmt,
-             "material": "PBR", "quality_mesh_option": opts.get("quality", "medium"),
-             "TAPose": bool(pose), "use_original_alpha": True, "preview_render": True}
+             "material": "PBR", "quality": q, "TAPose": bool(pose)}
         if pose:
             from app.services import pose3d
             a["prompt"] = pose3d.phrase(pose)

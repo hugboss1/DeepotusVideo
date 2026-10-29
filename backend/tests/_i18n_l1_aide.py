@@ -334,12 +334,24 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzga3d(bundle: str) -> str:
+    """Le bundle d'avant la traduction de l'écran Game Assets 3D (maillon de queue patch_bundle_dzga3d, t376,
+    29/10/2026, posé APRÈS dzpose : c'est la queue de la chaîne : formulaire, cartes, graphe, Optimiser / LOD /
+    Textures et boîte d'impression 3D par dzT) : ses paires défaites, lues dans le maillon lui-même. Sans son
+    marqueur : rendu tel quel."""
+    import patch_bundle_dzga3d as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzpose(bundle: str) -> str:
     """Le bundle d'avant le choix de pose de Game Assets 3D (maillon de queue patch_bundle_dzpose, t376, 29/10/2026,
     posé APRÈS dzecartes : c'est la queue de la chaîne : l'interrupteur « T-pose » devient Aucune / T-pose / A-pose,
     grisé avec sa raison quand le sujet n'est pas un personnage) : ses paires défaites, lues dans le maillon lui-même.
     Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzpose as _m
+    bundle = avant_dzga3d(bundle)                # 29/10 (t376) : le maillon posé APRÈS dzpose, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)
