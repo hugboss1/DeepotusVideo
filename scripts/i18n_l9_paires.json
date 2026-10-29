@@ -1511,6 +1511,12 @@
     "groupe": "s3a"
    },
    {
+    "pos": 7090,
+    "avant": "  libImages: null, pickedImage: null,\r\n};",
+    "apres": "  libImages: null, pickedImage: null,\r\n};\r\n/* t344 : l'état, lu par graphe_vues.js (vignettes des nœuds, aperçu agrandi) — lecture seule */\r\nwindow.__dzStudio3d = { S, NODES };",
+    "groupe": "t344"
+   },
+   {
     "pos": 15904,
     "avant": "\"L'Établi\"",
     "apres": "__dzT9(\"studio3d.s3a_noeud.letabli\", \"L'Établi\")",
@@ -1803,6 +1809,18 @@
     "avant": ">aucune action — double-clic sur 05 · animation</div>",
     "apres": ">${__dzT9(\"studio3d.s3a_journal.actions_vide\", \"aucune action — double-clic sur 05 · animation\")}</div>",
     "groupe": "s3a"
+   },
+   {
+    "pos": 36103,
+    "avant": "function renderPreview() {\r\n",
+    "apres": "function renderPreview() {\r\n  document.dispatchEvent(new CustomEvent(\"studio3d:peint\"));   // t344 : les vignettes suivent chaque rendu\r\n",
+    "groupe": "t344"
+   },
+   {
+    "pos": 36375,
+    "avant": "  let glb = S.run?.outputs?.modelUrls?.glb;",
+    "apres": "  /* t344 : le modèle du nœud cliqué (graphe_vues.js), sinon le dernier, comme avant */\r\n  let glb = (typeof window.__dzApercuNoeud === \"function\" && window.__dzApercuNoeud()) || S.run?.outputs?.modelUrls?.glb;",
+    "groupe": "t344"
    },
    {
     "pos": 37155,

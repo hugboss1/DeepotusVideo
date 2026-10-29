@@ -144,6 +144,8 @@ const S = {
   playing: true, pinned: null,
   libImages: null, pickedImage: null,
 };
+/* t344 : l'état, lu par graphe_vues.js (vignettes des nœuds, aperçu agrandi) — lecture seule */
+window.__dzStudio3d = { S, NODES };
 
 /* ── la configuration survit à l'aller-retour vers l'Établi ─────────────────
    Depuis que le nœud 07 NAVIGUE au lieu d'ouvrir un onglet (voir
@@ -686,11 +688,13 @@ function paint() {
 }
 
 function renderPreview() {
+  document.dispatchEvent(new CustomEvent("studio3d:peint"));   // t344 : les vignettes suivent chaque rendu
   const box = $("#previewBox"), ph = $("#previewPh");
   const texDone = phaseView("texture").status === "SUCCEEDED";
   const prevDone = phaseView("preview").status === "SUCCEEDED";
   const rigDone = phaseView("rig").status === "SUCCEEDED";
-  let glb = S.run?.outputs?.modelUrls?.glb;
+  /* t344 : le modèle du nœud cliqué (graphe_vues.js), sinon le dernier, comme avant */
+  let glb = (typeof window.__dzApercuNoeud === "function" && window.__dzApercuNoeud()) || S.run?.outputs?.modelUrls?.glb;
   if (!glb) {
     const t = S.persisted.find(x => x.local_files && x.local_files.glb);
     if (t) glb = t.local_files.glb;

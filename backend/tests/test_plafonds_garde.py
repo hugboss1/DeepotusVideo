@@ -87,6 +87,7 @@ PAYANTES = {
     # gratuite en pratique, mais le chemin atteint le puits FLUX et la garde de generate_material est sur sa route
     ("routes", "POST", "/materials/from-photo"),
     ("routes", "POST", "/assets/3d/{job}/rig"),
+    ("comparatif3d", "POST", ""),   # t344 : le comparatif des moteurs 3D — N tirs, garde « moteurs3d » sur le total puis par tir
     ("routes", "POST", "/etabli/pieces/ia"),   # t342 : Tripo Segmentation (fal), garde « moteurs3d » après confirme_cout
     ("parallaxe", "POST", "/decouper"),   # t341 : décor en calques (fal), garde « tuiles » après la clé et confirme_cout
     ("routes", "POST", "/assets/3d/{job}/convert"),   # T105 : fbx/usdz/blend par Meshy convert   # T104 : rig + animations Meshy d'un job fal (crédits)
@@ -232,6 +233,10 @@ anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I
 # t314 : la boîte « schéma » n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
 _shr = (RP.MODULES["schema"]).read_text(encoding="utf-8")
 anciens["schema"] = _shr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _shr else None
+# t344 : le comparatif des moteurs 3D n'existait pas en bfec23e — même témoin : ses DEUX gardes retirées
+_c3r = (RP.MODULES["comparatif3d"]).read_text(encoding="utf-8")
+anciens["comparatif3d"] = (_c3r.replace("_R._plafond(", "_sans_garde(").replace("_PLAF.juger(", "_sans_garde(")
+                           if "_R._plafond(" in _c3r else None)
 # t341 : le décor en calques de parallaxe n'existait pas en bfec23e — même témoin
 _pxr = (RP.MODULES["parallaxe"]).read_text(encoding="utf-8")
 anciens["parallaxe"] = _pxr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _pxr else None

@@ -1797,6 +1797,40 @@ async def budgets_triangles(ctx: Ctx) -> dict:
                 {"roles": roles, "ou": "Établi › Export › Budgets de triangles"})
 
 
+# ---- t344 : le banc comparatif des moteurs image → 3D (boîte « assets3d ») ---------------------------------------------
+
+async def comparatif3d_lire(ctx: Ctx, id: str = "", tri: str = "") -> dict:
+    """t344 (29/10/2026) : LECTURE du tableau mesuré d'un comparatif de moteurs 3D (le plus récent si `id` est vide) :
+    triangles, arêtes ouvertes et non-manifold, étanche, taille, temps, coût estimé et réel. Rien n'est écrit, rien
+    n'est dépensé : lancer un comparatif payant ou garder un gagnant reste un clic dans 3D Studio."""
+    from app.services import comparatif3d as C3
+    cid = str(id or "")
+    if not cid:
+        tous = await asyncio.to_thread(C3.lister)
+        if not tous:
+            raise _Refus("aucun comparatif : 3D Studio › « Comparer les moteurs » en crée un")
+        cid = tous[0]["id"]
+    if not C3.id_valide(cid):
+        raise _Refus("id refusé : l'identifiant d'un comparatif (c3d_…) est attendu")
+    try:
+        tab = await C3.tableau(cid)
+    except FileNotFoundError:
+        raise _Refus("comparatif introuvable") from None
+    lignes = tab["lignes"]
+    if tri:
+        try:
+            lignes = C3.trier(lignes, str(tri))
+        except ValueError as e:
+            raise _Refus(str(e)) from None
+    cols = ("moteur", "label", "job", "statut", "tris", "aretes_bord", "aretes_non_manifold", "ferme", "octets",
+            "duree_s", "usd_estime", "usd_reel", "gagnant")
+    return _res(True, C3.resume({**tab, "lignes": lignes}, ctx.lang),
+                {"id": cid, "mode": tab.get("mode"), "image": tab.get("image_filename"),
+                 "lignes": [{k: l.get(k) for k in cols} for l in lignes],
+                 "ou": "Game Assets › 3D Studio › Comparer les moteurs"})
+
+
+
 def _o(props: dict, requis=()) -> dict:
     return {"type": "object", "properties": props, "required": list(requis), "additionalProperties": False}
 
@@ -1831,6 +1865,14 @@ OUTILS: dict[str, dict] = {
                                         "consigne.",
                          "schema": _o({"image": dict(_T, description="nom de l'image dans la Bibliothèque"),
                                        "langue": {"type": "string", "enum": ["fr", "en", "auto"]}}, ("image",))},
+    "comparatif3d_lire": {"nature": "lecture", "fn": comparatif3d_lire,
+                          "description": "Lit le tableau mesuré d'un comparatif de moteurs image → 3D (le plus récent "
+                                         "si id est vide) : triangles, arêtes ouvertes, étanche, taille, temps, coût. "
+                                         "N'écrit rien.",
+                          "schema": _o({"id": dict(_T, description="identifiant du comparatif (c3d_…)"),
+                                        "tri": {"type": "string", "enum": ["moteur", "tris", "aretes_bord",
+                                                                           "aretes_non_manifold", "octets", "duree_s",
+                                                                           "usd_estime", "usd_reel"]}})},
     # t337 : la revue chiffrée d'un plan rendu par Previs → plan (boîte « chapitres », aucun agent ne la déclare encore)
     "lire_revue_plan": {"nature": "lecture", "fn": lire_revue_plan,
                         "description": "Lit la revue RANGÉE d'un plan rendu par Previs → plan (par l'identifiant du "

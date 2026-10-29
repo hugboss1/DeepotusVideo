@@ -12691,6 +12691,86 @@
   "fr": "fal.ai : {e}",
   "en": "fal.ai: {e}"
  },
+ "Image introuvable dans la Bibliothèque : {v}": {
+  "fr": "Image introuvable dans la Bibliothèque : {v}",
+  "en": "Image not found in the Library: {v}"
+ },
+ "Clé fal absente — ajoute-la dans les Réglages (Clés d'API) : les moteurs 3D choisis passent par fal.": {
+  "fr": "Clé fal absente — ajoute-la dans les Réglages (Clés d'API) : les moteurs 3D choisis passent par fal.",
+  "en": "fal key missing — add it in Settings (API keys): the chosen 3D engines run on fal."
+ },
+ "job refusé : le nom du dossier du job 3D est attendu": {
+  "fr": "job refusé : le nom du dossier du job 3D est attendu",
+  "en": "job refused: the 3D job folder name is expected"
+ },
+ "moteurs : une liste d'identifiants de moteurs 3D est attendue": {
+  "fr": "moteurs : une liste d'identifiants de moteurs 3D est attendue",
+  "en": "engines: a list of 3D engine ids is expected"
+ },
+ "Choisis au moins deux moteurs à comparer": {
+  "fr": "Choisis au moins deux moteurs à comparer",
+  "en": "Pick at least two engines to compare"
+ },
+ "Identifiant de comparatif invalide : {v}": {
+  "fr": "Identifiant de comparatif invalide : {v}",
+  "en": "Invalid comparison id: {v}"
+ },
+ "mode inconnu : {mode}": {
+  "fr": "mode inconnu : {mode}",
+  "en": "unknown mode: {mode}"
+ },
+ "Comparatif introuvable : {cid}": {
+  "fr": "Comparatif introuvable : {cid}",
+  "en": "Comparison not found: {cid}"
+ },
+ "modeles : une liste de jobs 3D est attendue": {
+  "fr": "modeles : une liste de jobs 3D est attendue",
+  "en": "models: a list of 3D jobs is expected"
+ },
+ "Choisis au moins deux modèles à comparer": {
+  "fr": "Choisis au moins deux modèles à comparer",
+  "en": "Pick at least two models to compare"
+ },
+ "tri inconnu : {cle} (attendu : {v})": {
+  "fr": "tri inconnu : {cle} (attendu : {v})",
+  "en": "unknown sort: {cle} (expected: {v})"
+ },
+ "poster : la vue capturée (PNG en data URL) est attendue": {
+  "fr": "poster : la vue capturée (PNG en data URL) est attendue",
+  "en": "poster: the captured view (PNG data URL) is expected"
+ },
+ "poster trop lourd : 2 Mio au plus": {
+  "fr": "poster trop lourd : 2 Mio au plus",
+  "en": "poster too large: 2 MiB at most"
+ },
+ "poster refusé : une image PNG est attendue": {
+  "fr": "poster refusé : une image PNG est attendue",
+  "en": "poster refused: a PNG image is expected"
+ },
+ "{job} ne fait pas partie de ce comparatif": {
+  "fr": "{job} ne fait pas partie de ce comparatif",
+  "en": "{job} is not part of this comparison"
+ },
+ "Ce modèle n'est pas terminé : rien à garder": {
+  "fr": "Ce modèle n'est pas terminé : rien à garder",
+  "en": "This model is not finished: nothing to keep"
+ },
+ "Moteur 3D inconnu : {m}": {
+  "fr": "Moteur 3D inconnu : {m}",
+  "en": "Unknown 3D engine: {m}"
+ },
+ "Job 3D refusé : {v}": {
+  "fr": "Job 3D refusé : {v}",
+  "en": "3D job refused: {v}"
+ },
+ "Modèle introuvable : {job} v{v}": {
+  "fr": "Modèle introuvable : {job} v{v}",
+  "en": "Model not found: {job} v{v}"
+ },
+ "poster illisible : base64 attendu": {
+  "fr": "poster illisible : base64 attendu",
+  "en": "unreadable poster: base64 expected"
+ },
  "image : le nom d'une image de la Bibliothèque est attendu": {
   "fr": "image : le nom d'une image de la Bibliothèque est attendu",
   "en": "image: the name of a Library image is expected"
