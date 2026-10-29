@@ -165,7 +165,8 @@ check("M1 look changé (teinte, luminosité, taille) : dérive 0, fiable, struct
 m = RV.mesurer(RETARD, P)
 check("M2 rendu en RETARD de 2 images : dérive +2 fiable, structure proche une fois la dérive retirée",
       m["temporel"]["derive_images"] == 2 and m["temporel"]["fiable"] is True
-      and m["structure"]["verdict"] == "proche", m["temporel"])
+      and m["structure"]["verdict"] == "proche" and m["structure"]["bords"]["moyenne"] > 0.99
+      and m["structure"]["bords"]["moyenne"] > m["temporel"]["score_zero"] + 0.05, (m["temporel"], m["structure"]))
 m = RV.mesurer(AUTRE, P)
 check("M3 un autre contenu : structure « ecart » (bords et luminance ≈ 0, le cadre de l'image ne compte pas), "
       "dérive non fiable", m["structure"]["verdict"] == "ecart" and abs(m["structure"]["bords"]["moyenne"]) < 0.2

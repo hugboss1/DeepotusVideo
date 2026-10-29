@@ -54,7 +54,7 @@
     var ns = "http://www.w3.org/2000/svg";
     if (!document.createElementNS) return null;
     var s = document.createElementNS(ns, "svg");
-    s.setAttribute("class", "dzi dzi--16"); s.setAttribute("aria-hidden", "true"); s.setAttribute("focusable", "false");
+    s.setAttribute("class", "dzi dzi--16"); s.setAttribute("aria-hidden", "true"); s.setAttribute("focusable", "false"); s.setAttribute("width", "16"); s.setAttribute("height", "16");
     var u = document.createElementNS(ns, "use");
     u.setAttribute("href", "/shared/icons/dz-icons.svg#" + id);
     s.appendChild(u);
