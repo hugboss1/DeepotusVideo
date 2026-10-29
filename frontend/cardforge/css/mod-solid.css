@@ -30,7 +30,7 @@
 .cf-solid .cf-solid-inline { display: flex; align-items: center; gap: 6px; }
 .cf-solid .cf-solid-inline .lbl { white-space: nowrap; }
 .cf-solid .cf-solid-seg {
-  display: flex; border: 1px solid var(--stroke-strong); border-radius: 8px; overflow: hidden;
+  display: flex; border: 1px solid var(--stroke-strong); border-radius: var(--r); overflow: hidden;
 }
 .cf-solid .cf-solid-seg .seg-b { padding: 5px 11px; font-size: 11.5px; }
 .cf-solid .cf-solid-sm .seg-b { padding: 4px 9px; font-size: 11px; }
@@ -88,7 +88,7 @@
 .cf-solid .cf-solid-hud {
   position: absolute; left: 12px; bottom: 12px; z-index: 3;
   display: flex; flex-direction: column; gap: 3px;
-  padding: 9px 12px; border-radius: 10px;
+  padding: 9px 12px; border-radius: var(--r);
   background: color-mix(in srgb, var(--bg-panel) 84%, transparent);
   border: 1px solid var(--stroke-strong); backdrop-filter: blur(6px);
   font-family: var(--f-mono); font-variant-numeric: tabular-nums; pointer-events: none;
@@ -124,11 +124,11 @@
   background: color-mix(in srgb, var(--bg-panel) 84%, transparent);
   border: 1px solid var(--stroke-strong); font-size: 10.5px; color: var(--ink-soft);
 }
-.cf-solid .cf-solid-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-left: 6px; }
+.cf-solid .cf-solid-legend i { width: 9px; height: 9px; border-radius: var(--r); display: inline-block; margin-left: 6px; }
 
 .cf-solid .cf-solid-prog {
   position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 4;
-  display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 10px;
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: var(--r);
   background: var(--bg-panel-3); border: 1px solid var(--stroke-strong);
   color: var(--ink-strong); font-size: 11.5px; white-space: nowrap;
 }
@@ -156,7 +156,7 @@
   font-family: var(--f-mono); cursor: ew-resize; touch-action: none; }
 .cf-solid .cf-solid-nb.w { width: 100%; cursor: ew-resize; }
 .cf-solid .cf-solid-u { flex: none; font-style: normal; font-size: 10px; color: var(--ink-muted); width: 20px; }
-.cf-solid .cf-solid-col { width: 40px; height: 26px; flex: none; padding: 2px; border-radius: 7px;
+.cf-solid .cf-solid-col { width: 40px; height: 26px; flex: none; padding: 2px; border-radius: var(--r);
   border: 1px solid var(--stroke-strong); background: var(--bg-base); cursor: pointer; }
 .cf-solid .cf-solid-edge { gap: 8px; }
 .cf-solid .cf-solid-link { margin-left: auto; }
@@ -167,7 +167,7 @@
 .cf-solid .cf-solid-pre .chip.active b { color: var(--sel-ink); }
 
 .cf-solid .cf-solid-prof {
-  width: 100%; height: auto; display: block; border-radius: 8px;
+  width: 100%; height: auto; display: block; border-radius: var(--r);
   background: var(--bg-base); border: 1px solid var(--stroke);
 }
 

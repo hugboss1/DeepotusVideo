@@ -28,15 +28,15 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-f
 .backlink:hover{color:var(--cyan)}
 
 /* ── boutons / champs ── */
-.btn{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:8px;color:var(--ink);padding:6px 10px;font-size:12.5px;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-block;text-align:center}
+.btn{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:var(--r);color:var(--ink);padding:6px 10px;font-size:12.5px;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-block;text-align:center}
 .btn:hover{border-color:var(--cyan);color:var(--ink-strong)}
 .btn.ghost{border-color:transparent;color:var(--ink-soft)}
 .btn.primary{border-color:var(--cyan);color:var(--cyan)}
 .btn.big{padding:9px 16px;font-size:13.5px}
 .btn:disabled,.btn[aria-disabled="true"]{opacity:.45;cursor:default;pointer-events:none}
-.search{width:calc(100% - 20px);margin:10px;background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:8px;color:var(--ink-strong);padding:6px 9px;font-size:12.5px}
+.search{width:calc(100% - 20px);margin:10px;background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:var(--r);color:var(--ink-strong);padding:6px 9px;font-size:12.5px}
 .fld{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--ink-soft);min-width:0}
-.fld input,.fld select,.fld textarea{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:8px;color:var(--ink-strong);padding:6px 9px;font-size:12.5px;font-family:var(--f-ui);width:100%}
+.fld input,.fld select,.fld textarea{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:var(--r);color:var(--ink-strong);padding:6px 9px;font-size:12.5px;font-family:var(--f-ui);width:100%}
 .fld textarea{resize:vertical}
 .fld[hidden]{display:none}   /* t186 : le champ « Sujet à garder » n'apparaît que pour un modèle qui l'exige */
 /* menus déroulants natifs : popup accordé au thème (le popup suit le
@@ -54,7 +54,7 @@ select option:disabled{color:var(--ink-muted)}
 .hint{font-size:11px;color:var(--ink-muted);line-height:1.5}
 .status{font-size:12px;color:var(--ink);padding:8px 0}
 .status.err{color:var(--red)}
-.counter{font-family:var(--f-mono);font-size:11.5px;color:var(--amber);border:1px solid var(--stroke-strong);border-radius:8px;padding:2px 8px;white-space:nowrap}
+.counter{font-family:var(--f-mono);font-size:11.5px;color:var(--amber);border:1px solid var(--stroke-strong);border-radius:var(--r);padding:2px 8px;white-space:nowrap}
 .empty-note{color:var(--ink-muted);font-size:12.5px;padding:20px;text-align:center;line-height:1.6}
 .empty-note.tall{padding-top:60px}
 
@@ -79,14 +79,14 @@ select option:disabled{color:var(--ink-muted)}
 /* ── 1. source ── */
 .src-body{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto}
 .img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;padding:0 10px 10px;overflow-y:auto;min-height:120px;max-height:38vh}
-.img-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;border:1px solid var(--stroke);cursor:pointer}
+.img-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--r);border:1px solid var(--stroke);cursor:pointer}
 .img-grid img:hover{border-color:var(--cyan)}
 .img-grid img.sel{border:2px solid var(--cyan);box-shadow:0 0 0 2px var(--cyan-soft)}
 .animer-box{border-top:1px solid var(--stroke);padding:10px;display:flex;flex-direction:column;gap:9px}
 .animer-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .upload-box{padding:14px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
 .render-list{flex:1;overflow-y:auto;padding:0 10px 10px;display:flex;flex-direction:column;gap:6px}
-.render-item{border:1px solid var(--stroke);border-radius:8px;padding:8px 10px;cursor:pointer;background:var(--bg-panel-2)}
+.render-item{border:1px solid var(--stroke);border-radius:var(--r);padding:8px 10px;cursor:pointer;background:var(--bg-panel-2)}
 .render-item:hover{border-color:var(--cyan)}
 .render-item.sel{border-color:var(--cyan);background:var(--cyan-soft)}
 .render-item .rt{color:var(--ink-strong);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -95,7 +95,7 @@ select option:disabled{color:var(--ink-muted)}
 /* ── 2. filmstrip + réglages ── */
 .strip{flex:1;min-height:140px;overflow-y:auto;padding:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;align-content:start;background:var(--bg-base)}
 .strip .empty-note{grid-column:1/-1}
-.frame{position:relative;border:1px solid var(--stroke);border-radius:8px;overflow:hidden;cursor:pointer;background:
+.frame{position:relative;border:1px solid var(--stroke);border-radius:var(--r);overflow:hidden;cursor:pointer;background:
   repeating-conic-gradient(#1e293b 0% 25%, #0f172a 0% 50%) 0 0/14px 14px}
 .frame img{width:100%;aspect-ratio:1;object-fit:contain;display:block}
 .frame .fno{position:absolute;top:3px;left:5px;font-family:var(--f-mono);font-size:10px;color:var(--ink-strong);text-shadow:0 1px 2px #000}
@@ -123,22 +123,22 @@ select option:disabled{color:var(--ink-muted)}
 .stage canvas.fit{max-width:100%;max-height:40vh;width:auto;height:auto}
 .pctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pctrl input[type=range]{width:110px}
-.pctrl select{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:8px;color:var(--ink-strong);padding:5px 8px;font-size:12px}
+.pctrl select{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:var(--r);color:var(--ink-strong);padding:5px 8px;font-size:12px}
 .exports{display:flex;gap:8px;flex-wrap:wrap;padding:0 12px 6px}
 .sheetwrap{padding:6px 12px 14px;overflow-y:auto}
 .sheet-title{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:6px}
-.sheetwrap img{max-width:100%;border:1px solid var(--stroke);border-radius:8px;background:
+.sheetwrap img{max-width:100%;border:1px solid var(--stroke);border-radius:var(--r);background:
   repeating-conic-gradient(#1e293b 0% 25%, #0f172a 0% 50%) 0 0/14px 14px}
 
 /* ── toast ── */
-.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--bg-panel-3);border:1px solid var(--stroke-strong);border-radius:10px;padding:9px 16px;color:var(--ink-strong);font-size:12.5px;z-index:60;max-width:70vw}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--bg-panel-3);border:1px solid var(--stroke-strong);border-radius:var(--r);padding:9px 16px;color:var(--ink-strong);font-size:12.5px;z-index:60;max-width:70vw}
 .toast.err{border-color:var(--red);color:var(--red)}
 
 /* ── packs de démarrage CC0 (onglet « Démarrer ») ────────────────────────────
    Les textures Kenney sont des formes BLANCHES sur transparence : la vignette
    garde un fond sombre quel que soit le thème, sinon l'asset est invisible. */
 .starter-intro{font-size:12px; color:var(--ink3, #8a857d); line-height:1.55;
-  padding:10px 12px; border:1px dashed var(--stroke, #2a2930); border-radius:9px;
+  padding:10px 12px; border:1px dashed var(--stroke, #2a2930); border-radius:var(--r);
   margin-bottom:12px}
 .starter-sec{font-size:11px; letter-spacing:.12em; text-transform:uppercase;
   color:var(--ink3, #8a857d); margin:14px 0 8px; display:flex; gap:8px;
@@ -146,13 +146,13 @@ select option:disabled{color:var(--ink-muted)}
 .starter-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr));
   gap:8px}
 .starter-tile{display:flex; flex-direction:column; gap:4px; padding:8px;
-  border:1px solid var(--stroke, #2a2930); border-radius:9px;
+  border:1px solid var(--stroke, #2a2930); border-radius:var(--r);
   background:var(--panel2, #1c1c21); cursor:pointer; text-align:left;
   color:inherit; font:inherit; transition:border-color .12s}
 .starter-tile:hover{border-color:var(--accent, #f0b429)}
 .starter-tile.busy{border-color:var(--accent, #f0b429); opacity:.6;
   cursor:progress}
-.starter-thumb{display:block; width:100%; aspect-ratio:1; border-radius:6px;
+.starter-thumb{display:block; width:100%; aspect-ratio:1; border-radius:var(--r);
   background-color:#08090d; background-size:contain; background-repeat:no-repeat;
   background-position:center}
 .starter-name{font-size:11.5px; color:var(--ink, #f2efe9)}
@@ -167,9 +167,9 @@ select option:disabled{color:var(--ink-muted)}
 .feuille-wrap{flex:1;overflow:auto;background:var(--bg-base);padding:10px}
 #fCanvas{image-rendering:pixelated;cursor:crosshair;max-width:100%}
 .feuille-out .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:2px 0}
-.feuille-out .fld-in{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:8px;color:var(--ink-strong);padding:6px 9px;font-size:12.5px;flex:1;min-width:90px}
+.feuille-out .fld-in{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:var(--r);color:var(--ink-strong);padding:6px 9px;font-size:12.5px;flex:1;min-width:90px}
 .sections{display:flex;flex-direction:column;gap:4px}
-.section-row{display:flex;gap:8px;align-items:center;font-size:12.5px;border:1px solid var(--stroke);border-radius:8px;padding:4px 8px}
+.section-row{display:flex;gap:8px;align-items:center;font-size:12.5px;border:1px solid var(--stroke);border-radius:var(--r);padding:4px 8px}
 .section-row .nom{flex:1;color:var(--ink-strong)}
 /* lot 5 : Playground — fonds de scène (dégradés, aucun fichier), miroir, déplacement */
 .stage.sc-ciel{background:linear-gradient(#7fc8ff,#e8f4ff)}
@@ -182,7 +182,7 @@ select option:disabled{color:var(--ink-muted)}
 .animset legend{font-size:12px;color:var(--ink);padding:0 6px}
 .tagrows{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .tagrow{display:grid;grid-template-columns:minmax(0,1fr) 52px 52px minmax(0,1fr) 28px;gap:6px;align-items:center}
-.tagrow input,.tagrow select{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:6px;color:var(--ink-strong);padding:4px 6px;font-size:12px;width:100%;min-width:0}
+.tagrow input,.tagrow select{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:var(--r);color:var(--ink-strong);padding:4px 6px;font-size:12px;width:100%;min-width:0}
 .tagrow .del{border:none;background:none;color:var(--ink-muted);cursor:pointer;font-size:14px}
 .tagrow .del:hover{color:var(--red)}
 /* ── T110 (P4) : post-traitement ── */
@@ -196,7 +196,7 @@ select option:disabled{color:var(--ink-muted)}
 .editor{border-top:1px solid var(--stroke);padding:10px 12px}
 .editor-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
 .editstrip{display:flex;gap:8px;overflow-x:auto;padding:6px 0}
-.editcell{flex:0 0 auto;width:76px;border:1px solid var(--stroke-strong);border-radius:8px;background:var(--bg-panel-2);padding:4px;text-align:center}
+.editcell{flex:0 0 auto;width:76px;border:1px solid var(--stroke-strong);border-radius:var(--r);background:var(--bg-panel-2);padding:4px;text-align:center}
 .editcell img{width:64px;height:64px;object-fit:contain;image-rendering:pixelated;background:var(--bg-base);display:block;margin:0 auto}
 .editcell .no{font-size:10.5px;color:var(--ink-muted);font-family:var(--f-mono)}
 .editcell .ops{display:flex;justify-content:center;gap:2px;margin-top:2px}
@@ -208,7 +208,7 @@ select option:disabled{color:var(--ink-muted)}
 .postset input[type=color]{height:30px;padding:2px 4px}
 /* T112 : hitboxes par frame */
 .hb-corps{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-top:6px}
-.hb-canvas{width:256px;height:256px;image-rendering:pixelated;border:1px solid var(--stroke-strong);border-radius:8px;cursor:crosshair;touch-action:none}
+.hb-canvas{width:256px;height:256px;image-rendering:pixelated;border:1px solid var(--stroke-strong);border-radius:var(--r);cursor:crosshair;touch-action:none}
 .hb-insp{display:flex;flex-direction:column;gap:6px;min-width:150px}
 .hb-insp input{width:70px}
 /* t111 (plan-sprites T9-T11) : onglets Bible et Prompt. Le viewport de capture reste VISIBLE et petit : un
@@ -217,7 +217,7 @@ select option:disabled{color:var(--ink-muted)}
 /* 7 onglets = 429 px pour une colonne de 339 px (mesuré) : sans retour à la ligne, la colonne débordait et le clic
    sur « Bible » la faisait défiler de 102 px. Ciblé #srcTabs : le Tilelab charge aussi cette feuille. */
 #srcTabs{flex-wrap:wrap}
-.mv-hold{width:192px;height:192px;border:1px solid var(--stroke);border-radius:8px;overflow:hidden;background:transparent}
+.mv-hold{width:192px;height:192px;border:1px solid var(--stroke);border-radius:var(--r);overflow:hidden;background:transparent}
 .mv-hold model-viewer{width:100%;height:100%;--poster-color:transparent;background:transparent}
 .render-item .ent-3d{color:var(--cyan)}
 .chips{display:flex;flex-wrap:wrap;gap:5px}
@@ -228,16 +228,16 @@ select option:disabled{color:var(--ink-muted)}
 /* t111 (plan-sprites T12) : squelette Spine */
 .sk-outil.on{border-color:var(--cyan);color:var(--cyan)}
 .sklist{display:flex;flex-direction:column;gap:3px;min-width:220px;max-height:256px;overflow:auto;font-size:11.5px}
-.sk-row{display:flex;align-items:center;gap:6px;border:1px solid var(--stroke);border-radius:6px;padding:2px 6px;background:var(--bg-panel-2)}
+.sk-row{display:flex;align-items:center;gap:6px;border:1px solid var(--stroke);border-radius:var(--r);padding:2px 6px;background:var(--bg-panel-2)}
 .sk-row.on{border-color:var(--amber)}
 .sk-row .sk-ico{cursor:pointer}
-.sk-row .sk-nom{width:92px;background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:4px;color:var(--ink-strong);padding:1px 4px;font-family:var(--f-mono);font-size:11px}
+.sk-row .sk-nom{width:92px;background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:var(--r);color:var(--ink-strong);padding:1px 4px;font-family:var(--f-mono);font-size:11px}
 .sk-row .sk-del{border:none;background:none;color:var(--ink-muted);cursor:pointer;margin-left:auto}
 .sk-row .sk-del:hover{color:var(--red)}
 
 /* t126 : l'encart des fiches didactiques (mod-didact du Vectorlab, importé par Spritelab et Tilelab — Tilelab
    charge cette feuille) : mêmes mesures que .vl-didact du Vectorlab, couleurs de la page */
-.vl-didact { position: fixed; z-index: 70; width: 320px; box-sizing: border-box; background: var(--bg-panel); color: var(--ink-strong); border: 1px solid var(--stroke-strong); border-radius: 6px; box-shadow: 0 12px 34px rgba(0, 0, 0, .55); overflow: hidden; }
+.vl-didact { position: fixed; z-index: 70; width: 320px; box-sizing: border-box; background: var(--bg-panel); color: var(--ink-strong); border: 1px solid var(--stroke-strong); border-radius: var(--r); box-shadow: 0 12px 34px rgba(0, 0, 0, .55); overflow: hidden; }
 .vl-didact.hidden { display: none; }
 .vl-didact-anim { display: block; width: 320px; height: 200px; background: var(--bg-base); }
 .vl-didact-titre { font-weight: 700; font-size: 13px; padding: 8px 12px 2px; }
@@ -265,14 +265,14 @@ select option:disabled{color:var(--ink-muted)}
    « ne pas miroiter ». Couleurs de la rose : découpée = encre, générée = ambre (payant), miroir = vert (gratuit). */
 .dir-tete{display:flex;align-items:center;gap:10px}
 .dir-lbl{font-size:11.5px;color:var(--ink-soft)}
-.dir-seg{display:inline-flex;border:1px solid var(--stroke-strong);border-radius:8px;overflow:hidden}
+.dir-seg{display:inline-flex;border:1px solid var(--stroke-strong);border-radius:var(--r);overflow:hidden}
 .dir-seg .seg{background:var(--bg-base);border:0;border-right:1px solid var(--stroke-strong);color:var(--ink);padding:5px 14px;font-family:var(--f-mono);font-size:12.5px;cursor:pointer}
 .dir-seg .seg:last-child{border-right:0}
 .dir-seg .seg.on{background:var(--cyan-soft);color:var(--cyan)}
 .dir-seg .seg:focus-visible{outline:1px solid var(--cyan);outline-offset:-2px}
 .dir-huit{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
 .dir-rose{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,44px);gap:3px;flex:none}
-.dir-case{border:1px solid var(--stroke-strong);border-radius:6px;background:var(--bg-base);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10px;color:var(--ink-soft);line-height:1.15;text-align:center;overflow:hidden}
+.dir-case{border:1px solid var(--stroke-strong);border-radius:var(--r);background:var(--bg-base);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:10px;color:var(--ink-soft);line-height:1.15;text-align:center;overflow:hidden}
 .dir-case b{font-family:var(--f-mono);font-size:12px;color:var(--ink-strong);font-weight:500}
 .dir-case.generee{border-color:var(--amber);color:var(--amber)}
 .dir-case.miroir{border-style:dashed;border-color:var(--green);color:var(--green)}
@@ -283,7 +283,7 @@ select option:disabled{color:var(--ink-muted)}
 .dir-opts .chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);cursor:pointer}
 .dir-opts .chk input{margin:0}
 .dir-asym{color:var(--ink-strong)}
-.dir-rappel{border:1px solid var(--amber);border-radius:8px;background:var(--cyan-soft);color:var(--ink-strong);padding:6px 8px;font-size:11.5px;line-height:1.45}
+.dir-rappel{border:1px solid var(--amber);border-radius:var(--r);background:var(--cyan-soft);color:var(--ink-strong);padding:6px 8px;font-size:11.5px;line-height:1.45}
 .dir-rappel .dzi{vertical-align:-3px;color:var(--amber)}
 .dir-cle{color:var(--red)}
 .dir-cle .dzi{vertical-align:-3px}
@@ -308,7 +308,7 @@ select option:disabled{color:var(--ink-muted)}
 .boucle-verrou{color:var(--ink)}
 .pixelset.verrou .grid2{opacity:.55;pointer-events:none}
 .pixelset.verrou legend label{pointer-events:none}
-.pix-verrou{margin-top:8px;border:1px solid var(--cyan);border-radius:8px;background:var(--cyan-soft);padding:7px 9px;display:flex;flex-direction:column;gap:5px}
+.pix-verrou{margin-top:8px;border:1px solid var(--cyan);border-radius:var(--r);background:var(--cyan-soft);padding:7px 9px;display:flex;flex-direction:column;gap:5px}
 .pix-verrou-tete{display:flex;align-items:center;gap:6px;color:var(--ink-strong);font-size:12px}
 .pix-verrou-tete .dzi{color:var(--cyan)}
 .pix-verrou-tete .btn{margin-left:auto}

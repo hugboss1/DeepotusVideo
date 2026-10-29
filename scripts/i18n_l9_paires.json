@@ -2111,6 +2111,12 @@
     "groupe": "s3a"
    },
    {
+    "pos": 50076,
+    "avant": "padding:9px 14px; border-radius:9px;",
+    "apres": "padding:9px 14px; border-radius:var(--r);",
+    "groupe": "t374"
+   },
+   {
     "pos": 51824,
     "avant": "\"Série en cours — ↺ disponible à la fin\"",
     "apres": "__dzT9(\"studio3d.s3a_rail.rejouer_attente\", \"Série en cours — ↺ disponible à la fin\")",

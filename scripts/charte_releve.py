@@ -30,19 +30,24 @@ LABS = ("atelier", "avatar", "cardforge", "etabli", "lib3d", "materialforge", "m
 _EXCLUS = re.compile(r"(/qa/|/vendor/|/node_modules/|\.min\.|/three|dz-i18n-dico\.js$|dz-icons\.js$)")
 
 
+# Les feuilles de la charte elle-même : jetons (t370) et angles vifs générés de la coque (t374, dont les sélecteurs
+# d'attribut `[style*="border-radius: 6px"]` VISENT des rayons sans en écrire ; banc test_charte_bords F4).
+_FEUILLES_CHARTE = ("dz-charte.css", "dz-bords.css")
+
+
 def fichiers_zone(zone: str) -> list[Path]:
     if zone == "coque":
         dist = FRONT / "dist"
         res = sorted((dist / "assets").glob("index-*.css")) + sorted((dist / "assets").glob("index-*.js"))
         res += [dist / "theme-v2.css", dist / "index.html"]
-        res += sorted(p for p in (dist / "shared").glob("*.css") if p.name != "dz-charte.css")
+        res += sorted(p for p in (dist / "shared").glob("*.css") if p.name not in _FEUILLES_CHARTE)
         return [p for p in res if p.is_file()]
     base = FRONT / zone
     res = []
     for p in sorted(base.rglob("*")):
         if p.suffix not in (".css", ".js") or not p.is_file():
             continue
-        if _EXCLUS.search(p.as_posix()) or p.name == "dz-charte.css":
+        if _EXCLUS.search(p.as_posix()) or p.name in _FEUILLES_CHARTE:
             continue
         res.append(p)
     return res

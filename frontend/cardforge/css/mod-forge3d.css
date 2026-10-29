@@ -1,6 +1,6 @@
 /* P9 Forge 3D — règle 4 : tout sélecteur contient .cf-forge3d */
 .cf-forge3d .cf-forge3d-wrap { display: flex; flex-direction: column; gap: 12px; }
-.cf-forge3d .cf-forge3d-card { border: 1px solid var(--stroke); border-radius: 10px; padding: 12px; }
+.cf-forge3d .cf-forge3d-card { border: 1px solid var(--stroke); border-radius: var(--r); padding: 12px; }
 .cf-forge3d .cf-forge3d-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .cf-forge3d .cf-forge3d-h > .btn, .cf-forge3d .cf-forge3d-h > .lnk { margin-left: auto; }
 .cf-forge3d .cf-forge3d-lay { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }
@@ -80,7 +80,7 @@
 .cf-forge3d .cf-forge3d-palette {
   display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
   margin-bottom: 8px; padding: 6px 8px;
-  border: 1px solid var(--stroke); border-radius: 8px;
+  border: 1px solid var(--stroke); border-radius: var(--r);
   background: var(--bg-panel-2);
 }
 .cf-forge3d .cf-forge3d-palette select { font: inherit; font-size: 11px; }
@@ -108,7 +108,7 @@
 .cf-forge3d .cf-forge3d-canvas {
   flex: 1 1 auto; min-width: 0;
   position: relative; overflow: hidden; height: 460px;
-  border: 1px solid var(--stroke); border-radius: 10px;
+  border: 1px solid var(--stroke); border-radius: var(--r);
   background-color: var(--bg-panel-3, #14141a);
   background-image:
     linear-gradient(to right, color-mix(in srgb, var(--stroke) 55%, transparent) 1px, transparent 1px),
@@ -194,7 +194,7 @@
   position: absolute; width: 200px;
   --cf-bord: 1px;
   background: var(--bg-panel); border: var(--cf-bord) solid var(--stroke-strong);
-  border-radius: 8px; overflow: visible;
+  border-radius: var(--r); overflow: visible;
 }
 /* ── LES PORTS (Task 4) — LES POIGNEES DE CONNEXION ───────────────────────
    MIROIR AU CHIFFRE : `top` est PORT_Y et le `left` de la sortie est NOEUD_W
@@ -256,7 +256,7 @@
   border-bottom: 1px solid var(--stroke); background: var(--bg-panel-2);
   /* l'arrondi que le nœud ne clippe plus (voir `overflow: visible`) : 8 px
      de rayon moins la bordure de 1 px du nœud = 7 px, le rayon INTERIEUR. */
-  border-radius: 7px 7px 0 0;
+  border-radius: var(--r);
 }
 .cf-forge3d .cf-forge3d-kind-l { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
 .cf-forge3d .cf-forge3d-titre { font-size: 11px; color: var(--ink-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -292,7 +292,7 @@
    garde la main sur la taille sans qu'une coordonnee de peinture bouge. */
 .cf-forge3d .cf-forge3d-thumb {
   display: block; width: 96px; height: 134px; margin: 0 auto 7px;
-  border-radius: 4px; background: var(--bg-panel-3, #14141a);
+  border-radius: var(--r); background: var(--bg-panel-3, #14141a);
 }
 /* le kind `plane` EST un plan pose dans l'espace : une legere perspective le
    dit d'un coup d'œil, la ou le relief le dira par son ombre d'emboss. */
@@ -309,7 +309,7 @@
   flex: 0 0 232px; min-width: 0; height: 460px;
   display: flex; flex-direction: column; gap: 6px;
   padding: 8px; box-sizing: border-box;
-  border: 1px solid var(--stroke); border-radius: 10px;
+  border: 1px solid var(--stroke); border-radius: var(--r);
   background: var(--bg-panel);
 }
 /* EN DESSOUS DE 720 px la colonne passe SOUS le canvas plutot que de
@@ -333,7 +333,7 @@
    rien). */
 .cf-forge3d .cf-forge3d-insp-view {
   flex: 1 1 auto; min-height: 150px; overflow: hidden;
-  border: 1px solid var(--stroke); border-radius: 8px;
+  border: 1px solid var(--stroke); border-radius: var(--r);
   background: var(--bg-panel-3, #14141a);
 }
 .cf-forge3d .cf-forge3d-insp-view model-viewer { width: 100%; height: 100%; display: block; }
@@ -356,7 +356,7 @@
    replie a zero. */
 .cf-forge3d .cf-forge3d-art-view {
   height: 150px; margin: 6px 0; overflow: hidden;
-  border: 1px solid var(--stroke); border-radius: 6px;
+  border: 1px solid var(--stroke); border-radius: var(--r);
   background: var(--bg-panel-3, #14141a);
 }
 .cf-forge3d .cf-forge3d-art-view model-viewer { width: 100%; height: 100%; display: block; }
@@ -367,7 +367,7 @@
 .cf-forge3d .cf-forge3d-corps .cf-forge3d-ignored { padding-left: 14px; font-size: 10px; }
 
 /* ── l'aperçu : le VRAI fichier livré, dans <model-viewer> ───────────────── */
-.cf-forge3d .cf-forge3d-view { min-height: 300px; border: 1px solid var(--stroke); border-radius: 10px; overflow: hidden; background: var(--bg-panel-3, #14141a); }
+.cf-forge3d .cf-forge3d-view { min-height: 300px; border: 1px solid var(--stroke); border-radius: var(--r); overflow: hidden; background: var(--bg-panel-3, #14141a); }
 .cf-forge3d .cf-forge3d-view model-viewer { width: 100%; height: 300px; display: block; }
 
 /* ── LES MOTIFS INCRUSTES (3c, §6.2bis-d) : une PILE ORDONNEE ─────────────

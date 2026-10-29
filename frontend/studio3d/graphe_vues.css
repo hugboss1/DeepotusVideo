@@ -3,7 +3,7 @@
 /* la vignette d'un nœud : un carré en haut à droite, le titre lui laisse la place */
 .node.a-vign .node-title, .node.a-vign .node-sub { padding-right: 46px; }
 .dz-vign {
-  position: absolute; top: 26px; right: 8px; width: 40px; height: 40px; border-radius: 6px;
+  position: absolute; top: 26px; right: 8px; width: 40px; height: 40px; border-radius: var(--r);
   border: 1px solid var(--stroke); background: var(--bg-panel-3); overflow: hidden;
   display: flex; align-items: center; justify-content: center; pointer-events: none;
 }
@@ -25,7 +25,7 @@
 .preview.a-noeud { border-color: var(--accent); }
 .dz-agrandir {
   position: absolute; top: 8px; right: 8px; display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 8px; border-radius: 6px; border: 1px solid var(--stroke-strong);
+  padding: 4px 8px; border-radius: var(--r); border: 1px solid var(--stroke-strong);
   background: color-mix(in srgb, var(--bg-panel-2) 85%, transparent); color: var(--ink);
   font-size: 11px; cursor: pointer; z-index: 2;
 }
@@ -38,7 +38,7 @@
   border-bottom: 1px solid var(--stroke); background: var(--bg-panel);
 }
 .dz-grand-titre { font-size: 13px; color: var(--ink-strong); margin-right: 4px; }
-.dz-seg { display: inline-flex; border: 1px solid var(--stroke-strong); border-radius: 6px; overflow: hidden; }
+.dz-seg { display: inline-flex; border: 1px solid var(--stroke-strong); border-radius: var(--r); overflow: hidden; }
 .dz-seg button {
   display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border: 0; border-right: 1px solid var(--stroke);
   background: transparent; color: var(--ink-soft); font-size: 11.5px; cursor: pointer;
@@ -48,7 +48,7 @@
 .dz-grand-case { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); }
 .dz-grand-aide { font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft); }
 .dz-grand-fermer {
-  margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 6px;
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: var(--r);
   border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 12px; cursor: pointer;
 }
 .dz-grand-vue { position: relative; flex: 1; min-height: 0; }

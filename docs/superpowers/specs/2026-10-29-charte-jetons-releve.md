@@ -165,6 +165,68 @@ Dans les deux langues, `--fg-1` se résout en `#f2efe9` et `--r` en `0`. Les mis
 nombre d'éléments visibles) : la feuille ne casse aucun écran. Le Card Forge ne change presque pas, car ses
 rayons sont écrits en dur. C'est précisément ce que t374 traitera.
 
+## 6-ter. t374 : harmonisation typo et bords, écran par écran (29/10/2026)
+
+**Labs : à la source.** `scripts/charte_aplatir_rayons.py` réécrit chaque rayon littéral > 0 des feuilles des labs
+(et du CSS que les scripts de `/shared` injectent) en `var(--r)`, qui vaut 0. Les exceptions rondes du cliquet ne sont
+jamais touchées ; une boîte carrée dont le rayon fait un disque (même règle, `width` = `height`, rayon ≥ moitié)
+passerait à `50%` (aucune au 29/10). 431 rayons réécrits. Le seul rayon de `studio3d.js` (fichier GÉNÉRÉ par L9)
+passe par la saisie `scripts/i18n_l9/t374.py`. `dz-agent.js` et `dz-agent-pointeur.js` restent intacts :
+`test_tutoriels_ecran` P3 les fige depuis t317 ; leurs 11 rayons sont aplatis dans la page par `dz-bords.css`.
+Cliquet : 0 pour chaque lab, 11 pour `/shared` (les scripts figés), coque inchangée à 519 (voir ci-dessous).
+
+**Coque : par une feuille générée.** Le bundle est prébâti (styles React en ligne, chaînes CSS des couches figées
+par les maillons) et les feuilles du Montage / Son & VFX sont figées par `test_montage_bundle` : rien n'y est
+réécrit. `scripts/charte_bords.py` GÉNÈRE `frontend/shared/dz-bords.css` (copie identique dans `dist/shared`), liée
+EN DERNIER par `dist/index.html` :
+
+- [A] une règle `sélecteur{border-radius:var(--radius)!important}` par sélecteur de la coque qui écrit un rayon
+  littéral (feuilles servies, chaînes CSS du bundle et des pages, scripts `/shared` de la page et leurs `import`) ;
+  UNE règle par sélecteur, car un sélecteur refusé par le navigateur annule toute une liste (vu en preuve : un bout
+  de code pris pour un sélecteur faisait tomber 230 sélecteurs) ;
+- [B] les rayons en ligne de React, par sélecteur d'attribut (`[style*="border-radius: 6px"]`, 17 valeurs) ;
+- [C] les classes Tailwind `rounded*` (hors `rounded-full`).
+
+Le compte du cliquet de la coque reste celui de la SOURCE (519) : il ne baissera qu'avec un rafraîchissement du
+bundle. Ce qui compte à l'écran est mesuré ci-dessous, et le banc `test_charte_bords` [A][B] exige que chaque
+littéral de la source soit couvert.
+
+**Finitions** (bloc `FINITIONS` du générateur) : `.text-slate-100…600` sur `--fg-1…4` (fin des gris Tailwind
+disparates ; `.text-white` laissé, texte sur aplat coloré) ; `.font-mono` / `.font-sans` sur `--font-mono` /
+`--font-ui` ; sélecteur de modèle (`button[data-dzselect]`, 30 px de haut) sur UNE ligne avec points de suspension
+(« Nano Banana Pro (Gemini 3) · $0.15/image » passait sur deux lignes) ; `::-webkit-scrollbar-corner` transparent
+(le carré blanc par défaut du moteur au croisement des deux ascenseurs, dock du Montage). Vectorlab : `--aff-texte`
+et `--aff-muet` rebranchés sur `--fg-2` / `--fg-3` (fin des gris `#d0d0d0` / `#9a9a9a`).
+
+**Échelles parallèles laissées.** `--ink2..4` de `.dzsvm` (Son & VFX, Montage) valent déjà, en sombre, les encres
+`--ink` / `--ink-soft` / `--ink-muted` ; les rebrancher sur `--fg-*` (résolus sur `:root`) casserait le thème clair
+propre au Montage (`[data-svm-theme=light]`). `--sub-ink*` retombent sur `--ink*`. À reprendre avec t383.
+
+**Preuve** (backend jetable 8799, données jetables, aucune clé ; même branche avant / après ; 1600 × 950) : éléments
+visibles dont le rayon calculé est > 0 hors ronds (rayon ≥ moitié du petit côté, ou ≥ 99 px) :
+
+| Écran | Visibles FR / EN | Arrondis avant | Arrondis après |
+|---|---:|---:|---:|
+| Quick | 403 / 403 | 10 | 0 |
+| Studio | 782 / 802 | 66 | 0 |
+| Chapitres | 238 / 238 | 2 | 0 |
+| Son & VFX | 417 / 419 | 2 | 0 |
+| Montage | 951 / 938 | 122 | 0 |
+| Planificateur | 357 / 357 | 4 | 0 |
+| Modèles | 701 / 707 | 59 | 0 |
+| News | 696 / 696 | 10 | 0 |
+| Bibliothèque | 410 / 420 | 22 | 0 |
+| Game Assets | 331 / 331 | 4 | 0 |
+| Réglages | 363 / 363 | 7 | 0 |
+| Vectorlab (cadre) | 41 / 41 | 13 | 0 |
+| Photolab (cadre) | 319 / 320 | 72 | 0 |
+| Avatar live, WhatsApp (cadres) | 37 / 32 | 0 | 0 |
+
+Mêmes nombres d'éléments visibles avant et après dans les deux langues : aucune mise en page ne bouge. Les « ronds »
+qui disparaissent sont des PILULES et non des disques : puces de Game Assets (14 px sur 26 px de haut), puce budget
+de l'en-tête (20 px), sélecteur de persona du Vectorlab, barres de 2 px du minimap du Montage. Les pastilles d'état
+(« nouveau », « NON ENREGISTRÉ », fal / heygen / voix) et les ronds vrais (curseur de l'agent, points) restent ronds.
+
 ## 7. Annexe : relevé complet par zone
 
 #### coque (10 fichiers)

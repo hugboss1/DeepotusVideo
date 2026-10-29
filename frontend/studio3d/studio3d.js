@@ -924,7 +924,7 @@ function toast(msg) {
     t.id = "toast";
     t.style.cssText = "position:fixed; left:50%; bottom:26px; transform:translateX(-50%);"
       + "background:var(--bg-panel-2); border:1px solid var(--stroke-strong); color:var(--ink-strong);"
-      + "padding:9px 14px; border-radius:9px; font-size:12.5px; z-index:99; max-width:80vw;";
+      + "padding:9px 14px; border-radius:var(--r); font-size:12.5px; z-index:99; max-width:80vw;";
     document.body.appendChild(t);
   }
   t.textContent = msg;

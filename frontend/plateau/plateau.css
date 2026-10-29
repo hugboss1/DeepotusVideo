@@ -48,7 +48,7 @@ button, input, select { font-family: inherit; }
   border: 1px solid var(--stroke); background: var(--bg-panel-2); font-size: 12px; cursor: pointer;
 }
 .instances li[aria-selected="true"] { border-color: var(--accent); }
-.instances li .pastille { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+.instances li .pastille { width: 10px; height: 10px; border-radius: var(--r); flex: none; }
 .instances li .role { margin-left: auto; font-family: var(--f-mono); font-size: 9.5px; color: var(--ink-soft); }
 .instances li .role.sujet { color: var(--accent); }
 .fiche { display: flex; flex-direction: column; gap: 5px; border-top: 1px solid var(--stroke); padding-top: 8px; }
@@ -142,7 +142,7 @@ button, input, select { font-family: inherit; }
 /* ── t333 + t338 (lot Scenario A3 + A8) : légende de la previs colorée, couverture du plan ── */
 .legende, .cameras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; }
 .legende li { display: flex; align-items: center; gap: 6px; }
-.legende .pastille { width: 10px; height: 10px; border-radius: 2px; flex: none; outline: 1px solid var(--stroke); }
+.legende .pastille { width: 10px; height: 10px; border-radius: var(--r); flex: none; outline: 1px solid var(--stroke); }
 .legende .vide, .cameras .vide { color: var(--ink-soft); font-size: 11px; }
 #legPrompt:empty, #faisceaux:empty, #covAvert:empty { display: none; }
 #covAvert .dzi { width: 13px; height: 13px; vertical-align: -2px; }

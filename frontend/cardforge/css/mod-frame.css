@@ -49,7 +49,7 @@
 .cf-frame .cff-cols.a-replie .cff-colA > :not(.cff-colfold),
 .cf-frame .cff-cols.b-replie .cff-colB > :not(.cff-colfold) { display: none; }
 .cf-frame .cff-colfold { display: flex; align-items: center; justify-content: flex-start;
-  gap: 7px; background: transparent; border: 1px solid transparent; border-radius: 8px;
+  gap: 7px; background: transparent; border: 1px solid transparent; border-radius: var(--r);
   color: var(--ink-muted); padding: 4px 7px; font-size: 11px; cursor: pointer; }
 .cf-frame .cff-colfold:hover { border-color: var(--stroke); color: var(--ink-strong);
   background: var(--bg-base); }
@@ -71,11 +71,11 @@
 .cf-frame .cff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 7px; }
 .cf-frame .cff-allgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px; }
 .cf-frame .cff-cell { display: flex; flex-direction: column; gap: 3px; padding: 5px 5px 6px;
-  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 9px;
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: var(--r);
   cursor: pointer; text-align: center; min-width: 0; }
 .cf-frame .cff-cell:hover { border-color: var(--ink-soft); }
 .cf-frame .cff-cell.on { border-color: var(--accent); background: var(--accent-soft); }
-.cf-frame .cff-thumb { display: block; width: 100%; height: auto; border-radius: 3px;
+.cf-frame .cff-thumb { display: block; width: 100%; height: auto; border-radius: var(--r);
   background: var(--bg-panel-3); }
 .cf-frame .cff-cn { font-size: 10.5px; color: var(--ink); overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
@@ -86,7 +86,7 @@
   border-style: dashed; }
 
 /* ── loupe ───────────────────────────────────────────────────────────────── */
-.cf-frame .cff-loupecv { display: block; width: 100%; height: 250px; border-radius: 6px;
+.cf-frame .cff-loupecv { display: block; width: 100%; height: 250px; border-radius: var(--r);
   border: 1px solid var(--stroke-strong); background: var(--bg-panel-3); image-rendering: pixelated; }
 .cf-frame .cff-lord { margin-top: 6px; }
 .cf-frame .cff-lord b { color: var(--ink-strong); }
@@ -107,7 +107,7 @@
 .cf-frame .cff-unit { font-style: normal; font-size: 10px; color: var(--ink-muted); }
 .cf-frame .cff-check { flex: 0 0 auto; padding-bottom: 5px; }
 .cf-frame .cff-color { width: 46px; height: 28px; padding: 2px; flex: none;
-  background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: 8px; }
+  background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: var(--r); }
 .cf-frame .cff-sel { min-width: 110px; }
 .cf-frame .cff-txt { min-width: 110px; }
 .cf-frame .cff-seg { width: auto; }
@@ -116,7 +116,7 @@
    Elles se lisent ensemble (ecran / impression / 3D) et l'une d'elles peut
    etre la seule active — « 3D uniquement » est une configuration de premier
    rang, spec §6.2bis-d. L'encadre les tient a vue comme un groupe. */
-.cf-frame .cff-scope { gap: 14px; padding: 6px 9px 2px; border-radius: 8px;
+.cf-frame .cff-scope { gap: 14px; padding: 6px 9px 2px; border-radius: var(--r);
   border: 1px solid var(--stroke); background: var(--bg-panel-3); }
 .cf-frame .cff-sealread b { color: var(--ink-strong); }
 /* LA BANDE D'APERCU DU SCEAU (phase 5, D4) : les memes arrets de degrade que
@@ -124,7 +124,7 @@
    seul endroit du labo ou la phase du foil bouge, et elle ne bouge QU'ICI :
    le fichier livre garde la phase canonique. */
 .cf-frame .cff-sealprev { display: block; width: 240px; height: 14px;
-  border-radius: 4px; border: 1px solid var(--stroke-strong);
+  border-radius: var(--r); border: 1px solid var(--stroke-strong);
   cursor: ew-resize; touch-action: none; }
 .cf-frame .cff-sealphase { margin: 3px 0 0; font-size: 10px; }
 
@@ -135,16 +135,16 @@
 .cf-frame .cff-prompt { width: 100%; box-sizing: border-box; resize: vertical;
   min-height: 58px; padding: 7px 9px; font: inherit; line-height: 1.45;
   color: var(--ink); background: var(--bg-base);
-  border: 1px solid var(--stroke-strong); border-radius: 8px; }
+  border: 1px solid var(--stroke-strong); border-radius: var(--r); }
 .cf-frame .cff-prompt:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-.cf-frame .cff-cost { padding: 6px 9px; border-radius: 8px;
+.cf-frame .cff-cost { padding: 6px 9px; border-radius: var(--r);
   border: 1px solid var(--stroke); background: var(--bg-panel-3); }
 .cf-frame .cff-cost b { color: var(--ink-strong); }
 .cf-frame .cff-decorread b { color: var(--ink-strong); }
 
 /* ── fenetre d'illustration : plan cliquable + valeurs editables ─────────── */
 .cf-frame .cff-winwrap { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
-.cf-frame .cff-map { flex: none; border: 1px solid var(--stroke-strong); border-radius: 8px;
+.cf-frame .cff-map { flex: none; border: 1px solid var(--stroke-strong); border-radius: var(--r);
   background: var(--bg-base); cursor: crosshair; touch-action: none; }
 .cf-frame .cff-map:focus { outline: none; border-color: var(--accent); }
 .cf-frame .cff-winfields { flex: 1 1 190px; display: grid;
@@ -181,7 +181,7 @@
 /* la table est large : elle defile DANS son cadre, la page ne bouge pas —
    sinon les boites en millimetres, qui sont tout l'interet, sont tronquees. */
 .cf-frame .cff-occtab { display: flex; flex-direction: column; gap: 1px; margin-top: 4px;
-  border: 1px solid var(--stroke); border-radius: 8px; overflow-x: auto; max-width: 100%; }
+  border: 1px solid var(--stroke); border-radius: var(--r); overflow-x: auto; max-width: 100%; }
 .cf-frame .cff-occhd, .cf-frame .cff-occr { display: grid;
   grid-template-columns: 26ch 5ch 26ch 30ch 30ch; min-width: max-content;
   gap: 6px; padding: 3px 7px; font-size: 9.5px; font-family: var(--f-mono);
@@ -194,7 +194,7 @@
 .cf-frame .cff-occr.bad { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
 .cf-frame .cff-occread b, .cf-frame .cff-stamp b { color: var(--ink-strong); }
 .cf-frame .cff-bounds { font-style: normal; font-size: 9.5px; font-family: var(--f-mono);
-  color: var(--ink-muted); border: 1px solid var(--stroke); border-radius: 4px; padding: 0 4px; }
+  color: var(--ink-muted); border: 1px solid var(--stroke); border-radius: var(--r); padding: 0 4px; }
 
 /* ── badge des silhouettes : une MESURE, pas une declaration ─────────────── */
 .cf-frame .cff-sil { font-size: 10.5px; font-family: var(--f-mono); color: var(--ink-muted);
@@ -210,7 +210,7 @@
 .cf-frame .cff-pbadge.ko { color: var(--red); border-color: color-mix(in srgb, var(--red) 55%, transparent);
   background: color-mix(in srgb, var(--red) 12%, transparent); }
 .cf-frame .cff-prooftab { display: flex; flex-direction: column; gap: 1px; margin-top: 6px;
-  border: 1px solid var(--stroke); border-radius: 8px; overflow-x: auto; max-width: 100%; }
+  border: 1px solid var(--stroke); border-radius: var(--r); overflow-x: auto; max-width: 100%; }
 .cf-frame .cff-prooftab:empty { display: none; }
 .cf-frame .cff-proofhd, .cf-frame .cff-proofr { display: grid;
   /* chaque ligne est sa PROPRE grille : des colonnes `auto` ne s'alignent
@@ -258,7 +258,7 @@
 /* ── raccourcis ──────────────────────────────────────────────────────────── */
 .cf-frame .cff-kbd { line-height: 1.9; }
 .cf-frame .cff-kbd kbd { font-family: var(--f-mono); font-size: 9.5px; color: var(--ink-soft);
-  border: 1px solid var(--stroke-strong); border-bottom-width: 2px; border-radius: 5px;
+  border: 1px solid var(--stroke-strong); border-bottom-width: 2px; border-radius: var(--r);
   padding: 1px 5px; background: var(--bg-base); }
 
 /* ── LE VERSO PERSONNALISE (3c-T4) ───────────────────────────────────────
@@ -267,7 +267,7 @@
 .cf-frame .cff-backcustom { margin-top: 10px; }
 .cf-frame .cff-backcustom.hidden { display: none; }
 .cf-frame .cff-drop { display: flex; align-items: center; justify-content: center;
-  gap: 10px; flex-wrap: wrap; padding: 14px 10px; border-radius: 8px;
+  gap: 10px; flex-wrap: wrap; padding: 14px 10px; border-radius: var(--r);
   border: 1px dashed var(--stroke-strong); background: var(--bg-base);
   color: var(--ink-muted); font-size: 11px; text-align: center; }
 .cf-frame .cff-drop.over { border-color: var(--accent); color: var(--ink-strong);
@@ -277,7 +277,7 @@
    s'enroule sur les panneaux etroits plutot que de deborder : une commande
    hors du cadre est une commande qui n'existe pas. */
 .cf-frame .cff-bl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-  padding: 5px 7px; border-radius: 7px; border: 1px solid var(--stroke);
+  padding: 5px 7px; border-radius: var(--r); border: 1px solid var(--stroke);
   background: var(--bg-panel-2); }
 .cf-frame .cff-bln { font-family: var(--f-mono); font-size: 10px;
   color: var(--ink-muted); min-width: 2ch; text-align: right; }
