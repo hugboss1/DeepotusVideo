@@ -2725,6 +2725,129 @@ async def reassemble_sprite(job: str, body: dict):
     return {"ok": True, "frames": r["frames"], "grid": r["grid"]}
 
 
+# ---- t340 (lot Scenario, B1 + B2) : sprite approuvé (Pixel Lock) et préréglage « Boucle » ----
+
+@router.post("/assets/sprite/{job}/approuver")
+async def sprite_approuver(job: str):
+    """t340 (B1) — « Approuver ce sprite » : sa grille (`target_px`) et sa palette sont FIGÉES (approbation.json du
+    job) ; une génération qui envoie `pixel_verrou: <job>` les reçoit du serveur, quoi que dise son `pixel`. Local et
+    gratuit. 404 job inconnu ; 400 sans pixel-art (ou plus de 256 couleurs)."""
+    from app.services import sprite_service as SS
+    try:
+        return await asyncio.to_thread(SS.approuver, job)
+    except FileNotFoundError:
+        raise HTTPException(404, "Not found")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/assets/sprite/{job}/approbation")
+async def sprite_approbation(job: str):
+    """t340 (B1) — l'approbation d'un sprite (grille + palette figées), ou 404 s'il n'a pas été approuvé."""
+    from app.services import sprite_service as SS
+    try:
+        return SS.lire_approbation(job)
+    except ValueError:
+        raise HTTPException(404, "Not found")
+
+
+def _sprite_boucle_calc(body: dict) -> dict:
+    """t340 (B2) — le devis du préréglage « Boucle » : une vidéo dont la 1re ET la dernière image sont la pose
+    choisie (Seedance par défaut, modèle à image de fin), puis 1 image sur `une_sur`, re-pixelisées sur la grille
+    verrouillée. Aucun effet de bord : lu par le Spritelab avant le clic, par la route de tir et par l'assistant."""
+    from app.services import pricing as _pricing, sprite_service as SS
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL, accepte_fin
+    pose = body.get("image_filename")
+    if not isinstance(pose, str) or not pose or Path(pose).name != pose:
+        raise HTTPException(400, f"image_filename : un nom NU d'image de la Library est attendu, reçu {pose!r}")
+    if not (settings.images_path / pose).is_file():
+        raise HTTPException(404, f"Start image not found: {pose}")
+    mid = str(body.get("video_model") or "").strip() or DEFAULT_VIDEO_MODEL
+    m = VIDEO_MODELS.get(mid)
+    if m is None:
+        raise HTTPException(400, f"video_model inconnu : {mid!r}")
+    try:
+        duree = int(body.get("duration_s") or 5)
+    except (TypeError, ValueError):
+        duree = 0
+    if not 3 <= duree <= 10:
+        raise HTTPException(400, "duration_s : un entier de 3 à 10 s est attendu")
+    ratio = str(body.get("aspect_ratio") or "1:1")
+    if ratio not in ("1:1", "9:16", "16:9"):
+        raise HTTPException(400, "aspect_ratio : 1:1, 9:16 ou 16:9")
+    try:
+        boucle = SS.normalize_opts({"boucle": {"une_sur": body.get("une_sur", 2)}})["boucle"]
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    verrou = None
+    if body.get("pixel_verrou") not in (None, ""):
+        try:
+            a = SS.lire_approbation(body["pixel_verrou"])
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        verrou = {"job": a["job"], "target_px": a["target_px"], "palette": a.get("palette"),
+                  "n_couleurs": len(a["palette_hex"])}
+    op = _pricing.video_request_op(mid, duree, "720p")
+    usd = float(_pricing.estimate(op)["total_usd"])
+    return {"image_filename": pose, "video_model": mid, "label": m.get("label") or mid, "duration_s": duree,
+            "secondes": op["duration_s"], "aspect_ratio": ratio, "resolution": "720p", "op": op,
+            "usd": round(usd, 4), "accepte_fin": accepte_fin(m), "cle_manquante": _cle_video_manquante(mid),
+            "une_sur": boucle["une_sur"], "pixel_verrou": verrou, "prompt_suffixe": SS.BOUCLE_SUFFIXE}
+
+
+def _sprite_boucle_public(calc: dict) -> dict:
+    return {k: v for k, v in calc.items() if k != "op"}
+
+
+@router.post("/assets/sprite/boucle/devis")
+async def sprite_boucle_devis(body: dict):
+    """t340 (B2) — le DEVIS d'une boucle, sans rien dépenser ni écrire : modèle, secondes générées, coût, clé
+    manquante éventuelle, et si le modèle accepte une image de fin (sinon la boucle n'est pas possible)."""
+    return _sprite_boucle_public(_sprite_boucle_calc(body if isinstance(body, dict) else {}))
+
+
+@router.post("/assets/sprite/boucle", dependencies=[Depends(_require_local_depense)])
+async def sprite_boucle(body: dict, background_tasks: BackgroundTasks, http: Request = None):
+    """t340 (B2) — préréglage « Boucle » : PAYANT. La vidéo part par LE pipeline de /generate (même job, même
+    registre), avec la pose en 1re ET en dernière image. Ordre des refus : corps 400 / pose 404 → clé absente 503 →
+    modèle sans image de fin 400 → prompt vide 400 → `confirme_cout` absent 409 (avec le devis) → garde de coût 402 →
+    plafonds 402 → rendu. Rend {job_id, usd, devis} : l'écran suit le job, puis extrait 1 image sur `une_sur`
+    (`boucle`) et re-pixelise sur la grille du sprite approuvé (`pixel_verrou`) — feuille + GIF."""
+    from app.services import sprite_service as SS
+    body = body if isinstance(body, dict) else {}
+    calc = _sprite_boucle_calc(body)
+    _cle_video_ou_503(calc["video_model"], http)                       # 503 AVANT toute garde de dépense
+    _fin_video_ou_400(calc["video_model"], calc["image_filename"], http)
+    action = str(body.get("prompt") or "").strip()
+    if not action:
+        raise HTTPException(400, "prompt : décris le mouvement à boucler (ex : walks in place)")
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": "la boucle est une génération vidéo payante : confirmez le devis",
+                                  "usd": calc["usd"], "devis": _sprite_boucle_public(calc)})
+    try:
+        req = GenerateRequest(image_filename=calc["image_filename"], image_filename_end=calc["image_filename"],
+                              custom_prompt=f"{action[:600]}, {SS.BOUCLE_SUFFIXE}", prompt_source="custom",
+                              video_model=calc["video_model"], duration_s=calc["duration_s"],
+                              aspect_ratio=calc["aspect_ratio"], resolution="720p", voiceover_enabled=False,
+                              source="sprites", max_usd=body.get("max_usd"))
+    except Exception as e:  # noqa: BLE001 — la validation pydantic devient un 400 lisible
+        raise HTTPException(400, str(e)[:400])
+    _garde_cout([calc["op"]], req.max_usd)
+    await _plafond(calc["op"], "sprites")
+    job_id = str(uuid4())
+    await Pipeline.creer_job(req, job_id)
+
+    async def _run():
+        try:
+            await pipeline.run(req, job_id=job_id)   # REPREND le job créé ci-dessus
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"sprite boucle ({job_id}) : {e}")
+            await Pipeline.echouer_si_en_attente(job_id, str(e))   # jamais de job fantôme en QUEUED
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "usd": calc["usd"], "devis": _sprite_boucle_public(calc)}
+
+
 _EXT_PLANCHE = (".png", ".jpg", ".jpeg", ".webp")
 
 
@@ -19173,6 +19296,131 @@ async def etabli_decimer(body: dict):
     except RuntimeError as e:
         raise HTTPException(502, str(e))
     return _etabli_ecrire(job, octets, "decimer", {"depuis": depuis, **info})
+
+
+# ── t342 (lot Scenario B6 + B7, 29/10/2026) : pièces mobiles et budgets de triangles ────────────────────────────
+# Pièces : la voie LOCALE (îlots du maillage, gratuite) lit puis écrit une version ; la voie IA (Tripo sur fal) est
+# payante : clé fal → devis + `confirme_cout` (409 sinon) → garde des plafonds → appel. Densités : trois fichiers par
+# rôle (mesh_lod.ROLES), locaux et gratuits, dossier `densites/` du job.
+
+def _pieces_langue(v) -> str:
+    return "en" if str(v or "").lower().startswith("en") else "fr"
+
+
+@router.get("/etabli/pieces")
+async def etabli_pieces_analyser(job: str, version: int = 1, langue: str = "fr", min_triangles: int = 8):
+    """LECTURE : les îlots d'une version et les noms proposés. Rien n'est écrit."""
+    from app.services import mesh_pieces
+    job_n, data, depuis = _etabli_glb_cible(job, int(version), "pièces")
+    try:
+        r = await asyncio.to_thread(mesh_pieces.analyser, data, langue=_pieces_langue(langue),
+                                    min_triangles=min_triangles)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"job": job_n, "depuis": depuis, **r, "ia": mesh_pieces.devis_ia(),
+            "cle_fal": bool((settings.FAL_KEY or "").strip())}
+
+
+@router.post("/etabli/pieces")
+async def etabli_pieces_separer(body: dict):
+    """La voie LOCALE et gratuite : chaque îlot devient un nœud nommé, origine au centre de la pièce ; une version de
+    plus. `noms` (liste dans l'ordre de l'analyse) renomme avant d'écrire."""
+    from app.services import mesh_pieces
+    body = body or {}
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "pièces")
+    try:
+        sortie, rapport = await asyncio.to_thread(
+            mesh_pieces.separer, data, par="composantes", noms=body.get("noms"),
+            langue=_pieces_langue(body.get("langue")), min_triangles=body.get("min_triangles", 8))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return _etabli_ecrire(job, sortie, "pieces", {"depuis": depuis, **rapport})
+
+
+@router.post("/etabli/pieces/ia")
+async def etabli_pieces_ia(body: dict):
+    """La voie IA, PAYANTE : Tripo Segmentation (fal) pour les pièces soudées que les îlots ne séparent pas. Ordre
+    des refus, tous AVANT la dépense : cible (400/404) → clé fal (503) → `confirme_cout` absent (409, avec le devis)
+    → taille (400) → plafonds (402). Le GLB rendu repasse par la découpe « par nœud » : pivots recentrés, noms de
+    Tripo. Une version de plus, dont la fiche porte le modèle et le devis."""
+    from app.services import mesh_pieces
+    body = body or {}
+    job, data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "pièces IA")
+    if not (settings.FAL_KEY or "").strip():
+        raise HTTPException(503, "Clé fal absente — ajoute-la dans les Réglages : la segmentation IA passe par fal.")
+    devis = mesh_pieces.devis_ia()
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": "Segmentation IA payante : confirme le coût avant de lancer.",
+                                  "devis": devis})
+    if len(data) > mesh_pieces.MAX_OCTETS_IA:
+        raise HTTPException(400, "Maillage trop lourd pour la segmentation IA : 150 Mo au plus.")
+    await _plafond({"kind": "asset3d_segment"}, "moteurs3d")
+    try:
+        r = await mesh_pieces.segmenter_par_ia(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    try:
+        sortie, rapport = await asyncio.to_thread(
+            mesh_pieces.separer, r["glb"], par="noeuds", noms=r["part_names"] or None,
+            langue=_pieces_langue(body.get("langue")))
+    except ValueError as e:
+        raise HTTPException(502, f"GLB segmenté illisible : {e}")
+    return _etabli_ecrire(job, sortie, "pieces_ia", {
+        "depuis": depuis, **rapport, "modele": mesh_pieces.ENDPOINT_IA, "devis_usd": devis["usd"],
+        "part_names": r["part_names"], "apercu": r.get("apercu")})
+
+
+@router.get("/etabli/densites")
+async def etabli_densites_lire(job: str):
+    """Les rôles (budgets motivés) et, s'il existe, le dernier tableau des trois densités du job."""
+    from app.services import mesh_lod
+    try:
+        info = mesh_lod.lire_densites(Path(str(job)).name)
+    except FileNotFoundError:
+        info = None
+    return {"roles": mesh_lod.roles(), "resultat": info}
+
+
+@router.post("/etabli/densites")
+async def etabli_densites(body: dict):
+    """Trois densités (haute / moyenne / basse) d'une version, au budget d'un rôle. Local et gratuit (gltfpack)."""
+    from app.services import mesh_lod
+    body = body or {}
+    job, _data, depuis = _etabli_glb_cible(body.get("job"), body.get("version"), "densités")
+    try:
+        return await asyncio.to_thread(mesh_lod.densites, job, role=str(body.get("role") or "heros"),
+                                       version=depuis["version"])
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+
+
+@router.get("/etabli/densites/fichier")
+async def etabli_densites_fichier(job: str, densite: str):
+    from app.services import mesh_lod
+    try:
+        p = mesh_lod.fichier_densite(Path(str(job)).name, densite)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    return FileResponse(p, media_type="model/gltf-binary", filename=f"{Path(str(job)).name}_{p.name}")
+
+
+@router.get("/etabli/densites/zip")
+async def etabli_densites_zip(job: str):
+    from app.services import mesh_lod
+    try:
+        nom, octets = await asyncio.to_thread(mesh_lod.archive_densites, Path(str(job)).name)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    return Response(content=octets, media_type="application/zip",
+                    headers={"Content-Disposition": f'attachment; filename="{nom}"'})
 
 
 @router.post("/etabli/ranger")

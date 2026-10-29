@@ -112,6 +112,8 @@ function collectPrefs() {
               postOn: $("#postOn").checked, poOrphans: $("#poOrphans").checked, poSmooth: $("#poSmooth").checked };
   for (const id of PREF_IDS) p[id] = $("#" + id).value;
   p.tagRows = JSON.stringify(tagRows);
+  p.pixVerrou = pixVerrou ? JSON.stringify(pixVerrou) : "";   // t340 : le verrou (relu au serveur au chargement)
+  p.animMode = animMode; p.uneSur = uneSur;
   return p;
 }
 function applyPrefs(p) {
@@ -119,6 +121,9 @@ function applyPrefs(p) {
   for (const id of PREF_IDS) if (p[id] != null && $("#" + id)) $("#" + id).value = id === "removeBg" ? detourDepuisPref(p[id]) : p[id];
   if (p.pixelOn != null) $("#pixelOn").checked = !!p.pixelOn;
   for (const k of ["postOn", "poOrphans", "poSmooth"]) if (p[k] != null) $("#" + k).checked = !!p[k];
+  if (p.pixVerrou) { try { pixVerrou = JSON.parse(p.pixVerrou); } catch (e) { pixVerrou = null; } }   // t340
+  if (p.animMode) animMode = p.animMode === "boucle" ? "boucle" : "libre";
+  if (p.uneSur) uneSur = +p.uneSur === 3 ? 3 : 2;
   if (p.tagRows) { try { tagRows = JSON.parse(p.tagRows) || []; } catch (e) { tagRows = []; } }
   if (!Array.isArray(tagRows)) tagRows = [];
   renderTags();
@@ -168,12 +173,168 @@ function renderImgGrid() {
           class="${im.filename === selImage ? "sel" : ""}">`).join("")
     || `<div class="empty-note">${q ? __dzT9("sprites.sp1_img.aucune_q", "Aucune image pour « {q} ».", { q: esc(q) }) : __dzT9("sprites.sp1_img.aucune_lib", "Aucune image dans la Library.")}</div>`;
   g.querySelectorAll("img").forEach(el => el.onclick = () => {
-    selImage = el.dataset.fn;
+    selImage = el.dataset.fn; devisAnim();      // t340 : le coût suit la pose
     g.querySelectorAll("img").forEach(x => x.classList.toggle("sel", x === el));
   });
 }
 
+/* ───────── t340 (lot Scenario, B1 + B2) : sprite approuvé (Pixel Lock) et préréglage « Boucle » ─────────
+   Le VERROU vient du serveur (POST /assets/sprite/{job}/approuver -> approbation.json) : grille target_px et
+   palette figées ; chaque génération envoie `pixel_verrou` et le serveur impose sa règle, quoi que disent les
+   champs. La BOUCLE : la pose choisie est la 1re ET la dernière image de la vidéo (devis affiché, dialogue,
+   confirme_cout), puis 1 image sur 2 ou 3 à l'extraction, la dernière (= la 1re) retirée. */
+let pixVerrou = null, animMode = "libre", uneSur = 2, animDevis = null, animSeq = 0, busyAppro = false;
+const boucleCorps = () => (source && source.boucle ? { boucle: { une_sur: source.boucle.une_sur } } : {});
+
+function nomPaletteVerrou(v) {
+  const P = v && v.palette && window.DZ_PALETTES && window.DZ_PALETTES.palette_de(v.palette);
+  return P ? P.nom : __dzT9("sprites.t340_v.palette_sprite", "celle du sprite");
+}
+
+/* l'état verrouillé, lisible dans Réglages de la planche › Pixel-art : les champs sont figés sur l'approbation */
+function majVerrou() {
+  const on = !!pixVerrou;
+  $("#pixVerrou").classList.toggle("hidden", !on);
+  if (on) {
+    $("#pixelOn").checked = true;
+    $("#pixTarget").value = pixVerrou.target_px;
+    $("#pixDither").value = pixVerrou.dither || "none";
+    $("#pixVerrouTxt").textContent = __dzT9("sprites.t340_v.etat", "Verrouillé sur le sprite {job} : grille {px} px · palette {palette} ({n} couleurs)", { px: pixVerrou.target_px,
+      palette: nomPaletteVerrou(pixVerrou), n: (pixVerrou.palette_hex || []).length, job: pixVerrou.job });
+    $("#pixVerrouPal").innerHTML = (pixVerrou.palette_hex || []).slice(0, 64)
+      .map((h) => `<i style="background:${escA(h)}" title="${escA(h)}"></i>`).join("");
+  }
+  for (const id of ["pixelOn", "pixTarget", "pixPalette", "pixColors", "pixDither"]) $("#" + id).disabled = on;
+  $(".pixelset").classList.toggle("verrou", on);
+  syncPixelSet();
+  majAppro();
+}
+
+/* sortie : « Approuver ce sprite » et la PREUVE de la grille (manifeste pixel_verif), seulement en pixel-art */
+function majAppro() {
+  const box = $("#appro"), m = sheet && sheet.manifest;
+  if (!box) return;
+  if (!m || !m.pixel || !m.grid) { box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  const v = m.pixel_verif, el = $("#approVerif");
+  if (v) {
+    el.className = "appro-verif " + (v.ok ? "ok" : "ko");
+    const pal = v.palette != null ? __dzT9("sprites.t340_ap.dans_pal", "toutes les couleurs dans la palette ({p})", { p: v.palette }) : __dzT9("sprites.t340_ap.pal_adapt", "palette adaptative");
+    el.innerHTML = dzIcone(v.ok ? "dz-etat-succes" : "dz-etat-avertissement", { taille: 16 }) + " " + esc(v.ok
+      ? __dzT9("sprites.t340_ap.verif_ok", "Grille vérifiée : blocs de {bloc} px tous unis sur {n} image(s), {pal}", { bloc: v.bloc, n: v.frames, pal })
+      : __dzT9("sprites.t340_ap.verif_ko", "Grille à revoir : {blocs} bloc(s) non uni(s), {hors} couleur(s) hors palette, {alpha} pixel(s) semi-transparent(s) — une ombre ou un contour du post-traitement en ajoute", { blocs: v.blocs_non_unis, hors: v.hors_palette, alpha: v.alpha_partiel }));
+  } else { el.className = "appro-verif"; el.textContent = ""; }
+  const approuve = !!(pixVerrou && pixVerrou.job === sheet.short);
+  $("#approBtn").disabled = approuve || busyAppro;
+  $("#approBtn").innerHTML = dzIcone(approuve ? "dz-etat-verrouille" : "dz-action-valider", { taille: 16 }) + " "
+    + esc(approuve ? __dzT9("sprites.t340_ap.approuve", "Sprite approuvé") : __dzT9("sprites.t340_ap.approuver", "Approuver ce sprite"));
+  $("#approEtat").textContent = approuve ? __dzT9("sprites.t340_ap.etat_on", "Sa grille et sa palette sont imposées aux animations suivantes.")
+    : (pixVerrou ? __dzT9("sprites.t340_ap.remplace", "Remplacera le verrou actuel (sprite {job}).", { job: pixVerrou.job }) : __dzT9("sprites.t340_ap.etat_off", "Fige sa grille et sa palette : les animations suivantes les reprennent."));
+}
+
+async function approuverSprite() {
+  if (!sheet || busyAppro) return;
+  busyAppro = true; majAppro();
+  try {
+    pixVerrou = await api.send("POST", `/assets/sprite/${sheet.short}/approuver`);
+    savePrefs();
+    toastOk(__dzT9("sprites.t340_ap.toast", "Sprite approuvé : grille {px} px et {n} couleurs verrouillées.", { px: pixVerrou.target_px, n: pixVerrou.palette_hex.length }));
+  } catch (e) {
+    toast(__dzT9("sprites.t340_ap.echec", "Approbation refusée : {msg}", { msg: e.message }), true);
+  }
+  busyAppro = false; majVerrou(); devisAnim();
+}
+function deverrouiller() {
+  pixVerrou = null; majVerrou(); savePrefs(); devisAnim();
+  toast(__dzT9("sprites.t340_v.leve", "Verrou levé : les réglages Pixel-art redeviennent libres."));
+}
+/* au chargement : le verrou des préférences est relu au serveur (un sprite supprimé lève le verrou) */
+async function verifierVerrou() {
+  if (pixVerrou && pixVerrou.job) {
+    try { pixVerrou = await api.get(`/assets/sprite/${pixVerrou.job}/approbation`); } catch (e) { pixVerrou = null; }
+  } else pixVerrou = null;
+  majVerrou();
+}
+
+function majAnimMode() {
+  const seg = (sel, on) => $$(sel).forEach((b) => { const x = on(b); b.classList.toggle("on", x); b.setAttribute("aria-pressed", x ? "true" : "false"); });
+  seg("#animMode .seg", (b) => b.dataset.mode === animMode);
+  seg("#uneSur .seg", (b) => +b.dataset.n === uneSur);
+  const boucle = animMode === "boucle";
+  $("#boucleOpts").classList.toggle("hidden", !boucle);
+  $("#animerBtn").innerHTML = dzIcone("dz-media-generer-video", { taille: 16 }) + " "
+    + esc(boucle ? __dzT9("sprites.t340_b.bt_boucle", "Animer en boucle (Seedance)") : __dzT9("sprites.t340_b.bt_libre", "Animer (Seedance, fond uni)"));
+  $("#animerBtn").title = boucle ? __dzT9("sprites.t340_b.bt_boucle_t", "Génère une vidéo dont la 1re et la dernière image sont la pose choisie (devis affiché, confirmation demandée), puis en extrait la boucle") : __dzT9("sprites.t340_b.bt_libre_t", "Lance une génération Seedance (coût selon les Réglages) puis enchaîne sur l'extraction des frames");
+  $("#boucleVerrou").textContent = pixVerrou ? __dzT9("sprites.t340_b.verrou_on", "Re-pixelisée sur le sprite approuvé : grille {px} px · palette {palette}.", { px: pixVerrou.target_px,
+    palette: nomPaletteVerrou(pixVerrou) }) : __dzT9("sprites.t340_b.verrou_off", "Aucun sprite approuvé : la grille et la palette sont celles des réglages Pixel-art.");
+}
+
+/* le coût de la vidéo AVANT le clic (devis du serveur, aucune dépense) — même tarif en Libre et en Boucle */
+async function devisAnim() {
+  const el = $("#animCout"), seq = ++animSeq;
+  if (!el) return;
+  majAnimMode();
+  if (!selImage) { animDevis = null; el.textContent = __dzT9("sprites.t340_c.choisis", "choisis une pose pour voir le coût"); return; }
+  try {
+    const d = await api.send("POST", "/assets/sprite/boucle/devis", { image_filename: selImage,
+      duration_s: parseInt($("#animDur").value, 10) || 5, aspect_ratio: $("#animRatio").value, une_sur: uneSur,
+      ...(pixVerrou ? { pixel_verrou: pixVerrou.job } : {}) });
+    if (seq !== animSeq) return;
+    animDevis = d;
+    el.innerHTML = `${dzIcone("dz-action-cout", { taille: 16 })} ${esc(__dzT9("sprites.t340_c.video", "vidéo {s} s · ≈ ${usd} ({modele})", { s: d.secondes, usd: (+d.usd).toFixed(3), modele: d.label }))}`;
+    if (d.cle_manquante) el.innerHTML += ` <span class="dir-cle">${dzIcone("dz-etat-avertissement", { taille: 16 })} ${esc(__dzT9("sprites.t340_c.cle", "clé {cle} absente : ajoute-la dans Réglages", { cle: d.cle_manquante }))}</span>`;
+  } catch (e) {
+    if (seq === animSeq) { animDevis = null; el.textContent = __dzT9("sprites.t340_c.indispo", "devis indisponible : {msg}", { msg: e.message }); }
+  }
+}
+
+async function animerBoucle() {
+  if (busyAnim) return;
+  if (!selImage) return toast(__dzT9("sprites.t340_b.choisis_pose", "Choisis d'abord la pose de départ dans la Library."), true);
+  const action = ($("#animPrompt").value || "").trim();
+  if (!action) return toast(__dzT9("sprites.t340_b.decris", "Décris le mouvement à boucler (ex : walks in place)."), true);
+  const st = $("#animStatus");
+  await devisAnim();                              // le devis À JOUR : c'est lui que le dialogue montre
+  const d = animDevis;
+  if (!d) return setStatus(st, __dzT9("sprites.t340_c.sans_devis", "Devis indisponible : rien n'est lancé."), true);
+  const ok = window.__dzDialogue && await window.__dzDialogue.confirmer(
+    __dzT9("sprites.t340_conf.msg", "Générer la boucle avec {modele} : une vidéo de {s} s, la pose en 1re et en dernière image, ≈ ${usd}. Puis une image sur {n} est gardée et re-pixelisée (local, gratuit).", { s: d.secondes, modele: d.label, usd: (+d.usd).toFixed(3), n: uneSur }),
+    { ok: __dzT9("sprites.t340_conf.ok", "Générer") });
+  if (!ok) return;
+  busyAnim = true; $("#animerBtn").disabled = true;
+  try {
+    setStatus(st, __dzT9("sprites.t340_b.lancement", "Lancement de la boucle…"), false, 3);
+    const r = await api.send("POST", "/assets/sprite/boucle", { image_filename: selImage, prompt: action,
+      duration_s: d.duration_s, aspect_ratio: d.aspect_ratio, une_sur: uneSur, confirme_cout: true,
+      ...(pixVerrou ? { pixel_verrou: pixVerrou.job } : {}) });
+    const j = await pollJob(r.job_id, (jj) => setStatus(st,
+      __dzT9("sprites.t340_b.etape", "Boucle : {etape}…", { etape: jj.current_step || jj.status }), false, jj.progress || 5));
+    if (j.status !== "done") throw new Error(j.error || __dzT9("sprites.t340_b.echouee", "génération de la boucle échouée"));
+    clearStatus(st);
+    // fond vert uni demandé au modèle : la clé chroma locale suffit (gratuite)
+    if (detourPayant()) { $("#removeBg").value = "local-chroma"; detourMaj(); updateCost(); }
+    savePrefs();
+    toast(__dzT9("sprites.t340_b.prete", "Boucle prête — extraction d'une image sur {n}…", { n: uneSur }));
+    setSource({ kind: "job", job_id: j.job_id, boucle: { une_sur: uneSur },
+      label: __dzT9("sprites.t340_b.label", "boucle 1/{n} · {t}", { t: j.title || j.job_id.slice(0, 8), n: uneSur }) });
+  } catch (e) {
+    setStatus(st, __dzT9("sprites.t340_b.echec", "Échec : {msg}", { msg: e.message }), true);
+  }
+  busyAnim = false; $("#animerBtn").disabled = false;
+}
+
+function boucleWire() {
+  $$("#animMode .seg").forEach((b) => b.onclick = () => { animMode = b.dataset.mode === "boucle" ? "boucle" : "libre"; savePrefs(); devisAnim(); });
+  $$("#uneSur .seg").forEach((b) => b.onclick = () => { uneSur = +b.dataset.n === 3 ? 3 : 2; savePrefs(); devisAnim(); });
+  for (const id of ["animDur", "animRatio"]) $("#" + id).addEventListener("change", devisAnim);
+  $("#approBtn").onclick = approuverSprite;
+  $("#pixDeverrou").onclick = deverrouiller;
+  document.addEventListener("dz-palettes", () => majVerrou());   // le nom de la palette arrive avec le module
+  majAnimMode();
+}
+
 async function animer() {
+  if (animMode === "boucle") return animerBoucle();   // t340 : préréglage « Boucle »
   if (busyAnim) return;
   if (!selImage) return toast(__dzT9("sprites.sp1_anim.choisis_image", "Choisis d'abord une image de la Library."), true);
   const action = ($("#animPrompt").value || "").trim();
@@ -283,7 +444,7 @@ async function extract() {
     const d = await api.send("POST", "/assets/sprite", {
       source: window.SLD.sourceBody(source),
       fps_sample: fps, max_frames: max,
-      remove_bg: "none", extract_only: true,
+      remove_bg: "none", extract_only: true, ...boucleCorps(),   // t340 : même échantillonnage que le tir
       title: "Sprites · extraction " + (source.label || ""),
     });
     const j = await pollJob(d.job_id, null, 5 * 60 * 1000);
@@ -402,6 +563,8 @@ function cellOpts() {
 }
 
 function pixelOpts() {
+  // t340 : un sprite approuvé impose SA grille et SA palette (le serveur les reprend aussi par `pixel_verrou`)
+  if (pixVerrou) return { target_px: pixVerrou.target_px, dither: pixVerrou.dither || "none", palette_hex: pixVerrou.palette_hex.slice() };
   if (!$("#pixelOn").checked) return undefined;
   const palette = $("#pixPalette").value;
   const o = { target_px: parseInt($("#pixTarget").value, 10) || 64,
@@ -470,6 +633,8 @@ async function generate() {
     if (kept.length < stripN) body.keep = kept;
     body.anim = animOpts(kept.length);
     const px = pixelOpts(); if (px) body.pixel = px;
+    if (pixVerrou) body.pixel_verrou = pixVerrou.job;   // t340 : le serveur impose la grille et la palette approuvées
+    Object.assign(body, boucleCorps());                // t340 : 1 image sur N, boucle fermée (comme la sonde)
     const po = postOpts(); if (po) body.post = po;
 
     setStatus(st, __dzT9("sprites.sp1_gen.lance", "Job lancé…"), false, 3);
@@ -523,6 +688,7 @@ function showResult(short, m) {
                           ["dlAse", m.files && m.files.aseprite],
                           ["dlP2d", m.files && m.files.paper2d]])
     $("#" + id).classList.toggle("hidden", !ok);
+  majAppro();                           // t340 : « Approuver ce sprite » et la preuve de la grille
   $("#sheetImg").src = `/api/assets/sprite/${short}/sheet?t=${Date.now()}`;
   updateStudioBtn();                    // masque « → Studio » si sheet non sauvé
   buildPlayer(short, m);
@@ -1325,6 +1491,7 @@ async function runStarter(kind, id, btn) {
   $$("#srcStarter .starter-tile").forEach(b => b.classList.remove("busy"));
 }
 function syncPixelSet() {
+  if (pixVerrou) $("#pixelOn").checked = true;   // t340 : verrouillé = pixel-art
   $(".pixelset").classList.toggle("off", !$("#pixelOn").checked);
 }
 /* T110 (plan-sprites T6) — post-traitement : rien n'est envoyé quand rien n'est demandé (le serveur sauterait la passe
@@ -1351,6 +1518,7 @@ function wire() {
   $("#imgSearch").oninput = renderImgGrid;
   $("#renderSearch").oninput = renderRenderList;
   $("#animerBtn").onclick = animer;
+  boucleWire();                          // t340
   $("#vidFile").onchange = (e) => { if (e.target.files[0]) uploadVideo(e.target.files[0]); };
   $("#extractBtn").onclick = extract;
   $("#stripAll").onclick = () => {
@@ -1585,6 +1753,7 @@ window.__sl = {
   detourInit();                // t186 : le catalogue du détourage (asynchrone)
   syncPixelSet();
   syncPostSet();
+  verifierVerrou(); devisAnim();         // t340 : verrou relu au serveur, coût de l'animation
   loadImages(); loadRenders();
   restoreLast();               // préviz : survit au remontage de l'iframe
 })();

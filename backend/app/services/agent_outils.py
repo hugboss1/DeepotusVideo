@@ -1664,6 +1664,42 @@ async def relance_proposer(ctx: Ctx, pid: str, decision: str, motif: str = "", r
     return _res(True, f"réponse proposée sur {canal} : l'utilisateur la valide (porte 2), le tour s'arrête", {"sid": s["id"]}, carte)
 
 
+# ---- t342 : pièces mobiles et budgets de triangles (boîte « assets3d ») ------------------------------------------------
+
+async def pieces_analyser(ctx: Ctx, job: str = "", version: int = 1) -> dict:
+    """t342 (29/10/2026) : LECTURE des îlots d'une version d'un job 3D (noms proposés, triangles, pivots) et du devis
+    de la segmentation IA. Rien n'est écrit, rien n'est dépensé : séparer ou segmenter reste un clic dans l'Établi."""
+    from app.services import mesh_pieces, mesh_report
+    nom = Path(str(job or "")).name
+    if not nom or nom != str(job):
+        raise _Refus("job refusé : le nom du dossier du job 3D est attendu")
+    try:
+        v = int(version)
+    except (TypeError, ValueError):
+        raise _Refus("version refusée : un entier à partir de 1") from None
+    if v < 1:
+        raise _Refus("version refusée : un entier à partir de 1")
+    f = mesh_report.job_dir(nom) / ("model.glb" if v == 1 else f"model.v{v}.glb")
+    if not f.is_file():
+        raise _Refus("version introuvable pour ce job")
+    try:
+        r = await asyncio.to_thread(mesh_pieces.analyser, f.read_bytes(), langue=ctx.lang)
+    except ValueError as e:
+        raise _Refus(str(e)) from None
+    ia = mesh_pieces.devis_ia()
+    return _res(True, f"{len(r['pieces'])} pièce(s), {r['triangles']} triangles ; segmentation IA ≈ {ia['usd']} $",
+                {"pieces": r["pieces"], "regroupees": r["regroupees"], "devis_ia_usd": ia["usd"],
+                 "ou": "Établi › Parties › Pièces mobiles"})
+
+
+async def budgets_triangles(ctx: Ctx) -> dict:
+    """t342 : les budgets de triangles par rôle (trois densités chacun) et pourquoi. LECTURE seule."""
+    from app.services import mesh_lod
+    roles = mesh_lod.roles()
+    return _res(True, ", ".join(f"{r['id']} {'/'.join(str(n) for n in r['densites'])}" for r in roles),
+                {"roles": roles, "ou": "Établi › Export › Budgets de triangles"})
+
+
 def _o(props: dict, requis=()) -> dict:
     return {"type": "object", "properties": props, "required": list(requis), "additionalProperties": False}
 
@@ -1698,6 +1734,15 @@ OUTILS: dict[str, dict] = {
                                         "consigne.",
                          "schema": _o({"image": dict(_T, description="nom de l'image dans la Bibliothèque"),
                                        "langue": {"type": "string", "enum": ["fr", "en", "auto"]}}, ("image",))},
+    "pieces_analyser": {"nature": "lecture", "fn": pieces_analyser,
+                        "description": "Lit les pièces mobiles (îlots) d'une version d'un job 3D : noms proposés, "
+                                       "triangles, pivots, et le devis de la segmentation IA. N'écrit rien.",
+                        "schema": _o({"job": dict(_T, description="nom du dossier du job 3D"),
+                                      "version": {"type": "integer", "minimum": 1}}, ("job",))},
+    "budgets_triangles": {"nature": "lecture", "fn": budgets_triangles,
+                          "description": "Les budgets de triangles par rôle (héros, prop, décor, web, Roblox) : "
+                                         "trois densités chacun et pourquoi.",
+                          "schema": _o({})},
     "lire_piste_clics": {"nature": "lecture", "fn": lire_piste_clics,
                          "description": "Lit la piste des clics d'une capture de l'app (par son identifiant) : écrans "
                                         "traversés, clics avec l'élément du catalogue, générations ; les libellés "

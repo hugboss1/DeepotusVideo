@@ -71,20 +71,15 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   canal sans rien publier ; « Terminer » active l'espace. → [POINT:reglages.espaces] [POINT:reglages.nouvel_espace] [GUIDE:clients-canaux]
 - **Revérifier un canal plus tard** : Réglages › Espaces de marque, chaque compte porte sa pastille et « Vérifier ».
   Un compte non vérifié se dit dans l'éditeur de post sans bloquer (sauf client). → [POINT:reglages.espaces] [GUIDE:comptes]
-- **Relier le WhatsApp d'un espace** (t310) : canal de CONVERSATION ; dans l'assistant d'espace, étape Canaux, cocher
-  WhatsApp, choisir la facturation Meta (définitive), « Créer le lien » (Kapso, gratuit ; consentement daté d'abord pour
-  un client), envoyer soi-même le lien au client, puis « Vérifier ». Clé Kapso unique : Réglages › Clés d'API.
+- **Relier le WhatsApp d'un espace** (t310) : assistant d'espace, étape Canaux, cocher WhatsApp, facturation Meta
+  (définitive), « Créer le lien » (Kapso, gratuit), l'envoyer soi-même au client, puis « Vérifier ».
   → [POINT:reglages.nouvel_espace] [POINT:reglages.cles] [GUIDE:whatsapp]
-- **Diffuser un post sur WhatsApp** (t328) : inspecteur du post au Planificateur, cocher le compte WhatsApp de
-  l'espace (un seul, jamais précoché), panneau « Diffusion WhatsApp » : modèle approuvé par Meta sans en-tête média,
-  paramètres, audience (contacts avec accord, hors STOP), devis ; « Enregistrer la diffusion » ne dépense rien. Elle
-  part avec le post après le plafond mensuel et la validation client ; suivi par « Relire » ; « Confirmer l'envoi »
-  relance une issue incertaine (payant, doublons possibles). → [ALLER:scheduler] [GUIDE:whatsapp]
-- **Répondre sur WhatsApp avec l'agent** (t311) : Réglages › Espaces de marque, « Agent WhatsApp » (Agent actif,
-  mode, rôles, horaires, limites, modèle de validation, plafond mensuel). Mode Brouillons par défaut (on envoie
-  depuis la page WhatsApp, « Faire rédiger » en demande un) ; Automatique se confirme, argent et demande d'humain
-  restent en brouillon. Payant, catégorie « whatsapp_agent » (messages Meta : « whatsapp ») ; « Prendre la main »
-  le fait taire. → [POINT:rail.whatsapp] [POINT:reglages.espaces] [GUIDE:whatsapp]
+- **Diffuser un post sur WhatsApp** (t328) : inspecteur du post, cocher le compte WhatsApp (jamais précoché), panneau
+  « Diffusion WhatsApp » (modèle Meta approuvé, audience avec accord, devis) ; part avec le post après plafond et
+  validation client. → [ALLER:scheduler] [GUIDE:whatsapp]
+- **Répondre sur WhatsApp avec l'agent** (t311) : Réglages › Espaces de marque, « Agent WhatsApp » (actif, mode,
+  horaires, plafond). Brouillons par défaut, Automatique se confirme ; payant ; « Prendre la main » le fait taire.
+  → [POINT:rail.whatsapp] [POINT:reglages.espaces] [GUIDE:whatsapp]
 - **Publier pour un client** : le bandeau « pour qui » (Quick, Studio, Planificateur, Bibliothèque) ; « Fiche client »
   (consentements, posts à valider, journal) ; chaque canal veut un consentement (« Ajouter », « Révoquer » met en
   pause). En mode « validé par le client », un post naît « À valider » et ne se programme qu'après « Validé par le
@@ -102,30 +97,17 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   préréglage, régler les nœuds, puis Rendre dans la Bibliothèque. → [POINT:sonvfx.atelier] [GUIDE:son-vfx]
 - **Dire une voix off** : Son & VFX › Voix off, choisir une voix, écrire le script, puis Générer la voix.
   → [POINT:sonvfx.voix] [GUIDE:son-vfx]
-- **Scanner une page** (t312) : Atelier de Chapitres, « Scanner une page » ; 1 à 10 images ou PDF, « Lire » (sur le
-  PC, gratuit, mots douteux surlignés). « Essayer avec Claude » : devis, confirmation, catégorie « atelier », lecture
-  gardée. Envois : Insérer dans le chapitre, Créer les chapitres, Importer comme manuscrit. → [ALLER:episodes] [GUIDE:scan]
-- **Transformer une previs en plan fini** (t335) : Atelier de Chapitres, storyboard, bouton film « Previs → plan » de
-  la carte (après Plateau 3D). Choisir le clip de previs (rendu de la Bibliothèque, MP4/MOV de 1,8 à 30,2 s : le
-  mouvement et la caméra) et 1 à 4 style frames (le look ; l'image de production par défaut). Seedance 2.5 le rend
-  (« Garder le mouvement » ou « S'inspirer du clip ») ; sans clip, Veo 3.1 références (8 s). Payant : devis affiché
-  (clip d'entrée + sortie facturés), confirmation, catégorie « chapitres ». La vidéo devient celle du plan et entre
-  dans la Bibliothèque avec sa recette. Durée minimale (t336) : un clip plus court que ce que le modèle rend
-  (Seedance 4 s, MiniMax 5 s) est conformé avant l'envoi — « Étirer puis ré-accélérer » (automatique jusqu'à ×2)
-  ou « Compléter au noir puis couper » ; la boîte dit ce qui sera fait et la durée facturée (le clip conformé). Après
-  le rendu, la dérive en images est mesurée contre la previs et le rendu recalé à son nombre d'images exact ; la
-  boîte affiche « Dernier rendu de ce plan : dérive : +2 images, recalée ». → [ALLER:episodes] [GUIDE:chapitres]
+- **Scanner une page** (t312) : Atelier de Chapitres, « Scanner une page », « Lire » (local, gratuit) ou « Essayer
+  avec Claude » (devis). → [ALLER:episodes] [GUIDE:scan]
+- **Transformer une previs en plan fini** (t335-t336) : Atelier, carte du plan, « Previs → plan ». Clip de previs
+  (mouvement, caméra) + 1 à 4 style frames (look) ; Seedance 2.5 (sans clip : Veo 3.1). Payant (entrée + sortie
+  facturées), catégorie « chapitres ». Clip trop court : étiré ou complété au noir (la boîte dit la durée facturée) ;
+  après rendu, dérive mesurée et recalée (« dérive : +2 images, recalée »). → [ALLER:episodes] [GUIDE:chapitres]
 - **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles
   payants, devis, brouillon ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:scan]
-- **Filmer l'app, l'habiller, la monter** (t315-t317) : barre du haut, « Filmer l'app » (CET onglet, secrets masqués,
-  gratuit, vidéo dans la Bibliothèque) ; Habillage › « Modifier les skins » (un skin par espace) ; « Monter une
-  capture… » (zooms sur clics, temps morts, chapitres, formats, sous-titres ; transcription payante sur devis), puis
-  « Rendre la vidéo » et « Planifier un brouillon ». → [GUIDE:capture-live]
-- **Passer en direct** (t318) : barre du haut, « Direct » ; Twitch, YouTube Live, Kick, RTMP (clé au coffre) ;
-  Discord = annonce seulement ; Pause écran, Marqueur, Arrêter ; enregistré dans la Bibliothèque. → [GUIDE:capture-live]
-- **Tutoriel et parcours d'une capture** (t319) : éditeur de montage › « Tutoriel… » (étapes par geste, « Fabriquer
-  les brouillons » sans publier, « Exporter le parcours ») ; « Filmer l'app » › « Parcours… » importe et rejoue :
-  « Montrer » pointe le vrai bouton sans cliquer. → [GUIDE:capture-live]
+- **Filmer l'app, l'habiller, la monter** (t315-t319) : barre du haut, « Filmer l'app » (gratuit, secrets masqués) ;
+  « Monter une capture… » (zooms, chapitres, sous-titres payants sur devis) ; « Tutoriel… » et « Parcours… » ;
+  « Direct » (Twitch, YouTube, Kick, RTMP). → [GUIDE:capture-live]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]
@@ -135,11 +117,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Importer ses propres fichiers** : Bibliothèque › Importer une vidéo, ou Importer une image.
   → [POINT:bibliotheque.importer_video] [POINT:bibliotheque.importer_image] [GUIDE:bibliotheque]
 - **Ranger par projet** : Bibliothèque › Nouveau projet. → [POINT:bibliotheque.nouveau_projet] [GUIDE:bibliotheque]
-- **Choisir vers quels comptes partent les posts d'un projet** : Bibliothèque › choisir le projet dans la barre
-  « Projet », puis Canaux ; cocher les comptes de son espace et Enregistrer. Quand ce projet est actif, ces comptes sont
-  précochés dans tout ce qui se crée : brouillons de l'assistant, Planificateur › Nouveau post et Bibliothèque › Envoyer
-  vers › Scheduler ; on les décoche dans l'éditeur du post. Si aucun compte n'est coché ici, X reste la cible. Leurs icônes
-  s'affichent à côté du projet. → [POINT:bibliotheque.canaux_projet] [GUIDE:bibliotheque]
+- **Choisir vers quels comptes partent les posts d'un projet** : Bibliothèque, projet dans la barre « Projet »,
+  Canaux, cocher, Enregistrer ; ils sont précochés partout (assistant, Planificateur › Nouveau post, Envoyer vers ›
+  Scheduler). Sans compte coché, X reste la cible. → [POINT:bibliotheque.canaux_projet] [GUIDE:bibliotheque]
 - **Récupérer un fichier jeté** : Bibliothèque › Corbeille. → [POINT:bibliotheque.corbeille] [GUIDE:bibliotheque]
 - **Créer une image** : Bibliothèque › Créer l'image. → [POINT:bibliotheque.creer_image] [GUIDE:bibliotheque]
 - **Passer l'interface en anglais ou en français** : Réglages › Fournisseurs par défaut, rangée « Langue de
@@ -158,26 +138,21 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Se faire aider** : F1 ou « Demander » ouvre ce tiroir (onglets « Demander », « Campagnes », « Veille »,
   « Prospects ») ; la réponse peut montrer un bouton, ouvrir l'écran ou le guide, ou proposer de regarder l'écran
   (accord et coût d'abord). Ce qui est dans le tiroir ne se pointe pas : nomme l'onglet. → [GUIDE:demander]
-- **Suivre ses prospects** (t353-t360) : onglet « Prospects » du tiroir, pour l'espace choisi. « Ajouter un
-  prospect » exige la source et la base légale ; seuls les passages de statut permis sont proposés ; rien n'est
-  envoyé d'ici (« Noter un contact »). Au Rendez-vous, un espace « Démo · <entreprise> » qui ne publie JAMAIS, devenu
-  l'espace client à la signature. RGPD : exporter, effacer, « S'oppose à la prospection » (registre commun),
-  effacement 3 ans après le dernier contact venu du prospect. L'agent peut PROPOSER des prospects (recherche web
-  payante seulement sur carte acceptée) ; score = barème ± 20. Séquences (fiche Qualifiée) : un message + 2
-  relances, « Valider la séquence », « Planifier » ; X, Instagram, LinkedIn : « Copier et ouvrir », « Marquer
-  envoyé » ; e-mail : Prospects › « E-mail » ; « Tableau » : le pipeline. → [GUIDE:prospection]
-- **Mener une campagne avec l'agent Campagnes** : onglet « Campagnes » du tiroir, ou Planificateur › Générer un
-  plan, mode Agent Campagnes (clé Anthropic). Choisir d'abord l'espace de la campagne (jamais l'actif d'office, figé
-  ensuite) ; un devis par message (Envoyer vaut accord, arrêt net au plafond, « Continuer ») ; porte 1 : Valider ou
-  Modifier stratégie et calendrier ; médias générés seulement au clic sur « Générer » ; brouillons au Planificateur
-  de l'espace de la campagne (« Activer l'espace … et ouvrir le calendrier »). Porte 2 : l'utilisateur programme
-  lui-même. L'agent ne publie, ne programme, ne supprime rien et ne touche ni clés ni Réglages. Catégorie
-  « campagnes ». → [GUIDE:agent-campagnes]
-- **Sprites d'un personnage en 8 directions** (t339) : Game Assets › Sprite Lab › onglet Bible, choisir le personnage
-  puis « 8 » (sélecteur Directions). 5 directions dessinées : S, E et N découpées dans la planche (gratuit), SE et NE
-  générées (payant, catégorie « sprites », devis affiché à côté du bouton puis confirmation) ; SO, O et NO en miroir,
-  cochés par défaut — décocher un miroir génère la vraie vue (O se découpe, gratuit). « 4 » découpe seulement la
-  planche, gratuit ; « 8 directions (modèle 3D) » rend le modèle 3D, gratuit. → [ALLER:assets3d] [GUIDE:spritelab]
+- **Suivre ses prospects** (t353-t360) : onglet « Prospects » du tiroir ; source et base légale exigées ; rien n'est
+  envoyé d'ici (« Noter un contact », « Copier et ouvrir », « Marquer envoyé ») ; démo « Démo · <entreprise> » qui ne
+  publie jamais ; RGPD (exporter, effacer, opposition). « Tableau » : le pipeline. → [GUIDE:prospection]
+- **Mener une campagne avec l'agent Campagnes** : onglet « Campagnes » du tiroir (clé Anthropic). Choisir l'espace
+  (figé ensuite) ; un devis par message ; porte 1 Valider/Modifier ; médias au clic « Générer » ; brouillons dans
+  l'espace de la campagne ; porte 2 : l'utilisateur programme. Ne publie ni ne supprime rien. → [GUIDE:agent-campagnes]
+- **Pièces mobiles et budgets 3D** (t342) : Établi, Parties › « Pièces mobiles » (« Chercher les pièces », gratuit ;
+  IA Tripo payante, catégorie « moteurs3d ») ; Export › « Budgets de triangles » (rôle, 3 densités, gratuit).
+  → [ALLER:assets3d] [GUIDE:etabli]
+- **Sprites en 8 directions** (t339) : Sprite Lab › Bible, personnage, Directions « 8 ». S, E, N découpés (gratuit),
+  SE et NE générés (payant, « sprites », devis puis confirmation), SO, O, NO en miroir (décocher = vraie vue).
+  → [ALLER:assets3d] [GUIDE:spritelab]
+- **Pixel Lock et boucle** (t340) : Sprite Lab, Pixel-art, « Approuver ce sprite » (gratuit) verrouille grille et
+  palette ; Image › « Boucle » : même pose aux deux bouts (payant, « sprites », devis puis confirmation).
+  → [ALLER:assets3d] [GUIDE:spritelab]
 - **Raccourcis clavier**. → [GUIDE:raccourcis]
 - **Ça ne marche pas**. → [GUIDE:depannage]
 
@@ -210,10 +185,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Les brouillons de la campagne ne sont pas au calendrier** : ils sont rangés dans l'espace de la campagne, et le
   calendrier ne montre que l'espace actif. Sur la carte des brouillons, « Activer l'espace … et ouvrir le
   calendrier » l'active (sur ce clic seulement). → [GUIDE:agent-campagnes]
-- **Personnage qui tient une épée, un bouclier, un sac en bandoulière** (sprites en 8 directions) : ne jamais
-  miroiter — un miroir changerait l'objet de main. Cocher « Le personnage tient un objet asymétrique » : les miroirs
-  se décochent, et SO, O, NO et l'est sont générés (l'est de la planche est lui-même le miroir du profil gauche) :
-  5 générations au lieu de 2. → [GUIDE:spritelab]
+- **Objet tenu asymétrique** (épée, bouclier, sac ; 8 directions) : ne jamais miroiter. Cocher la case : miroirs
+  retirés, SO, O, NO et l'est générés (5 au lieu de 2). → [GUIDE:spritelab]
 
 ## Comment répondre
 1. Réponds dans la langue de la question, en 5 étapes au plus, phrases courtes, sans jargon technique.
