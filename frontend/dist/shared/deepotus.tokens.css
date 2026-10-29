@@ -6,6 +6,8 @@
    <html data-direction="deep"> = ancienne direction Deep Lab (déprécié)
    ════════════════════════════════════════════════════════════════════════════ */
 
+@import url("/shared/dz-charte.css"); /* t370 : jetons communs de la charte, en TÊTE (un @import après une règle est ignoré) */
+
 @font-face { font-family:"IBMPlex Local";  src:url("/fonts/IBMPlexSans.ttf")  format("truetype"); font-weight:400 600; font-display:swap; }
 @font-face { font-family:"Inter Local";    src:url("/fonts/Inter.ttf")        format("truetype"); font-weight:400 700; font-display:swap; }
 @font-face { font-family:"Grotesk Local";  src:url("/fonts/SpaceGrotesk.ttf") format("truetype"); font-weight:400 700; font-display:swap; }
@@ -32,7 +34,7 @@
   --k-character:#f0b429; --k-place:#6fbf9b; --k-object:#c98f5a;
   --k-date:#9b8ec4; --k-ambiance:#e35d4a; --k-decor:#6d9dc5;
   /* ── forme ────────────────────────────────────────────────────────────── */
-  --r-sm:6px; --r:10px; --r-lg:14px;
+  --r-sm:var(--radius); --r:var(--radius); --r-lg:var(--radius); /* t370 : angles vifs (dz-charte.css) */
   --gap-sm:8px; --gap:14px; --gap-lg:20px;
   --topbar:52px;
   --f-ui:"IBMPlex Local","IBM Plex Sans","Inter Local","Segoe UI",system-ui,sans-serif;
@@ -94,7 +96,7 @@ a:hover{color:var(--ink-strong)}
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:var(--r-sm)}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:var(--stroke);border:2px solid transparent;background-clip:content-box;border-radius:99px}
+::-webkit-scrollbar-thumb{background:var(--stroke);border:2px solid transparent;background-clip:content-box;border-radius:var(--radius)}
 ::-webkit-scrollbar-thumb:hover{background:var(--stroke-strong);background-clip:content-box}
 
 /* ── primitives partagées (mêmes noms dans tous les modules) ──────────────── */
