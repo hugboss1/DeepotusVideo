@@ -9574,6 +9574,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "photolab.courbes.entree": {"fr": "Entrée", "en": "Input"},
   "photolab.courbes.sortie": {"fr": "Sortie", "en": "Output"},
   "photolab.courbes.titre": {"fr": "Courbes", "en": "Curves"},
+  "photolab.docks.plus": {"fr": "Tous les onglets du groupe", "en": "All tabs in this group"},
   "photolab.documents.fermer_autres": {"fr": "Fermer les autres", "en": "Close others"},
   "photolab.documents.fermer_modifies": {"fr": "Ces documents ont des modifications non enregistrées : {noms}. Les fermer quand même ?", "en": "These documents have unsaved changes: {noms}. Close them anyway?"},
   "photolab.documents.tout_fermer": {"fr": "Tout fermer", "en": "Close all"},

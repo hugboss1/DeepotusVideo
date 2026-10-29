@@ -51,6 +51,7 @@ import { initModificateurs } from "./mod-modificateurs.js";
 import { initGestionnaire } from "./mod-gestionnaire.js";
 import { initActions } from "./mod-actions.js";
 import { initExports } from "./mod-exports.js";
+import { initDocks } from "./mod-docks.js";
 
 const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
 
@@ -242,6 +243,7 @@ for (const nom of ["compositions", "styles"]) {
 
 // t151 : espaces de travail, APRÈS le rail et ses onglets (ils les rejouent pour appliquer une disposition).
 initEspaces(PL);
+initDocks(PL);           // t371 : onglets des docks sur une ligne (défilement discret, ellipse + bulle, menu « ⋯ »)
 
 PL.hydraterIcones();
 PL.afficherAccueil(true);
