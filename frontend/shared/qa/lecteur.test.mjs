@@ -1,7 +1,7 @@
 // t372 (29/10/2026, lot A « Finitions esthétiques ») — dz-lecteur.js : le lecteur commun à la charte, joué sur un DOM
 // simulé. Séries : temps (m:ss, h:mm:ss, inconnu), amélioration d'un <audio controls> (controls retiré, barre posée
 // JUSTE APRÈS le média, rien n'est déplacé), idempotence, « natif » respecté, média sans controls ignoré, lecture /
-// pause, progression (glisser = currentTime, remplissage --dz-lecteur-pos, aria-valuetext), son coupé / volume,
+// pause, progression (glisser = currentTime, rempli par la règle commune t373, aria-valuetext), son coupé / volume,
 // vidéo (surimpression, parent rendu positionné, plein écran par le média), observateur (média ajouté, controls
 // remis par l'hôte, média retiré = barre retirée), aucun innerHTML, textes FR puis EN.
 // Lancer : node frontend/shared/qa/lecteur.test.mjs
@@ -141,8 +141,8 @@ const usage = (bouton) => { const u = [...bouton.tous()].find((x) => x.tagName =
   lire.click();
   ok("2.13 second clic → pause", a.paused === true && barre.attrs["data-etat"] === "pause" && lire.attrs["aria-label"] === "Lancer la lecture");
   a.currentTime = 41.5; a.fire("timeupdate");
-  ok("2.14 timeupdate : temps 0:41, curseur à 500/1000, remplissage 50 %",
-    tps.textContent === "0:41" && cur.value === "500" && cur.style.getPropertyValue("--dz-lecteur-pos") === "50%", [tps.textContent, cur.value, cur.style.getPropertyValue("--dz-lecteur-pos")]);
+  ok("2.14 timeupdate : temps 0:41, curseur à 500/1000 (le rempli suit la valeur : règle commune dz-curseur.css, t373)",
+    tps.textContent === "0:41" && cur.value === "500" && cur.style.getPropertyValue("--dz-lecteur-pos") === "", [tps.textContent, cur.value]);
   ok("2.15 curseur de position : range 0..1000, libellé et valeur parlée", cur.attrs.type === "range" && cur.attrs.min === "0" && cur.attrs.max === "1000"
     && cur.attrs["aria-label"] === "Position de lecture" && cur.attrs["aria-valuetext"] === "0:41 sur 1:23", cur.attrs["aria-valuetext"]);
   cur.value = "250"; cur.fire("input");

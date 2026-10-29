@@ -395,7 +395,10 @@ Atomes :
   disabled`.
 - `Input` — text, number, textarea. Avec slot left/right icon.
 - `Select` — natif stylé + variant "command" (recherche inline, Linear-style).
-- `Slider` — avec valeur affichée et ticks de référence.
+- `Slider` — avec valeur affichée et ticks de référence. Depuis t373 (29/10/2026, décision D1) : fader de table de
+  mixage, UN SEUL dessin pour tout `input[type=range]` (`frontend/shared/dz-curseur.css`) — rainure 3 px encastrée,
+  rempli `--cat` (sinon `--amber`) à 60 %, bouton rectangulaire strié 8 × 12, contour `--amber` au focus clavier ;
+  `.dz-gradue` pour les graduations, `.dz-curseur-vertical` pour un fader vertical. Plus de pastille ronde.
 - `Toggle` — switch + checkbox.
 - `Tag / Chip` — pour les statuts (running, done, failed, batch).
 - `Badge` — health badges du header (fal ✓ / heygen ✓ / voice ✓).

@@ -73,8 +73,10 @@ r = subprocess.run([sys.executable, str(REPO / "scripts" / "patch_bundle_dzmcp.p
                    env={**os.environ, "PYTHONUTF8": "1"})
 check("3.3 --check : déjà appliqué", r.returncode == 0 and "appliqu" in r.stdout.decode("utf-8", "replace"), r.stdout)
 avant = AIDE.avant_dzmcp(B)
+# t373 : dzcurseur est posé APRÈS dzmcp ; avant_dzmcp le défait d'abord, l'aller-retour se lit donc sur le bundle d'avant dzcurseur
+_SANS_CURSEUR = AIDE.avant_dzcurseur(B)
 check("3.4 avant_dzmcp == defaire, et le bundle d'avant ne connaît pas l'onglet",
-      avant == M.defaire(B) and "mcp.reglages.onglet" not in avant and M.appliquer(avant) == B)
+      avant == M.defaire(_SANS_CURSEUR) and "mcp.reglages.onglet" not in avant and M.appliquer(avant) == _SANS_CURSEUR)
 src = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
 i = src.index("def avant_dzapify(")
 check("3.5 avant_dzmcp appelé EN TÊTE de avant_dzapify", "avant_dzmcp(bundle)" in src[i:src.index("def ", i + 10)])
