@@ -232,6 +232,10 @@ anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I
 # t314 : la boîte « schéma » n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
 _shr = (RP.MODULES["schema"]).read_text(encoding="utf-8")
 anciens["schema"] = _shr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _shr else None
+# t344 : le comparatif des moteurs 3D n'existait pas en bfec23e — même témoin : ses DEUX gardes retirées
+_c3r = (RP.MODULES["comparatif3d"]).read_text(encoding="utf-8")
+anciens["comparatif3d"] = (_c3r.replace("_R._plafond(", "_sans_garde(").replace("_PLAF.juger(", "_sans_garde(")
+                           if "_R._plafond(" in _c3r else None)
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

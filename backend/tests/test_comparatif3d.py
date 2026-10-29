@@ -382,7 +382,7 @@ def test_l_ecran_page_a_part_dialogue_avant_le_tir_et_cles_fr_en():
     i_conf, i_post = js.index("D_.confirmer("), js.index('jpost("/api/comparatif3d", ')
     assert i_conf < i_post and "confirme_cout: true" in js
     # la page n'invente aucun prix : le total vient du devis du serveur
-    assert "/api/comparatif3d/moteurs" in js and "total_usd" in js
+    assert "/api/comparatif3d/moteurs" in js and "totalCoches(d, " in js
     s3d = (RACINE / "frontend/studio3d/index.html").read_text(encoding="utf-8")
     assert 'href="/studio3d/comparer.html"' in s3d and "Comparer les moteurs" in s3d
 

@@ -336,6 +336,7 @@ async function ouvrirComparatif(id, deja) {
   $("#titreTab").textContent = E.tab.mode === "tir" ? T("titre.tir", { image: E.tab.image_filename || "" }) : T("titre.existants");
   rendreGrille(); rendreTableau();
   if (E.tab.en_cours) E.sondage = setTimeout(() => ouvrirComparatif(id), 3000);
+  else if ($("#cmpAvis").textContent === T("tir.en_route", { n: E.tab.lignes.length })) avis("");   // les tirs sont rentrés
 }
 
 function capturer(api) {
@@ -388,7 +389,8 @@ async function demarrer() {
   rendreGrille();
   const q = new URLSearchParams(location.search);
   try {
-    E.images = ((await jget("/api/images")).images || []).sort((a, b) => (b.mtime || 0) - (a.mtime || 0)).map((i) => i.filename);
+    E.images = ((await jget("/api/images")).images || []).sort((a, b) => (b.mtime || 0) - (a.mtime || 0)).map((i) => i.filename)
+      .filter((f) => !/^shot_.+_comparatif(_\d+)?\.png$/.test(f));   // une vue gardée n'est pas une image source
   } catch { E.images = []; }
   E.image = q.get("image") && E.images.includes(q.get("image")) ? q.get("image") : (E.images[0] || "");
   await chargerDevis();
