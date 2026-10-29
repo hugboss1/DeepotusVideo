@@ -7,7 +7,9 @@
      « hybrid » si le style l'est, « cinematic » sinon) ; graine NEUVE sauf si `garder` (décision du 23/10) ;
    - __dzRecetteStudio(id, garder) : le graphe Image (+ fin) → Seedance ← Prompt (positif et négatif) → Render ;
    - DzRecetteRendu : le panneau « Recette » de la fiche d'un rendu (source, prompt, négatif replié, réglages,
-     recette d'import et prompts de ses clips), case « Reprendre la graine d'origine », boutons Quick et Studio.
+     recette d'import et prompts de ses clips), case « Reprendre la graine d'origine », boutons Quick et Studio ;
+   - t346 (29/10/2026) DzRecetteExport : « Exporter la recette » de la fiche (un rendu par son job, tout autre fichier
+     par son nom : la lignée remontée) -> GET /api/recettes/export (ZIP : SKILL.md + fabrication.pdf), gratuit, local.
    Le coût n'est jamais repris : Quick et Studio réestiment au tarif du jour. Hooks par alias (compte figé des bancs). */
 function __dzGraineNeuve(){/*__dzrecette*/return Math.floor(Math.random()*1e4);}
 function __dzRecetteLire(id){
@@ -92,3 +94,14 @@ function DzRecetteRendu(p){
       r.jsx("button",{type:"button","data-dzrecette-quick":"",style:btn,title:dzT("recette.panneau.quick_aide"),onClick:function(){p.fermer&&p.fermer();__dzRecetteQuick(jid,garder);},children:dzT("recette.panneau.ouvrir_quick")}),
       r.jsx("button",{type:"button","data-dzrecette-studio":"",style:btn,title:dzT("recette.panneau.studio_aide"),onClick:function(){p.fermer&&p.fermer();__dzRecetteStudio(jid,garder);},children:dzT("recette.panneau.ouvrir_studio")}),
       r.jsx("span",{style:mut,children:dzT("recette.panneau.cout_reestime")})]}):null]});}
+function __dzRecetteExportUrl(m){
+  var lg=(window.dzLang&&window.dzLang())||"fr";
+  if(m&&m.kind==="render"&&m.jobId)return "/api/recettes/export?type=job&id="+encodeURIComponent(m.jobId)+"&lang="+lg;
+  if(m&&m.name)return "/api/recettes/export?type=asset&id="+encodeURIComponent(m.name)+"&lang="+lg;
+  return null;}
+function __dzRecetteTelecharger(u){var a=document.createElement("a");a.href=u;a.download="";document.body.appendChild(a);a.click();a.remove();__dzToast(dzT("recette.export.toast"));}
+function DzRecetteExport(p){
+  var u=__dzRecetteExportUrl(p.m);if(!u)return null;
+  return r.jsxs("div",{"data-dzrecette-export":"",style:{display:"flex",flexWrap:"wrap",alignItems:"center",gap:10,marginTop:10},children:[
+    r.jsx("button",{type:"button","data-dzrecette-exporter":"",title:dzT("recette.export.aide"),style:{background:"transparent",border:"1px solid var(--accent,#f0b429)",color:"var(--accent,#f0b429)",padding:"5px 10px",fontSize:12,cursor:"pointer"},onClick:function(){__dzRecetteTelecharger(u);},children:dzT("recette.export.bouton")}),
+    r.jsx("span",{style:{fontSize:11,color:"var(--muted,#8a96a3)"},children:dzT("recette.export.note")})]});}

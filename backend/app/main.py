@@ -566,6 +566,9 @@ app.include_router(schema_router, prefix="/api/schema")
 # t319 (28/10/2026) : /api/tutoriels — brouillon de tutoriel d'une capture et parcours partagés (.dzparcours), local seulement
 from app.api.tutoriels_routes import router as tutoriels_router
 app.include_router(tutoriels_router, prefix="/api/tutoriels")
+# t346 (29/10/2026) : /api/recettes — exporter la recette (rendu, plan, asset) en skill ZIP + PDF de fabrication, gratuit, local seulement
+from app.api.recette_export_routes import router as recette_export_router
+app.include_router(recette_export_router, prefix="/api/recettes")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
