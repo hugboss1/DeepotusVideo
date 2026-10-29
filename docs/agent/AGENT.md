@@ -104,7 +104,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   facturées), catégorie « chapitres ». Clip trop court : étiré ou complété au noir (la boîte dit la durée facturée) ;
   après rendu, dérive mesurée et recalée (« dérive : +2 images, recalée »). → [ALLER:episodes] [GUIDE:chapitres]
 - **Revoir un plan rendu** (t337) : carte du plan, « Revue du plan ». Mesures gratuites (dérive, structure, identité ;
-  pas de profondeur), comparateur (O, C, ← →), avis Claude payant sur devis — jamais une garantie. → [ALLER:episodes]
+  profondeur si le plan a ses passes Blender), comparateur (O, C, ← →), avis Claude payant sur devis — jamais une garantie. → [ALLER:episodes]
+- **Passes d'un plan** (t334) : carte du plan, « Passes Blender » : la scène du Plateau rendue par Blender (clay, look,
+  profondeur, normales, masques), gratuit et local ; Blender 4.2+ requis. → [ALLER:episodes]
 - **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles
   payants, devis, brouillon ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:scan]
 - **Filmer l'app, l'habiller, la monter** (t315-t319) : barre du haut, « Filmer l'app » (gratuit, secrets masqués) ;

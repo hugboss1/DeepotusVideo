@@ -399,8 +399,8 @@ check("R15 une ligne de dépense, catégorie « chapitres », moteur anthropic, 
       dep == [("chapitres", "anthropic", s0)], dep)
 
 print("\n[A] l'outil d'agent")
-check("A1 la boîte « chapitres » porte lire_revue_plan (lecture), aucun agent ne la déclare encore ; registre sain",
-      B.BOITES.get("chapitres") == {"libelle": "agent.boites.chapitres", "outils": ["lire_revue_plan"],
+check("A1 la boîte « chapitres » porte lire_revue_plan (+ lire_passes_plan, t334) (lecture), aucun agent ne la déclare encore ; registre sain",
+      B.BOITES.get("chapitres") == {"libelle": "agent.boites.chapitres", "outils": ["lire_revue_plan", "lire_passes_plan"],
                                     "agents": [], "mobile": False}
       and ao.OUTILS["lire_revue_plan"]["nature"] == "lecture" and B.verifier() == [], B.verifier())
 ctx = ao.Ctx(cid="c1")

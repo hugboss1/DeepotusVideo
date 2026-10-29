@@ -70,7 +70,7 @@ BOITES: dict[str, dict] = {
     # t337 (29/10/2026) : lire la revue chiffrée d'un plan du storyboard ; aucun agent ne la déclare encore (§11 bis)
     "chapitres": {
         "libelle": "agent.boites.chapitres",
-        "outils": ["lire_revue_plan"],
+        "outils": ["lire_revue_plan", "lire_passes_plan"],       # t334 : + les passes Blender du plan
         "agents": [],
         "mobile": False,
     },

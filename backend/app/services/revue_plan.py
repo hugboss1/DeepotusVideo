@@ -9,8 +9,11 @@ CE QUI EST MESURÉ (gratuit, local : ffmpeg + Pillow en Python pur — numpy est
      la dérive mesurée ici est donc la dérive RÉSIDUELLE ; si le recalage a échoué, le conform est défait d'abord ;
   2. la STRUCTURE image par image, une fois la dérive retirée : corrélation des CARTES DE BORDS (vignettes 64²,
      où sont les contours) et des CARTES DE LUMINANCE (grille 16², où sont les masses claires et sombres). C'est un
-     REPÈRE de composition, pas une mesure de profondeur : aucune passe de profondeur n'existe pour une previs, et
-     aucun estimateur de profondeur ne tourne dans ce runtime — `profondeur.mesuree` vaut False et le dit ;
+     REPÈRE de composition, pas une mesure de profondeur : aucun estimateur de profondeur ne tourne dans ce runtime.
+     t334 : quand le plan a une PASSE DE PROFONDEUR Blender (passes_blender), ses CONTOURS (les discontinuités de
+     profondeur : le bord d'un objet devant un autre) sont comparés aux bords du rendu au même instant — la
+     profondeur de la previs contre la structure du rendu, pas une profondeur du rendu ; sans passe,
+     `profondeur.mesuree` vaut False et le dit ;
   3. l'IDENTITÉ : `identity_drift.derive` entre l'image du MILIEU du rendu et la vue de référence de chaque entité
      du plan (ΔE de palette, silhouette), avec son angle mort (pas de visage, pas de pose).
 
@@ -60,6 +63,10 @@ AVERTISSEMENT = ("Avis d'un modèle de langage sur trois instants du plan, pas u
                  "vous-même.")
 PROFONDEUR_NON = ("aucune passe de profondeur pour une previs, et aucun estimateur de profondeur dans ce runtime : "
                   "la structure est comparée par les bords et la luminance")
+# t334 : la passe de profondeur Blender du plan (« Passes Blender ») rend les contours de profondeur de la previs
+PROFONDEUR_CONTOURS = ("contours de la passe de profondeur de la previs (Blender) comparés aux bords du rendu au même "
+                       "instant : la profondeur du rendu lui-même n'est pas estimée")
+SEUIL_PROFONDEUR = 0.25           # corrélation des contours sous laquelle le relief « s'écarte »
 
 SYSTEME = (
     "Tu es directeur artistique d'un studio de vidéo. Chaque image jointe, sauf peut-être la dernière, est une "
@@ -173,11 +180,34 @@ def image_a(path: Path, position: float, secondes: float | None = None) -> Image
         return im.convert("RGB")
 
 
+def _bords_image(im: Image.Image) -> list[float]:
+    """Une image → sa carte de BORDS VIGNETTE² sans pourtour (mêmes filtres que previs_plan._vignettes)."""
+    from PIL import ImageChops, ImageFilter, ImageOps
+    if im.mode.startswith("I"):                   # PNG 16 bits (passe de profondeur) → 8 bits
+        im = im.point(lambda v: v * (1 / 256)).convert("L")
+    g = im.convert("L").resize((PV.VIGNETTE, PV.VIGNETTE), Image.BILINEAR)
+    bords = ImageChops.add(g.filter(ImageFilter.FIND_EDGES), ImageOps.invert(g).filter(ImageFilter.FIND_EDGES))
+    v = [float(x) for x in bords.getdata()]
+    return _sans_bord([v], PV.VIGNETTE, 2)[0]
+
+
+def profondeur_contre_rendu(passe: Image.Image, rendu: Image.Image) -> dict:
+    """PUR (Pillow) — t334 : la concordance des CONTOURS de la passe de profondeur (previs) avec les bords du rendu.
+    {concordance, verdict (proche | ecart | inconnu), seuil}. Une passe sans contour (plan vide) est « inconnu »."""
+    a, b = _bords_image(passe), _bords_image(rendu)
+    if not any(a) or not any(b):
+        return {"concordance": None, "verdict": "inconnu", "seuil": SEUIL_PROFONDEUR}
+    c = round(sum(x * y for x, y in zip(a, b)), 4)
+    return {"concordance": c, "verdict": "proche" if c >= SEUIL_PROFONDEUR else "ecart", "seuil": SEUIL_PROFONDEUR}
+
+
 def mesurer(rendu: Path, previs: Path | None, *, conform: dict | None = None, recalage: dict | None = None,
-            refs: list[dict] | None = None) -> dict:
+            refs: list[dict] | None = None, profondeur: dict | None = None) -> dict:
     """Les mesures GRATUITES du plan. `refs` : [{entity_id, name, source, vue, fichier, chemin}] (vue None : l'entité
     n'a pas de référence). Sans previs, la dérive et la structure sont « non mesurées » (raison dite) ; l'identité
-    reste mesurée. Rend {date, temporel, structure, profondeur, identite, angle_mort, images, fps}."""
+    reste mesurée. `profondeur` (t334) : la passe de profondeur du plan ({chemin, run, t, proche_m, loin_m}, voir
+    passes_blender.profondeur_du_plan) — ses contours sont comparés au rendu à l'instant `t` du plan.
+    Rend {date, temporel, structure, profondeur, identite, angle_mort, images, fps}."""
     from app.services import identity_drift as ID
     out = {"date": datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "profondeur": {"mesuree": False, "raison": PROFONDEUR_NON},
@@ -196,6 +226,16 @@ def mesurer(rendu: Path, previs: Path | None, *, conform: dict | None = None, re
                                         if k in recalage} if recalage else None}
         out["structure"] = structure(pb, rb, _grilles(previs, "", fps_r), _grilles(rendu, filtre, fps_r), d)
         out["images"], out["fps"] = len(pb), fps_r
+    if profondeur and profondeur.get("chemin") and Path(profondeur["chemin"]).is_file():
+        sr = PV.infos_clip(rendu).get("secondes") or 0
+        t = float(profondeur.get("t") or 0.0)
+        pos = min(1.0, max(0.0, t / sr)) if sr else 0.0
+        with Image.open(profondeur["chemin"]) as im:
+            im.load()
+            m = profondeur_contre_rendu(im, image_a(rendu, pos, sr))
+        out["profondeur"] = {"mesuree": m["concordance"] is not None, "methode": "contours", **m,
+                             "passe": {k: profondeur.get(k) for k in ("run", "t", "proche_m", "loin_m")},
+                             "raison": PROFONDEUR_CONTOURS}
     milieu = None
     for r in refs or []:
         ligne = {k: r.get(k) for k in ("entity_id", "name", "source", "vue", "fichier")}

@@ -569,6 +569,9 @@ app.include_router(tutoriels_router, prefix="/api/tutoriels")
 # t346 (29/10/2026) : /api/recettes — exporter la recette (rendu, plan, asset) en skill ZIP + PDF de fabrication, gratuit, local seulement
 from app.api.recette_export_routes import router as recette_export_router
 app.include_router(recette_export_router, prefix="/api/recettes")
+# t334 (29/10/2026) : /api/passes — passes headless d'un plan par Blender (clay, look, profondeur, normales, masques), gratuit, local
+from app.api.passes_routes import router as passes_router
+app.include_router(passes_router, prefix="/api/passes")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

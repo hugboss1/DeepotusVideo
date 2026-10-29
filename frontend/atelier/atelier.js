@@ -954,6 +954,8 @@ function renderBoard() {
       } catch (e) { toast(dzT("atelier.at2_sb.err_ents", { msg: e.message }), true); }
     }));
   });
+  // t334 : le bouton « Passes Blender » de chaque carte et la bande des passes du dernier rendu (dz-passes-plan.js)
+  if (window.__dzPassesPlan) window.__dzPassesPlan.vignettes(list, chapter.id);
 }
 
 async function moveShot(id, delta) {

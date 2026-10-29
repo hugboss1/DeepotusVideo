@@ -13826,7 +13826,8 @@ async def shot_revue(shot_id: str, http: Request = None):
 @router.post("/shots/{shot_id}/revue/mesurer")
 async def shot_revue_mesurer(shot_id: str, http: Request = None):
     """t337 — les MESURES gratuites (ffmpeg + Pillow, aucun réseau) : dérive résiduelle en images, structure image par
-    image (bords + luminance, la profondeur n'est pas mesurée), identité contre les vues des entités. Rangées."""
+    image (bords + luminance ; t334 : contours de la passe de profondeur Blender du plan contre le rendu quand elle
+    existe, sinon la profondeur n'est pas mesurée), identité contre les vues des entités. Rangées."""
     from app.services import revue_plan as RV
     c = await _revue_cible(shot_id, http)
     refs = []
@@ -13838,8 +13839,10 @@ async def shot_revue_mesurer(shot_id: str, http: Request = None):
                      "fichier": ref.name if ref else None, "chemin": str(ref) if ref else None})
     import subprocess as _sp
     try:
+        from app.services import passes_blender as _PB     # t334 : la passe de profondeur Blender du plan, si elle existe
+        prof = _PB.profondeur_du_plan(settings.outputs_path, shot_id)
         m = await asyncio.to_thread(RV.mesurer, c["rendu"], c["previs"], conform=c["meta"].get("conform"),
-                                    recalage=c["meta"].get("recalage"), refs=refs)
+                                    recalage=c["meta"].get("recalage"), refs=refs, profondeur=prof)
     except (RuntimeError, OSError, _sp.TimeoutExpired) as e:
         raise HTTPException(500, _msg_g("revue.mesure_echec", http, msg=str(e)[:300]))
     if c["previs"] is None:
