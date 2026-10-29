@@ -103,6 +103,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   (mouvement, caméra) + 1 à 4 style frames (look) ; Seedance 2.5 (sans clip : Veo 3.1). Payant (entrée + sortie
   facturées), catégorie « chapitres ». Clip trop court : étiré ou complété au noir (la boîte dit la durée facturée) ;
   après rendu, dérive mesurée et recalée (« dérive : +2 images, recalée »). → [ALLER:episodes] [GUIDE:chapitres]
+- **Revoir un plan rendu** (t337) : carte du plan, « Revue du plan ». Mesures gratuites (dérive, structure, identité ;
+  pas de profondeur), comparateur (O, C, ← →), avis Claude payant sur devis — jamais une garantie. → [ALLER:episodes]
 - **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles
   payants, devis, brouillon ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:scan]
 - **Filmer l'app, l'habiller, la monter** (t315-t319) : barre du haut, « Filmer l'app » (gratuit, secrets masqués) ;
@@ -120,6 +122,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Choisir vers quels comptes partent les posts d'un projet** : Bibliothèque, projet dans la barre « Projet »,
   Canaux, cocher, Enregistrer ; ils sont précochés partout (assistant, Planificateur › Nouveau post, Envoyer vers ›
   Scheduler). Sans compte coché, X reste la cible. → [POINT:bibliotheque.canaux_projet] [GUIDE:bibliotheque]
+- **Exporter une recette** (skill ZIP + PDF, gratuit, sans clé) : fiche d'un fichier › Exporter la recette ; un plan : Previs → plan › Exporter la recette du plan. → [GUIDE:bibliotheque]
 - **Récupérer un fichier jeté** : Bibliothèque › Corbeille. → [POINT:bibliotheque.corbeille] [GUIDE:bibliotheque]
 - **Créer une image** : Bibliothèque › Créer l'image. → [POINT:bibliotheque.creer_image] [GUIDE:bibliotheque]
 - **Passer l'interface en anglais ou en français** : Réglages › Fournisseurs par défaut, rangée « Langue de

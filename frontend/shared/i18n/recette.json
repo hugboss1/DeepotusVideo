@@ -34,5 +34,9 @@
   "recette.source.quick": {"fr": "le formulaire Quick", "en": "the Quick form"},
   "recette.panneau.studio_aide": {"fr": "Ouvre un graphe Studio neuf : image de départ, prompt positif et négatif, Seedance, rendu.", "en": "Opens a new Studio graph: start image, positive and negative prompt, Seedance, render."},
   "recette.toast.studio_ok": {"fr": "Studio : graphe de génération du rendu {id} prêt à lancer.", "en": "Studio: generation graph of render {id} ready to run."},
-  "recette.panneau.titre": {"fr": "Recette", "en": "Recipe"}
+  "recette.panneau.titre": {"fr": "Recette", "en": "Recipe"},
+  "recette.export.bouton": {"fr": "Exporter la recette", "en": "Export the recipe"},
+  "recette.export.aide": {"fr": "Télécharge un skill ZIP : SKILL.md (prompts exacts, modèles, graines, coûts réels et estimés, ratés, provenance) et le PDF de fabrication illustré. Aucune clé n'y figure.", "en": "Downloads a skill ZIP: SKILL.md (exact prompts, models, seeds, actual and estimated costs, failures, provenance) and the illustrated making-of PDF. No key is included."},
+  "recette.export.note": {"fr": "Skill ZIP + PDF de fabrication · gratuit, local", "en": "Skill ZIP + making-of PDF · free, local"},
+  "recette.export.toast": {"fr": "Recette exportée : le ZIP (SKILL.md + PDF de fabrication) arrive dans vos téléchargements.", "en": "Recipe exported: the ZIP (SKILL.md + making-of PDF) lands in your downloads."}
 }
