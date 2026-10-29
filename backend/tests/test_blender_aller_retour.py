@@ -258,6 +258,45 @@ for etiquette, mauvais in (("sans marque", {"cameras": []}),
                                                     "visee": [0, 1, 0], "lens": 50}])]))):
     check(f"G19 relecture refusée : {etiquette}", refuse(G.lire_retour, mauvais))
 
+# ── [M] les réglages de scène : mémorisés AVANT le premier envoi, rendus par « Retirer de Blender » ──
+print("[M] réglages de scène mémorisés et rendus")
+_arbre = ast.parse(G.GABARIT)
+_fns = {n.name: n for n in _arbre.body if isinstance(n, ast.FunctionDef)}
+
+
+def _modifies(noeuds):
+    """Les réglages de scène qu'un bout de gabarit ÉCRIT : scene.X, scene.render.X / r.X, et frame_set → frame_current."""
+    out = set()
+    for n in noeuds:
+        for x in ast.walk(n):
+            if isinstance(x, (ast.Assign, ast.AugAssign)):
+                for t in (x.targets if isinstance(x, ast.Assign) else [x.target]):
+                    if isinstance(t, ast.Attribute):
+                        base = ast.unparse(t.value)
+                        if base in ("scene", "scene.render", "r"):
+                            out.add(t.attr)
+            if isinstance(x, ast.Call) and ast.unparse(x.func) == "scene.frame_set":
+                out.add("frame_current")
+    return out
+
+
+_poseurs = [f for nom, f in _fns.items() if nom not in ("memoriser", "restaurer")]
+_ecrits = _modifies(_poseurs)
+_memo = next(x for x in ast.walk(_fns["memoriser"]) if isinstance(x, ast.Dict))
+_cles_memo = {k.value for k in _memo.keys}
+_rendus = _modifies([_fns["restaurer"]])
+check("M1 chaque réglage de scène écrit par un envoi est mémorisé (caméra, résolution, i/s, plage, image courante…)",
+      _ecrits and (_ecrits - {"camera"}) <= _cles_memo and "camera" in _cles_memo, (sorted(_ecrits), sorted(_cles_memo)))
+check("M2 … et rendu par le retrait (même liste, résolution en % et fps_base compris)",
+      _cles_memo == _rendus and {"resolution_percentage", "fps_base"} <= _rendus, (sorted(_cles_memo), sorted(_rendus)))
+_sinon = next(n for n in _arbre.body if isinstance(n, ast.If)).orelse
+check("M3 l'envoi mémorise AVANT de poser quoi que ce soit, seulement si dz_avant est absent (un 2e envoi n'écrase rien)",
+      ast.unparse(_sinon[0]) == "memoriser()" and "col.get('dz_avant') is None" in ast.unparse(_fns["memoriser"]))
+_alors = next(n for n in _arbre.body if isinstance(n, ast.If)).body
+check("M4 le retrait rend les réglages AVANT de supprimer les objets, oublie dz_avant, caméra disparue → None",
+      ast.unparse(_alors[0]) == "rendu = restaurer()" and "del col['dz_avant']" in ast.unparse(_fns["restaurer"])
+      and "scene.camera = ancienne" in ast.unparse(_fns["restaurer"]))
+
 # ═══════════════════════════════════════ [R] routes ═══════════════════════════════════════
 print("[R] les routes")
 c = TestClient(_MAIN.app, client=("127.0.0.1", 50001))
@@ -433,6 +472,37 @@ if os.environ.get("BLENDER_REEL") == "1":
               len(ph["keyframes"]) == 2 and all(proches(k["orbit"], o["orbit"], 1e-2)
                                                 and proches(k["target"], o["target"], 1e-2) and abs(k["fov"] - o["fov"]) < 1e-2
                                                 for k, o in zip(ph["keyframes"], KFS)), ph["keyframes"])
+        # H4-H5 : envoi (tous les éléments, DEUX fois) puis retrait = réglages et objets identiques
+        (D / "ret.py").write_text(G.generer_script(G.nettoyage()), encoding="utf-8")
+        (D / "tous.py").write_text(G.generer_script(G.depuis_scene(SCENE, list(G.TOUS), glb=str(D / "scene.glb"))),
+                                   encoding="utf-8")
+        lignes = [
+            "import bpy, json", "bpy.ops.wm.read_factory_settings(use_empty=True)", "sc = bpy.context.scene",
+            "d = bpy.data.cameras.new('MaCam')", "o = bpy.data.objects.new('MaCam', d)", "sc.collection.objects.link(o)",
+            "sc.camera = o", "bpy.ops.mesh.primitive_cube_add()", "r = sc.render",
+            "r.resolution_x, r.resolution_y, r.resolution_percentage, r.fps, r.fps_base = 1280, 720, 50, 30, 1.001",
+            "sc.frame_start, sc.frame_end = 10, 90", "sc.frame_set(17)",
+            "def etat():",
+            "    return {'objets': sorted(x.name for x in bpy.data.objects), 'camera': sc.camera.name if sc.camera else None,"
+            " 'res': [r.resolution_x, r.resolution_y, r.resolution_percentage], 'fps': [r.fps, round(r.fps_base, 4)],"
+            " 'plage': [sc.frame_start, sc.frame_end, sc.frame_current], 'collections': sorted(c.name for c in bpy.data.collections)}",
+            "print('DZETAT ' + json.dumps(etat()))",
+            f"exec(open(r'{D / 'tous.py'}', encoding='utf-8').read(), {{'__name__': 'a'}})",
+            f"exec(open(r'{D / 'tous.py'}', encoding='utf-8').read(), {{'__name__': 'b'}})",
+            "print('DZMILIEU ' + json.dumps(etat()))",
+            f"exec(open(r'{D / 'ret.py'}', encoding='utf-8').read(), {{'__name__': 'c'}})",
+            "print('DZETAT ' + json.dumps(etat()))"]
+        (D / "pilote2.py").write_text(chr(10).join(lignes) + chr(10), encoding="utf-8")
+        rr = subprocess.run([e["exe"], "-b", "--factory-startup", "--python", str(D / "pilote2.py")],
+                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+        etats = [json.loads(l.split("DZETAT ", 1)[1]) for l in (rr.stdout or "").splitlines() if "DZETAT " in l]
+        milieu = [json.loads(l.split("DZMILIEU ", 1)[1]) for l in (rr.stdout or "").splitlines() if "DZMILIEU " in l]
+        check("H4 vrai Blender : l'envoi a bien changé caméra, résolution, i/s et plage (sinon le contrôle ne prouve rien)",
+              milieu and etats and milieu[0]["camera"] == "DZ_Camera" and milieu[0]["res"] != etats[0]["res"]
+              and milieu[0]["fps"] != etats[0]["fps"] and milieu[0]["plage"] != etats[0]["plage"],
+              (etats, milieu, rr.stderr[-600:]))
+        check("H5 vrai Blender : DEUX envois puis « Retirer » = objets, caméra active, résolution, i/s, plage identiques",
+              len(etats) == 2 and etats[0] == etats[1], (etats, rr.stderr[-600:]))
 else:
     print("  SKIP  [H] vrai Blender headless (BLENDER_REEL=1 pour le lancer)")
 

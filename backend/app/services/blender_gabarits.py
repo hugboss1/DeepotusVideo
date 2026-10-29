@@ -457,13 +457,48 @@ def poser_cles(cam):
     scene.frame_set(scene.frame_start)
 
 
+def memoriser():
+    col = collection()
+    if col.get("dz_avant") is None:
+        r = scene.render
+        col["dz_avant"] = json.dumps({
+            "camera": scene.camera.name if scene.camera is not None else None,
+            "resolution_x": r.resolution_x, "resolution_y": r.resolution_y,
+            "resolution_percentage": r.resolution_percentage, "fps": r.fps, "fps_base": r.fps_base,
+            "frame_start": scene.frame_start, "frame_end": scene.frame_end, "frame_current": scene.frame_current})
+
+
+def restaurer():
+    col = bpy.data.collections.get(P["collection"])
+    if col is None or col.get("dz_avant") is None:
+        return False
+    a = json.loads(col["dz_avant"])
+    ancienne = bpy.data.objects.get(a["camera"]) if a["camera"] is not None else None
+    if ancienne is not None and (ancienne.type != "CAMERA" or ancienne.name.startswith("DZ_")):
+        ancienne = None
+    scene.camera = ancienne
+    r = scene.render
+    r.resolution_x = a["resolution_x"]
+    r.resolution_y = a["resolution_y"]
+    r.resolution_percentage = a["resolution_percentage"]
+    r.fps = a["fps"]
+    r.fps_base = a["fps_base"]
+    scene.frame_start = a["frame_start"]
+    scene.frame_end = a["frame_end"]
+    scene.frame_set(a["frame_current"])
+    del col["dz_avant"]
+    return True
+
+
 if P["elements"] == ["nettoyer"]:
+    rendu = restaurer()
     n = retirer("DZ_")
     col = bpy.data.collections.get(P["collection"])
     if col is not None and len(col.objects) == 0:
         bpy.data.collections.remove(col)
-    print("DZBLENDER " + json.dumps({"retires": n}))
+    print("DZBLENDER " + json.dumps({"retires": n, "reglages_rendus": rendu}))
 else:
+    memoriser()
     cam = None
     if "camera" in P["elements"] or "cles" in P["elements"]:
         cam = poser_camera()
@@ -572,7 +607,11 @@ def lire_retour(resume: dict | None) -> dict:
                        "rot": _vec_fini(o.get("rot"), nom="rotation"),
                        "dims": _vec_fini(o.get("dims"), nom="dimensions"),
                        "cle": nom_sur(o.get("cle"), "")[:MAX_NOM] or None})
-    return {"cameras": cams, "objets": objets, "rendu": {"largeur": largeur, "hauteur": hauteur, "fps": fps},
+    plage = [rendu.get(k) for k in ("pourcent", "debut", "fin", "courante")]
+    plage = plage if all(isinstance(v, int) and not isinstance(v, bool) and abs(v) < 10 ** 7 for v in plage) else None
+    return {"cameras": cams, "objets": objets, "rendu": {"largeur": largeur, "hauteur": hauteur, "fps": fps,
+                                                          "pourcent": plage[0] if plage else None,
+                                                          "plage": plage[1:] if plage else None},
             "blend": resume.get("blend") is True, "version": nom_sur(resume.get("version"), "")[:24],
             "fichier": nom_sur(resume.get("fichier"), "")[:MAX_NOM]}
 
@@ -758,7 +797,10 @@ if P["blend"] is not None:
 
 print("DZBLENDER " + json.dumps({"dz": "retour", "cameras": sortie_cameras, "objets": objets, "blend": enregistre,
                                  "rendu": {"x": scene.render.resolution_x, "y": scene.render.resolution_y,
-                                           "fps": scene.render.fps / scene.render.fps_base},
+                                           "fps": scene.render.fps / scene.render.fps_base,
+                                           "pourcent": scene.render.resolution_percentage,
+                                           "debut": scene.frame_start, "fin": scene.frame_end,
+                                           "courante": scene.frame_current},
                                  "version": bpy.app.version_string, "fichier": bpy.path.basename(bpy.data.filepath)},
                                 separators=(",", ":")))
 '''
