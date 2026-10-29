@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deepotus — 3D Studio</title>
+<!-- t344 (lot Scenario B9, 29/10/2026) : le banc comparatif des moteurs image → 3D. Tous les textes sont posés par
+     comparer.js (dzT, dictionnaire comparatif3d.json) : la page ne porte que des conteneurs vides. -->
+<link rel="icon" type="image/png" href="/api/branding/logo">
+<link rel="stylesheet" href="/shared/icons/dz-icons.css">
+<link rel="stylesheet" href="comparer.css">
+<script src="/shared/dz-i18n-dico.js"></script>
+<script src="/shared/dz-i18n.js"></script>
+<script src="/shared/icons/dz-icons.js"></script>
+<!-- Carte EN LIGNE (les import maps externes ne marchent dans aucun navigateur) ; identique à
+     /assets/three/importmap.json — test_comparatif3d le vérifie. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/assets/three/three.module.min.js",
+    "three/addons/": "/assets/three/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<div class="cmp">
+  <header class="cmp-tete">
+    <a class="cmp-retour" id="cmpRetour" href="/studio3d/"></a>
+    <h1 id="cmpTitre"></h1>
+    <span class="cmp-sous" id="cmpSous"></span>
+    <select id="cmpHist" class="cmp-sel cmp-hist"></select>
+  </header>
+  <div class="cmp-corps">
+    <aside class="cmp-rail">
+      <div class="cmp-onglets" id="cmpOnglets" role="tablist"></div>
+      <section id="panTir"></section>
+      <section id="panEx" class="hidden"></section>
+    </aside>
+    <main class="cmp-main">
+      <div class="cmp-titre-tab" id="titreTab"></div>
+      <div class="cmp-barre" id="barre"></div>
+      <div class="cmp-avis hidden" id="cmpAvis" role="status"></div>
+      <div class="cmp-grille" id="grille"></div>
+      <div class="cmp-tableau" id="tableau"></div>
+    </main>
+  </div>
+</div>
+<script src="/shared/dz-plafonds.js"></script>
+<script src="/shared/dialogue.js"></script>
+<script type="module" src="comparer.js"></script>
+</body>
+</html>

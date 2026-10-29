@@ -140,6 +140,14 @@ DEFAULTS = {
     # t342 : Tripo Segmentation (fal tripo3d/tripo/segment) — page fal du 29/10/2026 « $0.01 per units », unité non
     # dite ; 40 unités d'après l'exemple de la doc Tripo (credits_consumed) : une ESTIMATION, rapprochée par les plafonds
     "tripo_segment_usd": 0.40,
+    # t341 : décor en calques de parallaxe (Tile Lab). Pages fal relues le 29/10/2026 :
+    # fal-ai/qwen-image-layered « $0.05 per image » — la page ne dit pas si l'image est la requête ou un calque :
+    # HYPOTHÈSE PRUDENTE, chaque calque rendu compte pour une image ;
+    # bytedance/seedream/v5/pro/layerize « $0.03375 per generated layer » sous 1536 × 1536, « $0.0675 » au-dessus
+    # (aire du calque de base) ; 2 à 17 calques par appel, nombre NON réglable : le devis compte les 17.
+    "qwen_layered_usd_image": 0.05,
+    "seedream_layerize_usd_calque": 0.03375,
+    "seedream_layerize_usd_calque_2k": 0.0675,
     "rembg_api_usd": 0.003,           # fal.ai imageutils/rembg, per image (sprite frames)
     "seedream_edit_usd": 0.03,        # fal.ai bytedance/seedream/v4/edit, par vue (T104, plan-moteurs-3d T1)
     "meshy_credit_usd": 0.02,         # valeur $ directionnelle d'un crédit Meshy
@@ -1138,6 +1146,20 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                                cr * float(p.get("meshy_credit_usd", DEFAULTS["meshy_credit_usd"]))))
         else:
             lines.append(_line("local", "Conversion locale (obj/stl/3mf)", 1, "fichier", 0.0))
+    elif kind == "parallaxe_calques":
+        # t341 : décomposition d'une peinture en calques (fal) ; la découpe locale par bandes est gratuite
+        mid = str(op.get("modele") or "local")
+        n = max(1, int(op.get("n") or 5))
+        if mid == "qwen-layered":
+            lines.append(_line("fal", f"Qwen-Image-Layered x{n} calques", n, "img",
+                               n * float(p.get("qwen_layered_usd_image", DEFAULTS["qwen_layered_usd_image"]))))
+        elif mid == "seedream-layerize":
+            aire = int(op.get("w") or 0) * int(op.get("h") or 0)
+            cle = "seedream_layerize_usd_calque_2k" if aire > 1536 * 1536 else "seedream_layerize_usd_calque"
+            lines.append(_line("fal", "Seedream 5 Pro Layerize (17 calques au plus)", 17, "calque",
+                               17 * float(p.get(cle, DEFAULTS[cle]))))
+        else:
+            lines.append(_line("local", "Découpe locale par bandes de profondeur", 1, "op", 0.0))
     elif kind == "asset3d_segment":
         # t342 : segmentation IA en pièces mobiles (Tripo sur fal) ; la voie locale (îlots) est gratuite
         lines.append(_line("fal", "Segmentation en pièces (Tripo)", 1, "gen",

@@ -1,0 +1,107 @@
+/* t344 (lot Scenario B9) — « Comparer les moteurs ». Jetons Deepotus (/shared/deepotus.tokens.css), comme le 3D Studio :
+   rail à gauche (le choix et le coût), grille des rendus et tableau mesuré au centre. L'or est réservé aux actions,
+   aux coûts et à la meilleure valeur d'une colonne. */
+@import url("/shared/deepotus.tokens.css");
+
+html, body { height: 100%; margin: 0; background: var(--bg-base); color: var(--ink); font-family: var(--f-ui); }
+.hidden { display: none !important; }
+button { font-family: inherit; }
+select { color-scheme: dark; }
+select option { background-color: var(--bg-panel-2); color: var(--ink-strong); }
+
+.cmp { display: flex; flex-direction: column; height: 100vh; min-height: 0; }
+.cmp-tete { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--stroke);
+  background: var(--bg-panel); flex-wrap: wrap; }
+.cmp-tete h1 { margin: 0; font-family: var(--f-display); font-size: 17px; color: var(--ink-strong); font-weight: 600; }
+.cmp-sous { color: var(--ink-soft); font-size: 12.5px; flex: 1; min-width: 200px; }
+.cmp-retour { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); text-decoration: none; font-size: 12.5px;
+  padding: 6px 10px; border: 1px solid var(--stroke-strong); border-radius: var(--r-sm); }
+.cmp-retour:hover { border-color: var(--accent); color: var(--ink-strong); }
+.cmp-hist { width: auto; max-width: 340px; }
+
+.cmp-corps { display: flex; flex: 1; min-height: 0; }
+.cmp-rail { width: 300px; flex: none; border-right: 1px solid var(--stroke); background: var(--bg-panel); padding: 14px;
+  overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.cmp-main { flex: 1; min-width: 0; overflow: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.cmp-onglets { display: flex; gap: 4px; }
+.cmp-onglets button { flex: 1; padding: 7px 8px; border: 1px solid var(--stroke); background: transparent; color: var(--ink-soft);
+  border-radius: var(--r-sm); cursor: pointer; font-size: 12px; }
+.cmp-onglets button.on { border-color: var(--accent); color: var(--ink-strong); background: var(--bg-panel-2); }
+section { display: flex; flex-direction: column; gap: 8px; }
+
+.cmp-label { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft);
+  margin-top: 6px; }
+.cmp-note { font-size: 11.5px; color: var(--ink-soft); line-height: 1.45; }
+.cmp-vide { font-size: 12.5px; color: var(--ink-soft); border: 1px dashed var(--stroke-strong); border-radius: var(--r-sm);
+  padding: 12px; line-height: 1.5; }
+.cmp-vide.grand { padding: 40px 24px; text-align: center; grid-column: 1 / -1; }
+.cmp-sel { width: 100%; padding: 7px 8px; background: var(--bg-panel-2); color: var(--ink-strong); border: 1px solid var(--stroke-strong);
+  border-radius: var(--r-sm); font-size: 12px; }
+.cmp-source { width: 100%; max-height: 160px; object-fit: contain; background: var(--bg-panel-3); border-radius: var(--r-sm);
+  border: 1px solid var(--stroke); }
+.cmp-case { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: var(--ink); }
+
+.cmp-moteurs, .cmp-groupe { display: flex; flex-direction: column; gap: 4px; }
+.cmp-moteur, .cmp-modele { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center; padding: 7px 9px;
+  border: 1px solid var(--stroke); border-radius: var(--r-sm); cursor: pointer; font-size: 12.5px; }
+.cmp-moteur.on, .cmp-modele.on { border-color: var(--accent); background: var(--bg-panel-2); }
+.cmp-moteur .nom, .cmp-modele .nom { color: var(--ink-strong); }
+.cmp-moteur .prix { font-family: var(--f-mono); font-size: 11px; color: var(--amber); }
+.cmp-moteur .cle { grid-column: 2 / 4; font-size: 11px; color: var(--ink-soft); }
+.cmp-modele .meta { grid-column: 2 / 4; font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft); }
+.cmp-groupe-tete { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft); margin-top: 6px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.cmp-total { font-family: var(--f-mono); font-size: 12px; color: var(--ink-strong); margin-top: 4px; }
+.cmp-principal { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 10px 12px;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); border-radius: var(--r-sm);
+  font-weight: 600; font-size: 13px; cursor: pointer; }
+.cmp-principal:disabled { background: transparent; color: var(--ink-muted); border-color: var(--stroke-strong); cursor: not-allowed; }
+
+.cmp-titre-tab { font-family: var(--f-display); font-size: 14px; color: var(--ink-strong); }
+.cmp-barre { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.cmp-seg { display: inline-flex; border: 1px solid var(--stroke-strong); border-radius: var(--r-sm); overflow: hidden; }
+.cmp-seg button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border: 0; border-right: 1px solid var(--stroke);
+  background: transparent; color: var(--ink-soft); font-size: 12px; cursor: pointer; }
+.cmp-seg button:last-child { border-right: 0; }
+.cmp-seg button.on { background: var(--bg-panel-2); color: var(--ink-strong); box-shadow: inset 0 -2px 0 var(--accent); }
+.cmp-avis { font-size: 12.5px; color: var(--green); }
+.cmp-avis.erreur { color: var(--red); }
+
+.cmp-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.cmp-case3d { margin: 0; border: 1px solid var(--stroke); border-radius: var(--r-sm); background: var(--bg-panel); overflow: hidden;
+  display: flex; flex-direction: column; }
+.cmp-case3d.gagnant { border-color: var(--accent); }
+.cmp-vue { position: relative; aspect-ratio: 1 / 1; background: var(--bg-panel-3); }
+.cmp-vue canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+.cmp-etat { position: absolute; inset: auto 8px 8px 8px; font-family: var(--f-mono); font-size: 11px; color: var(--ink);
+  background: color-mix(in srgb, var(--bg-base) 80%, transparent); padding: 6px 8px; border-radius: var(--r-sm); }
+.cmp-case3d figcaption { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-size: 12px; flex-wrap: wrap; }
+.cmp-case3d figcaption b { color: var(--ink-strong); }
+.cmp-case3d figcaption span { color: var(--ink-soft); font-family: var(--f-mono); font-size: 11px; }
+.cmp-case3d figcaption .badge { margin-left: auto; color: var(--accent); display: inline-flex; align-items: center; gap: 4px; }
+.cmp-garder { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; font-size: 11.5px;
+  border: 1px solid var(--stroke-strong); background: var(--bg-panel-2); color: var(--ink); border-radius: var(--r-sm); cursor: pointer; }
+.cmp-garder:hover { border-color: var(--accent); color: var(--ink-strong); }
+
+.cmp-tableau { overflow-x: auto; }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.cmp-table th { text-align: left; border-bottom: 1px solid var(--stroke-strong); padding: 0; }
+.cmp-table th button { width: 100%; text-align: left; padding: 7px 8px; background: transparent; border: 0; color: var(--ink-soft);
+  font-family: var(--f-mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; white-space: nowrap; }
+.cmp-table th button.on { color: var(--ink-strong); }
+.cmp-table th button[aria-sort="ascending"]::after { content: ""; display: inline-block; margin-left: 5px; border: 4px solid transparent;
+  border-bottom-color: currentColor; transform: translateY(-2px); }
+.cmp-table th button[aria-sort="descending"]::after { content: ""; display: inline-block; margin-left: 5px; border: 4px solid transparent;
+  border-top-color: currentColor; transform: translateY(2px); }
+.cmp-table td { padding: 7px 8px; border-bottom: 1px solid var(--stroke); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cmp-table td.best { color: var(--accent); font-weight: 600; }
+.cmp-table tr.gagnant td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.cmp-table tr.attente td { color: var(--ink-muted); }
+.cmp-table small { color: var(--ink-soft); font-size: 10.5px; margin-left: 4px; }
+.cmp-table small.ok { color: var(--green); }
+
+@media (max-width: 860px) {
+  .cmp-corps { flex-direction: column; }
+  .cmp-rail { width: auto; border-right: 0; border-bottom: 1px solid var(--stroke); max-height: 45vh; }
+}

@@ -20,12 +20,14 @@ from outils import L, S, X, H
 PJ = "plateau/plateau.js"
 PC = "plateau/calc.js"
 
+# t333 (29/10/2026, lot Scenario A3) : le rôle « faisceau » (volume de lumière, jamais un solide) rejoint la table
 ROLE = ('({ sujet: dzT("plateau.pl_role.sujet"), decor: dzT("plateau.pl_role.decor"), '
-        'repere: dzT("plateau.pl_role.repere") })')
+        'repere: dzT("plateau.pl_role.repere"), faisceau: dzT("plateau.pl_role.faisceau") })')
 NIV = '({ allege: dzT("plateau.pl_niv.allege"), plein: dzT("plateau.pl_niv.plein") })'
 D_ROLE = {"plateau.pl_role.sujet": ("sujet", "subject", "contexte"),
           "plateau.pl_role.decor": ("decor", "set dressing", "contexte"),
-          "plateau.pl_role.repere": ("repere", "marker", "contexte")}
+          "plateau.pl_role.repere": ("repere", "marker", "contexte"),
+          "plateau.pl_role.faisceau": ("faisceau", "light beam", "contexte")}
 D_NIV = {"plateau.pl_niv.allege": ("allege", "light", "contexte"),
          "plateau.pl_niv.plein": ("plein", "full", "contexte")}
 

@@ -230,7 +230,7 @@
   "prospects.sequence.modele": {"fr": "Modèle WhatsApp : {nom} ({langue})", "en": "WhatsApp template: {nom} ({langue})"},
   "prospects.seqmotif.fenetre": {"fr": "Arrêtée : la fenêtre de 24 h était fermée (un texte libre ne part que si le contact a écrit dans les 24 h).", "en": "Stopped: the 24-hour window was closed (free text only goes if the contact wrote within 24 hours)."},
   "prospects.seqmotif.modele": {"fr": "Arrêtée : modèle WhatsApp inconnu ou non approuvé.", "en": "Stopped: unknown or unapproved WhatsApp template."},
-  "prospects.bouton.tableau": {"fr": "Tableau", "en": "Board"},
+  "prospects.bouton.tableau": {"fr": "Tableau", "en": "Board", "contexte": true},
   "prospects.liste.a_reprendre": {"fr": "À reprendre ({motif})", "en": "To take back ({motif})"},
   "prospects.fiche.a_reprendre": {"fr": "À reprendre par vous ({motif}) : {raison}. L'agent ne répond pas à ce prospect ; noter un contact ou changer le statut retire ce drapeau.", "en": "For you to take back ({motif}): {raison}. The agent does not answer this prospect; noting a contact or changing the status clears this flag."},
   "prospects.humain.prix": {"fr": "prix", "en": "price"},

@@ -103,6 +103,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   (mouvement, caméra) + 1 à 4 style frames (look) ; Seedance 2.5 (sans clip : Veo 3.1). Payant (entrée + sortie
   facturées), catégorie « chapitres ». Clip trop court : étiré ou complété au noir (la boîte dit la durée facturée) ;
   après rendu, dérive mesurée et recalée (« dérive : +2 images, recalée »). → [ALLER:episodes] [GUIDE:chapitres]
+- **Previs colorée et couverture** (t333, t338) : Plateau du plan. Chaque forme prend la couleur de son entité ou de sa « Matière » ; la légende part dans les prompts ; faisceaux jamais capturés. « Générer la couverture » : plan large, contre-champ (règle des 180°), gros plan — gratuit. → [ALLER:episodes]
 - **Revoir un plan rendu** (t337) : carte du plan, « Revue du plan ». Mesures gratuites (dérive, structure, identité ;
   profondeur si le plan a ses passes Blender), comparateur (O, C, ← →), avis Claude payant sur devis — jamais une garantie. → [ALLER:episodes]
 - **Passes d'un plan** (t334) : carte du plan, « Passes Blender » : la scène du Plateau rendue par Blender (clay, look,
@@ -152,12 +153,19 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Pièces mobiles et budgets 3D** (t342) : Établi, Parties › « Pièces mobiles » (« Chercher les pièces », gratuit ;
   IA Tripo payante, catégorie « moteurs3d ») ; Export › « Budgets de triangles » (rôle, 3 densités, gratuit).
   → [ALLER:assets3d] [GUIDE:etabli]
+- **Comparer les moteurs 3D** (t344) : 3D Studio › « Comparer les moteurs » : N moteurs sur une image (total puis
+  confirmation, « moteurs3d ») ou modèles existants (gratuit) ; « Garder celui-ci ». → [ALLER:assets3d] [GUIDE:forge3d]
+- **Voir le modèle d'une étape Meshy** (t344) : 3D Studio, clic sur un nœud (sa vignette) → l'aperçu le montre ;
+  « Agrandir » (ou double-clic) l'ouvre en grand (argile, fil de fer, vues), Échap revient. → [ALLER:assets3d]
 - **Sprites en 8 directions** (t339) : Sprite Lab › Bible, personnage, Directions « 8 ». S, E, N découpés (gratuit),
   SE et NE générés (payant, « sprites », devis puis confirmation), SO, O, NO en miroir (décocher = vraie vue).
   → [ALLER:assets3d] [GUIDE:spritelab]
 - **Pixel Lock et boucle** (t340) : Sprite Lab, Pixel-art, « Approuver ce sprite » (gratuit) verrouille grille et
   palette ; Image › « Boucle » : même pose aux deux bouts (payant, « sprites », devis puis confirmation).
   → [ALLER:assets3d] [GUIDE:spritelab]
+- **Décor en parallaxe** (t341) : Tile Lab › « Décor en parallaxe ». Peinture large, 4 ou 5 calques : découpe locale
+  gratuite, ou IA payante (« tuiles », devis puis confirmation) ; facteurs sous l'aperçu ; ZIP Godot ou PNG.
+  → [ALLER:assets3d] [GUIDE:assets2d]
 - **Raccourcis clavier**. → [GUIDE:raccourcis]
 - **Ça ne marche pas**. → [GUIDE:depannage]
 
