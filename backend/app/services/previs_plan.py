@@ -275,9 +275,10 @@ def recaler(rendu: Path, previs: Path, infos_previs: dict, conform: dict | None 
             "score": mesure["score"], "phrase": phrase_derive(d, mesure["fiable"])}
 
 
-def prompt_defaut(modele: str, action: str, n_frames: int, style: str = "") -> str:
+def prompt_defaut(modele: str, action: str, n_frames: int, style: str = "", legende: str = "") -> str:
     """Le prompt proposé (modifiable dans la fiche) : il NOMME chaque référence, comme les recettes de scenario.com
-    (« le prompt nomme chaque forme ») — @Video1 pour le mouvement, @ImageN pour le look."""
+    (« le prompt nomme chaque forme ») — @Video1 pour le mouvement, @ImageN pour le look. t333 (A3) : `legende` =
+    la légende de la previs colorée du Plateau (« green cylinders = cyprès »), qui nomme chaque forme de @Video1."""
     action = " ".join(str(action or "").split())
     style = " ".join(str(style or "").split())
     images = ", ".join(f"@Image{i}" for i in range(1, max(1, n_frames) + 1))
@@ -288,6 +289,9 @@ def prompt_defaut(modele: str, action: str, n_frames: int, style: str = "") -> s
         p = "A cinematic shot in the look of the reference images."
     if action:
         p += f" Action: {action}"
+    legende = " ".join(str(legende or "").split())
+    if legende and VR.REGISTRE_REFS[modele]["grammaire"] == "video":     # sans clip, rien à nommer
+        p += f" In @Video1 — {legende}"
     if style:
         p += f" Style: {style}"
     return p[:PROMPT_MAX]

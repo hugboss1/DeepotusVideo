@@ -51,6 +51,7 @@
   "agent.boites.capture": {"fr": "Capture de l'app", "en": "App recording"},
   "agent.boites.chapitres": {"fr": "Chapitres", "en": "Chapters"},
   "agent.boites.assets3d": {"fr": "Pièces et budgets 3D", "en": "3D parts and budgets"},
+  "agent.boites.plateau": {"fr": "Previs et couverture du Plateau", "en": "Stage previs and coverage"},
   "agent.onglet.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
   "agent.campagnes.espace": {"fr": "Espace de marque de la campagne", "en": "Campaign brand space"},
   "agent.campagnes.sans_espace": {"fr": "Aucun espace", "en": "No space"},

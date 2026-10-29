@@ -211,6 +211,7 @@ ATTENDU = {
         'dz-action-capturer': 1,
         'dz-action-retour': 1,
         'dz-action-telecharger': 1,
+        'dz-lab3d-camera': 1,          # t338 : « Générer la couverture »
         'dz-lab3d-capsule': 1,
         'dz-lab3d-cube': 1,
         'dz-lab3d-cylindre': 1,
@@ -219,8 +220,14 @@ ATTENDU = {
         'dz-media-lecture': 1,
     },
     'frontend/plateau/plateau.js': {
-        'dz-etat-avertissement': 1,
-        'dz-etat-succes': 2,
+        # t333 + t338 : faisceau exclu (lumière), caméras de couverture (voir, capturer, nouveau plan, image du plan)
+        'dz-action-capturer': 1,
+        'dz-action-envoyer-vers': 2,
+        'dz-action-nouveau': 2,
+        'dz-etat-avertissement': 2,
+        'dz-etat-succes': 3,
+        'dz-etat-visible': 1,
+        'dz-lab3d-lumiere': 1,
         'dz-media-image-cle-retirer': 1,
         'dz-media-lecture': 1,
         'dz-media-pause': 1,
@@ -278,8 +285,8 @@ GLYPHES_RESTANTS = {
     'frontend/etabli/etabli.js': {'×': 4, '→': 12},
     'frontend/etabli/aide.js': {'→': 3},
     'frontend/etabli/etabli.css': {},
-    'frontend/plateau/index.html': {},
-    'frontend/plateau/plateau.js': {'×': 1},
+    'frontend/plateau/index.html': {'→': 1},          # t333 : « Previs → plan » (nom de la boîte, un texte)
+    'frontend/plateau/plateau.js': {'×': 1, '→': 1},  # t338 : « image de début : avant → après » (un texte)
     'frontend/plateau/plateau.css': {},
     'frontend/studio3d/index.html': {},
     'frontend/studio3d/studio3d.js': {'→': 10, '↺': 1},

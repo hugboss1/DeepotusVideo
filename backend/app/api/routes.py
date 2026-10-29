@@ -13137,6 +13137,15 @@ async def generate_shot_image(shot_id: str, body: dict, http: Request = None):
         prompt = f"Shot: {s.shot_type}, camera: {s.camera_move}. {action}"
         if descs:
             prompt += ". Characters/places (keep them EXACTLY as in the reference images): " + "; ".join(descs)
+        # t333 (A3) : la capture COLORÉE du Plateau (borne de début) part en DERNIÈRE référence, sa légende dans le
+        # prompt (« green cylinders = cyprès ») — la composition vient de la previs, le look des vues de la bible
+        from app.services import previs_palette as _PP
+        from app.services.scene3d_routes import legende_du_plan as _leg_plan
+        _kf = Path(str(getattr(s, "keyframe_image", None) or "")).name
+        _leg = await _leg_plan(s.id) if _kf.startswith("plateau_") else None
+        if _leg and (settings.images_path / _kf).is_file():
+            refs = [r for r in refs if r.name != _kf][:IP.REF_MAX - 1] + [settings.images_path / _kf]
+            prompt += "." + _PP.phrase_image(_leg["prompt"])
         if style:
             prompt += f". Style: {style}"
         await _plafond({"kind": "image", "n": 1, "model": provider}, "chapitres")   # avant la dépense
@@ -13397,7 +13406,7 @@ async def _previs_calc(s, body: dict | None, http=None) -> dict:
     out = {"modele": mid, "label": None, "endpoint": None, "tache": None, "resolution": None, "clip": None,
            "clip_chemin": None, "style_frames": [], "prompt": "", "prompt_defaut": "", "notes": [], "usd": None,
            "op": None, "secondes_entree": None, "secondes_sortie": None, "cle_absente": None, "refus": None,
-           "refus_code": None, "refus_etape": None, "conform": None, "clip_infos_previs": None}
+           "refus_code": None, "refus_etape": None, "conform": None, "clip_infos_previs": None, "legende": None}
 
     def _refus(code, msg, etape="champs"):
         if out["refus"] is None:
@@ -13469,7 +13478,11 @@ async def _previs_calc(s, body: dict | None, http=None) -> dict:
     async with async_session_factory() as session:
         style = await _atelier_setting(session, "global_style")
     action = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
-    out["prompt_defaut"] = PV.prompt_defaut(mid, action, max(1, min(len(frames), m["refs"][1])), style)
+    # t333 (A3) : la légende de la previs colorée du Plateau nomme chaque forme du clip
+    from app.services.scene3d_routes import legende_du_plan as _leg_plan
+    out["legende"] = await _leg_plan(s.id)
+    out["prompt_defaut"] = PV.prompt_defaut(mid, action, max(1, min(len(frames), m["refs"][1])), style,
+                                            legende=(out["legende"] or {}).get("prompt", ""))
     prompt = body.get("prompt")
     prompt = out["prompt_defaut"] if prompt is None or not str(prompt).strip() else " ".join(str(prompt).split())
     if len(prompt) > PV.PROMPT_MAX:
@@ -13503,7 +13516,7 @@ async def _previs_calc(s, body: dict | None, http=None) -> dict:
 def _previs_public(calc: dict) -> dict:
     return {k: calc[k] for k in ("modele", "label", "endpoint", "tache", "resolution", "clip", "style_frames", "prompt",
                                  "prompt_defaut", "notes", "usd", "secondes_entree", "secondes_sortie", "cle_absente",
-                                 "refus", "conform")}
+                                 "refus", "conform", "legende")}
 
 
 @router.get("/shots/{shot_id}/previs/sources")
@@ -13549,6 +13562,8 @@ async def shot_previs_sources(shot_id: str):
         if nom and (settings.images_path / Path(nom).name).is_file() and all(i["nom"] != Path(nom).name for i in images):
             images.append({"nom": Path(nom).name, "origine": origine})
     action = ((getattr(s, "motion_prompt", None) or "").strip() or (s.action or "").strip())
+    from app.services.scene3d_routes import legende_du_plan as _leg_plan
+    legende = await _leg_plan(s.id)        # t333 (A3) : la previs colorée nomme chaque forme
     modeles = []
     for mid in VR.MODELES_PREVIS:
         m = VR.REGISTRE_REFS[mid]
@@ -13556,9 +13571,10 @@ async def shot_previs_sources(shot_id: str):
                         "taches": list(m.get("taches") or ()), "resolutions": list(m["resolutions"] or ()),
                         "refs_max": m["refs"][1], "dispo": bool(settings.FAL_KEY),
                         "cle": None if settings.FAL_KEY else "FAL_KEY",
-                        "prompt_defaut": PV.prompt_defaut(mid, action, 1, style)})
+                        "prompt_defaut": PV.prompt_defaut(mid, action, 1, style,
+                                                          legende=(legende or {}).get("prompt", ""))})
     return {"defaut": VR.DEFAUT_PREVIS, "modeles": modeles, "clips": clips, "images": images,
-            "duree_plan": s.duration_s, "dernier_rendu": dernier}
+            "duree_plan": s.duration_s, "dernier_rendu": dernier, "legende": legende}
 
 
 @router.post("/shots/{shot_id}/previs/devis")

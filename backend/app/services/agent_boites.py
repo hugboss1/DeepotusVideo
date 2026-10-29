@@ -67,6 +67,14 @@ BOITES: dict[str, dict] = {
         "agents": [],
         "mobile": False,
     },
+    # t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (lecture, proposition) ; aucun agent ne
+    # la déclare encore (§11 bis)
+    "plateau": {
+        "libelle": "agent.boites.plateau",
+        "outils": ["plateau_previs"],
+        "agents": [],
+        "mobile": False,
+    },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)
     "assets3d": {
         "libelle": "agent.boites.assets3d",

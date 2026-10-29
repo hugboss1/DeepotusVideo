@@ -6999,9 +6999,57 @@
   "fr": "prompt_templates : une liste de {MAX_TPL} modèles au plus",
   "en": "prompt_templates: a list of {MAX_TPL} templates at most"
  },
- "quand : debut ou fin.": {
-  "fr": "quand : debut ou fin.",
-  "en": "quand: debut or fin."
+ "{quoi} inconnu dans la scène : {iid}.": {
+  "fr": "{quoi} inconnu dans la scène : {iid}.",
+  "en": "{quoi} unknown in the scene: {iid}."
+ },
+ "direction nulle.": {
+  "fr": "direction nulle.",
+  "en": "zero direction."
+ },
+ "le sujet n'a pas encore de dimensions (maillage non mesuré).": {
+  "fr": "le sujet n'a pas encore de dimensions (maillage non mesuré).",
+  "en": "the subject has no dimensions yet (mesh not measured)."
+ },
+ "la cible du gros plan n'a pas encore de dimensions.": {
+  "fr": "la cible du gros plan n'a pas encore de dimensions.",
+  "en": "the close-up target has no dimensions yet."
+ },
+ "l'interlocuteur doit être une autre instance que le sujet.": {
+  "fr": "l'interlocuteur doit être une autre instance que le sujet.",
+  "en": "the other character must be a different instance from the subject."
+ },
+ "l'interlocuteur n'a pas encore de dimensions.": {
+  "fr": "l'interlocuteur n'a pas encore de dimensions.",
+  "en": "the other character has no dimensions yet."
+ },
+ "aucune caméra à couvrir : posez la caméra du plan d'abord.": {
+  "fr": "aucune caméra à couvrir : posez la caméra du plan d'abord.",
+  "en": "no camera to cover: set the shot's camera first."
+ },
+ "quand : debut, fin ou camera.": {
+  "fr": "quand : debut, fin ou camera.",
+  "en": "quand: debut, fin or camera."
+ },
+ "camera_id : l'identifiant d'une caméra de couverture.": {
+  "fr": "camera_id : l'identifiant d'une caméra de couverture.",
+  "en": "camera_id: the id of a coverage camera."
+ },
+ "caméra de couverture inconnue : {v}.": {
+  "fr": "caméra de couverture inconnue : {v}.",
+  "en": "unknown coverage camera: {v}."
+ },
+ "{iid} : un faisceau est une primitive (proxy), pas un maillage.": {
+  "fr": "{iid} : un faisceau est une primitive (proxy), pas un maillage.",
+  "en": "{iid}: a light beam is a primitive (proxy), not a mesh."
+ },
+ "caméra de couverture inconnue : {cid} — générez la couverture d'abord.": {
+  "fr": "caméra de couverture inconnue : {cid} — générez la couverture d'abord.",
+  "en": "unknown coverage camera: {cid} — generate the coverage first."
+ },
+ "{k} : l'identifiant d'une instance.": {
+  "fr": "{k} : l'identifiant d'une instance.",
+  "en": "{k}: the id of an instance."
  },
  "raccourcis : {MAX_RACCOURCIS} au plus": {
   "fr": "raccourcis : {MAX_RACCOURCIS} au plus",
