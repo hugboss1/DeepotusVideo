@@ -566,6 +566,9 @@ app.include_router(schema_router, prefix="/api/schema")
 # t319 (28/10/2026) : /api/tutoriels — brouillon de tutoriel d'une capture et parcours partagés (.dzparcours), local seulement
 from app.api.tutoriels_routes import router as tutoriels_router
 app.include_router(tutoriels_router, prefix="/api/tutoriels")
+# t344 (29/10/2026) : /api/comparatif3d — banc comparatif des moteurs image -> 3D (tir payant gardé, existants gratuit)
+from app.api.comparatif3d_routes import router as comparatif3d_router
+app.include_router(comparatif3d_router, prefix="/api/comparatif3d")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

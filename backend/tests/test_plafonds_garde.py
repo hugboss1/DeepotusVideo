@@ -85,6 +85,7 @@ PAYANTES = {
     # gratuite en pratique, mais le chemin atteint le puits FLUX et la garde de generate_material est sur sa route
     ("routes", "POST", "/materials/from-photo"),
     ("routes", "POST", "/assets/3d/{job}/rig"),
+    ("comparatif3d", "POST", ""),   # t344 : le comparatif des moteurs 3D — N tirs, garde « moteurs3d » sur le total puis par tir
     ("routes", "POST", "/etabli/pieces/ia"),   # t342 : Tripo Segmentation (fal), garde « moteurs3d » après confirme_cout
     ("routes", "POST", "/assets/3d/{job}/convert"),   # T105 : fbx/usdz/blend par Meshy convert   # T104 : rig + animations Meshy d'un job fal (crédits)
     ("routes", "POST", "/audio/sfx-video"),   # t187 (G5) : le bruitage d'une vidéo (Sonilo, Mirelo, Kling, Hunyuan, ThinkSound)

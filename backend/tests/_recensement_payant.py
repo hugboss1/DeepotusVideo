@@ -28,6 +28,7 @@ MODULES = {
     "scan": RACINE / "api" / "scan_routes.py",   # t312 : le secours Claude vision de la boîte Scan (Anthropic)
     "inspiration": RACINE / "api" / "inspiration_routes.py",   # t313 : matière, angles et rédaction d'une inspiration (Anthropic)
     "schema": RACINE / "api" / "schema_routes.py",   # t314 : le détourage fal d'un schéma (calques du Vectorlab)
+    "comparatif3d": RACINE / "api" / "comparatif3d_routes.py",   # t344 : N moteurs image → 3D en un clic (fal)
 }
 
 PUITS = {

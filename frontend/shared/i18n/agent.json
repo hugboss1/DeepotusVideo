@@ -49,7 +49,7 @@
   "agent.boites.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
   "agent.boites.scan": {"fr": "Scan", "en": "Scan"},
   "agent.boites.capture": {"fr": "Capture de l'app", "en": "App recording"},
-  "agent.boites.assets3d": {"fr": "Pièces et budgets 3D", "en": "3D parts and budgets"},
+  "agent.boites.assets3d": {"fr": "Pièces, budgets et comparatifs 3D", "en": "3D parts, budgets and comparisons"},
   "agent.onglet.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
   "agent.campagnes.espace": {"fr": "Espace de marque de la campagne", "en": "Campaign brand space"},
   "agent.campagnes.sans_espace": {"fr": "Aucun espace", "en": "No space"},

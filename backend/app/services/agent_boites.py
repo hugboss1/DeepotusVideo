@@ -63,7 +63,7 @@ BOITES: dict[str, dict] = {
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)
     "assets3d": {
         "libelle": "agent.boites.assets3d",
-        "outils": ["pieces_analyser", "budgets_triangles"],
+        "outils": ["pieces_analyser", "budgets_triangles", "comparatif3d_lire"],   # t344 : + le tableau d'un comparatif
         "agents": [],
         "mobile": False,
     },
