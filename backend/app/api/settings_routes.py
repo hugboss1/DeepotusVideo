@@ -665,6 +665,108 @@ async def verifier_emplacements(request: Request):
     return {"emplacements": await asyncio.to_thread(E.verifier)}
 
 
+# ── t379 : le câblage des rôles (services/emplacements_cablage.py) ───────────────────────────────────────────────────
+
+@router.get("/chemins/etat")
+async def etat_emplacements(request: Request):
+    """La dernière sauvegarde de chaque emplacement et l'index de chaque source de bibliothèque (nombre, date)."""
+    _local(request)
+    from app.services import emplacements as E, emplacements_cablage as EC
+    sv = EC.lire_etat()["sauvegardes"]
+    out = {}
+    for v in E.lister():
+        idx = EC.lire_index(v["id"]) if "bibliotheque" in v["roles"] else None
+        out[v["id"]] = {"sauvegarde": sv.get(v["id"]),
+                        "index": None if idx is None else {"quand": idx.get("quand"), "fichiers": len(idx["fichiers"]),
+                                                           "erreur": idx.get("erreur")}}
+    return {"emplacements": out, "garder": EC.GARDER}
+
+
+@router.post("/chemins/operations/{jid}/reessayer")
+async def reessayer_operation(jid: str, request: Request):
+    """« Réessayer » du Job Dock pour une sauvegarde, un miroir ou un index en échec : rejoué tel quel."""
+    _local(request)
+    from app.services import emplacements_cablage as EC
+    try:
+        return await EC.reessayer(jid)
+    except LookupError:
+        raise HTTPException(404, f"Opération inconnue : {jid}")
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+
+
+@router.post("/chemins/{eid}/sauvegarder")
+async def sauvegarder_emplacement(eid: str, request: Request):
+    """« Sauvegarder maintenant » : la copie part tout de suite (la rotation suit) ; un échec est rendu, pas levé."""
+    import asyncio
+    _local(request)
+    from app.services import emplacements as E, emplacements_cablage as EC
+    try:
+        r = await asyncio.to_thread(EC.sauvegarder, eid)
+    except EC.EchecOperation as ex:
+        return {"ok": False, "code": ex.code, "detail": ex.detail, "message": str(ex)}
+    except Exception as e:  # noqa: BLE001
+        raise _ch_erreur(e)
+    await EC._clore({"operation": "sauvegarde", "emplacement": eid})
+    return {"ok": True, **r}
+
+
+@router.get("/chemins/{eid}/index")
+async def index_emplacement(eid: str, request: Request):
+    _local(request)
+    from app.services import emplacements as E, emplacements_cablage as EC
+    try:
+        E.obtenir(eid)
+    except Exception as e:  # noqa: BLE001
+        raise _ch_erreur(e)
+    return EC.lire_index(eid)
+
+
+@router.post("/chemins/{eid}/indexer")
+async def indexer_emplacement(eid: str, request: Request):
+    """Relève les médias d'une source de bibliothèque, sans rien écrire là-bas."""
+    import asyncio
+    _local(request)
+    from app.services import emplacements_cablage as EC
+    try:
+        idx = await asyncio.to_thread(EC.indexer, eid)
+    except EC.EchecOperation as ex:
+        return {"ok": False, "code": ex.code, "detail": ex.detail, "message": str(ex)}
+    except Exception as e:  # noqa: BLE001
+        raise _ch_erreur(e)
+    await EC._clore({"operation": "index", "emplacement": eid})
+    return {"ok": True, **idx}
+
+
+@router.get("/chemins/{eid}/fichier")
+async def fichier_emplacement(eid: str, chemin: str, request: Request):
+    """Un fichier INDEXÉ d'une source de bibliothèque, servi en lecture (confiné à l'emplacement)."""
+    _local(request)
+    import asyncio
+    from fastapi.responses import FileResponse
+    from app.services import emplacements_cablage as EC
+    try:
+        p = await asyncio.to_thread(EC.fichier_local, eid, chemin)
+    except EC.EchecOperation as ex:
+        raise HTTPException(502, str(ex))
+    except Exception as e:  # noqa: BLE001
+        raise _ch_erreur(e)
+    return FileResponse(str(p))
+
+
+@router.post("/chemins/{eid}/importer")
+async def importer_emplacement(eid: str, body: dict, request: Request):
+    """COPIE un fichier de la source dans la Bibliothèque (images et sons) ; la source n'est pas touchée."""
+    _local(request)
+    from app.services import emplacements_cablage as EC
+    try:
+        return await EC.importer(eid, str((body or {}).get("chemin") or ""))
+    except EC.EchecOperation as ex:
+        raise HTTPException(502, str(ex))
+    except Exception as e:  # noqa: BLE001
+        raise _ch_erreur(e)
+
+
 @router.post("/chemins/{eid}")
 async def modifier_emplacement(eid: str, body: dict, request: Request):
     _local(request)

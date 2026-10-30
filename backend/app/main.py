@@ -187,6 +187,8 @@ async def lifespan(app: FastAPI):
     releve_task = asyncio.create_task(releve_loop())
     purge_task = asyncio.create_task(prospects_purge_loop())   # t353 : purge des prospects à 3 ans (2 min, puis 24 h)
     email_task = asyncio.create_task(email_loop())   # t356 : e-mails dus toutes les 60 s, réponses toutes les 5 min
+    from app.services import emplacements_cablage as _EC
+    empl_task = asyncio.create_task(_EC.boucle())    # t379 : sauvegardes, miroir des rendus, index des sources (45 s, puis 60 s)
 
     async def _maj_au_demarrage():
         """Tâche #18 : une fois par lancement, 20 s après le boot, et au plus une fois par jour (cache disque).
@@ -237,7 +239,7 @@ async def lifespan(app: FastAPI):
         if warm_task:
             from app.services.heygen_service import annuler_en_vol
             annuler_en_vol()
-        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, email_task, maj_task, warm_task) if t])
+        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, email_task, empl_task, maj_task, warm_task) if t])
         # t136 : le moteur du Photolab s'arrête avec le backend (fin de stdin = fin propre de photocraft-cli serve)
         try:
             from app.services import photolab_moteur

@@ -53,13 +53,16 @@ try:
     os.environ.setdefault("DEEPOTUS_DATA_DIR", str(pathlib.Path(os.environ.get("TEMP", ".")) / "dzempl_ecran"))
     from app.services import emplacements as E                     # noqa: E402
     ETATS, TYPES, ROLES = list(E.ETATS), list(E.TYPES), list(E.ROLES)
+    from app.services import emplacements_cablage as EC              # noqa: E402 — t379 : genres de la galerie
+    GENRES = list(EC.GENRES)
 except Exception as e:                                               # noqa: BLE001
-    TYPES, ROLES = [], []
+    TYPES, ROLES, GENRES = [], [], []
     print(f"  (service illisible : {e!r})")
 CODE = re.sub(r"/\*.*?\*/|//[^\n]*", "", SRC, flags=re.S)        # le script sans ses commentaires
-directes = {k for k in re.findall(r'"(chemins\.[a-z0-9_.]+)"', CODE) if not k.endswith(".")}
+directes = {k for k in re.findall(r'"(chemins\.[a-z0-9_.]+)"', CODE) if not k.endswith((".", "_"))}
 composees = ({f"chemins.etat.{c}" for c in ETATS} | {f"chemins.type.{t}" for t in TYPES}
-             | {f"chemins.role.{r}" for r in ROLES} | {f"chemins.role.{r}_aide" for r in ROLES})
+             | {f"chemins.role.{r}" for r in ROLES} | {f"chemins.role.{r}_aide" for r in ROLES}
+             | {f"chemins.biblio.genre_{g}" for g in GENRES})
 employees = directes | composees
 check("1.1 chaque clé employée existe, FR et EN non vides", employees and all(
     k in DICO and DICO[k]["fr"] and DICO[k]["en"] for k in employees), sorted(k for k in employees if k not in DICO))
@@ -106,7 +109,8 @@ if M is not None:
           (r.stdout + r.stderr)[-300:])
     avant = AIDE.avant_dzchemins(BUN) if hasattr(AIDE, "avant_dzchemins") else ""
     check("3.5 l'inverse avant_dzchemins défait le maillon, et le rejouer redonne le bundle à l'octet",
-          avant and M.MARKER not in avant and "data-dz-chemins" not in avant and M.appliquer(avant) == BUN)
+          avant and M.MARKER not in avant and "data-dz-chemins" not in avant
+          and M.appliquer(avant) == BUN)
     src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
     _g = src_aide[src_aide.index("def avant_dza2d("):]
     _g = _g[:_g.index("\ndef ", 5)]
@@ -122,6 +126,17 @@ if M is not None:
     check("3.11 comptes figés intacts", BUN.count("v2.8.0") == 4 and BUN.count("DzTracks") == 181
           and BUN.count("await window.__dzDialogue.confirmer(") == 30)
 
+print("\n[3b] t379 : la relance « emplacement » du Job Dock, SANS toucher au remplacement de dzdock")
+r0 = BUN.find("function __dzRelancer(")
+FN_R = BUN[r0:BUN.find("function ", r0 + 30)] if r0 > 0 else ""
+check("3b.1 __dzRelancer (remplacement de dzdock) est intact : aucun cas « emplacement » dans le bundle",
+      FN_R and "emplacement" not in FN_R)
+check("3b.2 le serveur rend la relance « emplacement » (le Dock pose donc son bouton « Réessayer »)",
+      'if j.provider == "emplacement":' in (RACINE / "backend" / "app" / "api" / "routes.py").read_text(encoding="utf-8"))
+check("3b.3 dz-chemins.js intercepte ce bouton en phase de CAPTURE et rejoue l'opération",
+      'addEventListener("click", surClicDock, true)' in CODE and '"/operations/"' in CODE
+      and 'T("coque.file.reessayer_direct_aide")' in CODE)
+
 print("\n[4] le panneau joué sous node")
 r = subprocess.run(["node", str(RACINE / "frontend" / "shared" / "qa" / "chemins.test.mjs")], capture_output=True,
                    text=True, encoding="utf-8", errors="replace", timeout=120)
@@ -130,7 +145,8 @@ check("4.1 chemins.test.mjs vert", r.returncode == 0, (r.stdout + r.stderr)[-150
 print("\n[5] la documentation")
 AG = (RACINE / "AGENTS.md").read_text(encoding="utf-8")
 check("5.1 AGENTS.md nomme le service, l'écran et le maillon", all(x in AG for x in (
-    "backend/app/services/emplacements.py", "frontend/shared/dz-chemins.js", "patch_bundle_dzchemins.py")))
+    "backend/app/services/emplacements.py", "frontend/shared/dz-chemins.js", "patch_bundle_dzchemins.py",
+    "backend/app/services/emplacements_cablage.py")))
 
 print(f"\n{ok} PASS / {fail} FAIL")
 sys.exit(1 if fail else 0)

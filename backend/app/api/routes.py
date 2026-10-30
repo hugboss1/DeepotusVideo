@@ -7507,6 +7507,8 @@ def _relance_de(j) -> str | None:
     jid = str(getattr(j, "id", "") or "")
     if not jid or Path(jid).name != jid:
         return None
+    if j.provider == "emplacement":            # t379 : une sauvegarde, un miroir ou un index en échec, rejoué tel quel
+        return "emplacement"
     from app.services import quick_recipe
     graphe = (settings.outputs_path / "_graphs" / f"{jid}.json").is_file()
     if graphe and j.provider == "animation" and str(j.image_filename or "").startswith("mcode_"):
@@ -10299,6 +10301,7 @@ _JOBS_SANS_DEPENSE = {
     "card3d":        "Publication d'une carte 3D (rien n'est fabriqué)",
     "template":      "Rendu template (job parent — les sous-jobs paient)",
     "composition":   "Composition (job parent — les sous-jobs paient)",
+    "emplacement":   "Sauvegarde, miroir ou index d'un emplacement (copie locale ou SFTP, t379)",
 }
 # ... et ceux dont la « campagne » (1 image + N s de vidéo) EST la vérité.
 # `provider IS NULL` arrive ici par le `or "seedance"` ci-dessous, et c'est
