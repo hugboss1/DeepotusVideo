@@ -24,12 +24,12 @@
 .tl-feuille .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .tl-feuille .fld.inline { display: inline-flex; align-items: center; gap: 4px; flex-direction: row; width: auto; }
 .tl-tuiles { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; }
-.tl-tuile { position: relative; width: 56px; height: 56px; border: 1px solid var(--stroke); border-radius: var(--r); cursor: pointer; background: repeating-conic-gradient(#2a2a2a 0 25%, #1c1c1c 0 50%) 0 0 / 8px 8px; image-rendering: pixelated; }
+.tl-tuile { position: relative; width: 56px; height: 56px; border: 1px solid var(--stroke); border-radius: var(--r); cursor: pointer; background: repeating-conic-gradient(var(--damier-a,#2a2a2a) 0 25%, var(--damier-b,#1c1c1c) 0 50%) 0 0 / 8px 8px; image-rendering: pixelated; }
 .tl-tuile.sel { outline: 2px solid #ffd166; outline-offset: -1px; }
 .tl-tuile.placee { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan); }
 .tl-tuile .n { position: absolute; left: 2px; top: 1px; font-size: 9px; color: #ddd; text-shadow: 0 0 2px #000; }
 .tl-place-wrap { overflow: auto; background: var(--bg-base); border: 1px solid var(--stroke); border-radius: var(--r); padding: 6px; }
-.tl-placement { image-rendering: pixelated; cursor: crosshair; background: repeating-conic-gradient(#2a2a2a 0 25%, #1c1c1c 0 50%) 0 0 / 8px 8px; }
+.tl-placement { image-rendering: pixelated; cursor: crosshair; background: repeating-conic-gradient(var(--damier-a,#2a2a2a) 0 25%, var(--damier-b,#1c1c1c) 0 50%) 0 0 / 8px 8px; }
 .tl-seam { image-rendering: pixelated; border: 1px solid var(--stroke); border-radius: var(--r); max-width: 100%; }
 
 /* ── t115 : modes Jeu et Formes ── */
@@ -44,7 +44,7 @@
 .tl-slot-n { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tl-slot:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
 .tl-damier { max-width: 100%; height: auto; image-rendering: pixelated; border: 1px solid var(--stroke); border-radius: var(--r);
-             background: repeating-conic-gradient(#2a2a2a 0 25%, #1c1c1c 0 50%) 0 0 / 16px 16px; align-self: flex-start; }
+             background: repeating-conic-gradient(var(--damier-a,#2a2a2a) 0 25%, var(--damier-b,#1c1c1c) 0 50%) 0 0 / 16px 16px; align-self: flex-start; }
 .tl-mesures { flex-wrap: wrap; }
 .tl-chip.warn { border-color: var(--red); color: var(--red); }   /* --amber vaut --cyan dans ce thème : « attention » se confondrait avec « ok » */
 .tl-chip i { color: var(--ink-muted); font-style: normal; }
@@ -77,7 +77,7 @@
 .plx-ordre { display: flex; flex-direction: column; }
 .plx-ordre .btn, .plx-oeil { padding: 2px 6px; }
 .plx-vignette { width: 120px; height: 40px; object-fit: contain; border-radius: var(--r); border: 1px solid var(--stroke);
-  background: repeating-conic-gradient(#2a2a2a 0 25%, #1c1c1c 0 50%) 0 0 / 8px 8px; }
+  background: repeating-conic-gradient(var(--damier-a,#2a2a2a) 0 25%, var(--damier-b,#1c1c1c) 0 50%) 0 0 / 8px 8px; }
 .plx-champs { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-width: 0; }
 .plx-nom { flex: 1 1 140px; min-width: 100px; background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: var(--r);
   color: var(--ink-strong); padding: 4px 8px; font-size: 12.5px; }

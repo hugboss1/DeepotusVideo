@@ -121,17 +121,34 @@ const NB = (doc) => Object.keys(doc.documentElement.style.p).length;
      "--well", "--stroke", "--stroke-strong", "--ink-strong", "--ink", "--ink-soft", "--ink-muted", "--accent", "--accent-soft",
      "--accent-ink", "--amber", "--amber-soft", "--cyan", "--cyan-soft", "--cyan-glow", "--green", "--green-soft", "--red",
      "--red-soft", "--slate", "color-scheme"].every((k) => k in dc), Object.keys(dc));
+  // t383 : des ALIAS --pal-* (les feuilles à jetons locaux, comme .dzsvm du Montage, ne peuvent pas écrire
+  // « --stroke: var(--stroke) ») et les deux cases du damier des labs
+  const al = { "--pal-fond": "--bg-base", "--pal-panneau": "--bg-panel", "--pal-panneau-2": "--bg-panel-2",
+               "--pal-panneau-3": "--bg-panel-3", "--pal-trait": "--stroke", "--pal-trait-fort": "--stroke-strong",
+               "--pal-encre-1": "--ink-strong", "--pal-encre-2": "--ink", "--pal-encre-3": "--ink-soft",
+               "--pal-encre-4": "--ink-muted", "--pal-accent": "--accent", "--pal-accent-doux": "--accent-soft",
+               "--pal-encre-accent": "--accent-ink", "--pal-succes": "--green", "--pal-erreur": "--red" };
+  ok("A8b chaque alias --pal-* vaut son jeton de base", Object.keys(al).every((k) => dc[k] && dc[k] === dc[al[k]]),
+     Object.keys(al).filter((k) => dc[k] !== dc[al[k]]));
+  ok("A8c le damier suit le panneau : deux cases proches, lisibles l'une de l'autre", /^#[0-9a-f]{6}$/.test(dc["--damier-a"] || "")
+     && /^#[0-9a-f]{6}$/.test(dc["--damier-b"] || "") && dc["--damier-a"] !== dc["--damier-b"]
+     && A.contraste(dc["--damier-a"], dc["--damier-b"]) < 1.6 && A.contraste(dc["--damier-b"], dc["--bg-panel"]) < 1.3
+     && !A.sombre({ fond: dc["--damier-a"] }));
   ok("A9 la couleur de marque (logo) n'est jamais réécrite", !("--brand" in dc) && !("--brand-soft" in dc));
   ok("A10 fond, panneau, texte, accent, succès, erreur posés tels quels", dc["--bg-base"] === "#f2f0ec"
-     && dc["--bg-panel"] === "#ffffff" && dc["--ink-strong"] === "#171512" && dc["--accent"] === "#a06a00"
-     && dc["--amber"] === "#a06a00" && dc["--cyan"] === "#a06a00" && dc["--green"] === "#1f7a5c" && dc["--red"] === "#b03a28");
+     && dc["--bg-panel"] === "#ffffff" && dc["--ink-strong"] === "#171512" && dc["--accent"] === "#8c5c00"
+     && dc["--amber"] === "#8c5c00" && dc["--cyan"] === "#8c5c00" && dc["--green"] === "#1f7a5c" && dc["--red"] === "#b03a28");
   ok("A11 color-scheme suit le fond", dc["color-scheme"] === "light"
      && A.deriver(A.PRESETS.deeplab.couleurs, "coque")["color-scheme"] === "dark");
   ok("A12 les encres sont entre le texte et le panneau, de plus en plus discrètes",
      A.contraste(dc["--ink-strong"], dc["--bg-panel"]) > A.contraste(dc["--ink"], dc["--bg-panel"])
      && A.contraste(dc["--ink"], dc["--bg-panel"]) > A.contraste(dc["--ink-soft"], dc["--bg-panel"])
      && A.contraste(dc["--ink-soft"], dc["--bg-panel"]) > A.contraste(dc["--ink-muted"], dc["--bg-panel"]));
-  ok("A13 l'encre du bouton est la plus lisible sur l'accent", A.contraste(dc["--accent-ink"], "#a06a00") >= 4.5
+  ok("A12b clair : le texte secondaire reste AA aussi sur la surface d'élévation (coque) et le puits (lab) — audit t383",
+     A.contraste(dc["--ink-soft"], dc["--bg-panel-3"]) >= 4.5 && A.contraste(dl["--ink-soft"], dl["--bg-panel-3"]) >= 4.5
+     && A.contraste(dc["--ink-soft"], dc["--bg-panel-2"]) >= 4.5,
+     [A.contraste(dc["--ink-soft"], dc["--bg-panel-3"]), A.contraste(dl["--ink-soft"], dl["--bg-panel-3"])]);
+  ok("A13 l'encre du bouton est la plus lisible sur l'accent", A.contraste(dc["--accent-ink"], "#8c5c00") >= 4.5
      && A.contraste(A.deriver(A.PRESETS.sombre.couleurs, "coque")["--accent-ink"], "#f0b429") >= 4.5);
   ok("A14 panneau 3 : surface d'élévation dans la coque, puits dans un lab (sombre)",
      A.contraste(A.deriver(A.PRESETS.sombre.couleurs, "coque")["--bg-panel-3"], "#000000")
@@ -142,12 +159,12 @@ const NB = (doc) => Object.keys(doc.documentElement.style.p).length;
   ok("A16 contraste élevé est « fort »", A.PRESETS.contraste.fort === true && !A.PRESETS.sombre.fort);
   for (const p of A.ORDRE) {
     const c = A.controles(A.PRESETS[p].couleurs, A.PRESETS[p].fort);
-    ok(`A17 ${p} : tous les contrôles AA passent`, c.length === 7 && c.every((x) => x.ok),
+    ok(`A17 ${p} : tous les contrôles AA passent`, c.length === 8 && c.every((x) => x.ok),
        JSON.stringify(c.filter((x) => !x.ok)));
   }
   const ids = A.controles(A.PRESETS.sombre.couleurs).map((x) => x.id + ":" + x.seuil).join(",");
   ok("A18 les contrôles et leurs seuils (4,5 texte, 3 accent sur panneau)", ids ===
-     "texte_fond:4.5,texte_panneau:4.5,secondaire_panneau:4.5,accent_panneau:3,bouton:4.5,succes_panneau:4.5,erreur_panneau:4.5", ids);
+     "texte_fond:4.5,texte_panneau:4.5,secondaire_panneau:4.5,accent_panneau:3,accent_fond:4.5,bouton:4.5,succes_panneau:4.5,erreur_panneau:4.5", ids);
   const mauvais = A.controles(Object.assign({}, A.PRESETS.sombre.couleurs, { texte: "#3a3a3a", accent: "#202024" }));
   ok("A19 une palette illisible est signalée", mauvais.find((x) => x.id === "texte_panneau").ok === false
      && mauvais.find((x) => x.id === "accent_panneau").ok === false && mauvais.find((x) => x.id === "succes_panneau").ok === true);
@@ -180,7 +197,7 @@ const NB = (doc) => Object.keys(doc.documentElement.style.p).length;
   ok("B3 clair : data-theme=light sur la coque", doc.documentElement.getAttribute("data-theme") === "light");
   ok("B4 le lab (cadre de même origine) suit", PROP(lab, "--bg-base") === "#f2f0ec"
      && lab.documentElement.getAttribute("data-theme") === "light");
-  ok("B5 un cadre dans un cadre suit aussi", PROP(sous, "--accent") === "#a06a00");
+  ok("B5 un cadre dans un cadre suit aussi", PROP(sous, "--accent") === "#8c5c00");
   ok("B6 le lab reçoit les jetons « lab » (panneau 3)", PROP(lab, "--bg-panel-3") === A.deriver(A.PRESETS.clair.couleurs, "lab")["--bg-panel-3"]);
   ok("B7 un cadre d'une autre origine est ignoré sans erreur", true);
   A.appliquer({ preset: "deeplab" });
@@ -260,7 +277,7 @@ await (async () => {
        && couleurs.every((x) => x.tagName === "INPUT" && x.getAttribute("type") === "color")
        && un(hote, "data-dz-apparence-jeton", "fond").value === "#0a0a0c" && un(hote, "data-dz-apparence-hex", "texte").value === "#f2efe9");
     const ctl = parAttr(hote, "data-dz-apparence-controle");
-    ok(`D7 ${lang} : sept contrôles de contraste, tous AA pour le sombre`, ctl.length === 7 && ctl.every((x) => x.getAttribute("data-ok") === "1"));
+    ok(`D7 ${lang} : huit contrôles de contraste, tous AA pour le sombre`, ctl.length === 8 && ctl.every((x) => x.getAttribute("data-ok") === "1"));
     const r1 = texte(un(hote, "data-dz-apparence-controle", "texte_fond"));
     ok(`D8 ${lang} : ratio écrit à la ${lang === "fr" ? "française (virgule)" : "anglaise (point)"}`,
        lang === "fr" ? /17,2\d\s?:\s?1/.test(r1) : /17\.2\d\s?:\s?1/.test(r1), r1);

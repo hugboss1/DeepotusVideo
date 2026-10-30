@@ -52,7 +52,7 @@ CODE = re.sub(r"/\*.*?\*/|//[^\n]*", "", SRC, flags=re.S)        # le script san
 print("\n[1] le dictionnaire")
 PRESETS = ["sombre", "clair", "contraste", "deeplab"]
 JETONS = ["fond", "panneau", "texte", "accent", "succes", "erreur"]
-CONTROLES = ["texte_fond", "texte_panneau", "secondaire_panneau", "accent_panneau", "bouton", "succes_panneau",
+CONTROLES = ["texte_fond", "texte_panneau", "secondaire_panneau", "accent_panneau", "accent_fond", "bouton", "succes_panneau",
              "erreur_panneau"]
 directes = {k for k in re.findall(r'"(apparence\.[a-z0-9_.]+)"', CODE) if not k.endswith((".", "_"))}
 composees = ({f"apparence.preset.{p}" for p in PRESETS} | {f"apparence.jeton.{j}" for j in JETONS}

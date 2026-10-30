@@ -35,7 +35,7 @@ M = [
  ("js", ECRAN, "    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);", "    return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.5);"),
  ("js", ECRAN, "  function sombre(c) { return lum(c.fond) < 0.18; }", "  function sombre(c) { return lum(c.fond) < 0.01; }"),
  ("js", ECRAN, "    return contraste(noire, fond) >= contraste(BLANC, fond) ? noire : BLANC;", "    return BLANC;"),
- ("js", ECRAN, "  var POIDS = { sombre: [0.2, 0.45, 0.65], clair: [0.15, 0.36, 0.6]", "  var POIDS = { sombre: [0.2, 0.45, 0.65], clair: [0.15, 0.5, 0.6]"),
+ ("js", ECRAN, "  var POIDS = { sombre: [0.2, 0.45, 0.65], clair: [0.15, 0.32, 0.6]", "  var POIDS = { sombre: [0.2, 0.45, 0.65], clair: [0.15, 0.5, 0.6]"),
  ("js", ECRAN, '    v["--bg-panel-3"] = contexte === "lab"', '    v["--bg-panel-3"] = contexte === "labo"'),
  ("js", ECRAN, '    v["--cyan"] = c.accent;', '    v["--cyan"] = c.succes;'),
  ("js", ECRAN, '["accent_panneau", c.accent, c.panneau, 3]', '["accent_panneau", c.accent, c.panneau, 4.5]'),

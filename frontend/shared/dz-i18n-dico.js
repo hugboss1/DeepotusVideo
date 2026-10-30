@@ -87,6 +87,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "apparence.apercu.succes": {"fr": "Rendu terminé", "en": "Render finished"},
   "apparence.apercu.texte": {"fr": "Texte secondaire, légendes et aides.", "en": "Secondary text, captions and hints."},
   "apparence.apercu.titre": {"fr": "Titre d'un panneau", "en": "Panel title"},
+  "apparence.contraste.accent_fond": {"fr": "Accent en texte sur le fond (prix, liens)", "en": "Accent as text on background (prices, links)"},
   "apparence.contraste.accent_panneau": {"fr": "Accent sur un panneau (élément d'interface)", "en": "Accent on a panel (UI element)"},
   "apparence.contraste.bouton": {"fr": "Texte d'un bouton d'accent", "en": "Accent button text"},
   "apparence.contraste.erreur_panneau": {"fr": "Erreur sur un panneau", "en": "Error on a panel"},

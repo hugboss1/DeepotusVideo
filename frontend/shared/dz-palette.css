@@ -1,0 +1,62 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Deepotus — les écrans qui suivent la PALETTE choisie (t383, 30/10/2026, lot
+   « Réglages : chemins & apparence » ; la palette elle-même : t382,
+   frontend/shared/dz-apparence.js).
+   Liée par la coque (frontend/dist/index.html) APRÈS montage.css,
+   son-vfx-montage.css, sfxstudio.css et theme-v2.css ; copie identique dans
+   frontend/dist/shared/.
+
+   RÈGLES — banc backend/tests/test_clair_ecran.py :
+   • chaque règle commence par :root[data-dz-apparence…] : cet attribut n'existe
+     que sous une palette choisie. Deepotus sombre (rien d'écrit) ne change donc
+     pas d'un pixel ;
+   • aucune couleur de surface ou d'encre en dur : les alias --pal-* que
+     dz-apparence.js dérive des six couleurs choisies ;
+   • seules exceptions, en CLAIR : les teintes catégorielles (violet, nœuds,
+     rampe des médias du Montage), relevées à l'AA sur un panneau clair
+     (valeurs claires de deepotus.tokens.css). Le rouge de marque n'est PAS
+     touché : c'est la couleur du kit de marque de l'utilisateur (le bundle la
+     pose en ligne sur <body>) ;
+   • gardés sombres à dessein : les maquettes 9:16 et les vignettes de médias
+     (fond #02060d en ligne) — elles montrent l'ŒUVRE, pas l'interface.
+   Audit qui a mené ici : scripts/clair_audit.js, écran par écran.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Montage et Son & VFX : la feuille porte ses PROPRES jetons sur .dzsvm
+   (son-vfx-montage.css), sombres en dur ; on les rebranche sur la palette.
+   --amber y vaut déjà var(--accent), il suit. */
+:root[data-dz-apparence] .dzsvm{
+  --bg:var(--pal-fond); --panel:var(--pal-panneau); --panel2:var(--pal-panneau-2); --panel3:var(--pal-puits);
+  --stroke:var(--pal-trait); --stroke2:var(--pal-trait-fort);
+  --ink:var(--pal-encre-1); --ink2:var(--pal-encre-2); --ink3:var(--pal-encre-3); --ink4:var(--pal-encre-4);
+  --accent:var(--pal-accent); --accent-ink:var(--pal-encre-accent);
+  --green:var(--pal-succes); --red:var(--pal-erreur); --slate:var(--pal-encre-3);
+}
+:root[data-dz-apparence="light"] .dzsvm select{color-scheme:light}
+:root[data-dz-apparence="light"] .dzsvm{
+  --c-image:#8a5a22; --c-video:#2f5f8a; --c-audio:#47702a;
+  --c-av:#5d4f96; --c-3d:#9c3f61; --c-text:#6b5c47;
+}
+
+/* ── <body> : theme-v2.css y force --cyan en !important (le bundle le repose en
+   ligne au démarrage) ; plus spécifique, en !important aussi, la palette gagne */
+:root[data-dz-apparence] body{
+  --cyan:var(--pal-accent) !important;
+  --cyan-soft:var(--pal-accent-doux) !important;
+}
+
+/* ── Studio : le SOL du graphe (fond #02060d et grille de points en ligne dans
+   le bundle) suit la palette ; reconnu à sa grille, pas à sa seule couleur */
+:root[data-dz-apparence] [style*="background-color: rgb(2, 6, 13)"][style*="radial-gradient(circle at center"]{
+  background-color:var(--pal-fond) !important;
+  background-image:radial-gradient(circle at center,var(--pal-trait-fort) 1px,transparent 1.5px) !important;
+  background-size:28px 28px !important;
+}
+
+/* ── clair : teintes catégorielles lisibles sur un panneau clair (pastilles
+   « nouveau », nœuds du Studio) */
+:root[data-dz-apparence="light"]{
+  --violet:#5d4f96; --violet-soft:#5d4f9622;
+  --node-image:#8a5a22; --node-video:#2f5f8a; --node-audio:#47702a;
+  --node-av:#5d4f96; --node-text:#6b5c47;
+}
