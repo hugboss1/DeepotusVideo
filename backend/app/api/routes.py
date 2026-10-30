@@ -7693,7 +7693,7 @@ async def health():
     return {
         "ok": True,
         "version": APP_VERSION,
-        # t377 : le lanceur exige que la réponse vienne du processus qu'il vient de lancer (pas d'un ancien
+        # t386 : le lanceur exige que la réponse vienne du processus qu'il vient de lancer (pas d'un ancien
         # backend resté sur le port), d'où le pid du processus qui répond.
         "pid": os.getpid(),
         "telegram_enabled": settings.has_telegram,

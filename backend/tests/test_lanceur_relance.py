@@ -1,4 +1,4 @@
-"""Relance du backend : l'ancien est VRAIMENT arrêté, le nouveau VRAIMENT servi (t377, 30/10/2026).
+"""Relance du backend : l'ancien est VRAIMENT arrêté, le nouveau VRAIMENT servi (t386, 30/10/2026).
 
 Constat du 30/10, à l'installation de t376 : `netstat` montrait `127.0.0.1:8765 LISTENING 0`. Le socket
 d'écoute était attribué au PID 0 alors qu'un backend installé tournait. `scripts/stop.ps1` (et donc
@@ -192,7 +192,7 @@ def _installer_lanceur(dossier_app, port, sans_arret=False, essais=None):
     assert "8765" not in STOP.read_text(encoding="utf-8").split("param(", 1)[1].split(")", 1)[1]
     if sans_arret:
         assert re.search(r"(?m)^StopExistingBackend\(\)\r?$", src)
-        src = re.sub(r"(?m)^StopExistingBackend\(\)(\r?)$", r"' (banc t377) arret saute\1", src)
+        src = re.sub(r"(?m)^StopExistingBackend\(\)(\r?)$", r"' (banc t386) arret saute\1", src)
     if essais:
         assert "Do While attempts < 90" in src
         src = src.replace("Do While attempts < 90", f"Do While attempts < {essais}")
@@ -210,7 +210,7 @@ def _lancer(vbs, donnees):
 
 @pytest.fixture
 def banc():
-    d = pathlib.Path(tempfile.mkdtemp(prefix="dz_t377_"))
+    d = pathlib.Path(tempfile.mkdtemp(prefix="dz_t386_"))
     app, autre, donnees = d / "App", d / "AutreApp", d / "Donnees"
     for x in (app, autre, donnees):
         x.mkdir()

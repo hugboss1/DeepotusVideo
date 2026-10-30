@@ -1,6 +1,6 @@
 ﻿# Stop Deepotus Video Gen cleanly (kills the hidden uvicorn backend and its children).
 #
-# t377 (30/10/2026) : le backend est reconnu par sa LIGNE DE COMMANDE, plus seulement par le PID qui écoute.
+# t386 (30/10/2026) : le backend est reconnu par sa LIGNE DE COMMANDE, plus seulement par le PID qui écoute.
 # Constat du 30/10 : netstat montrait 127.0.0.1:8765 LISTENING 0 (PID 0) alors qu'un backend installé tournait ;
 # l'ancienne version, qui ne regardait que ce PID, n'arrêtait rien et l'ancien code restait servi. Le 10/10 déjà,
 # un enfant spawn_main(parent_pid=…) gardait le socket d'un parent tué.
