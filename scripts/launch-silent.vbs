@@ -15,7 +15,7 @@
 ' ============================================================
 Option Explicit
 
-Dim fso, shell, appDir, py, url, urlApp, attempts, binDir, env, hostArg
+Dim fso, shell, appDir, py, url, urlApp, attempts, binDir, env, hostArg, depart, vieux
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 
@@ -38,6 +38,10 @@ End If
 ' backend was already healthy, so a stale process kept serving old code and
 ' saved settings never took effect until python was killed by hand. Instead,
 ' stop any existing backend on :8765 first, then start a fresh one below.
+' t377 (30/10/2026) : l'arret reconnait le backend a sa LIGNE DE COMMANDE (stop.ps1), et le navigateur ne
+' s'ouvre que si /api/health repond depuis le processus lance CI-DESSOUS (pid rendu par la sante, ne apres
+' le lancement). Le 30/10, le socket du 8765 etait attribue au PID 0 : rien n'etait arrete, le nouveau
+' uvicorn sortait sans bruit et l'ANCIEN code restait servi derriere une sante verte.
 StopExistingBackend()
 
 ' Bundled ffmpeg (installer build): prepend <app>\bin to this process PATH —
@@ -60,18 +64,32 @@ shell.CurrentDirectory = appDir & "\backend"
 ' HOST=0.0.0.0 ouvre le reseau local au compagnon mobile (plan mobile T5, tache #56, 01/10/2026). Sans cette
 ' lecture, changer config.py ne changerait RIEN sur une machine installee : c'est CETTE ligne qui decide.
 hostArg = LireHote(DataRoot() & "\.env")
+' 2 s de marge : CreationDate (WMI) est a la microseconde, Now a la seconde.
+depart = DateAdd("s", -2, Now)
 shell.Run """" & py & """ -m uvicorn app.main:app --host " & hostArg & " --port 8765", 0, False
 
-' Wait for the API (up to ~45 s; first boot creates the DB), then open the browser.
+' Wait for the API (up to ~45 s; first boot creates the DB), then open the browser -- only once the
+' answer comes from the NEW process (t377).
 attempts = 0
+vieux = False
 Do While attempts < 90
   WScript.Sleep 500
   If HealthOk() Then
-    shell.Run urlApp, 1, False
-    WScript.Quit 0
+    If ProcessusNeuf(SantePid(), depart) Then
+      shell.Run urlApp, 1, False
+      WScript.Quit 0
+    End If
+    vieux = True
   End If
   attempts = attempts + 1
 Loop
+
+If vieux Then
+  MsgBox "An older backend still answers on port 8765: the new one could not start." & vbCrLf & _
+         "Run scripts\stop.ps1, then start the app again.", _
+         vbExclamation, "Deepotus Video Gen"
+  WScript.Quit 1
+End If
 
 MsgBox "The app did not start within 45 seconds." & vbCrLf & _
        "Check backend\.env, or run scripts\launch.ps1 to see the error.", _
@@ -89,9 +107,43 @@ Function HealthOk()
   On Error GoTo 0
 End Function
 
-' Stop a previously-launched backend so this run starts fresh. Fast no-op when
-' nothing is listening. Reuses scripts\stop.ps1 (kills the python holding
-' :8765), then waits for the port to free before the caller re-binds it.
+' pid du processus qui repond a /api/health (0 si aucun, ou un ancien backend sans ce champ). WinHTTP
+' (ServerXMLHTTP) plutot que XMLHTTP : aucun cache WinINet ne peut rendre une vieille reponse.
+Function SantePid()
+  SantePid = 0
+  On Error Resume Next
+  Dim req, re, m
+  Set req = CreateObject("MSXML2.ServerXMLHTTP.6.0")
+  req.setTimeouts 2000, 2000, 2000, 2000
+  req.Open "GET", url & "/api/health", False
+  req.Send
+  If Err.Number = 0 And req.Status = 200 Then
+    Set re = New RegExp
+    re.Pattern = """pid""\s*:\s*(\d+)"
+    Set m = re.Execute(req.responseText)
+    If m.Count > 0 Then SantePid = CLng(m(0).SubMatches(0))
+  End If
+  On Error GoTo 0
+End Function
+
+' Vrai si le processus pid est ne apres depart, donc lance par CE lanceur.
+Function ProcessusNeuf(pid, depart)
+  ProcessusNeuf = False
+  If pid <= 0 Then Exit Function
+  On Error Resume Next
+  Dim procs, p, t
+  Set procs = GetObject("winmgmts:\\.\root\cimv2").ExecQuery( _
+    "SELECT CreationDate FROM Win32_Process WHERE ProcessId = " & pid)
+  Set t = CreateObject("WbemScripting.SWbemDateTime")
+  For Each p In procs
+    t.Value = p.CreationDate
+    If Err.Number = 0 Then
+      If t.GetVarDate(True) >= depart Then ProcessusNeuf = True
+    End If
+  Next
+  On Error GoTo 0
+End Function
+
 ' Le dossier de donnees, comme config._data_root : DEEPOTUS_DATA_DIR s'il est pose, sinon
 ' %LOCALAPPDATA%\DeepotusVideoGenData.
 Function DataRoot()
@@ -127,15 +179,21 @@ Function LireHote(chemin)
   LireHote = hote
 End Function
 
+' Stop a previously-launched backend so this run starts fresh. scripts\stop.ps1 finds it by its COMMAND
+' LINE (uvicorn app.main:app --port 8765, python under this app folder) with its children, never the
+' process of another application, and waits until the port no longer answers in HTTP (t377). Always
+' run, even when /api/health is silent: a backend still booting would otherwise keep the port.
 Sub StopExistingBackend()
+  Dim rc
   On Error Resume Next
-  If Not HealthOk() Then Exit Sub
-  shell.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & appDir & "\scripts\stop.ps1""", 0, True
-  Dim tries
-  tries = 0
-  Do While HealthOk() And tries < 20
-    WScript.Sleep 250
-    tries = tries + 1
-  Loop
+  rc = shell.Run("powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & _
+                 appDir & "\scripts\stop.ps1"" -Port 8765 -AppDir """ & appDir & """", 0, True)
+  If Err.Number <> 0 Then rc = 1
   On Error GoTo 0
+  If rc <> 0 And HealthOk() Then
+    MsgBox "Port 8765 is used by another program, which was left running." & vbCrLf & _
+           "Close it, then start the app again.", _
+           vbExclamation, "Deepotus Video Gen"
+    WScript.Quit 1
+  End If
 End Sub

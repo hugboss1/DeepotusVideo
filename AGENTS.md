@@ -100,6 +100,13 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
   `claude mcp add deepotus -e DEEPOTUS_URL=http://127.0.0.1:8799 -- $PY <worktree>/backend/app/mcp_stdio.py` vise un
   backend de preuve (l'activer d'abord dans ses Réglages).
 - Installation : comparer les empreintes avec `git hash-object`, jamais sha256.
+- Relance de l'app installée (t377) : `scripts\launch-silent.vbs` appelle `scripts\stop.ps1 -Port 8765 -AppDir <app>`.
+  Ce script reconnaît le backend à sa LIGNE DE COMMANDE (`-m uvicorn app.main:app … --port 8765`, exécutable sous
+  le dossier de l'app), l'arrête avec ses enfants (`ParentProcessId`, `spawn_main(parent_pid=…)`), ne touche jamais
+  un autre programme et attend que le port ne réponde plus en HTTP (sortie 2 sinon). Le lanceur n'ouvre le
+  navigateur que si `/api/health` répond avec le `pid` d'un processus né après le lancement ; sinon il le dit. Le PID
+  qui écoute ne suffit pas, car netstat peut afficher 0. Le banc `test_lanceur_relance` rejoue ces cas sur un faux
+  backend et un port libre.
 
 ## Conventions
 - Noms et commentaires en français. Chaque fonctionnalité est datée et rattachée à sa tâche (`t237`, `#387`…).
