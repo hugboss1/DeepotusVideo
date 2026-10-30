@@ -13206,5 +13206,29 @@
  "dossier : chemin UNC incomplet (\\\\serveur\\partage\\…)": {
   "fr": "dossier : chemin UNC incomplet (\\\\serveur\\partage\\…)",
   "en": "folder: incomplete UNC path (\\\\server\\share\\…)"
+ },
+ "Opération inconnue : {jid}": {
+  "fr": "Opération inconnue : {jid}",
+  "en": "Unknown operation: {jid}"
+ },
+ "opération inconnue": {
+  "fr": "opération inconnue",
+  "en": "unknown operation"
+ },
+ "emplacement : pas une source de bibliothèque": {
+  "fr": "emplacement : pas une source de bibliothèque",
+  "en": "location: not a library source"
+ },
+ "fichier : hors de l'index de cet emplacement": {
+  "fr": "fichier : hors de l'index de cet emplacement",
+  "en": "file: not in this location's index"
+ },
+ "import : images et sons seulement": {
+  "fr": "import : images et sons seulement",
+  "en": "import: images and sounds only"
+ },
+ "job : pas en échec": {
+  "fr": "job : pas en échec",
+  "en": "job: not failed"
  }
 }

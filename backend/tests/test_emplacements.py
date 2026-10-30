@@ -303,7 +303,7 @@ _ch = [f for f in _sr.body if isinstance(f, ast.AsyncFunctionDef) and any(
     and str(d.args[0].value).startswith("/chemins") for d in f.decorator_list)]
 _sans = [f.name for f in _ch if not any(isinstance(n, ast.Call) and getattr(n.func, "id", "") == "_local"
                                         for st in f.body[:3] for n in ast.walk(st))]
-check(f"R11b les {len(_ch)} routes /chemins appellent _local d'entrée", len(_ch) == 7 and not _sans, _sans)
+check(f"R11b les {len(_ch)} routes /chemins appellent _local d'entrée", len(_ch) >= 7 and not _sans, _sans)
 idx = c.get("/api/reglages/index").json()
 check("R12 la recherche des Réglages trouve « Emplacements » (rubrique Chemins)", any(
     x.get("section") == "paths" and x.get("libelle") == "Emplacements" and "sftp" in x.get("mots", "")

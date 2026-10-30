@@ -70,6 +70,11 @@
     if (r.libre_octets != null) t += " · " + T("chemins.etat.libre", { libre: octets(r.libre_octets) });
     return t;
   }
+  function date(iso) {
+    var d = new Date(String(iso || ""));
+    if (isNaN(d.getTime())) return String(iso || "");
+    return d.toLocaleString(langue() === "en" ? "en-GB" : "fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
   function teinte(r) { return !r ? S.neutre : (r.ok ? S.ok : S.ko); }
   function appel(methode, url, corps) {
     var o = { method: methode, headers: JSON_H };
@@ -90,12 +95,18 @@
     this.form = null;                   // null | {id?: string, champs: {...}}
     this.message = null;                // {ok, texte}
     this.tests = {};                    // id -> « en cours »
+    this.operations = {};               // t379 : id -> {ok, texte} de « Sauvegarder maintenant »
+    this.galerie = null;                // t379 : l'emplacement dont la source est parcourue
+    this.roles = {};
   }
 
   Panneau.prototype.charger = function () {
     var p = this;
-    return appel("GET", BASE).then(function (j) { p.donnees = j; p.dessiner(); })
-      .catch(function (e) { p.donnees = { erreur: String(e.message || e) }; p.dessiner(); });
+    // t379 : l'état des rôles (dernière sauvegarde, index) arrive à part ; s'il manque, la liste s'affiche quand même
+    var etatRoles = appel("GET", BASE + "/etat").catch(function () { return {}; });
+    return appel("GET", BASE).then(function (j) {
+      return etatRoles.then(function (er) { p.donnees = j; p.roles = (er && er.emplacements) || {}; p.garder = er && er.garder; p.dessiner(); });
+    }).catch(function (e) { p.donnees = { erreur: String(e.message || e) }; p.dessiner(); });
   };
 
   Panneau.prototype.dessiner = function () {
@@ -127,8 +138,37 @@
         ? e.roles.map(function (r) { return T("chemins.role." + r); }).join(" · ") : T("chemins.role.aucun")));
       m.appendChild(el("div", { style: "font-size:11px;" + (p.tests[e.id] ? S.neutre : teinte(e.dernier_test)), "data-dz-chemins": "etat" },
         p.tests[e.id] ? T("chemins.action.test_en_cours") : etat(e.dernier_test)));
+      var er = (p.roles || {})[e.id] || {};
+      if (e.roles.indexOf("sauvegarde") >= 0) {
+        var sv = er.sauvegarde;
+        var ls = sv && sv.derniere ? T("chemins.sauvegarde.derniere", { quand: date(sv.derniere), garder: p.garder || 7 })
+                                   : T("chemins.sauvegarde.jamais");
+        if (sv && sv.ok === false) ls += " · " + T("chemins.sauvegarde.echec", { etat: T("chemins.etat." + (sv.code || "echec")) });
+        m.appendChild(el("div", { style: "font-size:11px;" + (sv && sv.ok === false ? S.ko : S.neutre), "data-dz-chemins": "sauvegarde" }, ls));
+      }
+      if (e.roles.indexOf("bibliotheque") >= 0) {
+        var ix = er.index;
+        var li = ix && ix.quand ? T("chemins.index.etat", { n: ix.fichiers, quand: date(ix.quand) }) : T("chemins.index.jamais");
+        if (ix && ix.erreur) li += " · " + T("chemins.sauvegarde.echec", { etat: T("chemins.etat." + ix.erreur) });
+        m.appendChild(el("div", { style: "font-size:11px;" + (ix && ix.erreur ? S.ko : S.neutre), "data-dz-chemins": "index" }, li));
+      }
+      var op = p.operations[e.id];
+      if (op) m.appendChild(el("div", { style: "font-size:11px;" + (op.ok === false ? S.ko : op.ok ? S.ok : S.neutre),
+                                         "data-dz-chemins": "operation" }, op.texte));
       l.appendChild(m);
       var bs = el("div", { style: S.boutons });
+      if (e.roles.indexOf("sauvegarde") >= 0) {
+        var bsv = bouton(T("chemins.sauvegarde.maintenant"), "sauvegarder");
+        bsv.title = T("chemins.sauvegarde.maintenant_aide");
+        bsv.disabled = !!op && op.ok == null;
+        bsv.addEventListener("click", function () { p.sauvegarder(e.id); });
+        bs.appendChild(bsv);
+      }
+      if (e.roles.indexOf("bibliotheque") >= 0) {
+        var bpa = bouton(T(p.galerie === e.id ? "chemins.biblio.fermer" : "chemins.biblio.parcourir"), "parcourir");
+        bpa.addEventListener("click", function () { p.galerie = p.galerie === e.id ? null : e.id; p.dessiner(); });
+        bs.appendChild(bpa);
+      }
       var bt = bouton(T("chemins.action.tester"), "tester");
       bt.title = T("chemins.action.tester_aide");
       bt.disabled = !!p.tests[e.id];
@@ -142,6 +182,11 @@
       liste.appendChild(l);
     });
     box.appendChild(liste);
+    if (this.galerie && d.emplacements.some(function (e) { return e.id === p.galerie; })) {
+      var gh = el("div", { "data-dz-chemins": "galerie-hote" });
+      box.appendChild(gh);
+      galerie(gh, this.galerie, function () { p.charger(); });
+    }
     if (this.form) box.appendChild(this.dessinerForm());
     else {
       var ba = bouton(T("chemins.emplacements.ajouter"), "ajouter", true);
@@ -274,6 +319,17 @@
       .catch(function (e) { delete p.tests[id]; p.message = { ok: false, texte: T("chemins.erreur.generique", { erreur: e.message || e }) }; p.dessiner(); });
   };
 
+  Panneau.prototype.sauvegarder = function (id) {
+    var p = this;
+    this.operations[id] = { ok: null, texte: T("chemins.sauvegarde.en_cours") };
+    this.dessiner();
+    return appel("POST", BASE + "/" + encodeURIComponent(id) + "/sauvegarder").then(function (r) {
+      p.operations[id] = r.ok ? { ok: true, texte: T("chemins.sauvegarde.faite", { nom: r.nom }) }
+                              : { ok: false, texte: T("chemins.sauvegarde.echec", { etat: etat(r) }) };
+      return p.charger();
+    }).catch(function (e) { p.operations[id] = { ok: false, texte: T("chemins.erreur.generique", { erreur: e.message || e }) }; p.dessiner(); });
+  };
+
   Panneau.prototype.supprimer = function (e) {
     var p = this;
     var dlg = window.__dzDialogue;
@@ -292,6 +348,225 @@
     p.dessiner();
     p.charger();
     return p;
+  }
+
+  // ── t379 : la GALERIE d'une source de bibliothèque (Réglages › Chemins et Bibliothèque) ─────────────────────────
+  // Lecture seule : les vignettes passent par GET …/fichier (confiné à l'index) ; « Importer » COPIE une image ou un
+  // son dans la Bibliothèque ; « Indexer » relit la source sans rien y écrire.
+  var PAGE = 48;
+  var IMPORTABLES = /\.(png|jpe?g|webp|mp3|wav|ogg|flac|m4a)$/i;
+  function galerie(hote, eid, apres) {
+    var g = { idx: null, filtre: "", n: PAGE, messages: {}, occupe: false, erreur: null };
+    var racine = BASE + "/" + encodeURIComponent(eid);
+    function url(ch) { return racine + "/fichier?chemin=" + encodeURIComponent(ch); }
+    function dessiner() {
+      vider(hote);
+      var box = el("div", { style: S.cadre + ";padding:12px 14px;gap:10px", "data-dz-chemins": "galerie", "data-dz-chemins-source": eid });
+      var tete = el("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" });
+      tete.appendChild(el("div", { style: S.tete + ";flex:1" }, T("chemins.biblio.titre")));
+      var f = el("input", { style: S.champ + ";width:200px", type: "search", "data-dz-chemins-champ": "filtre" });
+      f.placeholder = T("chemins.biblio.filtrer");
+      f.value = g.filtre;
+      f.addEventListener("input", function () { g.filtre = f.value; g.n = PAGE; grilleDessiner(); });
+      tete.appendChild(f);
+      var bi = bouton(T("chemins.index.indexer"), "indexer");
+      bi.title = T("chemins.index.indexer_aide");
+      bi.disabled = g.occupe;
+      bi.addEventListener("click", function () {
+        g.occupe = true; dessiner();
+        appel("POST", racine + "/indexer").then(function (r) {
+          g.occupe = false;
+          if (!r.ok) { g.erreur = T("chemins.erreur.generique", { erreur: etat(r) }); dessiner(); return; }
+          g.erreur = null; g.idx = r; dessiner(); if (apres) apres();
+        }).catch(function (e) { g.occupe = false; g.erreur = T("chemins.erreur.generique", { erreur: e.message || e }); dessiner(); });
+      });
+      tete.appendChild(bi);
+      box.appendChild(tete);
+      box.appendChild(el("div", { style: S.petit }, T("chemins.biblio.aide")));
+      if (g.erreur) box.appendChild(el("div", { style: "font-size:12px;" + S.ko, "data-dz-chemins": "message" }, g.erreur));
+      var grille = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:8px", "data-dz-chemins": "grille" });
+      var pied = el("div");
+      box.appendChild(grille);
+      box.appendChild(pied);
+      hote.appendChild(box);
+      function grilleDessiner() {
+        vider(grille); vider(pied);
+        if (!g.idx) { grille.appendChild(el("div", { style: S.petit }, T("chemins.emplacements.chargement"))); return; }
+        var q = g.filtre.toLowerCase();
+        var tous = (g.idx.fichiers || []).filter(function (x) { return !q || x.chemin.toLowerCase().indexOf(q) >= 0; });
+        if (!tous.length) grille.appendChild(el("div", { style: S.petit }, T(g.idx.quand ? "chemins.biblio.vide" : "chemins.index.jamais")));
+        tous.slice(0, g.n).forEach(function (x) { grille.appendChild(carte(x)); });
+        if (tous.length > g.n) {
+          var plus = bouton(T("chemins.biblio.plus", { n: tous.length - g.n }), "plus");
+          plus.addEventListener("click", function () { g.n += PAGE; grilleDessiner(); });
+          pied.appendChild(plus);
+        }
+      }
+      function carte(x) {
+        var c = el("div", { style: "border:1px solid var(--brd-soft,var(--stroke,#222830));display:flex;flex-direction:column;min-width:0",
+                            "data-dz-chemins-fichier": x.chemin });
+        if (x.genre === "image") {
+          c.appendChild(el("img", { src: url(x.chemin), alt: "", loading: "lazy", decoding: "async",
+                                    style: "width:100%;aspect-ratio:1 / 1;object-fit:cover;display:block;background:var(--srf-sunken,var(--bg-base,#0d1014))" }));
+        } else {
+          c.appendChild(el("div", { style: "aspect-ratio:1 / 1;display:flex;align-items:center;justify-content:center;" + S.tete },
+            T("chemins.biblio.genre_" + x.genre)));
+        }
+        var bas = el("div", { style: "padding:4px 6px;display:flex;flex-direction:column;gap:3px" });
+        bas.appendChild(el("div", { style: S.mono + ";font-size:10.5px", title: x.chemin }, x.chemin.split("/").pop()));
+        bas.appendChild(el("div", { style: S.petit }, octets(x.octets)));
+        if (IMPORTABLES.test(x.chemin)) {
+          var msg = g.messages[x.chemin];
+          var b = bouton(T("chemins.biblio.importer"), "importer");
+          b.title = T("chemins.biblio.importer_aide");
+          b.disabled = !!msg && msg.ok !== false;
+          b.addEventListener("click", function () {
+            g.messages[x.chemin] = { ok: null, texte: T("chemins.biblio.import_en_cours") }; grilleDessiner();
+            appel("POST", racine + "/importer", { chemin: x.chemin }).then(function () {
+              g.messages[x.chemin] = { ok: true, texte: T("chemins.biblio.importe") }; grilleDessiner();
+            }).catch(function (e) { g.messages[x.chemin] = { ok: false, texte: T("chemins.erreur.generique", { erreur: e.message || e }) }; grilleDessiner(); });
+          });
+          bas.appendChild(b);
+          if (msg) bas.appendChild(el("div", { style: "font-size:10.5px;" + (msg.ok ? S.ok : msg.ok === false ? S.ko : S.neutre) }, msg.texte));
+        }
+        c.appendChild(bas);
+        return c;
+      }
+      grilleDessiner();
+    }
+    dessiner();
+    return appel("GET", racine + "/index").then(function (j) { g.idx = j; dessiner(); return j; })
+      .catch(function (e) { g.idx = { fichiers: [] }; g.erreur = T("chemins.erreur.generique", { erreur: e.message || e }); dessiner(); return null; });
+  }
+
+  // ── t379 : la Bibliothèque. Ses outils (corbeille, nettoyage, recherche) vivent dans la couche MONTAGE, figée par
+  // plusieurs bancs : comme le lecteur de t372, un OBSERVATEUR ajoute à leur rangée un bouton « Emplacements » quand
+  // au moins une source de bibliothèque existe, et pose la galerie juste APRÈS le bloc des outils. Aucun maillon.
+  var cache = { quand: 0, liste: null, promesse: null };
+  function sources() {
+    if (cache.liste && Date.now() - cache.quand < 30000) return Promise.resolve(cache.liste);
+    if (!cache.promesse) {
+      cache.promesse = appel("GET", BASE).then(function (j) {
+        cache.liste = ((j && j.emplacements) || []).filter(function (e) { return e.roles.indexOf("bibliotheque") >= 0; });
+        cache.quand = Date.now(); cache.promesse = null;
+        return cache.liste;
+      }).catch(function () { cache.promesse = null; cache.liste = []; cache.quand = Date.now(); return []; });
+    }
+    return cache.promesse;
+  }
+  function greffer(outils) {
+    if (!outils || outils.__dzChemins) return Promise.resolve(null);
+    outils.__dzChemins = true;
+    return sources().then(function (liste) {
+      var rangee = outils.firstChild;
+      if (!liste.length || !rangee) return null;
+      var b = bouton(T("chemins.biblio.bouton"), "biblio");
+      b.setAttribute("data-dz-chemins-biblio", "1");
+      b.setAttribute("aria-pressed", "false");
+      b.title = T("chemins.biblio.bouton_aide");
+      var panneau = null;
+      b.addEventListener("click", function () {
+        if (panneau) {
+          if (panneau.parentNode) panneau.parentNode.removeChild(panneau);
+          panneau = null; b.setAttribute("aria-pressed", "false"); return;
+        }
+        panneau = el("div", { "data-dz-chemins": "biblio", style: "display:flex;flex-direction:column;gap:8px;margin-bottom:10px" });
+        var hoteG = el("div");
+        if (liste.length > 1) {
+          var sel = el("select", { style: S.champ + ";align-self:flex-start", "data-dz-chemins-champ": "source" });
+          liste.forEach(function (e) { sel.appendChild(el("option", { value: e.id }, e.nom)); });
+          sel.addEventListener("change", function () { galerie(hoteG, sel.value); });
+          panneau.appendChild(sel);
+        }
+        panneau.appendChild(hoteG);
+        outils.insertAdjacentElement("afterend", panneau);
+        b.setAttribute("aria-pressed", "true");
+        galerie(hoteG, liste[0].id);
+      });
+      rangee.appendChild(b);
+      return b;
+    });
+  }
+  function observerBiblio() {
+    var d = window.document;
+    if (!d || !d.body || typeof window.MutationObserver !== "function") return null;
+    var tic = null;
+    function balayer() { tic = null; var o = d.querySelector('[data-dz="outils-biblio"]'); if (o) greffer(o); }
+    var obs = new window.MutationObserver(function () { if (!tic) tic = setTimeout(balayer, 120); });
+    obs.observe(d.body, { childList: true, subtree: true });
+    balayer();
+    return obs;
+  }
+
+  // ── t379 : « Réessayer » du Job Dock pour une sauvegarde, un miroir ou un index en échec ──────────────────────────
+  // Le serveur rend la relance « emplacement » (routes._relance_de) : le Dock (maillon dzdock) pose donc son bouton
+  // « Réessayer », mais son __dzRelancer ne connaît que quick / studio / direct et vit dans un remplacement de
+  // dzdock, qu'un maillon aval ne peut pas toucher sans casser son aller-retour. On ne touche donc pas au bundle : un
+  // écouteur en phase de CAPTURE (avant React) reconnaît ce bouton (son infobulle de repli) dans une ligne dont l'id
+  // (span.mono[title]) est un job « emplacement » en échec connu, et rejoue l'opération lui-même. La liste de ces jobs
+  // n'est relue (toutes les 10 s) que si au moins un emplacement existe.
+  var dock = { ids: {}, minuterie: null };
+  function idDeLaLigne(b) {
+    for (var n = b, k = 0; n && k < 6; n = n.parentElement, k++) {
+      var s = n.querySelector && n.querySelector("span.mono[title]");
+      if (s) return s.getAttribute("title");
+    }
+    return null;
+  }
+  function boutonDock(t) {
+    var b = t && t.closest ? t.closest("button") : null;
+    if (!b) return null;
+    var titre = b.getAttribute("title");
+    return titre === T("coque.file.reessayer_direct_aide") || titre === T("chemins.dock.reessayer_aide") ? b : null;
+  }
+  function marquerDock() {
+    var d = window.document;
+    if (!d || !d.querySelectorAll) return;
+    Array.prototype.forEach.call(d.querySelectorAll("button[title]"), function (b) {
+      if (boutonDock(b) && dock.ids[idDeLaLigne(b)]) b.setAttribute("title", T("chemins.dock.reessayer_aide"));
+    });
+  }
+  function dockRelire() {
+    return appel("GET", "/api/jobs?providers=emplacement&limit=100").then(function (js) {
+      var ids = {};
+      (Array.isArray(js) ? js : []).forEach(function (j) { if (j.relance === "emplacement") ids[j.job_id] = 1; });
+      dock.ids = ids;
+      marquerDock();
+      return ids;
+    }).catch(function () { return dock.ids; });
+  }
+  function surClicDock(ev) {
+    var b = boutonDock(ev.target);
+    var id = b && idDeLaLigne(b);
+    if (!id || !dock.ids[id]) return false;
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (ev.stopImmediatePropagation) ev.stopImmediatePropagation();
+    reessayer(id, b).then(function () { dockRelire(); });
+    return true;
+  }
+  function veillerDock() {
+    var d = window.document;
+    if (!d || !d.addEventListener || dock.minuterie || typeof window.setInterval !== "function") return;
+    d.addEventListener("click", surClicDock, true);
+    function tour() {
+      appel("GET", BASE).then(function (j) { if (j && j.emplacements && j.emplacements.length) dockRelire(); }).catch(function () {});
+    }
+    dock.minuterie = window.setInterval(tour, 10000);
+    tour();
+  }
+
+  function reessayer(jid, b) {
+    if (b) b.disabled = true;
+    return appel("POST", BASE + "/operations/" + encodeURIComponent(jid) + "/reessayer").then(function (r) {
+      if (b) b.disabled = false;
+      return r;
+    }).catch(function (e) {
+      if (b) b.disabled = false;
+      var dlg = window.__dzDialogue;
+      if (dlg && dlg.informer) dlg.informer(T("chemins.erreur.generique", { erreur: e.message || e }));
+      return null;
+    });
   }
 
   // ── 2. Diagnostic ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -324,5 +599,11 @@
     return promesse;
   }
 
-  window.__dzChemins = { monter: monter, diag: diag, _etat: etat, _octets: octets };
+  window.__dzChemins = { monter: monter, diag: diag, galerie: galerie, greffer: greffer, reessayer: reessayer,
+                         _etat: etat, _octets: octets, _date: date, _dock: dock, _dockRelire: dockRelire,
+                         _surClicDock: surClicDock };
+  function demarrer() { observerBiblio(); veillerDock(); }
+  var doc = window.document;
+  if (doc && doc.readyState !== "loading") demarrer();
+  else if (doc && doc.addEventListener) doc.addEventListener("DOMContentLoaded", demarrer);
 })();

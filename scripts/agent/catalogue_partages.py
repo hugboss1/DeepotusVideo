@@ -66,7 +66,8 @@ PARTAGES = {
     "frontend/shared/dz-lecteur.js": ("lecteur.action.", "lecteur.curseur.position", "lecteur.curseur.volume"),
     # t378 (30/10/2026) : les emplacements de Réglages › Chemins (boutons de la liste et du formulaire) ; ses champs
     # passent par une fabrique à clé variable, ses états et rôles sont des textes, pas des éléments
-    "frontend/shared/dz-chemins.js": ("chemins.action.", "chemins.emplacements.ajouter"),
+    "frontend/shared/dz-chemins.js": ("chemins.action.", "chemins.emplacements.ajouter",
+                                      "chemins.sauvegarde.maintenant", "chemins.index.indexer", "chemins.biblio."),   # t379
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")

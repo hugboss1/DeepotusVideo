@@ -46,26 +46,44 @@ if attendu:
     if env.get("FAUX_SFTP_BAVARD"):                     # un serveur bavard qui recopie ce qu'il a reçu
         finir(1, "debug: secret recu " + lu.rstrip("\r\n"))
 ici = racine
+
+
+def distant(p):
+    """Un chemin distant : absolu (/…) depuis la racine du faux serveur, sinon depuis le dossier courant."""
+    return racine / p.lstrip("/") if p.startswith("/") else ici / p
+
+
 for ligne in journal["commandes"]:
     tolere = ligne.startswith("-")
     mots = shlex.split(ligne.lstrip("-"), posix=True)
     cmd, a = mots[0], mots[1:]
     try:
         if cmd == "cd":
-            d = racine / a[0].lstrip("/")
+            d = distant(a[0])
             if not d.is_dir():
                 raise OSError(f'Can\'t change directory: "{a[0]}"')
             ici = d
         elif cmd == "put":
-            shutil.copyfile(a[0], ici / a[1])
+            if not distant(a[1]).parent.is_dir():
+                raise OSError(f'dest open "{a[1]}": No such file or directory')
+            shutil.copyfile(a[0], distant(a[1]))
         elif cmd == "get":
-            shutil.copyfile(ici / a[0], a[1])
+            shutil.copyfile(distant(a[0]), a[1])
         elif cmd == "rm":
-            (ici / a[0]).unlink()
+            distant(a[0]).unlink()
         elif cmd == "mkdir":
-            (ici / a[0]).mkdir()
+            distant(a[0]).mkdir()
         elif cmd == "ls":
-            print("\n".join(p.name for p in ici.iterdir()))
+            options = [x for x in a if x.startswith("-")]
+            cible = distant(next((x for x in a if not x.startswith("-")), "."))
+            if not cible.is_dir():
+                raise OSError(f'Can\'t ls: "{cible.name}" not found')
+            for p in sorted(cible.iterdir()):
+                if "-ln" in options or "-l" in options:      # comme OpenSSH : type, liens, uid, gid, taille, date, nom
+                    print(f"{'d' if p.is_dir() else '-'}rw-r--r--    1 1000     1000     {p.stat().st_size:>9} "
+                          f"Oct 30 03:17 {p.name}")
+                else:
+                    print(p.name)
         elif cmd == "df":
             print("        Size         Used        Avail       (root)    %Capacity")
             print("     1000000       400000       600000       600000          40%")
