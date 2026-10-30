@@ -2022,6 +2022,27 @@ async def blender_retour(ctx: Ctx, plan: str = "") -> dict:
 
 
 
+async def proposer_fil(ctx: Ctx, plateforme: str, identifiant: str, raison: str, pour: str, nom: str = "") -> dict:
+    """t380 (30/10/2026) : une SUGGESTION de fil social pour News, avec son origine (agent, travail, conversation,
+    espace) ; jamais un abonnement, aucun réseau, aucune dépense. L'utilisateur l'accepte ou l'écarte dans Sources."""
+    from app.services import news_fils as NF
+    if pour not in NF.CADRES:
+        raise _Refus(f"pour : {', '.join(NF.CADRES)}")
+    origine = {"type": "agent", "agent": ctx.agent, "cadre": pour, "conversation": ctx.cid, "espace_id": ctx.espace_id}
+    try:
+        r = NF.proposer(plateforme, identifiant, raison, origine, nom)
+    except ValueError as e:
+        raise _Refus(str(e)) from None
+    if r["statut"] == "deja_suivi":
+        return _res(True, "ce fil est déjà suivi dans News : rien à suggérer", {"fil": r["fil"]["id"]})
+    s = r["suggestion"]
+    deja = "déjà suggéré, toujours en attente" if r["statut"] == "deja_proposee" else "suggestion ajoutée"
+    lecture = NF.PLATEFORMES[s["plateforme"]]["lecture"]
+    return _res(True, f"{deja} dans News › Sources › « Suggérés par les agents » : l'utilisateur décide"
+                      + (" (lecture payante par Apify, sur devis)" if lecture == "apify" else " (lecture gratuite)"),
+                {"suggestion": s["id"], "plateforme": s["plateforme"], "identifiant": s["identifiant"], "lecture": lecture})
+
+
 def _o(props: dict, requis=()) -> dict:
     return {"type": "object", "properties": props, "required": list(requis), "additionalProperties": False}
 
@@ -2150,6 +2171,22 @@ OUTILS: dict[str, dict] = {
                                                             "asset = un fichier de la Bibliothèque"),
                                    "id": dict(_T, description="id du job, id du plan, ou nom du fichier")},
                                   ("type", "id"))},
+    # t380 : suggérer un fil social à suivre dans News (boîte « fils ») ; jamais un abonnement, jamais une dépense
+    "proposer_fil": {"nature": "ecriture", "fn": proposer_fil,
+                     "description": "Suggère à l'utilisateur de suivre un fil social dans News (YouTube, Reddit : "
+                                    "lecture gratuite ; X, Instagram, TikTok : lecture payante par Apify, sur devis "
+                                    "qu'il accepte). La suggestion attend dans News › Sources › « Suggérés par les "
+                                    "agents » avec sa raison : rien n'est suivi, lu ni payé tant qu'il ne l'accepte "
+                                    "pas. Identifiant : chaîne UC… (YouTube), r/communauté ou u/compte (Reddit), "
+                                    "@pseudo ou adresse du profil (X, Instagram, TikTok). Une suggestion écartée ne se "
+                                    "repropose pas.",
+                     "schema": _o({"plateforme": dict(_T, enum=["x", "instagram", "tiktok", "youtube", "reddit"]),
+                                   "identifiant": dict(_T, description="UC…, r/…, u/…, @pseudo ou adresse du profil"),
+                                   "raison": dict(_T, description="pourquoi ce fil sert l'utilisateur, en une phrase"),
+                                   "pour": dict(_T, enum=["campagne", "veille", "prospects"],
+                                                description="le travail qui a fait naître la suggestion"),
+                                   "nom": dict(_T, description="nom lisible (facultatif)")},
+                                  ("plateforme", "identifiant", "raison", "pour"))},
     # t313 : inspiration -> contenu neuf (boîte « scan », aucun agent ne la déclare encore, §11 bis)
     "angles_inspiration": {"nature": "lecture", "fn": angles_inspiration,
                            "description": "Lit la capture d'une inspiration rangée dans la Bibliothèque (texte comme "

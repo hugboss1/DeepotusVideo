@@ -113,6 +113,53 @@
   "name": "lire_recette"
  },
  {
+  "description": "Suggère à l'utilisateur de suivre un fil social dans News (YouTube, Reddit : lecture gratuite ; X, Instagram, TikTok : lecture payante par Apify, sur devis qu'il accepte). La suggestion attend dans News › Sources › « Suggérés par les agents » avec sa raison : rien n'est suivi, lu ni payé tant qu'il ne l'accepte pas. Identifiant : chaîne UC… (YouTube), r/communauté ou u/compte (Reddit), @pseudo ou adresse du profil (X, Instagram, TikTok). Une suggestion écartée ne se repropose pas.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "identifiant": {
+     "description": "UC…, r/…, u/…, @pseudo ou adresse du profil",
+     "type": "string"
+    },
+    "nom": {
+     "description": "nom lisible (facultatif)",
+     "type": "string"
+    },
+    "plateforme": {
+     "enum": [
+      "x",
+      "instagram",
+      "tiktok",
+      "youtube",
+      "reddit"
+     ],
+     "type": "string"
+    },
+    "pour": {
+     "description": "le travail qui a fait naître la suggestion",
+     "enum": [
+      "campagne",
+      "veille",
+      "prospects"
+     ],
+     "type": "string"
+    },
+    "raison": {
+     "description": "pourquoi ce fil sert l'utilisateur, en une phrase",
+     "type": "string"
+    }
+   },
+   "required": [
+    "plateforme",
+    "identifiant",
+    "raison",
+    "pour"
+   ],
+   "type": "object"
+  },
+  "name": "proposer_fil"
+ },
+ {
   "description": "Écrit un fichier .md, .json ou .txt dans le dossier de la campagne.",
   "input_schema": {
    "additionalProperties": false,

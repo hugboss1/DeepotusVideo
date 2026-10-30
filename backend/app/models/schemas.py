@@ -705,6 +705,7 @@ class NewsRankedItem(BaseModel):
     deja_couvert: Optional[str] = None          # T8 (tâche #34) : le sujet déjà couvert dont l'article est proche
     tendance: bool = False                      # T14 (tâche #35) : cité par au moins trois médias le même jour
     tendance_sources: int = 0
+    plateforme: Optional[str] = None            # t380 : l'élément vient d'un fil social suivi (x, instagram, tiktok, youtube, reddit)
 
 
 class NewsDropped(BaseModel):

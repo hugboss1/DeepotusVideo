@@ -105,7 +105,8 @@ DIX = {"chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur",
        "veille_sources", "veille_apify",   # t366 : veille enrichie (Apify)
        "lire_recette",   # t346 : la recette exportable (boîte « recette »)
        "signaux_reddit",   # t367
-       "concurrents_pages", "concurrents_pubs", "concurrents_serp"}   # t368
+       "concurrents_pages", "concurrents_pubs", "concurrents_serp",   # t368
+       "proposer_fil"}   # t380 : suggérer un fil social à suivre (boîte « fils »)
 
 
 def sans_accents(t: str) -> str:
@@ -145,7 +146,7 @@ async def main():
           - set(_B.BOITES["plateau"]["outils"]) - set(_B.BOITES["blender"]["outils"]) == DIX   # t319 : boîte « capture » ; t342 : boîte « assets3d » ; t337 : boîte « chapitres » ; t333 : boîte « plateau »
           and set(_B.outils_pour("campagnes")) == DIX, str(sorted(ao.OUTILS)))
     defs = ao.definitions()
-    check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 29)   # t365 : + entreprises_carte ; t366 : + veille_sources, veille_apify
+    check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 30)   # t365 : + entreprises_carte ; t366 : + veille_sources, veille_apify
     check("definitions : forme de l'API", all(set(d) == {"name", "description", "input_schema"}
                                               and d["input_schema"].get("type") == "object" for d in defs))
     check("OUTILS : nature connue, fn appelable", all(o["nature"] in ("lecture", "ecriture", "carte")
