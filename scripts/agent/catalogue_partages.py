@@ -64,6 +64,9 @@ PARTAGES = {
     # t372 (29/10/2026) : la barre du lecteur audio/vidéo commun (Lire/Pause, position, son, volume, plein écran) ;
     # posée par l'observateur sur tout <audio controls> / <video controls>, donc sur presque chaque écran
     "frontend/shared/dz-lecteur.js": ("lecteur.action.", "lecteur.curseur.position", "lecteur.curseur.volume"),
+    # t378 (30/10/2026) : les emplacements de Réglages › Chemins (boutons de la liste et du formulaire) ; ses champs
+    # passent par une fabrique à clé variable, ses états et rôles sont des textes, pas des éléments
+    "frontend/shared/dz-chemins.js": ("chemins.action.", "chemins.emplacements.ajouter"),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")

@@ -150,7 +150,8 @@ if M is not None:
           (r.stdout + r.stderr)[-300:])
     avant = AIDE.avant_dza2d(BUN) if hasattr(AIDE, "avant_dza2d") else ""
     check("4.2 l'inverse avant_dza2d défait le maillon, et le rejouer redonne le bundle à l'octet",
-          avant and M.MARKER not in avant and '"Choisir un outil"' in avant and M.appliquer(avant) == BUN)
+          avant and M.MARKER not in avant and '"Choisir un outil"' in avant
+          and M.appliquer(avant) == (AIDE.avant_dzchemins(BUN) if hasattr(AIDE, "avant_dzchemins") else BUN))   # t378 : dzchemins suit dza2d
     src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
     _g = src_aide[src_aide.index("def avant_dzga3d("):]
     _g = _g[:_g.index("\ndef ", 5)]
