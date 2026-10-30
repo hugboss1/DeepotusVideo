@@ -43,7 +43,8 @@
     "espaces.pourqui.bandeau",
     "espaces.assistant.whatsapp_creation",
     "veille.import.exemple",
-    "whatsapp.onglets.aria"
+    "whatsapp.onglets.aria",
+    "a2d.carte.guide_absent"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"

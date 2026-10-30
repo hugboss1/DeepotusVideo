@@ -22,6 +22,7 @@ ECRAN_DE_ZONE = {
     "whatsapp": "whatsapp",              # t311 (27/10/2026) : la page WhatsApp (cadre /whatsapp/, voir catalogue_sources.LABS)
     "pose3d": "assets3d",                # t376 (29/10/2026) : le choix de pose de Game Assets 3D (/shared/dz-pose3d.js)
     "ga3d": "assets3d",                  # t376 : l'écran Game Assets 3D traduit (maillon dzga3d)
+    "a2d": "assets3d",                   # t377 (30/10/2026) : les cartes de l'onglet Assets 2D (maillon dza2d)
 }
 # préfixe « zone.objet » rattaché à un autre écran que sa zone (consulté AVANT ECRAN_DE_ZONE)
 ECRAN_DE_PREFIXE = {"avatar.noeud": "studio",           # titres des nœuds avatar du graphe du Studio
