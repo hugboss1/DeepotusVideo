@@ -232,7 +232,8 @@ r = subprocess.run([sys.executable, str(RACINE / "scripts" / "patch_bundle_dzga3
 check("4.1 le maillon est appliqué (--check)", r.returncode == 0 and "déjà appliqué" in r.stdout, (r.stdout + r.stderr)[-300:])
 avant = AIDE.avant_dzga3d(BUN)
 check("4.2 l'inverse avant_dzga3d défait le maillon, et le rejouer redonne le bundle à l'octet",
-      M.MARKER not in avant and '"Generate 3D"' in avant and M.appliquer(avant) == BUN)
+      M.MARKER not in avant and '"Generate 3D"' in avant
+      and M.appliquer(avant) == (AIDE.avant_dza2d(BUN) if hasattr(AIDE, "avant_dza2d") else BUN))   # t377 : dza2d suit dzga3d
 src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
 _po = src_aide[src_aide.index("def avant_dzpose("):]
 _po = _po[:_po.index("\ndef ", 5)]

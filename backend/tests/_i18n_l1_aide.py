@@ -334,12 +334,23 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dza2d(bundle: str) -> str:
+    """Le bundle d'avant les illustrations des cartes Assets 2D (maillon de queue patch_bundle_dza2d, t377,
+    30/10/2026, posé APRÈS dzga3d : c'est la queue de la chaîne : image paresseuse dans le cadre de chaque carte,
+    « Choisir un outil », phrases, « Ouvrir » et infobulles par dzT) : ses paires défaites, lues dans le maillon
+    lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dza2d as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzga3d(bundle: str) -> str:
     """Le bundle d'avant la traduction de l'écran Game Assets 3D (maillon de queue patch_bundle_dzga3d, t376,
-    29/10/2026, posé APRÈS dzpose : c'est la queue de la chaîne : formulaire, cartes, graphe, Optimiser / LOD /
-    Textures et boîte d'impression 3D par dzT) : ses paires défaites, lues dans le maillon lui-même. Sans son
-    marqueur : rendu tel quel."""
+    29/10/2026, posé APRÈS dzpose : formulaire, cartes, graphe, Optimiser / LOD / Textures et boîte d'impression 3D
+    par dzT) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzga3d as _m
+    bundle = avant_dza2d(bundle)                 # 30/10 (t377) : le maillon posé APRÈS dzga3d, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

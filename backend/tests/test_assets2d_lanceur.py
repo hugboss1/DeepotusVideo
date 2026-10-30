@@ -108,12 +108,12 @@ h0 = BUN.find("var __dzCatHue=")
 h1 = BUN.find("};", BUN.find("var __dzCatSVG=")) + 2 if h0 > 0 else -1
 maps = BUN[h0:h1] if 0 < h0 < h1 else ""
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-import _i18n_l1_aide as AIDE  # noqa: E402  (icônes G1 : __dzGl & co. sous node)
+import _i18n_l1_aide as AIDE  # noqa: E402  (icônes G1 : __dzGl & co. ; t377 : dzT en français, sous node)
 PROBE = r"""
 "use strict";
-""" + AIDE.PRELUDE_DZGLYPH + r"""
+""" + AIDE.PRELUDE_DZT + r"""
 var EV=[],LS={};
-var window={dispatchEvent:function(e){EV.push(e)}};
+window.dispatchEvent=function(e){EV.push(e)};   // t377 : les textes passent par dzT (maillon dza2d) — PRELUDE_DZT
 function CustomEvent(t,o){this.type=t;this.detail=o&&o.detail}
 var localStorage={setItem:function(k,v){LS[k]=String(v)}};
 function K(p){return {K:1,p:p}}

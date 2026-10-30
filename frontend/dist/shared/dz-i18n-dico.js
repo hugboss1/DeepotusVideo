@@ -2,6 +2,15 @@
    l'assembleur scripts/i18n_assembler.py (t134). Une clé zone.objet.role -> {fr, en} ; le français est la langue
    de référence. Chargé avant /shared/dz-i18n.js dans la SPA et les huit pages à part. */
 window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
+  "a2d.carte.cards": {"fr": "Cartes à jouer : gabarits imprimeur, dos et mire, langues, art en lot, livret.", "en": "Playing cards: printer templates, backs and registration marks, languages, batch art, booklet."},
+  "a2d.carte.guide_absent": {"fr": "Pas encore de chapitre « {outil} » dans le guide", "en": "No “{outil}” chapter in the guide yet"},
+  "a2d.carte.guide_titre": {"fr": "Le chapitre « {outil} » du guide", "en": "The “{outil}” chapter of the guide"},
+  "a2d.carte.ouvrir": {"fr": "Ouvrir", "en": "Open"},
+  "a2d.carte.ouvrir_titre": {"fr": "Ouvrir {outil}", "en": "Open {outil}"},
+  "a2d.carte.pixel": {"fr": "Retouche au pixel : ligne de temps des cadres, tuile iso 2:1 et ses diagonales, rastériser une image générée.", "en": "Pixel editing: frame timeline, 2:1 iso tile and its diagonals, rasterize a generated image."},
+  "a2d.carte.sprites": {"fr": "Une image ou une vidéo devient des cadres puis une planche de sprites : directions, squelette, hitboxes, exports pour le moteur.", "en": "An image or a video becomes frames, then a sprite sheet: directions, skeleton, hitboxes, exports for your engine."},
+  "a2d.carte.tiles": {"fr": "Tuiles sans raccord, blob 47 / 16, variantes et formes, feuilles exportées vers Tiled, LDtk et Godot.", "en": "Seamless tiles, blob 47 / 16, variants and shapes, sheets exported to Tiled, LDtk and Godot."},
+  "a2d.outils.choisir": {"fr": "Choisir un outil", "en": "Choose a tool"},
   "agent.action.aller": {"fr": "Y aller", "en": "Go there"},
   "agent.action.campagnes": {"fr": "Ouvrir l'agent Campagnes", "en": "Open the Campaigns agent"},
   "agent.action.guide": {"fr": "Guide : {titre}", "en": "Guide: {titre}"},
