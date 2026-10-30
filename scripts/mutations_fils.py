@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Mutations t380 (30/10/2026) : les fils sociaux suivis de News (services/news_fils.py, api/news_fils_routes.py,
-news_service._refresh_blocking, outil d'agent proposer_fil). Chaque mutation doit faire ÉCHOUER son banc
-(backend/tests/test_news_fils.py). Les fichiers sont copiés AVANT, restaurés après chaque mutation et comparés octet à
+"""Mutations t380 + t381 (30/10/2026) : les fils sociaux suivis de News — serveur (services/news_fils.py,
+api/news_fils_routes.py, news_service._refresh_blocking, outil d'agent proposer_fil ; banc backend/tests/test_news_fils.py)
+et écran (frontend/shared/dz-fils.js et sa copie, dictionnaire fils.json, maillon patch_bundle_dzfils, inverse,
+balise de la SPA ; banc backend/tests/test_fils_ecran.py, qui joue frontend/shared/qa/fils.test.mjs). Chaque mutation
+doit faire ÉCHOUER son banc. Les fichiers sont copiés AVANT, restaurés après chaque mutation et comparés octet à
 octet à la fin.
 Run (depuis la racine) : & $PY scripts/mutations_fils.py"""
 import filecmp, os, pathlib, shutil, subprocess, sys, tempfile
@@ -10,9 +12,14 @@ RACINE = pathlib.Path(__file__).resolve().parents[1]
 SAUVE = pathlib.Path(tempfile.mkdtemp(prefix="mut_fils_"))
 F = {"nf": RACINE / "backend/app/services/news_fils.py", "rt": RACINE / "backend/app/api/news_fils_routes.py",
      "ns": RACINE / "backend/app/services/news_service.py", "ao": RACINE / "backend/app/services/agent_outils.py",
-     "ab": RACINE / "backend/app/services/agent_boites.py", "sc": RACINE / "backend/app/models/schemas.py"}
+     "ab": RACINE / "backend/app/services/agent_boites.py", "sc": RACINE / "backend/app/models/schemas.py",
+     "js": RACINE / "frontend/shared/dz-fils.js", "jsd": RACINE / "frontend/dist/shared/dz-fils.js",
+     "dico": RACINE / "frontend/shared/i18n/fils.json", "bundle": RACINE / "frontend/dist/assets/index-BEOJX8L5.js",
+     "aide": RACINE / "backend/tests/_i18n_l1_aide.py", "maillon": RACINE / "scripts/patch_bundle_dzfils.py",
+     "html": RACINE / "frontend/dist/index.html"}
 for k, p in F.items(): shutil.copy2(p, SAUVE / (k + ".orig"))
 SERVEUR = [sys.executable, "tests/test_news_fils.py"]
+ECRAN = [sys.executable, "tests/test_fils_ecran.py"]
 M = [
  # ── identifiants ──
  ("nf", SERVEUR, 'if not m or not (s == m.group(1) or "youtube.com" in s.lower()):', 'if not m:'),
@@ -71,6 +78,30 @@ M = [
  ("rt", SERVEUR, '@router.get("", dependencies=[Depends(_local)])', '@router.get("")'),
  ("rt", SERVEUR, '        raise HTTPException(503, str(e)) from None', '        raise HTTPException(400, str(e)) from None'),
  ("rt", SERVEUR, '        raise HTTPException(502, str(e)) from None', '        raise HTTPException(500, str(e)) from None'),
+ # ── t381 : écran ──
+ ("js", ECRAN, "        if (!v) return;\n", ""),
+ ("js", ECRAN, "{ plafond_usd: Number(dv.plafond), confirme_cout: true }", "{ plafond_usd: Number(dv.plafond) }"),
+ ("js", ECRAN, "    if (!dv.configure) ok.disabled = true;\n", ""),
+ ("js", ECRAN, 'return s.etat === "proposee";', "return true;"),
+ ("js", ECRAN, 'info.push(T("fils.etat." + (f.etat || "jamais_lu")));', 'info.push(f.etat || "jamais_lu");'),
+ ("js", ECRAN, "    if (!apify || f.accord) {", "    if (true) {"),
+ ("js", ECRAN, "{ pause: !f.pause }", "{ pause: f.pause }"),
+ ("js", ECRAN, "{ frequence_h: Number(freq.value) }", "{ frequence_h: freq.value }"),
+ ("js", ECRAN, '(d && typeof d === "object" ? d.message : d)', "d"),
+ ("js", ECRAN, '? T("fils.ligne.origine_agent", { cadre: T("fils.cadre." + (o.cadre || "campagne")) }) : T("fils.ligne.origine_main")',
+  ': T("fils.ligne.origine_main")'),
+ ("js", ECRAN, 'langue() === "en" ? t : t.replace(".", ",")', "t"),
+ ("js", ECRAN, 'f.plateforme === "reddit" ? "fils.form.aide_reddit"', 'f.plateforme === "x" ? "fils.form.aide_reddit"'),
+ ("js", ECRAN, "    if (d && !d.erreur) tete.appendChild(aj);", "    tete.appendChild(aj);"),
+ ("jsd", ECRAN, "  var BASE = \"/api/news/fils\";", "  var BASE = \"/api/news/fils/\";"),
+ ("dico", ECRAN, '"en": "Followed feeds"', '"en": "Fils suivis"'),
+ ("dico", ECRAN, '  "fils.etat.sans_cle"', '  "fils.etat.sans_cleX"'),
+ ("nf", ECRAN, '"devis_depasse", "sans_cle", "plafond_mensuel")', '"devis_depasse", "plafond_mensuel")'),
+ ("bundle", ECRAN, "items.filter(i=>ena.has(i.source_id)||!!i.plateforme)", "items.filter(i=>ena.has(i.source_id))"),
+ ("bundle", ECRAN, "doublons:z.doublons||[],plateforme:z.plateforme||null}", "doublons:z.doublons||[]}"),
+ ("aide", ECRAN, "    bundle = avant_dzfils(bundle)                # 30/10 (t381)", "    # 30/10 (t381)"),
+ ("maillon", ECRAN, '    ("dzchemins", "/*dzchemins*/", 1),\n', ""),
+ ("html", ECRAN, '    <script src="/shared/dz-fils.js"></script>\n', ""),
 ]
 tues = 0
 try:
