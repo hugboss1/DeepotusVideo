@@ -13134,5 +13134,77 @@
  "Image source illisible : impossible de la classer.": {
   "fr": "Image source illisible : impossible de la classer.",
   "en": "Unreadable source image: it cannot be classified."
+ },
+ "Emplacement inconnu : {v}": {
+  "fr": "Emplacement inconnu : {v}",
+  "en": "unknown location: {v}"
+ },
+ "identifiant d'emplacement invalide : {eid}": {
+  "fr": "identifiant d'emplacement invalide : {eid}",
+  "en": "invalid location id: {eid}"
+ },
+ "le coffre est fermé : ouvrez-le avant d'enregistrer un mot de passe": {
+  "fr": "le coffre est fermé : ouvrez-le avant d'enregistrer un mot de passe",
+  "en": "the vault is locked: open it before saving a password"
+ },
+ "dossier : chemin requis": {
+  "fr": "dossier : chemin requis",
+  "en": "folder: path required"
+ },
+ "dossier : chemin invalide": {
+  "fr": "dossier : chemin invalide",
+  "en": "folder: invalid path"
+ },
+ "sftp : hôte invalide": {
+  "fr": "sftp : hôte invalide",
+  "en": "sftp: invalid host"
+ },
+ "sftp : port invalide": {
+  "fr": "sftp : port invalide",
+  "en": "sftp: invalid port"
+ },
+ "sftp : utilisateur invalide": {
+  "fr": "sftp : utilisateur invalide",
+  "en": "sftp: invalid user"
+ },
+ "sftp : dossier distant invalide (chemin absolu /…)": {
+  "fr": "sftp : dossier distant invalide (chemin absolu /…)",
+  "en": "sftp: invalid remote folder (absolute path /…)"
+ },
+ "sftp : fichier de clé SSH invalide (chemin absolu)": {
+  "fr": "sftp : fichier de clé SSH invalide (chemin absolu)",
+  "en": "sftp: invalid SSH key file (absolute path)"
+ },
+ "rôles : sauvegarde, miroir ou bibliotheque": {
+  "fr": "rôles : sauvegarde, miroir ou bibliotheque",
+  "en": "roles: backup, mirror or library"
+ },
+ "type : dossier ou sftp": {
+  "fr": "type : dossier ou sftp",
+  "en": "type: folder or sftp"
+ },
+ "mot de passe : seulement pour un emplacement SFTP": {
+  "fr": "mot de passe : seulement pour un emplacement SFTP",
+  "en": "password: only for an SFTP location"
+ },
+ "{MAX_EMPLACEMENTS} emplacements au plus": {
+  "fr": "{MAX_EMPLACEMENTS} emplacements au plus",
+  "en": "{MAX_EMPLACEMENTS} locations at most"
+ },
+ "le coffre est fermé : ouvrez-le pour effacer le mot de passe de cet emplacement": {
+  "fr": "le coffre est fermé : ouvrez-le pour effacer le mot de passe de cet emplacement",
+  "en": "the vault is locked: open it to erase this location's password"
+ },
+ "dossier : pas dans les dossiers de l'application ni au-dessus": {
+  "fr": "dossier : pas dans les dossiers de l'application ni au-dessus",
+  "en": "folder: not inside the application's folders nor above them"
+ },
+ "dossier : chemin absolu requis (C:\\…, Z:\\… ou \\\\NAS\\partage\\…)": {
+  "fr": "dossier : chemin absolu requis (C:\\…, Z:\\… ou \\\\NAS\\partage\\…)",
+  "en": "folder: absolute path required (C:\\…, Z:\\… or \\\\NAS\\share\\…)"
+ },
+ "dossier : chemin UNC incomplet (\\\\serveur\\partage\\…)": {
+  "fr": "dossier : chemin UNC incomplet (\\\\serveur\\partage\\…)",
+  "en": "folder: incomplete UNC path (\\\\server\\share\\…)"
  }
 }

@@ -393,6 +393,9 @@ _INDEX_FIXE = [
     # ni l'assistant ne le trouvaient
     ("defaults", "Langue de l'interface", "langue interface anglais français english french traduction"),
     ("paths", "Dossiers et versions", "chemins dossier images sorties python ffmpeg version backend api"),
+    # t378 (30/10/2026) : les emplacements en plus (sauvegarde, NAS, serveur distant)
+    ("paths", "Emplacements", "emplacement ajouter sauvegarde backup nas réseau unc sftp serveur distant miroir rendus "
+                              "source bibliothèque tester"),
     ("news", "Flux d'actualités", "news actualités rss flux article ajouter rafraîchir"),
     ("appearance", "Apparence", "apparence animations mouvement réduit halo effets"),
     ("pricing", "Grille de prix", "prix tarif coût dollar grille estimation"),
@@ -608,6 +611,91 @@ async def supprimer_serveur_local(sid: str, request: Request):
     except Exception as e:  # noqa: BLE001
         raise _sl_erreur(e)
     return {"deleted": sid}
+
+
+# ── t378 : les emplacements de Réglages › Chemins (dossier, lecteur réseau, UNC, SFTP) ───────────────────────────────
+# Lecture ET écriture réservées à la machine locale ; le mot de passe SFTP part au coffre et n'est jamais renvoyé.
+
+def _ch_erreur(e: Exception) -> HTTPException:
+    from app.services import coffre as _C, emplacements as _E
+    if isinstance(e, _C.CoffreVerrouille):
+        return HTTPException(409, f"Coffre verrouillé : {e}")
+    if isinstance(e, _E.EmplacementInconnu):
+        return HTTPException(404, f"Emplacement inconnu : {e.args[0] if e.args else ''}")
+    return HTTPException(400, str(e))
+
+
+@router.get("/chemins")
+async def lister_emplacements(request: Request):
+    """Les emplacements enregistrés, les types et rôles possibles, et si le client SFTP est là."""
+    _local(request)
+    from app.services import emplacements as E
+    return {"emplacements": E.lister(), "types": list(E.TYPES), "roles": list(E.ROLES),
+            "sftp_disponible": bool(E.sftp_exe())}
+
+
+@router.post("/chemins")
+async def creer_emplacement(body: dict, request: Request):
+    _local(request)
+    from app.services import emplacements as E
+    try:
+        return {"emplacement": E.creer(body if isinstance(body, dict) else {})}
+    except Exception as e:  # noqa: BLE001 — traduit en 400/404/409 par _ch_erreur
+        raise _ch_erreur(e)
+
+
+@router.post("/chemins/tester")
+async def tester_brouillon_emplacement(body: dict, request: Request):
+    """« Tester » avant d'enregistrer : rien n'est gardé, le mot de passe non plus."""
+    import asyncio
+    _local(request)
+    from app.services import emplacements as E
+    try:
+        return await asyncio.to_thread(E.tester_brouillon, body if isinstance(body, dict) else {})
+    except Exception as e:  # noqa: BLE001
+        raise _ch_erreur(e)
+
+
+@router.get("/chemins/verifier")
+async def verifier_emplacements(request: Request):
+    """Le Diagnostic : chaque emplacement est-il joignable ? (lecture seule là-bas)."""
+    import asyncio
+    _local(request)
+    from app.services import emplacements as E
+    return {"emplacements": await asyncio.to_thread(E.verifier)}
+
+
+@router.post("/chemins/{eid}")
+async def modifier_emplacement(eid: str, body: dict, request: Request):
+    _local(request)
+    from app.services import emplacements as E
+    try:
+        return {"emplacement": E.modifier(eid, body if isinstance(body, dict) else {})}
+    except Exception as e:  # noqa: BLE001
+        raise _ch_erreur(e)
+
+
+@router.post("/chemins/{eid}/tester")
+async def tester_emplacement(eid: str, request: Request):
+    """Fichier témoin écrit, relu, effacé, et espace libre (un emplacement « bibliothèque » seul n'est que lu)."""
+    import asyncio
+    _local(request)
+    from app.services import emplacements as E
+    try:
+        return await asyncio.to_thread(E.tester, eid)
+    except Exception as e:  # noqa: BLE001
+        raise _ch_erreur(e)
+
+
+@router.delete("/chemins/{eid}")
+async def supprimer_emplacement(eid: str, request: Request):
+    _local(request)
+    from app.services import emplacements as E
+    try:
+        E.supprimer(eid)
+    except Exception as e:  # noqa: BLE001
+        raise _ch_erreur(e)
+    return {"deleted": eid}
 
 
 @router.get("/index")
