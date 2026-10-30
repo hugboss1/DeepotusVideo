@@ -24,6 +24,7 @@
   "apparence.contraste.texte_panneau": {"fr": "Texte sur un panneau", "en": "Text on a panel"},
   "apparence.contraste.secondaire_panneau": {"fr": "Texte secondaire sur un panneau", "en": "Secondary text on a panel"},
   "apparence.contraste.accent_panneau": {"fr": "Accent sur un panneau (élément d'interface)", "en": "Accent on a panel (UI element)"},
+  "apparence.contraste.accent_fond": {"fr": "Accent en texte sur le fond (prix, liens)", "en": "Accent as text on background (prices, links)"},
   "apparence.contraste.bouton": {"fr": "Texte d'un bouton d'accent", "en": "Accent button text"},
   "apparence.contraste.succes_panneau": {"fr": "Succès sur un panneau", "en": "Success on a panel"},
   "apparence.contraste.erreur_panneau": {"fr": "Erreur sur un panneau", "en": "Error on a panel"},

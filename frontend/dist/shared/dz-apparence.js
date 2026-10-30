@@ -30,17 +30,18 @@
   var CLE = "deepotus.apparence";
   var URL_API = "/api/reglages/apparence";
   var JETONS = ["fond", "panneau", "texte", "accent", "succes", "erreur"];
-  // Deepotus sombre = les valeurs Cinema de theme-v2.css ; clair = le bloc data-theme="light" de deepotus.tokens.css ;
+  // Deepotus sombre = les valeurs Cinema de theme-v2.css ; clair = le bloc data-theme="light" de deepotus.tokens.css,
+  // accent foncé à #8c5c00 (t383 : l'accent sert aussi de TEXTE — prix, liens — et #a06a00 ne faisait que 4,05:1) ;
   // Deep Lab = l'ancienne direction bleue (data-direction="deep"), rouge éclairci pour l'AA sur son panneau.
   var PRESETS = {
     sombre: { couleurs: { fond: "#0a0a0c", panneau: "#151519", texte: "#f2efe9", accent: "#f0b429", succes: "#5ec8a0", erreur: "#e35d4a" } },
-    clair: { couleurs: { fond: "#f2f0ec", panneau: "#ffffff", texte: "#171512", accent: "#a06a00", succes: "#1f7a5c", erreur: "#b03a28" } },
+    clair: { couleurs: { fond: "#f2f0ec", panneau: "#ffffff", texte: "#171512", accent: "#8c5c00", succes: "#1f7a5c", erreur: "#b03a28" } },
     contraste: { couleurs: { fond: "#000000", panneau: "#0b0b0b", texte: "#ffffff", accent: "#ffd23f", succes: "#5df2b0", erreur: "#ff7a66" }, fort: true },
     deeplab: { couleurs: { fond: "#02060d", panneau: "#0a1422", texte: "#e6f1ff", accent: "#00e5ff", succes: "#22c55e", erreur: "#f87171" } }
   };
   var ORDRE = ["sombre", "clair", "contraste", "deeplab"];
   // part du panneau dans --ink, --ink-soft, --ink-muted (le reste est le texte)
-  var POIDS = { sombre: [0.2, 0.45, 0.65], clair: [0.15, 0.36, 0.6], fort: [0.08, 0.25, 0.45] };
+  var POIDS = { sombre: [0.2, 0.45, 0.65], clair: [0.15, 0.32, 0.6], fort: [0.08, 0.25, 0.45] };
   var NOIR = "#000000", BLANC = "#ffffff";
 
   // ── couleurs ──────────────────────────────────────────────────────────────
@@ -98,6 +99,27 @@
     v["--green-soft"] = c.succes + "22";
     v["--red"] = c.erreur;
     v["--red-soft"] = c.erreur + "22";
+    // t383 : alias pour les feuilles à jetons LOCAUX (.dzsvm du Montage redéclare --stroke, --ink, --accent… : elle
+    // ne peut pas écrire « --stroke: var(--stroke) ») — frontend/shared/dz-palette.css les y rebranche
+    v["--pal-fond"] = v["--bg-base"];
+    v["--pal-panneau"] = v["--bg-panel"];
+    v["--pal-panneau-2"] = v["--bg-panel-2"];
+    v["--pal-panneau-3"] = v["--bg-panel-3"];
+    v["--pal-puits"] = s ? melange(c.fond, c.panneau, 0.5) : melange(c.fond, c.texte, 0.05);   // plus bas que le panneau
+    v["--pal-trait"] = v["--stroke"];
+    v["--pal-trait-fort"] = v["--stroke-strong"];
+    v["--pal-encre-1"] = v["--ink-strong"];
+    v["--pal-encre-2"] = v["--ink"];
+    v["--pal-encre-3"] = v["--ink-soft"];
+    v["--pal-encre-4"] = v["--ink-muted"];
+    v["--pal-accent"] = v["--accent"];
+    v["--pal-accent-doux"] = v["--accent-soft"];
+    v["--pal-encre-accent"] = v["--accent-ink"];
+    v["--pal-succes"] = v["--green"];
+    v["--pal-erreur"] = v["--red"];
+    // les deux cases du damier de transparence des labs (var(--damier-a|b, <ancien littéral sombre>))
+    v["--damier-a"] = melange(c.panneau, c.texte, 0.1);
+    v["--damier-b"] = melange(c.panneau, c.texte, 0.03);
     v["color-scheme"] = s ? "dark" : "light";
     return v;
   }
@@ -107,7 +129,7 @@
     var d = deriver(c, "coque", fort);
     return [
       ["texte_fond", c.texte, c.fond, 4.5], ["texte_panneau", c.texte, c.panneau, 4.5],
-      ["secondaire_panneau", d["--ink-soft"], c.panneau, 4.5], ["accent_panneau", c.accent, c.panneau, 3],
+      ["secondaire_panneau", d["--ink-soft"], c.panneau, 4.5], ["accent_panneau", c.accent, c.panneau, 3], ["accent_fond", c.accent, c.fond, 4.5],
       ["bouton", d["--accent-ink"], c.accent, 4.5], ["succes_panneau", c.succes, c.panneau, 4.5],
       ["erreur_panneau", c.erreur, c.panneau, 4.5]
     ].map(function (x) {

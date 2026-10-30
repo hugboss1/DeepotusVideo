@@ -729,7 +729,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .mapcell { position: relative; border: 1px solid var(--stroke); border-radius: var(--r);
   overflow: hidden; background: var(--bg-panel-2); display: block; }
 .mapcell img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block;
-  background: repeating-conic-gradient(#1a1a1f 0% 25%, #131317 0% 50%) 0 0 / 10px 10px; }
+  background: repeating-conic-gradient(var(--damier-a,#1a1a1f) 0% 25%, var(--damier-b,#131317) 0% 50%) 0 0 / 10px 10px; }
 /* le nom de la map est posé SUR la vignette (scrim) : quatre colonnes tiennent
    ainsi dans le rail sans écraser l'aperçu de la texture */
 .mapcell b { position: absolute; left: 0; right: 0; bottom: 0;
