@@ -38,7 +38,7 @@ End If
 ' backend was already healthy, so a stale process kept serving old code and
 ' saved settings never took effect until python was killed by hand. Instead,
 ' stop any existing backend on :8765 first, then start a fresh one below.
-' t377 (30/10/2026) : l'arret reconnait le backend a sa LIGNE DE COMMANDE (stop.ps1), et le navigateur ne
+' t386 (30/10/2026) : l'arret reconnait le backend a sa LIGNE DE COMMANDE (stop.ps1), et le navigateur ne
 ' s'ouvre que si /api/health repond depuis le processus lance CI-DESSOUS (pid rendu par la sante, ne apres
 ' le lancement). Le 30/10, le socket du 8765 etait attribue au PID 0 : rien n'etait arrete, le nouveau
 ' uvicorn sortait sans bruit et l'ANCIEN code restait servi derriere une sante verte.
@@ -69,7 +69,7 @@ depart = DateAdd("s", -2, Now)
 shell.Run """" & py & """ -m uvicorn app.main:app --host " & hostArg & " --port 8765", 0, False
 
 ' Wait for the API (up to ~45 s; first boot creates the DB), then open the browser -- only once the
-' answer comes from the NEW process (t377).
+' answer comes from the NEW process (t386).
 attempts = 0
 vieux = False
 Do While attempts < 90
@@ -181,7 +181,7 @@ End Function
 
 ' Stop a previously-launched backend so this run starts fresh. scripts\stop.ps1 finds it by its COMMAND
 ' LINE (uvicorn app.main:app --port 8765, python under this app folder) with its children, never the
-' process of another application, and waits until the port no longer answers in HTTP (t377). Always
+' process of another application, and waits until the port no longer answers in HTTP (t386). Always
 ' run, even when /api/health is silent: a backend still booting would otherwise keep the port.
 Sub StopExistingBackend()
   Dim rc
