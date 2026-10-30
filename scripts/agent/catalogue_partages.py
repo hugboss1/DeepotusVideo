@@ -68,6 +68,10 @@ PARTAGES = {
     # passent par une fabrique à clé variable, ses états et rôles sont des textes, pas des éléments
     "frontend/shared/dz-chemins.js": ("chemins.action.", "chemins.emplacements.ajouter",
                                       "chemins.sauvegarde.maintenant", "chemins.index.indexer", "chemins.biblio."),   # t379
+    # t381 (30/10/2026) : les fils suivis de News › Sources et les suggestions des agents (boutons) ; états, devis et
+    # origines sont des textes ; « Annuler » est générique
+    "frontend/shared/dz-fils.js": ("fils.section.ajouter", "fils.form.valider", "fils.action.", "fils.devis.accepter",
+                                   "fils.accord.retirer", "fils.sug.accepter", "fils.sug.ecarter"),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")

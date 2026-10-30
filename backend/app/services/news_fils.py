@@ -40,6 +40,8 @@ MAX_DEFAUT, MAX_BORNE = 20, 100           # publications demandées par relevé 
 PAR_FIL = 25                              # éléments gardés par fil
 MAX_FILS, MAX_SUGGESTIONS = 50, 50
 CADRES = ("campagne", "veille", "prospects")
+# t381 : les états d'un fil, en CODE (l'écran les traduit par fils.etat.<code>)
+ETATS = ("jamais_lu", "ok", "erreur", "devis_a_accepter", "devis_depasse", "sans_cle", "plafond_mensuel")
 TIC_S = 600
 
 _VERROU = threading.Lock()
