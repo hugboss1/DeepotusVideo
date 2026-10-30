@@ -13310,5 +13310,29 @@
  "{libelle} : collez le @pseudo du compte ou l'adresse de son profil": {
   "fr": "{libelle} : collez le @pseudo du compte ou l'adresse de son profil",
   "en": "{libelle}: paste the account's @handle or its profile address"
+ },
+ "Palette illisible : un objet {preset, couleurs} est attendu": {
+  "fr": "Palette illisible : un objet {preset, couleurs} est attendu",
+  "en": "Unreadable palette: a {preset, couleurs} object is expected"
+ },
+ "Préréglage inconnu : {preset}": {
+  "fr": "Préréglage inconnu : {preset}",
+  "en": "Unknown preset: {preset}"
+ },
+ "Palette libre : les six couleurs sont attendues": {
+  "fr": "Palette libre : les six couleurs sont attendues",
+  "en": "Custom palette: all six colours are expected"
+ },
+ "Couleur inconnue : {v}": {
+  "fr": "Couleur inconnue : {v}",
+  "en": "Unknown colour: {v}"
+ },
+ "« fort » doit valoir vrai ou faux": {
+  "fr": "« fort » doit valoir vrai ou faux",
+  "en": "\"fort\" must be true or false"
+ },
+ "Couleur manquante ou illisible : {j} (#rrggbb attendu)": {
+  "fr": "Couleur manquante ou illisible : {j} (#rrggbb attendu)",
+  "en": "Missing or unreadable colour: {j} (#rrggbb expected)"
  }
 }
