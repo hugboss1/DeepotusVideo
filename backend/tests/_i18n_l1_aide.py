@@ -334,12 +334,22 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzapparence(bundle: str) -> str:
+    """Le bundle d'avant la palette de Réglages › Apparence (maillon de queue patch_bundle_dzapparence, t382,
+    30/10/2026, posé APRÈS dzfils : c'est la queue de la chaîne : hôte du panneau entre l'aide et la carte des
+    animations) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzapparence as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzfils(bundle: str) -> str:
     """Le bundle d'avant les fils sociaux suivis de News › Sources (maillon de queue patch_bundle_dzfils, t381,
-    30/10/2026, posé APRÈS dzchemins : c'est la queue de la chaîne : hôte du panneau dans la liste des Sources, un
-    élément de fil gardé dans la liste des articles) : ses paires défaites, lues dans le maillon lui-même. Sans son
-    marqueur : rendu tel quel."""
+    30/10/2026, posé APRÈS dzchemins : hôte du panneau dans la liste des Sources, un élément de fil gardé dans la
+    liste des articles) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzfils as _m
+    bundle = avant_dzapparence(bundle)           # 30/10 (t382) : le maillon posé APRÈS dzfils, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

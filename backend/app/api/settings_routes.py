@@ -398,6 +398,9 @@ _INDEX_FIXE = [
                               "source bibliothèque tester"),
     ("news", "Flux d'actualités", "news actualités rss flux article ajouter rafraîchir"),
     ("appearance", "Apparence", "apparence animations mouvement réduit halo effets"),
+    # t382 (30/10/2026) : la palette de l'application (préréglages, couleurs libres, contrôle de contraste)
+    ("appearance", "Palette", "palette couleurs thème clair sombre contraste élevé deep lab fond panneau texte accent "
+                              "succès erreur wcag lisibilité réinitialiser personnaliser"),
     ("pricing", "Grille de prix", "prix tarif coût dollar grille estimation"),
     ("pricing", "Plafonds de dépense", "plafond budget limite mensuel alerte dépassement confirmation dépense"),
     ("pricing", "Dépenses du mois", "dépenses réel estimé facturé moteur écran tableau rapproché"),
@@ -798,6 +801,24 @@ async def supprimer_emplacement(eid: str, request: Request):
     except Exception as e:  # noqa: BLE001
         raise _ch_erreur(e)
     return {"deleted": eid}
+
+
+# ── t382 (30/10/2026) : la PALETTE de Réglages › Apparence (services/apparence.py) ──
+# Lecture ouverte comme /langue (la coque et les labs la lisent au démarrage) ; écriture réservée à la machine locale.
+@router.get("/apparence")
+async def apparence_lire():
+    from app.services import apparence as A
+    return {"etat": A.lire(), "presets": list(A.PRESETS), "jetons": list(A.JETONS)}
+
+
+@router.post("/apparence")
+async def apparence_poser(body: dict, request: Request):
+    _local(request)
+    from app.services import apparence as A
+    try:
+        return {"etat": A.ecrire(body)}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 @router.get("/index")

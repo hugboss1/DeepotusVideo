@@ -114,7 +114,7 @@ if M is not None:
     avant = AIDE.avant_dzfils(BUN) if hasattr(AIDE, "avant_dzfils") else ""
     check("3.5 l'inverse avant_dzfils défait le maillon, et le rejouer redonne le bundle à l'octet",
           avant and M.MARKER not in avant and "data-dz-fils" not in avant and "!!i.plateforme" not in avant and "plateforme:z.plateforme" not in avant
-          and M.appliquer(avant) == BUN)
+          and M.appliquer(avant) == (AIDE.avant_dzapparence(BUN) if hasattr(AIDE, "avant_dzapparence") else BUN))   # t382 : dzapparence suit dzfils
     src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
     _g = src_aide[src_aide.index("def avant_dzchemins("):]
     _g = _g[:_g.index("\ndef ", 5)]

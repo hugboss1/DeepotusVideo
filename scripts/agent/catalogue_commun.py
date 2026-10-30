@@ -25,6 +25,7 @@ ECRAN_DE_ZONE = {
     "a2d": "assets3d",                   # t377 (30/10/2026) : les cartes de l'onglet Assets 2D (maillon dza2d)
     "chemins": "settings",               # t378 (30/10/2026) : les emplacements de Réglages › Chemins (dz-chemins.js)
     "fils": "news",                      # t381 (30/10/2026) : les fils suivis de News › Sources (dz-fils.js)
+    "apparence": "settings",             # t382 (30/10/2026) : la palette de Réglages › Apparence (dz-apparence.js)
 }
 # préfixe « zone.objet » rattaché à un autre écran que sa zone (consulté AVANT ECRAN_DE_ZONE)
 ECRAN_DE_PREFIXE = {"avatar.noeud": "studio",           # titres des nœuds avatar du graphe du Studio

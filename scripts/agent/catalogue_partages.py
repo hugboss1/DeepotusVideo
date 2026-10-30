@@ -72,6 +72,9 @@ PARTAGES = {
     # origines sont des textes ; « Annuler » est générique
     "frontend/shared/dz-fils.js": ("fils.section.ajouter", "fils.form.valider", "fils.action.", "fils.devis.accepter",
                                    "fils.accord.retirer", "fils.sug.accepter", "fils.sug.ecarter"),
+    # t382 (30/10/2026) : la palette de Réglages › Apparence ; préréglages et six couleurs ont des clés COMPOSÉES
+    # (apparence.preset.<id>, apparence.jeton.<id>) : la fiche « Palette » vient de _INDEX_FIXE ; seul « Réinitialiser » est lu ici
+    "frontend/shared/dz-apparence.js": ("apparence.action.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")
