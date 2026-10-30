@@ -55,6 +55,14 @@ BOITES: dict[str, dict] = {
         "agents": ["campagnes", "mcp"],
         "mobile": False,
     },
+    # t380 (30/10/2026) : suggérer un fil social à suivre dans News (Campagne, Veille et Prospects sont les travaux de
+    # l'agent Campagnes) ; une suggestion, jamais un abonnement : pas pour « mcp » (écriture), pas sur le téléphone
+    "fils": {
+        "libelle": "agent.boites.fils",
+        "outils": ["proposer_fil"],
+        "agents": ["campagnes"],
+        "mobile": False,
+    },
     # t312 : lire le texte d'une image de la Bibliothèque ; aucun agent ne la déclare encore (§11 bis)
     # t313 : + l'inspiration vers un contenu neuf (angles_inspiration en lecture, deviser_contenu_neuf en carte)
     # t314 : + calques_illustration (carte : schéma -> calques nommés du Vectorlab, devis du détourage)

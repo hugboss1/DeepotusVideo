@@ -189,6 +189,8 @@ async def lifespan(app: FastAPI):
     email_task = asyncio.create_task(email_loop())   # t356 : e-mails dus toutes les 60 s, réponses toutes les 5 min
     from app.services import emplacements_cablage as _EC
     empl_task = asyncio.create_task(_EC.boucle())    # t379 : sauvegardes, miroir des rendus, index des sources (45 s, puis 60 s)
+    from app.services import news_fils as _NF
+    fils_task = asyncio.create_task(_NF.boucle())   # t380 : fils sociaux suivis de News, chacun à sa fréquence (90 s, puis 10 min)
 
     async def _maj_au_demarrage():
         """Tâche #18 : une fois par lancement, 20 s après le boot, et au plus une fois par jour (cache disque).
@@ -239,7 +241,7 @@ async def lifespan(app: FastAPI):
         if warm_task:
             from app.services.heygen_service import annuler_en_vol
             annuler_en_vol()
-        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, email_task, empl_task, maj_task, warm_task) if t])
+        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, email_task, empl_task, fils_task, maj_task, warm_task) if t])
         # t136 : le moteur du Photolab s'arrête avec le backend (fin de stdin = fin propre de photocraft-cli serve)
         try:
             from app.services import photolab_moteur
@@ -593,6 +595,9 @@ app.include_router(blender_router, prefix="/api/blender")
 # t345 (29/10/2026) : /api/mcp — le serveur MCP local (Claude Code) : lecture, devis à jeton, lancement accepté dans l'écran ; local seulement
 from app.api.mcp_routes import router as mcp_router
 app.include_router(mcp_router, prefix="/api/mcp")
+# t380 (30/10/2026) : /api/news/fils — fils sociaux suivis de News (flux gratuits, Apify sous accord), suggestions des agents ; local seulement
+from app.api.news_fils_routes import router as news_fils_router
+app.include_router(news_fils_router, prefix="/api/news/fils")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

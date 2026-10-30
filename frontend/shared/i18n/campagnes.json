@@ -118,6 +118,7 @@
   "campagnes.outil.veille_sources": {"fr":"Sources de la veille","en":"Watch sources"},
   "campagnes.outil.veille_apify": {"fr":"Collecte de veille (Apify)","en":"Watch collection (Apify)"},
   "campagnes.outil.signaux_reddit": {"fr":"Signaux de besoin sur Reddit","en":"Need signals on Reddit"},
+  "campagnes.outil.proposer_fil": {"fr":"Suggérer un fil à suivre","en":"Suggest a feed to follow"},
   "campagnes.outil.concurrents_pages": {"fr":"Pages prix des concurrents","en":"Competitor pricing pages"},
   "campagnes.outil.concurrents_pubs": {"fr":"Pubs actives d'un concurrent","en":"A competitor's active ads"},
   "campagnes.outil.concurrents_serp": {"fr":"Positions sur nos mots-clés","en":"Rankings on our keywords"},

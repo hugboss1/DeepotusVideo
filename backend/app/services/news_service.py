@@ -393,6 +393,13 @@ class NewsService:
                 logger.warning(f"news fetch failed for {s['url']}: {e}")
                 errors.append({"source_id": s["id"], "url": s["url"],
                                "error": str(e)[:300]})
+        # t380 : les éléments des fils sociaux suivis (non en pause), lus chacun à sa fréquence par news_fils ; un
+        # rafraîchissement des sources ne les efface pas
+        try:
+            from app.services import news_fils
+            items.extend(news_fils.items_actifs())
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"news : éléments des fils ignorés : {e}")
         # dedupe by id, keep first occurrence, newest-first by published
         seen: set[str] = set()
         deduped: list[dict] = []

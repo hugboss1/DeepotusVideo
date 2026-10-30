@@ -13230,5 +13230,85 @@
  "job : pas en échec": {
   "fr": "job : pas en échec",
   "en": "job: not failed"
+ },
+ "Reddit : collez r/communauté, u/compte ou leur adresse": {
+  "fr": "Reddit : collez r/communauté, u/compte ou leur adresse",
+  "en": "Reddit: paste r/community, u/account or their address"
+ },
+ "accord requis : le devis de chaque relevé est montré avant tout run": {
+  "fr": "accord requis : le devis de chaque relevé est montré avant tout run",
+  "en": "approval required: the quote for each fetch is shown before any run"
+ },
+ "ce fil est déjà suivi": {
+  "fr": "ce fil est déjà suivi",
+  "en": "this feed is already followed"
+ },
+ "ce fil est gratuit : aucun accord à donner": {
+  "fr": "ce fil est gratuit : aucun accord à donner",
+  "en": "this feed is free: no approval needed"
+ },
+ "chaîne YouTube : collez l'identifiant UC… ou l'adresse /channel/UC… (un @pseudo n'a pas de flux)": {
+  "fr": "chaîne YouTube : collez l'identifiant UC… ou l'adresse /channel/UC… (un @pseudo n'a pas de flux)",
+  "en": "YouTube channel: paste the UC… id or the /channel/UC… address (an @handle has no feed)"
+ },
+ "déjà écarté par l'utilisateur : ne pas le reproposer": {
+  "fr": "déjà écarté par l'utilisateur : ne pas le reproposer",
+  "en": "already dismissed by the user: do not suggest it again"
+ },
+ "fil inconnu": {
+  "fr": "fil inconnu",
+  "en": "unknown feed"
+ },
+ "flux illisible : réessayez plus tard": {
+  "fr": "flux illisible : réessayez plus tard",
+  "en": "unreadable feed: try again later"
+ },
+ "fréquence hors liste (heures) : {v}": {
+  "fr": "fréquence hors liste (heures) : {v}",
+  "en": "frequency not in the list (hours): {v}"
+ },
+ "le devis du relevé ({d} $) dépasse le plafond choisi ({plafond_usd} $)": {
+  "fr": "le devis du relevé ({d} $) dépasse le plafond choisi ({plafond_usd} $)",
+  "en": "the fetch quote (${d}) exceeds the chosen cap (${plafond_usd})"
+ },
+ "le devis du relevé ({d} $) dépasse le plafond du fil ({plafond_usd} $)": {
+  "fr": "le devis du relevé ({d} $) dépasse le plafond du fil ({plafond_usd} $)",
+  "en": "the fetch quote (${d}) exceeds the feed's cap (${plafond_usd})"
+ },
+ "nombre de publications par relevé : de 1 à {MAX_BORNE}": {
+  "fr": "nombre de publications par relevé : de 1 à {MAX_BORNE}",
+  "en": "posts per fetch: from 1 to {MAX_BORNE}"
+ },
+ "plafond par relevé : plus de 0 $ et au plus {maxi} $": {
+  "fr": "plafond par relevé : plus de 0 $ et au plus {maxi} $",
+  "en": "cap per fetch: more than $0 and at most ${maxi}"
+ },
+ "plateforme non suivie : X, Instagram, TikTok, YouTube ou Reddit": {
+  "fr": "plateforme non suivie : X, Instagram, TikTok, YouTube ou Reddit",
+  "en": "platform not followed: X, Instagram, TikTok, YouTube or Reddit"
+ },
+ "relevé payant : acceptez d'abord le devis du fil": {
+  "fr": "relevé payant : acceptez d'abord le devis du fil",
+  "en": "paid fetch: accept the feed's quote first"
+ },
+ "suggestion déjà décidée": {
+  "fr": "suggestion déjà décidée",
+  "en": "suggestion already decided"
+ },
+ "suggestion inconnue": {
+  "fr": "suggestion inconnue",
+  "en": "unknown suggestion"
+ },
+ "{MAX_FILS} fils au plus : retirez-en un d'abord": {
+  "fr": "{MAX_FILS} fils au plus : retirez-en un d'abord",
+  "en": "{MAX_FILS} feeds at most: remove one first"
+ },
+ "{MAX_SUGGESTIONS} suggestions attendent déjà l'utilisateur": {
+  "fr": "{MAX_SUGGESTIONS} suggestions attendent déjà l'utilisateur",
+  "en": "{MAX_SUGGESTIONS} suggestions are already waiting for the user"
+ },
+ "{libelle} : collez le @pseudo du compte ou l'adresse de son profil": {
+  "fr": "{libelle} : collez le @pseudo du compte ou l'adresse de son profil",
+  "en": "{libelle}: paste the account's @handle or its profile address"
  }
 }
