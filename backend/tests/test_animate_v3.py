@@ -28,7 +28,12 @@ def test_image_body():
     assert b["type"] == "image"
     assert b["image"]["type"] == "base64"
     assert b["image"]["media_type"] == "image/png" and b["image"]["data"]
-    assert b["engine"] == {"type": "avatar_iv"}
+    # HeyGen v3 refuse « engine » sur type=image (400 « Extra inputs are not permitted ») :
+    # le moteur ne sert plus qu'à décider si « expressiveness » s'applique.
+    assert "engine" not in b
+    assert set(b) <= {"type", "image", "script", "voice_id", "aspect_ratio", "resolution", "voice_settings",
+                      "motion_prompt", "expressiveness", "title", "background", "remove_background",
+                      "audio_url", "audio_asset_id", "callback_url", "callback_id"}
     assert b["voice_settings"]["speed"] == 1.5          # clamped
     assert b["motion_prompt"] == "slow head turn"
     assert b["expressiveness"] == "medium"
@@ -37,6 +42,28 @@ def test_image_body():
     bv = HeyGenClient.build_v3_image_body(_img, "Hi", "v", engine="avatar_v",
                                           expressiveness="high")
     assert "expressiveness" not in bv                   # IV-only
+
+
+def test_image_submit_sans_engine():
+    """generate_image_video_v3 envoie le corps sans « engine » et ne plante pas en le journalisant."""
+    envoyes = []
+
+    async def faux_post(self, chemin, corps):
+        envoyes.append((chemin, corps))
+        return {"data": {"video_id": "vid_1"}}
+
+    orig = HeyGenClient._post
+    HeyGenClient._post = faux_post
+    try:
+        client = HeyGenClient.__new__(HeyGenClient)
+        vid = asyncio.run(client.generate_image_video_v3(_img, "Bonsoir", "v1", engine="avatar_iv",
+                                                          aspect_ratio="16:9", expressiveness="medium"))
+    finally:
+        HeyGenClient._post = orig
+    assert vid == "vid_1"
+    chemin, corps = envoyes[0]
+    assert chemin == "/v3/videos" and "engine" not in corps
+    assert corps["expressiveness"] == "medium" and corps["aspect_ratio"] == "16:9"
 
 
 def test_cinematic_body():
@@ -85,6 +112,7 @@ if __name__ == "__main__":
     # rouges faute de greffon asyncio. Pytest passe desormais par les
     # enveloppes synchrones ; le mode script reste celui d'origine.
     test_image_body()
+    test_image_submit_sans_engine()
     test_cinematic_body()
     asyncio.run(_test_endpoints_validate())
     print("ANIMATE V3 TEST: PASS")
