@@ -202,6 +202,20 @@ def test_le_paquet_three_js():
     assert [a["name"] for a in ME.lire_glb(z2.read("characters/Heros/character.glb"))[0]["animations"]] == ["Marche"]
 
 
+def test_le_paquet_embarque_la_physique_gardee_par_animer():
+    """t405 : un physics-config.json gardé avec le modèle (écran Animer) part dans le paquet, et le manifeste le dit ;
+    sans lui, `physique: null` (test précédent)."""
+    d = J / "heros_phys"
+    d.mkdir(parents=True, exist_ok=True)
+    cfg = {"format": "deepotus-physics-config", "reglages": {"raideur": 1.5, "amortissement": 0.3, "gravite": 0.2}}
+    (d / "physics-config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    octets, m = SE.paquet_threejs(ANIME, nom="Heros", job="heros_phys", version=1)
+    z = zipfile.ZipFile(io.BytesIO(octets))
+    assert m["physique"] == "physics-config.json"
+    assert json.loads(z.read("characters/Heros/physics-config.json")) == cfg
+    shutil.rmtree(d)
+
+
 def test_les_noms_de_fichier_sont_surs():
     assert SE.nom_sur("Héros vert/../x", "d") == "Heros_vert_x"
     assert SE.nom_sur("", "job 1") == "job_1" and SE.nom_sur("///", "") == "modele"

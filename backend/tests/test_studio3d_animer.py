@@ -358,6 +358,22 @@ def test_hymotion_convertisseur_accepte_les_trois_formes_et_rend_la_pose_de_repo
     assert P[i["LeftFoot"]][1] < P[i["Hips"]][1] - 75
 
 
+def test_la_physique_se_garde_avec_le_modele():
+    """t405 : POST /physique/{job} écrit physics-config.json dans le dossier du job (lu par l'Exporter) ; refus 400/404."""
+    J3 = settings.outputs_path / "assets3d"
+    (J3 / "phys").mkdir(parents=True, exist_ok=True)
+
+    async def go():
+        async with _client() as c:
+            ok = await c.post("/api/studio3d/animer/physique/phys", json={"reglages": {"raideur": 2}})
+            r404 = await c.post("/api/studio3d/animer/physique/inconnu", json={"reglages": {}})
+            r400 = await c.post("/api/studio3d/animer/physique/phys", json={"pas": "de reglages"})
+            return ok, r404, r400
+    ok, r404, r400 = asyncio.run(go())
+    assert ok.status_code == 200 and (r404.status_code, r400.status_code) == (404, 400)
+    assert json.loads((J3 / "phys" / "physics-config.json").read_text(encoding="utf-8")) == {"reglages": {"raideur": 2}}
+
+
 def test_hymotion_convertisseur_refuse_les_formes_inconnues():
     def refus(motion):
         try:

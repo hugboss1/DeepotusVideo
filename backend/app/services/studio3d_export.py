@@ -443,10 +443,23 @@ def paquet_threejs(data: bytes, *, nom: str, job: str, version: int, voulus=None
         "clips": entrees_clips, "unites": "metres", "haut": "+Y",
         "physique": None,
     }
+    # t405 : les réglages physiques gardés par l'écran Animer (os à ressort) partent avec le personnage, comme chez
+    # la référence (physics-config.json à côté du GLB) ; absents, le manifeste dit `physique: null`
+    physique = None
+    try:
+        from app.services import mesh_sources
+        p_phys = mesh_sources._jobs_dir() / Path(str(job)).name / "physics-config.json"
+        if p_phys.is_file():
+            physique = json.loads(p_phys.read_text(encoding="utf-8"))
+            manifeste["physique"] = "physics-config.json"
+    except (OSError, ValueError):
+        physique = None
     tampon = io.BytesIO()
     with zipfile.ZipFile(tampon, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(racine + "character.glb", glb)
         z.writestr(racine + "manifest.json", json.dumps(manifeste, ensure_ascii=False, indent=1))
+        if physique is not None:
+            z.writestr(racine + "physics-config.json", json.dumps(physique, ensure_ascii=False, indent=1))
         for f, cj in fichiers_clips.items():
             z.writestr(racine + f, json.dumps(cj, ensure_ascii=False, separators=(",", ":")))
         z.writestr("runtime/deepotus-personnage.js", RUNTIME_JS)

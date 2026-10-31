@@ -171,6 +171,27 @@ async def poser_licence(body: dict):
     return {"licence": SA.etat_hy()["licence"]}
 
 
+@router.post("/physique/{job}", dependencies=[Depends(_local)])
+async def garder_physique(job: str, body: dict):
+    """t405 : les réglages physiques de l'aperçu (os à ressort) gardés AVEC le modèle (`physics-config.json` du job) ;
+    l'Exporter les embarque dans le paquet three.js. Gratuit. 400 corps invalide, 404 job inconnu."""
+    import json as _json
+    from app.services import mesh_sources
+    nom = Path(str(job)).name
+    if not nom or nom != job:
+        raise HTTPException(400, f"job « {job} » : nom de dossier invalide")
+    d = mesh_sources._jobs_dir() / nom
+    if not d.is_dir():
+        raise HTTPException(404, f"modèle 3D inconnu : {nom}")
+    if not isinstance(body, dict) or not isinstance(body.get("reglages"), dict):
+        raise HTTPException(400, "physique : un objet avec « reglages » est attendu")
+    texte = _json.dumps(body, ensure_ascii=False, indent=1)
+    if len(texte) > 64 * 1024:
+        raise HTTPException(400, "physique : 64 Ko au plus")
+    (d / "physics-config.json").write_text(texte, encoding="utf-8")
+    return {"job": nom, "fichier": "physics-config.json", "octets": len(texte)}
+
+
 # ───────────────────────────── appliquer une animation du catalogue ─────────────────────────────
 
 def _action(v) -> int:

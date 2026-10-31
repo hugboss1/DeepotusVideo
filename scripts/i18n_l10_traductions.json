@@ -14094,5 +14094,21 @@
  "HY-Motion : « {cle} » : nombres attendus": {
   "fr": "HY-Motion : « {cle} » : nombres attendus",
   "en": "HY-Motion: \"{cle}\": numbers expected"
+ },
+ "physique : un objet avec « reglages » est attendu": {
+  "fr": "physique : un objet avec « reglages » est attendu",
+  "en": "physics: an object with \"reglages\" is expected"
+ },
+ "physique : 64 Ko au plus": {
+  "fr": "physique : 64 Ko au plus",
+  "en": "physics: 64 KB at most"
+ },
+ "job « {job} » : nom de dossier invalide": {
+  "fr": "job « {job} » : nom de dossier invalide",
+  "en": "job \"{job}\": invalid folder name"
+ },
+ "modèle 3D inconnu : {nom}": {
+  "fr": "modèle 3D inconnu : {nom}",
+  "en": "unknown 3D model: {nom}"
  }
 }

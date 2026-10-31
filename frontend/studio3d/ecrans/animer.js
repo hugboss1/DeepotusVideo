@@ -926,6 +926,9 @@ function telechargerConfig() {
   const f = A.fiche;
   const cfg = configPhysique({ job: f && f.job, version: f && f.version, actifs: A.physique.actifs, reglages: A.physique.reglages,
     os: A.squ ? A.squ.familles : {} });
+  // gardé aussi AVEC le modèle : l'Exporter l'embarque dans le paquet three.js (characters/<nom>/physics-config.json)
+  if (f && f.job) fetch(`/api/studio3d/animer/physique/${encodeURIComponent(f.job)}`, { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(cfg) }).catch(() => {});
   const url = URL.createObjectURL(new Blob([JSON.stringify(cfg, null, 2)], { type: "application/json" }));
   const a = document.createElement("a");
   a.href = url; a.download = "physics-config.json";
