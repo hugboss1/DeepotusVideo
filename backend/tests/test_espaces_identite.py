@@ -15,7 +15,8 @@ Ce que ce banc garde :
     une planche périmée -> 400) ;
   - les références passées aux modèles : retouche (`identite`) -> 400 pour un modèle à image unique AVANT la garde ;
     Nano Banana reçoit l'image + les références (faux tir, une ligne de dépense) ; avatar cinématique : les références
-    de l'identité complètent celles choisies (3 au plus) ;
+    de l'identité complètent celles choisies (3 au plus) ; une retouche par la façade avec `size` explicite envoie
+    l'`aspect_ratio` du cadre à fal (sans `size`, aucun : l'edit suit l'image d'entrée) ;
   - écritures réservées à la machine locale. Data-dir isolé, rien de payé.
 Témoin : la base (24ffc42a) n'a pas le module.
 Run (depuis backend/) : & $PY tests/test_espaces_identite.py"""
@@ -291,6 +292,41 @@ check("R3 Nano Banana reçoit l'image PUIS les références de l'identité (masc
 check("R4 sans `identite` : l'image seule (comportement d'avant)", r4.status_code == 200 and len(tirs) == 2
       and tirs[1].get("image_path") == src and "image_paths" not in tirs[1] and tirs[1]["prompt"] == "on a beach")
 check("R5 deux tirs = deux lignes de dépense", len(asyncio.run(depenses())) == 2)
+
+# CHARGE (31/10/2026) : la façade ne passait pas `ratio` — sans `aspect_ratio`, fal choisissait le cadre (un edit 16:9
+# sorti en 752×1408). Vraie façade jusqu'à la requête fal ; envoi, upload et téléchargement simulés (rien de payé).
+import fal_client as _FC                                            # noqa: E402
+from app.services import fal_service as _FS                          # noqa: E402
+requetes = []
+async def faux_subscribe(model, arguments=None, **kw):
+    requetes.append((model, dict(arguments or {})))
+    return {"images": [{"url": "https://banc.invalid/x.png"}]}
+async def faux_upload(chemin):
+    return f"https://banc.invalid/{pathlib.Path(chemin).name}"
+async def faux_download(urls, ext=".png"):
+    return ["gen_banc.png" for _ in urls]
+_osub, _oup, _odl = _FC.subscribe_async, _FS.FalSeedanceClient.upload_image, IP._download
+_FC.subscribe_async, IP._download = faux_subscribe, faux_download
+_FS.FalSeedanceClient.upload_image = staticmethod(faux_upload)
+try:
+    a1 = c.post("/api/images/process", json={"op": "edit", "filename": src.name, "prompt": "on a beach",
+                                              "model": "nano-banana-pro", "identite": True, "size": "landscape_16_9"})
+    a2 = c.post("/api/images/process", json={"op": "edit", "filename": src.name, "prompt": "on a beach",
+                                              "model": "nano-banana-pro", "identite": True})
+    a3 = c.post("/api/images/process", json={"op": "variations", "filename": src.name, "model": "nano-banana-pro",
+                                              "size": "landscape_16_9"})
+finally:
+    _FC.subscribe_async, IP._download = _osub, _odl
+    _FS.FalSeedanceClient.upload_image = _oup
+check("R9 identité + `size` landscape_16_9 : nano-banana-pro/edit reçoit aspect_ratio 16:9 (et les 7 images)",
+      a1.status_code == 200 and len(requetes) >= 1 and requetes[0][0] == "fal-ai/nano-banana-pro/edit"
+      and requetes[0][1].get("aspect_ratio") == "16:9" and len(requetes[0][1].get("image_urls", [])) == 7,
+      (a1.text[:200], requetes[:1]))
+check("R10 identité sans `size` : aucun aspect_ratio, l'edit suit l'image d'entrée",
+      a2.status_code == 200 and len(requetes) >= 2 and "aspect_ratio" not in requetes[1][1], (a2.text[:200], requetes[1:2]))
+check("R11 variations sans identité + `size` landscape_16_9 : aspect_ratio 16:9 aussi",
+      a3.status_code == 200 and len(requetes) >= 3 and requetes[2][1].get("aspect_ratio") == "16:9"
+      and requetes[2][1].get("image_urls") == [f"https://banc.invalid/{src.name}"], (a3.text[:200], requetes[2:3]))
 
 settings.HEYGEN_API_KEY = "cle-de-banc"
 from app.services import plafonds as PLAF                           # noqa: E402

@@ -11379,9 +11379,12 @@ async def _process_image_core(body: dict):
                 raise HTTPException(503, f"{manque} non configurée "
                                          f"(Réglages) pour {model}.")
             await _plafond({"kind": "image", "n": n, "model": model}, _categorie_image(body))
+            # cadre demandé = aspect_ratio de l'edit ; sans `size` explicite, l'edit suit l'image d'entrée
+            # (sans lui, fal choisissait : une composition 16:9 sortait en 752×1408)
+            ratio = _EDIT_RATIO.get(body.get("size"))
             try:
-                out = await (IP.generate(model, prompt, size, n, image_paths=[src] + refs_idv) if refs_idv
-                             else IP.generate(model, prompt, size, n, image_path=src))
+                out = await (IP.generate(model, prompt, size, n, image_paths=[src] + refs_idv, ratio=ratio) if refs_idv
+                             else IP.generate(model, prompt, size, n, image_path=src, ratio=ratio))
             except RuntimeError as e:
                 raise HTTPException(502, str(e))
             except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502
