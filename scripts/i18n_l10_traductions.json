@@ -13794,5 +13794,101 @@
  "vue {v} : {capture, pose} attendu": {
   "fr": "vue {v} : {capture, pose} attendu",
   "en": "view {v}: {capture, pose} expected"
+ },
+ "modifs : une liste non vide de {mesh, primitive, sommets, joints, poids} est attendue": {
+  "fr": "modifs : une liste non vide de {mesh, primitive, sommets, joints, poids} est attendue",
+  "en": "modifs: a non-empty list of {mesh, primitive, sommets, joints, poids} is expected"
+ },
+ "opération inconnue « {v} » : orphelins, confinement, epaules, coutures, guerison ou tout": {
+  "fr": "opération inconnue « {v} » : orphelins, confinement, epaules, coutures, guerison ou tout",
+  "en": "unknown operation \"{v}\": orphelins, confinement, epaules, coutures, guerison or tout"
+ },
+ "os : le nom d'un os est attendu": {
+  "fr": "os : le nom d'un os est attendu",
+  "en": "os: a bone name is expected"
+ },
+ "parametres : un objet est attendu": {
+  "fr": "parametres : un objet est attendu",
+  "en": "parametres: an object is expected"
+ },
+ "ce modèle n'a pas de peau (JOINTS_0 / WEIGHTS_0) : rigge-le d'abord (écran Rig)": {
+  "fr": "ce modèle n'a pas de peau (JOINTS_0 / WEIGHTS_0) : rigge-le d'abord (écran Rig)",
+  "en": "this model has no skin (JOINTS_0 / WEIGHTS_0): rig it first (Rig screen)"
+ },
+ "pose : un objet {os: [x, y, z]} (degrés) ou {os: [x, y, z, w]} (quaternion) est attendu": {
+  "fr": "pose : un objet {os: [x, y, z]} (degrés) ou {os: [x, y, z, w]} (quaternion) est attendu",
+  "en": "pose: an object {os: [x, y, z]} (degrees) or {os: [x, y, z, w]} (quaternion) is expected"
+ },
+ "{cle} : un nombre entre {lo} et {hi} est attendu": {
+  "fr": "{cle} : un nombre entre {lo} et {hi} est attendu",
+  "en": "{cle}: a number between {lo} and {hi} is expected"
+ },
+ "apercu : vrai ou faux": {
+  "fr": "apercu : vrai ou faux",
+  "en": "apercu: true or false"
+ },
+ "modifs : chaque entrée est un objet {mesh, primitive, sommets, joints, poids}": {
+  "fr": "modifs : chaque entrée est un objet {mesh, primitive, sommets, joints, poids}",
+  "en": "modifs: each entry is an object {mesh, primitive, sommets, joints, poids}"
+ },
+ "primitive introuvable : maillage {mi}, primitive {pi}": {
+  "fr": "primitive introuvable : maillage {mi}, primitive {pi}",
+  "en": "primitive not found: mesh {mi}, primitive {pi}"
+ },
+ "maillage {mi}, primitive {pi} : pas de poids de peau": {
+  "fr": "maillage {mi}, primitive {pi} : pas de poids de peau",
+  "en": "mesh {mi}, primitive {pi}: no skin weights"
+ },
+ "maillage {mi} : aucun nœud ne le lie à une peau": {
+  "fr": "maillage {mi} : aucun nœud ne le lie à une peau",
+  "en": "mesh {mi}: no node binds it to a skin"
+ },
+ "sommets, joints, poids : listes de k, 4·k et 4·k valeurs": {
+  "fr": "sommets, joints, poids : listes de k, 4·k et 4·k valeurs",
+  "en": "sommets, joints, poids: lists of k, 4·k and 4·k values"
+ },
+ "pose : os inconnu « {v} »": {
+  "fr": "pose : os inconnu « {v} »",
+  "en": "pose: unknown bone \"{v}\""
+ },
+ "pose : « {nom} » attend trois angles (degrés) ou un quaternion": {
+  "fr": "pose : « {nom} » attend trois angles (degrés) ou un quaternion",
+  "en": "pose: \"{nom}\" expects three angles (degrees) or a quaternion"
+ },
+ "pose : quaternion nul pour « {nom} »": {
+  "fr": "pose : quaternion nul pour « {nom} »",
+  "en": "pose: zero quaternion for \"{nom}\""
+ },
+ "os inconnu « {v} »": {
+  "fr": "os inconnu « {v} »",
+  "en": "unknown bone \"{v}\""
+ },
+ "sommet {v} hors de 0..{v2}": {
+  "fr": "sommet {v} hors de 0..{v2}",
+  "en": "vertex {v} outside 0..{v2}"
+ },
+ "sommet {v} : indice d'os hors de 0..{v2}": {
+  "fr": "sommet {v} : indice d'os hors de 0..{v2}",
+  "en": "vertex {v}: bone index outside 0..{v2}"
+ },
+ "sommet {v} : poids négatif ou non fini": {
+  "fr": "sommet {v} : poids négatif ou non fini",
+  "en": "vertex {v}: negative or non-finite weight"
+ },
+ "sommet {v} : aucun poids (au moins un os doit le tenir)": {
+  "fr": "sommet {v} : aucun poids (au moins un os doit le tenir)",
+  "en": "vertex {v}: no weight (at least one bone must hold it)"
+ },
+ "deformees : vrai ou faux": {
+  "fr": "deformees : vrai ou faux",
+  "en": "deformees: true or false"
+ },
+ "deformees : une pose est requise (lance le test de pose)": {
+  "fr": "deformees : une pose est requise (lance le test de pose)",
+  "en": "deformees: a pose is required (start the pose test)"
+ },
+ "poses : une liste de 1 à 32 poses est attendue": {
+  "fr": "poses : une liste de 1 à 32 poses est attendue",
+  "en": "poses: a list of 1 to 32 poses is expected"
  }
 }
