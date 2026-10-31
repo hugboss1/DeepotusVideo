@@ -23,14 +23,19 @@ quatre corrections automatiques numérotées et un « correctif en un clic ». I
                          voisins, itérations de Jacobi : l'ordre de parcours ne compte pas, la symétrie est gardée) ;
                          « seulement les déformées » : le collier est réduit aux points dont une arête s'étire de plus
                          de 5 % sous la pose donnée ;
-      4. `guerison`    : sous une ou plusieurs POSES (rotations d'os), les arêtes trop étirées ou comprimées (± 25 %)
-                         sont repérées par skinning linéaire ; les poids de leurs extrémités sont diffusés vers la
-                         moyenne de leurs voisins, et on recommence (quatre passes au plus par pose).
-         VERSION SIMPLIFIÉE, assumée : Sorceress corrige aussi les triangles effondrés et les plis ; ici seul
-         l'étirement des arêtes est mesuré, et la pose est un ensemble de rotations LOCALES d'os (pas un clip
-         interpolé : le front échantillonne le clip en quelques poses).
+      4. `guerison`    : sous une ou plusieurs POSES (rotations d'os), par skinning linéaire, trois défauts :
+                         les arêtes trop étirées ou comprimées (± 25 %), les triangles EFFONDRÉS (aire posée < 35 % de
+                         l'aire de repos : l'aisselle, le creux du coude) et les triangles RETOURNÉS (normale posée
+                         opposée à la normale de repos tournée par l'os qui domine le triangle : un pli). Les poids
+                         des points touchés sont diffusés vers la moyenne de leurs voisins, et on recommence (quatre
+                         passes au plus par pose ; une passe qui empire est abandonnée).
+         La pose est un ensemble de rotations LOCALES d'os (pas un clip interpolé : le front échantillonne le clip
+         en quelques poses).
       `tout` (le correctif en un clic) = épaules → confinement → coutures → guérison sur une petite BATTERIE de poses
-      d'amplitude (épaule, coude, hanche, genou, poignet, cheville, cou, torsion), en UNE version.
+      d'amplitude (épaule, coude, hanche, genou, poignet, cheville, cou, flexion et TORSIONS de colonne), en UNE
+      version. Une torsion est chirale (son miroir est la torsion opposée) : la batterie joue les deux sens, puis,
+      si le maillage est SYMÉTRIQUE (chaque point a son reflet x → −x, chaque os _l son os _r), le résultat est
+      symétrisé — la moyenne de chaque point et du reflet de son miroir.
 
 Les poids écrits restent normalisés (somme 1, quatre influences au plus). L'écriture se fait EN PLACE dans les vues
 des accesseurs quand leur format le permet (le fichier ne grossit pas d'une version à l'autre), sinon en accesseurs
@@ -60,9 +65,11 @@ BATTERIE = [
     [("avantbras", (0, -100, 0))], [("main", (0, 0, 45))],
     [("cuisse", (-80, 0, 0))], [("cuisse", (0, 0, 35))], [("jambe", (100, 0, 0))], [("pied", (35, 0, 0))],
     [("cou", (35, 0, 0))], [("colonne", (25, 0, 0))],
+    [("colonne", (0, 15, 0))], [("colonne", (0, -15, 0))],
 ]
-# la TORSION de colonne de Sorceress n'y est pas : une torsion est chirale (son miroir est la torsion opposée), elle
-# rendrait le correctif asymétrique ; la flexion avant la remplace.
+# les TORSIONS de colonne (autour de l'axe de l'os) sont chirales : jouées dans les deux sens, et le résultat est
+# symétrisé quand le maillage l'est (`symetrie`, `symetriser`)
+AIRE_MIN = 0.35        # un triangle dont l'aire posée tombe sous 35 % de son aire de repos est EFFONDRÉ
 
 
 # ── petits calculs ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -162,6 +169,7 @@ class Peau:
         cles_points: dict = {}
         sommets_vus: dict = {}
         aretes: set = set()
+        triangles: dict = {}
         for inst in m["instances"]:
             skin_i = nodes[inst["noeud"]].get("skin")
             if skin_i is None or not 0 <= skin_i < len(skins):
@@ -188,7 +196,7 @@ class Peau:
                     sommets_vus[cle] = g
                     self.groupes.append(g)
                 g = sommets_vus[cle]
-                self._aretes(pr["prim"], g["points"], aretes)
+                self._aretes(pr["prim"], g["points"], aretes, triangles)
         if not self.groupes:
             raise ValueError("ce modèle n'a pas de peau (JOINTS_0 / WEIGHTS_0) : rigge-le d'abord (écran Rig)")
         n = len(self.positions)
@@ -208,11 +216,13 @@ class Peau:
             self.voisins[a].add(b)
             self.voisins[b].add(a)
         self.aretes = sorted(aretes)
+        self.triangles = list(triangles.values())     # (a, b, c) de points, orientés comme le premier vu
+        self._symetrie = None
         self._os(m["mondes"])
         lo, hi = m["boite"]["min"], m["boite"]["max"]
         self.hauteur = max(hi[1] - lo[1], max(hi[c] - lo[c] for c in range(3)) * 0.25, 1e-6)
 
-    def _aretes(self, prim: dict, pts: list[int], aretes: set) -> None:
+    def _aretes(self, prim: dict, pts: list[int], aretes: set, triangles: dict | None = None) -> None:
         if prim.get("mode", 4) != 4:
             return
         if prim.get("indices") is not None:
@@ -226,6 +236,8 @@ class Peau:
             for a, b in ((tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])):
                 if a != b:
                     aretes.add((a, b) if a < b else (b, a))
+            if triangles is not None and len(set(tri)) == 3:
+                triangles.setdefault(tuple(sorted(tri)), tuple(tri))
 
     def _os(self, mondes: dict) -> None:
         doc = self.doc
@@ -746,29 +758,174 @@ def coutures(peau: Peau, poids: list[dict], *, os=None, anneaux: int = 3, force:
 
 # ── 4. la guérison dynamique ───────────────────────────────────────────────────────────────────────────────────────
 
+def _normale(p, q, r) -> tuple:
+    """Le produit vectoriel (q − p) × (r − p) : la normale du triangle, de longueur deux fois son aire."""
+    ux, uy, uz = q[0] - p[0], q[1] - p[1], q[2] - p[2]
+    vx, vy, vz = r[0] - p[0], r[1] - p[1], r[2] - p[2]
+    return (uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx)
+
+
+def triangles_abimes(repos: list, posees: list, triangles: list, attendues: list | None = None,
+                     aire_min: float = AIRE_MIN) -> tuple[list[int], list[int]]:
+    """(effondrés, retournés) : les indices des triangles dont l'aire posée tombe sous `aire_min` × l'aire de repos,
+    et de ceux dont la normale posée s'oppose à la normale ATTENDUE (`attendues[t]` : la normale de repos tournée par
+    l'os qui tient le triangle ; à défaut la normale de repos). Un triangle de repos d'aire nulle est ignoré."""
+    eff, ret = [], []
+    for t, (a, b, c) in enumerate(triangles):
+        n0 = _normale(repos[a], repos[b], repos[c])
+        a0 = math.sqrt(n0[0] * n0[0] + n0[1] * n0[1] + n0[2] * n0[2])
+        if a0 <= 1e-18:
+            continue
+        n1 = _normale(posees[a], posees[b], posees[c])
+        e = attendues[t] if attendues is not None else n0
+        if n1[0] * e[0] + n1[1] * e[1] + n1[2] * e[2] < 0:
+            ret.append(t)
+        elif math.sqrt(n1[0] * n1[0] + n1[1] * n1[1] + n1[2] * n1[2]) < aire_min * a0:
+            eff.append(t)
+    return eff, ret
+
+
+def _attendues(peau: Peau, poids: list[dict], D: dict) -> list[tuple]:
+    """Pour chaque triangle, sa normale de repos tournée par l'os qui le DOMINE (la somme des poids de ses trois
+    points) : l'orientation qu'il aurait s'il suivait cet os d'un bloc."""
+    P = peau.positions
+    out = []
+    for a, b, c in peau.triangles:
+        n0 = _normale(P[a], P[b], P[c])
+        s: dict = {}
+        for p in (a, b, c):
+            for k, v in poids[p].items():
+                s[k] = s.get(k, 0.0) + v
+        m = D.get(max(s, key=lambda k: (s[k], -k))) if s else None
+        if m is None:
+            out.append(n0)
+            continue
+        out.append((m[0] * n0[0] + m[4] * n0[1] + m[8] * n0[2], m[1] * n0[0] + m[5] * n0[1] + m[9] * n0[2],
+                    m[2] * n0[0] + m[6] * n0[1] + m[10] * n0[2]))
+    return out
+
+
+def abimes(peau: Peau, poids: list[dict], pose: dict, tolerance: float = 0.25) -> tuple[set, dict]:
+    """Les points abîmés sous une pose (extrémités des arêtes trop étirées ou comprimées, sommets des triangles
+    effondrés ou retournés) et le décompte de chaque défaut."""
+    posees = poser(peau, poids, pose)
+    mauvais: set = set()
+    etirees = 0
+    for a, b, r in _etirements(peau, posees):
+        if r > 1 + tolerance or r < 1 - tolerance:
+            mauvais.add(a)
+            mauvais.add(b)
+            etirees += 1
+    eff, ret = triangles_abimes(peau.positions, posees, peau.triangles, _attendues(peau, poids, _deltas(peau, pose)))
+    for t in eff + ret:
+        mauvais.update(peau.triangles[t])
+    return mauvais, {"etirees": etirees, "effondres": len(eff), "retournes": len(ret)}
+
+
 def guerison(peau: Peau, poids: list[dict], *, poses: list[dict], tolerance: float = 0.25, force: float = 0.5,
              passes: int = 4):
     poids = list(poids)
     rapport = []
     for pose in poses:
-        avant = None
-        meilleur = (None, poids)
+        avant = avant_d = None
+        meilleur = (None, poids, None)
         for it in range(passes + 1):
-            mauvais = set()
-            for a, b, r in _etirements(peau, poser(peau, poids, pose)):
-                if r > 1 + tolerance or r < 1 - tolerance:
-                    mauvais.add(a)
-                    mauvais.add(b)
+            mauvais, defauts = abimes(peau, poids, pose, tolerance)
             if avant is None:
-                avant = len(mauvais)
+                avant, avant_d = len(mauvais), defauts
             if meilleur[0] is None or len(mauvais) < meilleur[0]:
-                meilleur = (len(mauvais), poids)
+                meilleur = (len(mauvais), poids, defauts)
             if not mauvais or it == passes:
                 break
             poids = _lisser(peau, poids, mauvais, force, 1)
-        apres, poids = meilleur        # une passe qui empire est abandonnée : on garde la meilleure
-        rapport.append({"pose": sorted(peau.os[j]["nom"] for j in pose), "avant": avant, "apres": apres})
+        apres, poids, apres_d = meilleur        # une passe qui empire est abandonnée : on garde la meilleure
+        rapport.append({"pose": sorted(peau.os[j]["nom"] for j in pose), "avant": avant, "apres": apres,
+                        "defauts_avant": avant_d, "defauts_apres": apres_d})
     return poids, {"guerison": rapport, "points": sum(r["avant"] - r["apres"] for r in rapport)}
+
+
+# ── la symétrie gauche / droite ────────────────────────────────────────────────────────────────────────────────────
+
+def _os_miroirs(peau: Peau) -> dict | None:
+    """{nœud: nœud miroir} (même base de nom, côté opposé ; un os du milieu est son propre miroir) ; None si un os
+    latéral n'a pas son pendant."""
+    cles = {MR.decouper(o["nom"]): j for j, o in peau.os.items()}
+    out = {}
+    for j, o in peau.os.items():
+        cote, base = MR.decouper(o["nom"])
+        if cote is None:
+            out[j] = j
+            continue
+        m = cles.get(("d" if cote == "g" else "g", base))
+        if m is None:
+            return None
+        out[j] = m
+    return out
+
+
+def symetrie(peau: Peau, *, part_min: float = 0.97):
+    """(miroir des points : liste, −1 sans reflet ; miroir des os : dict) si le maillage est SYMÉTRIQUE en x — au
+    moins `part_min` des points forment une PAIRE réciproque avec le point le plus proche de leur reflet (à 0,5 % de
+    la hauteur), et chaque os latéral a son pendant —, sinon None. Le plan est le milieu de la boîte en x. Mémorisé."""
+    if peau._symetrie is not None:
+        return peau._symetrie or None
+    osm = _os_miroirs(peau)
+    P = peau.positions
+    if osm is None or not P:
+        peau._symetrie = False
+        return None
+    xs = [p[0] for p in P]
+    axe = (min(xs) + max(xs)) / 2
+    tol = 0.005 * peau.hauteur
+
+    def cle(x, y, z):
+        return math.floor(x / tol), math.floor(y / tol), math.floor(z / tol)
+    grille: dict = {}
+    for i, p in enumerate(P):
+        grille.setdefault(cle(*p), []).append(i)
+    pts = [-1] * len(P)
+    t2 = tol * tol
+    for i, p in enumerate(P):
+        x, y, z = 2 * axe - p[0], p[1], p[2]
+        cx, cy, cz = cle(x, y, z)
+        best, bd = -1, t2
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    for u in grille.get((cx + dx, cy + dy, cz + dz), ()):
+                        q = P[u]
+                        d = (q[0] - x) ** 2 + (q[1] - y) ** 2 + (q[2] - z) ** 2
+                        if d < bd or (d == bd and 0 <= u < best):
+                            best, bd = u, d
+        pts[i] = best
+    apparies = sum(1 for i, m in enumerate(pts) if m >= 0 and pts[m] == i)
+    if apparies < part_min * len(P):
+        peau._symetrie = False
+        return None
+    peau._symetrie = (pts, osm)
+    return peau._symetrie
+
+
+def symetriser(peau: Peau, poids: list[dict]) -> tuple[list[dict], dict]:
+    """Chaque point d'une paire miroir reçoit la moyenne de son poids et du REFLET (os miroirs) du poids de son
+    pendant : le résultat est exactement symétrique. Sans effet si le maillage n'est pas symétrique."""
+    sy = symetrie(peau)
+    if sy is None:
+        return poids, {"symetrie": {"detectee": False, "points": 0}}
+    pts, osm = sy
+    out = list(poids)
+    n = 0
+    for i, m in enumerate(pts):
+        if m < 0 or pts[m] != i:
+            continue
+        reflet = {osm.get(k, k): v for k, v in poids[m].items()}
+        neuf = _normaliser(_melange(poids[i], reflet, 0.5))
+        if not neuf:
+            continue
+        if any(abs(neuf.get(k, 0.0) - poids[i].get(k, 0.0)) > 1e-9 for k in set(neuf) | set(poids[i])):
+            n += 1
+        out[i] = neuf
+    return out, {"symetrie": {"detectee": True, "points": n}}
 
 
 # ── l'entrée unique ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -826,12 +983,16 @@ def corriger(data: bytes, operation: str, *, os: str | None = None, parametres: 
             poses = [pose_valide(peau, p) for p in brut]
         poids, rap = guerison(peau, poids, poses=[p for p in poses if p],
                               tolerance=_nombre(params, "tolerance", 0.25, 0.02, 2))
+        if brut is None:            # la batterie (torsions chirales) : symétrisée si le maillage l'est
+            poids, r = symetriser(peau, poids)
+            rap.update(r)
     else:   # tout : le correctif en un clic
         etapes = []
         poids, r = epaules(peau, poids); etapes.append({"etape": "epaules", **r})
         poids, r = confinement(peau, poids, force=_nombre(params, "force", 0.7, 0, 1)); etapes.append({"etape": "confinement", **r})
         poids, r = coutures(peau, poids, anneaux=3); etapes.append({"etape": "coutures", **r})
         poids, r = guerison(peau, poids, poses=batterie(peau)); etapes.append({"etape": "guerison", **r})
+        poids, r = symetriser(peau, poids); etapes.append({"etape": "symetrie", **r})
         rap = {"etapes": etapes, "points": sum(e.get("points", 0) for e in etapes)}
     rap = {"correction": operation, "os_choisi": os, **rap}     # pas « operation » : le registre la garde
     if apercu:
@@ -849,5 +1010,6 @@ def ecrire(job: str, version: int, sortie: bytes, operation: str, rapport: dict,
         "outil": "studio3d", "depuis": {"version": int(version), "fichier": fichier or _fichier(version)}, **rapport})
 
 
-__all__ = ["OPERATIONS", "BATTERIE", "Peau", "lire_peau", "ecrire_peau", "ecrire_sommets", "poser", "pose_valide",
-           "batterie", "orphelins", "confinement", "epaules", "coutures", "guerison", "corriger", "ecrire"]
+__all__ = ["OPERATIONS", "BATTERIE", "AIRE_MIN", "Peau", "lire_peau", "ecrire_peau", "ecrire_sommets", "poser",
+           "pose_valide", "batterie", "orphelins", "confinement", "epaules", "coutures", "triangles_abimes", "abimes",
+           "guerison", "symetrie", "symetriser", "corriger", "ecrire"]

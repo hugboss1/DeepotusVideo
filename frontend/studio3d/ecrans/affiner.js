@@ -19,8 +19,13 @@
    pose joue les clips du GLB et ceux du job (AnimationMixer), ou des POSES D'ESSAI d'amplitude (bras levés, coudes,
    hanches, genoux, cou) — un modèle qui sort du Rig n'a pas encore de clip. La guérison et « seulement les déformées »
    reçoivent la pose courante (quaternions locaux relatifs au repos), ou quelques images du clip.
-   L'outil Pose tourne un os (gizmo de rotation) : pas de cinématique inverse (les poignées IK de Sorceress).
-   Le calcul vit dans poids_calc.js (banc node). */
+   t405 — l'outil Pose a les POIGNÉES AMBRE de Sorceress : mains, pieds et tête se glissent dans le plan de l'écran ;
+   bras et jambes suivent par IK analytique à deux os (le coude et le genou gardent le côté de leur pli, jamais
+   retournés), la tête par CCD sur la colonne et le cou (chaque vertèbre bornée) ; un clic sur un os le tourne toujours
+   au gizmo. La pose ainsi prise déforme la peau comme une pose d'essai : on peint dessus. Le lasso ne prend que les
+   sommets VUS (tampon de profondeur logiciel des triangles déformés, poids_calc.lassoMaillages) ; « À travers le
+   modèle » rend l'ancien comportement.
+   Le calcul vit dans poids_calc.js et ik_calc.js (banc node). */
 "use strict";
 import * as THREE from "three";
 import { TransformControls } from "three/addons/controls/TransformControls.js";
@@ -31,8 +36,11 @@ import { appliquerRendu } from "../rendu3d.js";
 import { T, nb } from "./coque_calc.js";
 import { listeGeneres } from "./animer_calc.js";
 import * as PC from "./poids_calc.js";
+import * as IK from "./ik_calc.js";
 
+const AMBRE = 0xf5a524, AMBRE_VIF = 0xffd27a;
 const A = {
+  travers: false, poignees: [], osParNom: new Map(), ik: null,
   s: null, ctx: null, fiche: null, api: null, resume: null, maillages: [], noms: [], os: null,
   outil: "peindre", mode: "ajouter", miroir: true, isoler: false, panneau: "os", vue: "poids",
   taille: 0.05, force: 0.15, attenuation: "douce", hauteur: 1, hist: new PC.Historique(),
@@ -113,6 +121,7 @@ export async function monter(section, ctx) {
         <span class="af-filet" aria-hidden="true"></span>
         ${seg("afOutils", PC.OUTILS, "outil", "outil")}
         <label class="ec-bascule" title="${esc(T("aff.miroir_aide"))}"><input type="checkbox" id="afMiroir" checked> ${esc(T("aff.miroir"))}</label>
+        <label class="ec-bascule hidden" id="afTraversBascule" title="${esc(T("aff.travers_aide"))}"><input type="checkbox" id="afTravers"> ${esc(T("aff.travers"))}</label>
       </div>
       <div class="ec-vues"><figure class="ec-vue af-vue" id="afFigure"><canvas id="afCanevas" tabindex="0"></canvas>
         <svg class="af-lasso" id="afLasso" aria-hidden="true"><polyline id="afLassoTrace" points=""></polyline></svg>
@@ -174,6 +183,24 @@ export async function monter(section, ctx) {
 
 export function montre() { if (A.api && A.api.racine) peindre(); }
 
+/* un INSTANTANÉ en lecture seule (bancs, preuve à l'écran) : l'outil, la pose, le dernier lasso, et pour chaque
+   poignée la chaîne en positions monde avec l'avant du modèle (de quoi vérifier le côté du pli) */
+function ecranDe(v) {
+  const r = $("#afCanevas").getBoundingClientRect(), p = v.clone().project(A.api.camera);
+  return [Math.round(r.left + ((p.x + 1) / 2) * r.width), Math.round(r.top + ((1 - p.y) / 2) * r.height)];
+}
+
+export function instantane() {
+  const r = (v) => [v.x, v.y, v.z].map((x) => Math.round(x * 1e4) / 1e4);
+  const avant = A.api && A.api.racine ? new THREE.Vector3(0, 0, 1).applyQuaternion(A.api.racine.getWorldQuaternion(new THREE.Quaternion())) : null;
+  return {
+    outil: A.outil, pose: A.pose, travers: A.travers, lasso: A.mesureLasso || null, avant: avant && r(avant),
+    ik: A.dernierIK || null,
+    poignees: A.poignees.map((p) => ({ poignee: p.ch.poignee, type: p.ch.type, visible: p.mesh.visible, ecran: ecranDe(p.mesh.position),
+      chaine: p.ch.os.map((n) => ({ os: n, monde: r(A.osParNom.get(n).getWorldPosition(new THREE.Vector3())) })) })),
+  };
+}
+
 /* ── le modèle ouvert ─────────────────────────────────────────────────────── */
 
 export async function ouvrir(fiche) {
@@ -187,6 +214,8 @@ export async function ouvrir(fiche) {
   arreter();
   A.tc.detach();
   A.maillages = []; A.noms = []; A.os = null; A.resume = null; A.libres = null; A.pose = null; A.clip = null;
+  A.ik = null;
+  retirerPoignees();
   A.hist.vider();
   A.clips.clear();
   retirerSquelette(A.api);
@@ -205,6 +234,7 @@ export async function ouvrir(fiche) {
   preparerMaillages();
   if (A.maillages.length) {
     poserSquelette(A.api);
+    creerPoignees();
     cadrer(A.api, 1.3);
     A.mixer = new THREE.AnimationMixer(A.api.racine);
     for (const c of (A.api.gltf && A.api.gltf.animations) || []) A.clips.set("clip:" + c.name, { cle: "clip:" + c.name, nom: c.name, clip: c, origine: "clip" });
@@ -286,6 +316,8 @@ function peindre() {
   for (const b of A.s.querySelectorAll("[data-attenuation]")) b.classList.toggle("on", b.dataset.attenuation === A.attenuation);
   for (const b of A.s.querySelectorAll("[data-panneau]")) b.classList.toggle("on", b.dataset.panneau === (A.isoler ? "isoler" : "os"));
   $("#afMiroir").checked = A.miroir;
+  $("#afTravers").checked = A.travers;
+  $("#afTraversBascule").classList.toggle("hidden", A.outil !== "lasso");
   $("#afTaille").value = String(Math.round((A.taille / A.hauteur) * 200) / 2);
   $("#afTailleVal").textContent = (Math.round((A.taille / A.hauteur) * 1000) / 10).toFixed(1);
   $("#afForce").value = String(Math.round(A.force * 100));
@@ -497,6 +529,15 @@ function placerCurseur(hit) {
 function surAppui(e) {
   if (!rigge() || e.button !== 0 || e.altKey) return;              // Alt : l'orbite reste à la caméra
   A.appui = [e.clientX, e.clientY];
+  if (A.outil === "pose") {
+    const p = viserPoignee(e);
+    if (p) {                                                       // une poignée ambre : la cinématique inverse
+      e.stopPropagation();
+      saisirPoignee(p);
+      try { $("#afFigure").setPointerCapture(e.pointerId); } catch { /* pointeur déjà relâché : le geste suit quand même */ }
+      return;
+    }
+  }
   if (A.outil === "pose" && A.tc.axis) return;                     // un geste du gizmo
   if (A.outil === "lasso") {
     e.stopPropagation();
@@ -520,6 +561,7 @@ function surAppui(e) {
 
 function surDeplacement(e) {
   if (!rigge()) return;
+  if (A.ik) { e.stopPropagation(); glisserPoignee(e); return; }
   if (A.lasso) {
     const p = ndc(e);
     A.lasso.push([p.px, p.py]);
@@ -535,6 +577,14 @@ function surDeplacement(e) {
 }
 
 function surRelache(e) {
+  if (A.ik) {
+    A.ik.p.mesh.material.color.setHex(AMBRE);
+    A.ik = null;
+    A.appui = null;
+    A.api.controls.enabled = true;
+    peindre();
+    return;
+  }
   if (A.lasso) {
     const poly = A.lasso;
     A.lasso = null;
@@ -567,26 +617,147 @@ function surRelache(e) {
 
 const dist = (pos, v, p) => Math.hypot(pos[v * 3] - p.x, pos[v * 3 + 1] - p.y, pos[v * 3 + 2] - p.z);
 
+/* le lasso : tous les maillages (déformés) sont projetés — ils se cachent les uns les autres —, seuls ceux que l'os
+   choisi tient sont peints. Sans « À travers le modèle », un sommet caché par une surface plus proche n'est pas pris. */
 function appliquerLasso(poly) {
   if (!poly || poly.length < 3) return;
+  const t0 = performance.now();
   const cam = A.api.camera, r = $("#afCanevas").getBoundingClientRect(), v3 = new THREE.Vector3();
-  const traits = new Map();
-  for (const m of A.maillages) {
-    if (indexOs(m, A.os) < 0) continue;
+  cam.updateMatrixWorld();
+  const e = cam.matrixWorldInverse.elements;
+  let arete = 0;
+  const proj = A.maillages.map((m) => {
     const pos = positionsMonde(m);
-    const ecran = new Float32Array(m.n * 2);
+    const ecran = new Float32Array(m.n * 2), prof = new Float32Array(m.n);
     for (let v = 0; v < m.n; v++) {
-      v3.set(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]).project(cam);
+      const x = pos[v * 3], y = pos[v * 3 + 1], z = pos[v * 3 + 2];
+      v3.set(x, y, z).project(cam);
       ecran[v * 2] = (v3.x + 1) / 2 * r.width;
       ecran[v * 2 + 1] = (1 - v3.y) / 2 * r.height;
+      prof[v] = -(e[2] * x + e[6] * y + e[10] * z + e[14]);       // profondeur de vue, en unités du monde
     }
-    const sel = PC.selectionLasso(ecran, m.n, poly);
-    if (!sel.length) continue;
+    arete = Math.max(arete, PC.areteMoyenne(pos, m.adj, 4000));
+    const ix = m.obj.geometry.index;
+    return { ecran, prof, index: ix ? ix.array : null, n: m.n };
+  });
+  /* la tolérance : deux arêtes moyennes (une surface vue de biais varie d'autant dans un pixel), au moins 0,4 % de la
+     hauteur — un bras devant le torse en est bien plus loin */
+  const eps = Math.max(2 * arete, 0.004 * A.hauteur);
+  const { selections } = PC.lassoMaillages(proj, poly, r.width, r.height, { travers: A.travers, eps });
+  const traits = new Map();
+  let total = 0;
+  A.maillages.forEach((m, k) => {
+    const sel = selections[k];
+    if (indexOs(m, A.os) < 0 || !sel.length) return;
+    total += sel.length;
     const tr = PC.debutTrait();
     traits.set(m, tr);
     finirModif(m, PC.appliquer(m.P, sel.map((v) => [v, 1]), optsPour(m), tr));
-  }
+  });
+  A.mesureLasso = { n: total, ms: Math.round(performance.now() - t0), travers: A.travers };
+  A.avis = T(A.travers ? "aff.lasso_travers" : "aff.lasso_vus", { n: nb(total), ms: A.mesureLasso.ms });
   clore(traits);
+}
+
+/* ── les poignées ambre de l'outil Pose (cinématique inverse) ─────────────── */
+
+function retirerPoignees() {
+  for (const p of A.poignees) { A.api.scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }
+  A.poignees = [];
+  A.osParNom = new Map();
+}
+
+function creerPoignees() {
+  retirerPoignees();
+  for (const o of A.repos.keys()) if (!A.osParNom.has(o.name)) A.osParNom.set(o.name, o);
+  const os = [...A.osParNom.values()].map((o) => ({ nom: o.name, parent: o.parent && o.parent.isBone ? o.parent.name : null }));
+  for (const ch of IK.chaines(os, PC.role)) {
+    if (!ch.os.every((n) => A.osParNom.has(n))) continue;
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12),
+      new THREE.MeshBasicMaterial({ color: AMBRE, depthTest: false, transparent: true, opacity: 0.92 }));
+    mesh.renderOrder = 1002;
+    mesh.scale.setScalar(0.022 * A.hauteur);
+    mesh.visible = false;
+    mesh.userData.dzPoignee = ch.poignee;
+    A.api.scene.add(mesh);
+    A.poignees.push({ ch, mesh, os: A.osParNom.get(ch.poignee) });
+  }
+}
+
+function majPoignees() {
+  const vis = A.outil === "pose" && rigge() && !A.joue;
+  for (const p of A.poignees) {
+    p.mesh.visible = vis;
+    if (vis) { p.os.getWorldPosition(p.mesh.position); p.mesh.updateMatrixWorld(); }   // le rayon lit matrixWorld
+  }
+}
+
+function viserPoignee(e) {
+  if (!A.poignees.length) return null;
+  majPoignees();
+  const p = ndc(e);
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2(p.x, p.y), A.api.camera);
+  const hit = ray.intersectObjects(A.poignees.map((x) => x.mesh), false)[0];
+  return hit ? A.poignees.find((x) => x.mesh === hit.object) : null;
+}
+
+const posMonde = (o) => { const v = new THREE.Vector3(); o.getWorldPosition(v); return [v.x, v.y, v.z]; };
+
+/* une rotation MONDE (quaternion [x, y, z, w]) posée sur un os : local = parent⁻¹ · delta · monde */
+function tournerMonde(o, q) {
+  const pw = new THREE.Quaternion(), bw = new THREE.Quaternion();
+  o.parent.getWorldQuaternion(pw);
+  o.getWorldQuaternion(bw);
+  o.quaternion.copy(pw.invert().multiply(new THREE.Quaternion(q[0], q[1], q[2], q[3])).multiply(bw));
+  o.updateMatrixWorld(true);
+}
+
+function saisirPoignee(p) {
+  arreter();
+  A.clip = null;
+  A.tc.detach();
+  A.api.controls.enabled = false;
+  const os = p.ch.os.map((n) => A.osParNom.get(n));
+  const normale = new THREE.Vector3();
+  A.api.camera.getWorldDirection(normale);
+  /* l'avant du modèle (glTF : +Z), tourné comme sa racine : le côté NATUREL du pli (genou devant, coude derrière) */
+  const avant = new THREE.Vector3(0, 0, 1).applyQuaternion(A.api.racine.getWorldQuaternion(new THREE.Quaternion()));
+  const naturel = p.ch.naturel === "avant" ? avant : p.ch.naturel === "arriere" ? avant.clone().negate() : null;
+  A.ik = { p, os, depart: os.map((o) => [o, o.quaternion.clone()]), naturel: naturel && [naturel.x, naturel.y, naturel.z],
+    plan: new THREE.Plane().setFromNormalAndCoplanarPoint(normale, p.mesh.position.clone()) };
+  p.mesh.material.color.setHex(AMBRE_VIF);
+  A.pose = A.pose || "libre";
+  majPoseUI();
+}
+
+/* la cible suit le pointeur dans le plan de l'écran qui passe par la poignée ; la chaîne repart à chaque fois de
+   son état au début du geste (pas de dérive, les bornes de la colonne valent pour tout le geste) */
+function glisserPoignee(e) {
+  const p = ndc(e);
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(new THREE.Vector2(p.x, p.y), A.api.camera);
+  const cible = new THREE.Vector3();
+  if (!ray.ray.intersectPlane(A.ik.plan, cible)) return;
+  for (const [o, q] of A.ik.depart) o.quaternion.copy(q);
+  A.api.racine.updateMatrixWorld(true);
+  const { os, p: poignee } = A.ik;
+  const c = [cible.x, cible.y, cible.z];
+  if (poignee.ch.type === "membre") {
+    const [h, m, b] = os;
+    const r = IK.deuxOs(posMonde(h), posMonde(m), posMonde(b), c, { naturel: A.ik.naturel });
+    tournerMonde(h, r.qHaut);
+    tournerMonde(m, r.qBas);
+    A.ik.atteint = r.atteint;
+  } else {
+    const r = IK.ccd(os.map(posMonde), c);
+    IK.deltasEnChaine(r.rotations).forEach((d, i) => tournerMonde(os[i], d));
+    A.ik.atteint = r.atteint;
+  }
+  A.ik.cible = c;
+  A.dernierIK = { poignee: poignee.ch.poignee, cible: c, atteint: A.ik.atteint, bout: posMonde(os[os.length - 1]) };
+  A.version++;
+  majPoignees();
 }
 
 function surMolette(e) {
@@ -713,6 +884,7 @@ function boucle() {
     avant = t;
     if (!A.s || A.s.classList.contains("hidden")) return;
     if (A.mixer && A.joue) { A.mixer.update(dt); A.version++; }
+    majPoignees();
   };
   requestAnimationFrame(tic);
 }
@@ -833,6 +1005,7 @@ function surSaisie(e) {
   if (t.id === "afTaille") { A.taille = (Number(t.value) / 100) * A.hauteur; peindre(); }
   else if (t.id === "afForce") { A.force = Number(t.value) / 100; peindre(); }
   else if (t.id === "afMiroir") { A.miroir = t.checked; }
+  else if (t.id === "afTravers") { A.travers = t.checked; A.avis = T(A.travers ? "aff.lasso_aide_travers" : "aff.lasso_aide_vus"); peindre(); }
   else if (t.id === "afForceConf") { A.forceConf = Number(t.value) / 100; $("#afForceConfVal").textContent = `${t.value} %`; }
   else if (t.id === "afAnneaux") { A.anneaux = Number(t.value); $("#afAnneauxVal").textContent = t.value; }
   else if (t.id === "afDeformees") { A.deformees = t.checked; }
@@ -843,6 +1016,9 @@ function changerOutil(o) {
   if (o !== "pose") A.tc.detach();
   else if (A.os) attacherGizmo();
   if (o !== "peindre") A.curseur.visible = false;
+  if (o === "pose" && A.poignees.length) A.avis = T("aff.poignees_aide");
+  else if (o === "lasso") A.avis = T(A.travers ? "aff.lasso_aide_travers" : "aff.lasso_aide_vus");
+  majPoignees();
   peindre();
 }
 
