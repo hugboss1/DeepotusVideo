@@ -362,6 +362,245 @@ def test_retexturer_refuse_dans_l_ordre_puis_ecrit_une_version_et_approuve():
     assert neuves[0][0] == "meshy:tache-banc", neuves      # la garde rattachée à la tâche Meshy (réel à venir)
 
 
+# ── t394 : la texture auto (lot de vues) ─────────────────────────────────────
+
+def _poses(n):
+    return [{"capture": du(PNG), "pose": {"azimut": 360 * i / n, "elevation": 10, "zoom": 1, "decalage": 0}}
+            for i in range(n)]
+
+
+def test_le_lot_refuse_dans_l_ordre_un_seul_devis_une_seule_garde_puis_n_appels():
+    from app.services import plafonds
+    appels = []
+
+    async def faux_tirer(modele, prompt, ratio, resolution, chemins):
+        appels.append((modele, prompt, ratio, resolution, len(chemins)))
+        if len(appels) == 3:
+            raise RuntimeError("vue refusée par le fournisseur (banc)")
+        nom = f"gen_lot{len(appels):04d}.png"
+        (settings.images_path / nom).write_bytes(PNG + bytes([len(appels)]))
+        return [nom]
+
+    vieux = ST._tirer
+    ST._tirer = faux_tirer
+    base = {"modele": "nano-banana-pro", "resolution": "2K", "captures": _poses(6), "disposition": 6,
+            "eclairage": "plat", "prompt": "armure de bronze"}
+
+    async def main():
+        o = {}
+        await _jobs()
+        async with _client() as c:
+            url = "/api/studio3d/texture/perso/generer-lot"
+            o["modele"] = (await c.post(url, json={**base, "modele": "flux"})).status_code
+            o["sans_cle"] = (await c.post(url, json={**base, "captures": "rien"})).status_code   # 503 AVANT l'entrée
+            settings.FAL_KEY = "cle-de-banc"
+            o["nombre"] = (await c.post(url, json={**base, "captures": _poses(5), "disposition": 5})).status_code
+            o["dispo"] = (await c.post(url, json={**base, "disposition": 8})).status_code
+            o["pose"] = (await c.post(url, json={**base, "captures": [{"capture": du(PNG), "pose": {"azimut": "x"}}] * 6})).status_code
+            o["capture"] = (await c.post(url, json={**base, "captures": [{**_poses(1)[0], "capture": du(JPG)}] * 4,
+                                                    "disposition": 4})).status_code
+            o["job"] = (await c.post("/api/studio3d/texture/inconnu/generer-lot", json=base)).status_code
+            r = await c.post(url, json=base)
+            o["devis"] = (r.status_code, r.json())
+            o["devis_gratuit"] = (await c.post("/api/studio3d/texture/devis", json={"action": "lot",
+                                  "modele": "nano-banana-pro", "resolution": "2K", "vues": 6})).json()
+            o["devis_mauvais"] = (await c.post("/api/studio3d/texture/devis", json={"action": "lot",
+                                  "modele": "nano-banana-pro", "vues": 7})).status_code
+            un = ST.devis_image("nano-banana-pro", "2K")["usd"]
+            r = await c.post(url, json={**base, "confirme_cout": True, "max_usd": un * 5})     # le prix d'UNE vue × 5
+            o["max"] = (r.status_code, r.json())
+            plafonds.enregistrer({"par_moteur": {"fal": un * 5}})                               # passe 5 vues, pas 6
+            r = await c.post(url, json={**base, "confirme_cout": True, "max_usd": 10})
+            o["plafond"] = (r.status_code, r.json())
+            o["rien"] = (len(appels), await _depenses(), _refs_sur_disque("perso"))
+            r = await c.post(url, json={**base, "confirme_cout": True, "max_usd": 10}, headers={"X-DZ-Plafond": "confirme"})
+            o["ok"] = (r.status_code, r.json())
+        o["depenses"] = await _depenses()
+        return o
+    try:
+        avant = asyncio.run(_depenses())
+        refs_avant = _refs_sur_disque("perso")
+        o = asyncio.run(main())
+    finally:
+        ST._tirer = vieux
+        settings.FAL_KEY = ""
+        plafonds.enregistrer({"par_moteur": {}})
+    assert (o["modele"], o["sans_cle"]) == (400, 503), o
+    assert (o["nombre"], o["dispo"], o["pose"], o["capture"], o["job"]) == (400, 400, 400, 400, 404), o
+    st, j = o["devis"]
+    assert st == 409 and j["detail"]["code"] == "confirme_cout", j
+    d = j["detail"]["devis"]
+    assert d["vues"] == 6 and d["usd"] == o["devis_gratuit"]["usd"] == ST.devis_lot("nano-banana-pro", "2K", 6)["usd"], d
+    assert abs(d["usd"] - 6 * d["usd_vue"]) < 1e-6, d                                   # N × une image
+    assert o["devis_mauvais"] == 400
+    st, j = o["max"]
+    assert st == 409 and j["detail"]["code"] == "max_usd", j
+    st, j = o["plafond"]
+    assert st == 402 and "dz_plafond" in json.dumps(j), (st, j)                         # le TOTAL jugé, pas une vue
+    assert o["rien"] == (0, avant, refs_avant), o["rien"]
+    st, j = o["ok"]
+    assert st == 200, (st, j)
+    assert len(appels) == 6 and {a[:4] for a in appels} == {("nano-banana-pro", "armure de bronze", "1:1", "2K")}, appels
+    assert all(a[4] == 1 for a in appels), "pas de planche de style dans un lot"
+    assert len(j["references"]) == 5 and [e["index"] for e in j["erreurs"]] == [2], j["erreurs"]
+    assert "vue refusée" in j["erreurs"][0]["erreur"]
+    idx = sorted(r["index"] for r in j["references"])
+    assert idx == [0, 1, 3, 4, 5], idx
+    r1 = next(r for r in j["references"] if r["index"] == 1)
+    assert r1["pose"] == {"azimut": 60.0, "elevation": 10.0, "zoom": 1.0, "decalage": 0.0} and r1["vues"] == 6
+    assert r1["lot"] == j["lot"] and r1["ratio"] == "1:1" and r1["sorte"] == "generee", r1
+    neuves = [x for x in o["depenses"] if x not in avant]
+    assert neuves == [("studio3d_texture:perso", "fal", "moteurs3d", d["usd"])], neuves      # UNE ligne : le total
+
+
+# ── t394 : l'atlas peint écrit une NOUVELLE version ──────────────────────────
+
+def _png(lg=64, ht=64, octet=7):
+    """Un vrai PNG (zlib, une couleur) : le GLB réécrit doit l'embarquer tel quel."""
+    import struct, zlib
+    brut = b"".join(b"\x00" + bytes([octet, 255 - octet, 40]) * lg for _ in range(ht))
+    bloc = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    return (b"\x89PNG\r\n\x1a\n" + bloc(b"IHDR", struct.pack(">IIBBBBB", lg, ht, 8, 2, 0, 0, 0))
+            + bloc(b"IDAT", zlib.compress(brut)) + bloc(b"IEND", b""))
+
+
+def glb_quad(texture: bytes | None = None, facteur=(0.5, 0.2, 0.2, 0.9), deux_textures=False, uv=True):
+    """Un quad à UV (positions, normales, UV, indices) avec un matériau, et en option une texture de base embarquée."""
+    import struct
+    from app.services.mesh_edit import ecrire_glb
+    pos = struct.pack("<12f", -1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0)
+    nrm = struct.pack("<12f", *([0, 0, 1] * 4))
+    uvs = struct.pack("<8f", 0, 1, 1, 1, 1, 0, 0, 0)
+    idx = struct.pack("<6H", 0, 1, 2, 0, 2, 3) + b"\x00\x00"
+    binc, vues = b"", []
+    for bloc in (pos, nrm, uvs, idx):
+        vues.append({"buffer": 0, "byteOffset": len(binc), "byteLength": len(bloc)})
+        binc += bloc
+    attrs = {"POSITION": 0, "NORMAL": 1}
+    acc = [{"bufferView": 0, "componentType": 5126, "count": 4, "type": "VEC3", "min": [-1, -1, 0], "max": [1, 1, 0]},
+           {"bufferView": 1, "componentType": 5126, "count": 4, "type": "VEC3"},
+           {"bufferView": 2, "componentType": 5126, "count": 4, "type": "VEC2"},
+           {"bufferView": 3, "componentType": 5123, "count": 6, "type": "SCALAR"}]
+    if uv:
+        attrs["TEXCOORD_0"] = 2
+    doc = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0}],
+           "meshes": [{"primitives": [{"attributes": attrs, "indices": 3, "material": 0}]}],
+           "materials": [{"pbrMetallicRoughness": {"baseColorFactor": list(facteur)}}],
+           "accessors": acc, "bufferViews": vues, "buffers": [{"byteLength": len(binc)}]}
+    if texture is not None:
+        for _ in range(2 if deux_textures else 1):
+            vues.append({"buffer": 0, "byteOffset": len(binc), "byteLength": len(texture)})
+            binc += texture + b"\x00" * (-len(texture) % 4)
+            doc.setdefault("images", []).append({"bufferView": len(vues) - 1, "mimeType": "image/png"})
+            doc.setdefault("textures", []).append({"source": len(doc["images"]) - 1})
+        doc["materials"][0]["pbrMetallicRoughness"]["baseColorTexture"] = {"index": 0, "texCoord": 0}
+        if deux_textures:
+            doc["materials"].append({"pbrMetallicRoughness": {"baseColorTexture": {"index": 1}}})
+            doc["meshes"][0]["primitives"].append({"attributes": attrs, "indices": 3, "material": 1})
+        doc["buffers"][0]["byteLength"] = len(binc)
+    return ecrire_glb(doc, binc)
+
+
+def _image_de_base(data):
+    from app.services.mesh_edit import lire_glb
+    doc, binc = lire_glb(data)
+    info = doc["materials"][0]["pbrMetallicRoughness"]["baseColorTexture"]
+    im = doc["images"][doc["textures"][info["index"]]["source"]]
+    bv = doc["bufferViews"][im["bufferView"]]
+    return doc, binc[bv.get("byteOffset", 0):bv.get("byteOffset", 0) + bv["byteLength"]], im
+
+
+def test_la_reecriture_du_glb_remplace_ou_ajoute_la_couleur_de_base_sans_toucher_la_geometrie():
+    from app.services.mesh_edit import lire_glb
+    atlas = _png(64, 64, 200)
+    # 1. une texture d'origine : REMPLACÉE ; la géométrie reste octet pour octet
+    orig = glb_quad(_png(32, 32, 10))
+    sortie, det = ST.ecrire_texture_projetee(orig, atlas)
+    doc, binc, im = _image_de_base(sortie)
+    assert det == {"texture": "remplacee", "materiaux": [0]}, det
+    assert bytes(binc) == atlas and im["mimeType"] == "image/png", im
+    assert doc["bufferViews"][im["bufferView"]]["byteOffset"] % 4 == 0, "le PNG commence aligné sur 4 octets"
+    d0, b0 = lire_glb(orig)
+    _, tout = lire_glb(sortie)
+    for i in range(4):
+        bv0, bv1 = d0["bufferViews"][i], doc["bufferViews"][i]
+        assert b0[bv0["byteOffset"]:bv0["byteOffset"] + bv0["byteLength"]] == tout[bv1["byteOffset"]:bv1["byteOffset"] + bv1["byteLength"]]
+    pbr = doc["materials"][0]["pbrMetallicRoughness"]
+    assert pbr["baseColorFactor"] == [1.0, 1.0, 1.0, 0.9] and "texCoord" not in pbr["baseColorTexture"], pbr
+    assert doc["buffers"][0]["byteLength"] == len(tout) and len(doc["images"]) == 1
+    # 2. aucune texture : une image, une texture, un échantillonneur AJOUTÉS au matériau de la primitive à UV
+    sortie, det = ST.ecrire_texture_projetee(glb_quad(None), atlas)
+    doc, binc, im = _image_de_base(sortie)
+    assert det == {"texture": "ajoutee", "materiaux": [0]} and bytes(binc) == atlas, det
+    assert len(doc["samplers"]) == 1 and doc["textures"][0]["sampler"] == 0
+    # 3. deux textures de base, ou pas d'UV : refusé, rien n'est écrit
+    for mauvais, motif in ((glb_quad(_png(), deux_textures=True), "textures de couleur de base"),
+                           (glb_quad(None, uv=False), "TEXCOORD_0")):
+        try:
+            ST.ecrire_texture_projetee(mauvais, atlas)
+        except ValueError as e:
+            assert motif in str(e), e
+        else:
+            raise AssertionError(motif)
+    # l'atlas : un PNG lisible, aux côtés bornés
+    assert ST.decoder_atlas(du(atlas))[1:] == (64, 64)
+    for v in (du(_png(32, 32)), du(JPG), du(PNG)):
+        try:
+            ST.decoder_atlas(v)
+        except ValueError:
+            continue
+        raise AssertionError(v[:40])
+
+
+def test_la_route_d_enregistrement_ecrit_une_version_valide_avec_l_atlas_pour_couleur_de_base():
+    d = J / "peint"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(glb_quad(_png(32, 32, 10)))
+    (d / "asset.json").write_text(json.dumps({"name": "peint", "engine": "import", "version": 1,
+                                              "created_at": "2026-10-31T10:00:00+00:00"}), encoding="utf-8")
+    atlas = _png(128, 128, 90)
+
+    async def main():
+        o = {}
+        async with _client() as c:
+            url = "/api/studio3d/texture/peint/projection"
+            o["vide"] = (await c.post(url, json={"version": 1})).status_code
+            o["jpeg"] = (await c.post(url, json={"version": 1, "atlas": du(JPG)})).status_code
+            o["version"] = (await c.post(url, json={"version": 9, "atlas": du(atlas)})).status_code
+            o["job"] = (await c.post("/api/studio3d/texture/inconnu/projection", json={"version": 1, "atlas": du(atlas)})).status_code
+            r = await c.post(url, json={"version": 1, "atlas": du(atlas), "disposition": "8", "vues": 8})
+            o["ok"] = (r.status_code, r.json())
+        return o
+    o = asyncio.run(main())
+    assert (o["vide"], o["jpeg"], o["version"], o["job"]) == (400, 400, 404, 404), o
+    st, j = o["ok"]
+    assert st == 200 and j["version"] == 2 and j["atlas"] == [128, 128] and j["texture"] == "remplacee", j
+    ecrit = (d / "model.v2.glb").read_bytes()
+    assert (d / "model.glb").read_bytes() == glb_quad(_png(32, 32, 10)), "jamais d'écrasement"
+    doc, binc, im = _image_de_base(ecrit)
+    assert bytes(binc) == atlas, "la couleur de base est le PNG envoyé"
+    # le GLB rendu se relit (trimesh, s'il est là) et la fiche garde l'opération et sa source
+    try:
+        import trimesh
+        sc = trimesh.load(io_bytes(ecrit), file_type="glb")
+        assert sum(len(g.faces) for g in sc.geometry.values()) == 2
+    except ImportError:
+        pass
+    from app.services import mesh_report, studio3d_ouvert as SO
+    reg = mesh_report.read_registry("peint")
+    e = next(x for x in reg["entries"] if x["file"] == "model.v2.glb")
+    src = e.get("source") or {}
+    assert src.get("operation") == "texture_projection" and src.get("depuis") == {"version": 1, "fichier": "model.glb"}, e
+    assert src.get("vues") == 8 and src.get("atlas") == [128, 128], src
+    f = SO.fiche("peint")
+    assert f["version"] == 2 and f["versions"][-1]["operation"] == "texture_projection", f["versions"]
+
+
+def io_bytes(b):
+    import io
+    return io.BytesIO(b)
+
+
 # ── la page ─────────────────────────────────────────────────────────────────
 
 def _dico():
@@ -381,13 +620,27 @@ def test_la_page_lie_la_feuille_sans_texte_neuf_et_la_coque_connait_l_ecran():
         corps = js.split(f"async function {action}()", 1)[1].split("\nasync function", 1)[0]
         assert corps.index("confirmer(") < corps.index(f"/{action}`"), action
         assert "confirme_cout: true" in corps and "max_usd: d.usd" in corps, action
+    # t394 : la texture auto et « débruiter » passent aussi par le devis puis le dialogue maison ; l'essai gratuit
+    # n'appelle AUCUNE route payante et ne s'affiche qu'avec ?essai
+    pj = (RACINE / "frontend/studio3d/ecrans/projection.js").read_text(encoding="utf-8")
+    assert 'import * as PJ from "./projection.js"' in js and "PJ.reinitialiser()" in js
+    for fonction, route in (("texturerAuto", "/generer-lot`"), ("debruiter", "/generer`")):
+        corps = pj.split(f"async function {fonction}()", 1)[1].split("\n}\n", 1)[0]
+        assert corps.index("/devis`") < corps.index("confirmer(") < corps.index(route), fonction
+        assert "confirme_cout: true" in corps and "max_usd: d.usd" in corps, fonction
+    essai = pj.split("async function essayer()", 1)[1].split("\n}\n", 1)[0]
+    assert "envoyer(" not in essai and "fetch(" not in essai and "generer" not in essai, essai
+    assert 'has("essai")' in pj and '$("#pjEssai").hidden = !S.essai' in pj
+    enreg = pj.split("async function enregistrer()", 1)[1].split("\n}\n", 1)[0]
+    assert "/projection`" in enreg and "confirmer(" not in enreg, "l'enregistrement est gratuit : pas de dialogue de devis"
 
 
 def test_les_cles_de_l_ecran_existent_en_fr_et_en():
     dico = _dico()
     js = (RACINE / "frontend/studio3d/ecrans/texture.js").read_text(encoding="utf-8")
-    cles = {k for k in re.findall(r'\bT\("(tex\.[a-z0-9_]+)"', js) if not k.endswith("_")}
-    assert len(cles) > 50, len(cles)
+    pj = (RACINE / "frontend/studio3d/ecrans/projection.js").read_text(encoding="utf-8")
+    cles = {k for k in re.findall(r'\bT\("(tex\.[a-z0-9_]+)"', js + pj) if not k.endswith("_")}
+    assert len(cles) > 100, len(cles)
     for k in cles:
         assert "studio3decrans." + k in dico, k
     calc = (RACINE / "frontend/studio3d/ecrans/texture_calc.js").read_text(encoding="utf-8")
@@ -399,19 +652,34 @@ def test_les_cles_de_l_ecran_existent_en_fr_et_en():
         assert f'T("tex.{prefixe}" +' in js, prefixe
         for i in ids:
             assert f"studio3decrans.tex.{prefixe}{i}" in dico, (prefixe, i)
+    # t394 : les familles du volet 2/2
+    dispos = [int(x) for x in calc.split("export const DISPOSITIONS = [", 1)[1].split("]", 1)[0].split(",")]
+    assert tuple(dispos) == ST.DISPOSITIONS, dispos
+    pcalc = (RACINE / "frontend/studio3d/ecrans/projection_calc.js").read_text(encoding="utf-8")
+    modes = json.loads("[" + pcalc.split("export const MODES = [", 1)[1].split("]", 1)[0] + "]")
+    outils = json.loads("[" + pj.split("const OUTILS = [", 1)[1].split("]", 1)[0] + "]")
+    pj_familles = {"pj_dispo_": dispos, "pj_mode_": modes, "pj_modea_": modes, "pj_outil_": outils + ["orbite"],
+                   "pj_outila_": outils + ["orbite"], "pj_atlas_": ["peint", "original"]}
+    for prefixe, ids in pj_familles.items():
+        assert f'T("tex.{prefixe}" +' in pj, prefixe
+        for i in ids:
+            assert f"studio3decrans.tex.{prefixe}{i}" in dico, (prefixe, i)
+    for v in ("ref", "proj"):
+        assert f"studio3decrans.tex.volet_{v}" in dico and f"studio3decrans.tex.voleta_{v}" in dico
     for k, v in dico.items():
         assert k.startswith("studio3decrans.tex.") and len(k.split(".")) == 3, k
         assert v["fr"] and v["en"] and v.get("contexte") is True, k
         assert set(re.findall(r"\{(\w+)\}", v["fr"])) == set(re.findall(r"\{(\w+)\}", v["en"])), k
     assembled = (RACINE / "frontend/shared/dz-i18n-dico.js").read_text(encoding="utf-8")
     assert '"studio3decrans.tex.generer_prix"' in assembled, "relancer scripts/i18n_assembler.py"
+    assert '"studio3decrans.tex.pj_lancer_prix"' in assembled, "relancer scripts/i18n_assembler.py (t394)"
 
 
 def test_aucun_rayon_litteral_dans_l_ecran():
     css = (RACINE / "frontend/studio3d/ecrans/texture.css").read_text(encoding="utf-8")
     assert "border-radius: var(--r)" in css
     assert not re.search(r"border-radius\s*:(?!\s*(?:var\(--r\)|0\b|50%))", css)
-    for f in ("texture.js", "texture_calc.js"):
+    for f in ("texture.js", "texture_calc.js", "projection.js", "projection_calc.js"):
         assert "border-radius" not in (RACINE / "frontend/studio3d/ecrans" / f).read_text(encoding="utf-8"), f
 
 
@@ -420,9 +688,10 @@ def test_le_calcul_de_l_ecran_sous_node():
     if not node:
         print("    (node absent : banc JS sauté)")
         return
-    r = subprocess.run([node, str(RACINE / "frontend/studio3d/qa/texture.test.mjs")], capture_output=True,
-                       text=True, encoding="utf-8")
-    assert r.returncode == 0, r.stdout + r.stderr
+    for banc in ("texture.test.mjs", "projection.test.mjs"):           # t394 : dispositions et projection
+        r = subprocess.run([node, str(RACINE / "frontend/studio3d/qa" / banc)], capture_output=True,
+                           text=True, encoding="utf-8")
+        assert r.returncode == 0, banc + "\n" + r.stdout + r.stderr
 
 
 def lancer_tous():

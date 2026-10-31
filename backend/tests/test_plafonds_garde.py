@@ -97,6 +97,7 @@ PAYANTES = {
     ("parallaxe", "POST", "/decouper"),   # t341 : décor en calques (fal), garde « tuiles » après la clé et confirme_cout
     ("studio3d_texture", "POST", "/{job}/generer"),   # t393 : référence de texture (modèle d'image), garde « moteurs3d »
     ("studio3d_texture", "POST", "/{job}/retexturer"),   # t393 : retexture Meshy de l'écran Texture, garde « moteurs3d »
+    ("studio3d_texture", "POST", "/{job}/generer-lot"),   # t394 : texture auto, N vues (modèle d'image), UNE garde « moteurs3d » sur le total
     ("studio3d_animer", "POST", "/appliquer"),   # t398 : une animation du catalogue Meshy sur le rig, garde « moteurs3d »
     ("studio3d_animer", "POST", "/texte"),       # t399 : texte → mouvement Meshy (BVH), garde « moteurs3d »
     ("routes", "POST", "/assets/3d/{job}/convert"),   # T105 : fbx/usdz/blend par Meshy convert   # T104 : rig + animations Meshy d'un job fal (crédits)

@@ -14,6 +14,12 @@ copie que le modèle d'image a déjà rangée dans la Bibliothèque (gen_*.png) 
 Ce module ne dépense rien par lui-même SAUF `generer_reference` (l'appel au modèle d'image) ; les routes
 (`app.api.studio3d_texture_routes`) posent devant lui, dans l'ordre : clé (503) → entrées (400) → `confirme_cout`
 (409, avec le devis) → `max_usd` (409) → plafonds (402).
+
+t394 (volet 2/2, TEXTURE AUTO) : un LOT de N captures (une par vue d'une disposition de 4 à 18 vues) part chez le même
+modèle d'image — un seul devis (N × une image), une seule garde des plafonds sur le total, puis N appels — et chaque
+image rendue devient une référence qui garde sa POSE ; le navigateur les projette sur l'atlas UV (projection.js).
+L'atlas peint revient ici : `ecrire_texture_projetee` réécrit le GLB (Python pur) avec ce PNG pour couleur de base,
+et la route en fait une NOUVELLE version (`mesh_edit.ecrire_version`, operation « texture_projection »). Gratuit.
 """
 from __future__ import annotations
 
@@ -53,6 +59,17 @@ PROMPT_DEFAUT = (
     "detail. Even, flat studio lighting with no cast shadows and no baked highlights, plain neutral background, "
     "no text.")
 
+# « Débruiter » (retouche IA de la projection, sur devis) : l'atlas peint part comme image source du même modèle
+PROMPT_DEBRUITER = (
+    "This image is a UV texture atlas of a 3D model. Clean it up: remove noise, blotches, smears and seams while "
+    "keeping EXACTLY the same layout, island shapes, positions, colours and details. Do not move, add or remove "
+    "anything, do not add lighting or shadows, keep the background as it is.")
+
+# t394 : les dispositions de la texture auto (relevé Sorceress §4) et les bornes de l'atlas
+DISPOSITIONS = (4, 6, 8, 10, 12, 16, 18)
+ATLAS_MAX = 48 * 1024 * 1024          # un atlas 4096² en PNG dépasse les 15 Mo d'une capture
+ATLAS_COTE = (64, 8192)
+
 _ID = re.compile(r"^[a-f0-9]{8,32}$")
 _SIGNATURES = ((b"\x89PNG\r\n\x1a\n", ".png"), (b"\xff\xd8\xff", ".jpg"))
 
@@ -76,6 +93,19 @@ def resolutions(modele: str) -> list[str]:
 def op_image(modele: str, resolution: str = "1K") -> dict:
     """L'op chiffré par la grille (pricing.estimate) et la garde : un 4K compte comme deux images (même $)."""
     return {"kind": "image", "n": int(MULT_RES.get(modele, {}).get(resolution, 1)), "model": modele}
+
+
+def op_lot(modele: str, resolution: str, vues: int) -> dict:
+    """Un lot de texture auto : `vues` images, chiffrées et gardées EN UNE FOIS (le total)."""
+    return {"kind": "image", "n": int(vues) * int(MULT_RES.get(modele, {}).get(resolution, 1)), "model": modele}
+
+
+def devis_lot(modele: str, resolution: str, vues: int) -> dict:
+    from app.services import pricing
+    e = pricing.estimate(op_lot(modele, resolution, vues))
+    return {"action": "lot", "modele": modele, "resolution": resolution, "vues": int(vues),
+            "usd": round(float(e["total_usd"]), 4), "usd_vue": devis_image(modele, resolution)["usd"],
+            "lignes": e.get("breakdown") or []}
 
 
 def op_retexture(resolution: str = "2k") -> dict:
@@ -108,7 +138,8 @@ def modeles() -> dict:
                     # les GPT Image servis par fal ou OpenAI ne prennent qu'UNE image : la planche de style n'y part pas
                     "multi_refs": m not in getattr(IP, "_FAL_GPT", {}) and not m.startswith("gpt-image")})
     return {"modeles": out, "defaut": out[0]["id"] if out else None, "ratios": list(RATIOS),
-            "resolutions": list(RESOLUTIONS), "prompt_defaut": PROMPT_DEFAUT,
+            "resolutions": list(RESOLUTIONS), "prompt_defaut": PROMPT_DEFAUT, "prompt_debruiter": PROMPT_DEBRUITER,
+            "dispositions": list(DISPOSITIONS),
             "retexture": {"resolutions": list(RESOLUTIONS_MESHY),
                           "devis": {r: devis_retexture(r) for r in RESOLUTIONS_MESHY}}}
 
@@ -197,7 +228,7 @@ def _ranger(job: str, octets: bytes, ext: str, meta: dict) -> dict:
 
 # ── les entrées ──────────────────────────────────────────────────────────────
 
-def decoder_image(valeur, png_seul: bool = False) -> tuple[bytes, str]:
+def decoder_image(valeur, png_seul: bool = False, max_octets: int = IMAGE_MAX) -> tuple[bytes, str]:
     """Une image en data URL (ou base64 nu) → (octets, extension). ValueError si vide, illisible, trop lourde ou d'un
     type autre que PNG/JPEG (PNG seul pour une capture du canevas)."""
     s = str(valeur or "").strip()
@@ -205,8 +236,8 @@ def decoder_image(valeur, png_seul: bool = False) -> tuple[bytes, str]:
         raise ValueError("image absente")
     if s.startswith("data:"):
         s = s.split(",", 1)[1] if "," in s else ""
-    if len(s) > IMAGE_MAX * 4 // 3 + 8:
-        raise ValueError(f"image trop lourde (> {IMAGE_MAX // (1024 * 1024)} Mo)")
+    if len(s) > max_octets * 4 // 3 + 8:
+        raise ValueError(f"image trop lourde (> {max_octets // (1024 * 1024)} Mo)")
     try:
         octets = base64.b64decode(s, validate=True)
     except (ValueError, TypeError):
@@ -243,6 +274,41 @@ def valider_generation(job: str, body: dict) -> dict:
         chemin_reference(job, str(style))         # FileNotFoundError → 404
     return {"modele": modele, "resolution": resolution, "ratio": ratio, "prompt": prompt, "vue": vue,
             "eclairage": eclairage, "capture": capture, "style": style}
+
+
+def _nombre(v, quoi: str, bas: float, haut: float) -> float:
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        raise ValueError(f"{quoi} : un nombre est attendu") from None
+    if not (bas <= x <= haut):
+        raise ValueError(f"{quoi} hors bornes ({bas} à {haut})")
+    return x
+
+
+def valider_lot(job: str, body: dict) -> list[dict]:
+    """Un lot de texture auto → une génération validée par vue (la capture et sa POSE), dans l'ordre des vues.
+    Les réglages communs (modèle, résolution, prompt, éclairage) sont ceux d'une génération seule, ratio 1:1 (le
+    cadre carré des caméras de projection). ValueError (400) ou FileNotFoundError (404)."""
+    captures = body.get("captures")
+    if not isinstance(captures, list) or len(captures) not in DISPOSITIONS:
+        raise ValueError(f"captures : une liste de {', '.join(map(str, DISPOSITIONS))} vues est attendue")
+    if body.get("disposition", len(captures)) != len(captures):
+        raise ValueError(f"disposition {str(body.get('disposition'))[:8]} : {len(captures)} captures reçues")
+    lot = uuid4().hex[:12]
+    out = []
+    for i, c in enumerate(captures):
+        if not isinstance(c, dict) or not isinstance(c.get("pose"), dict):
+            raise ValueError(f"vue {i + 1} : {{capture, pose}} attendu")
+        p = c["pose"]
+        pose = {"azimut": _nombre(p.get("azimut"), f"vue {i + 1} : azimut", -360, 720),
+                "elevation": _nombre(p.get("elevation"), f"vue {i + 1} : élévation", -90, 90),
+                "zoom": _nombre(p.get("zoom", 1), f"vue {i + 1} : zoom", 0.25, 8),
+                "decalage": _nombre(p.get("decalage", 0), f"vue {i + 1} : décalage", -2, 2)}
+        r = valider_generation(job, {**body, "ratio": "1:1", "vue": "libre", "capture": c.get("capture"), "style": None})
+        r["meta"] = {"lot": lot, "index": i, "vues": len(captures), "pose": pose}
+        out.append(r)
+    return out
 
 
 def valider_retexture(job: str, body: dict) -> dict:
@@ -310,6 +376,124 @@ async def generer_reference(job: str, r: dict) -> dict:
     entree = _ranger(job, src.read_bytes(), src.suffix.lower() or ".png", {
         "sorte": "generee", "modele": r["modele"], "resolution": r["resolution"], "ratio": r["ratio"],
         "prompt": r["prompt"], "vue": r["vue"], "eclairage": r["eclairage"], "capture": capture.name,
-        "style": r.get("style"), "bibliotheque": src.name})
+        "style": r.get("style"), "bibliotheque": src.name, **(r.get("meta") or {})})
     return entree
+
+
+# ── t394 : l'atlas peint devient la couleur de base d'une NOUVELLE version ───
+
+def dimensions_png(octets: bytes) -> tuple[int, int]:
+    """(largeur, hauteur) lues dans l'en-tête IHDR ; ValueError si ce n'est pas un PNG lisible."""
+    import struct
+    if len(octets) < 24 or not octets.startswith(_SIGNATURES[0][0]) or octets[12:16] != b"IHDR":
+        raise ValueError("une image PNG est attendue")
+    return struct.unpack(">II", octets[16:24])
+
+
+def decoder_atlas(valeur) -> tuple[bytes, int, int]:
+    octets, _ = decoder_image(valeur, png_seul=True, max_octets=ATLAS_MAX)
+    lg, ht = dimensions_png(octets)
+    if not (ATLAS_COTE[0] <= lg <= ATLAS_COTE[1] and ATLAS_COTE[0] <= ht <= ATLAS_COTE[1]):
+        raise ValueError(f"atlas {lg}×{ht} : chaque côté entre {ATLAS_COTE[0]} et {ATLAS_COTE[1]} px")
+    return octets, lg, ht
+
+
+_SOURCES_EXT = ("EXT_texture_webp", "KHR_texture_basisu", "MSFT_texture_dds", "EXT_texture_avif")
+
+
+def _image_de_texture(tex: dict):
+    if isinstance(tex.get("source"), int):
+        return tex["source"]
+    for e in _SOURCES_EXT:
+        src = ((tex.get("extensions") or {}).get(e) or {}).get("source")
+        if isinstance(src, int):
+            return src
+    return None
+
+
+def ecrire_texture_projetee(data: bytes, png: bytes) -> tuple[bytes, dict]:
+    """Le GLB `data` avec `png` pour couleur de base (Python pur, aucune géométrie touchée).
+
+    - une seule image de couleur de base dans le fichier : elle est REMPLACÉE (nouvelle vue de tampon PNG, les
+      sources webp/basis des textures qui la lisent retirées) ;
+    - aucune : une image, une texture et un échantillonneur sont ajoutés, et chaque matériau d'une primitive qui a
+      des UV (TEXCOORD_0) la prend — une primitive à UV sans matériau en reçoit un ;
+    - plusieurs : ValueError (l'atlas peint n'en couvre qu'une).
+    La couleur de base des matériaux touchés passe au blanc (alpha gardé) : la projection a déjà cuit leur teinte.
+    L'atlas est peint dans les UV n° 0 : `texCoord` et `KHR_texture_transform` de l'info de texture sont retirés."""
+    from app.services.mesh_edit import ecrire_glb, lire_glb
+    doc, binc = lire_glb(data)
+    buffers = doc.get("buffers") or []
+    if buffers and "uri" in buffers[0]:
+        raise ValueError("GLB à tampon externe : non géré")
+    materiaux = doc.setdefault("materials", [])
+    textures = doc.get("textures") or []
+    infos = {}
+    for i, m in enumerate(materiaux):
+        info = (m.get("pbrMetallicRoughness") or {}).get("baseColorTexture")
+        if isinstance(info, dict) and isinstance(info.get("index"), int) and info["index"] < len(textures):
+            infos[i] = info
+    images = {_image_de_texture(textures[info["index"]]) for info in infos.values()} - {None}
+    if len(images) > 1:
+        raise ValueError(f"{len(images)} textures de couleur de base dans ce modèle : la projection n'en peint qu'une")
+    prims = [p for me in doc.get("meshes") or [] for p in me.get("primitives") or []]
+    a_uv = [p for p in prims if "TEXCOORD_0" in (p.get("attributes") or {})]
+    if not a_uv:
+        raise ValueError("ce modèle n'a pas de coordonnées UV (TEXCOORD_0) : rien où peindre l'atlas")
+    # le PNG au bout du tampon, aligné sur 4 octets
+    binc = bytes(binc) + b"\x00" * (-len(binc) % 4)
+    vues = doc.setdefault("bufferViews", [])
+    vues.append({"buffer": 0, "byteOffset": len(binc), "byteLength": len(png)})
+    binc += png
+    if not buffers:
+        doc["buffers"] = buffers = [{}]
+    buffers[0]["byteLength"] = len(binc)
+    neuve = {"bufferView": len(vues) - 1, "mimeType": "image/png", "name": "texture_projection"}
+    if images:
+        idx = images.pop()
+        doc["images"][idx] = neuve
+        touches = sorted(i for i, info in infos.items() if _image_de_texture(textures[info["index"]]) == idx)
+        for t in textures:
+            if _image_de_texture(t) == idx:
+                t["source"] = idx
+                for e in _SOURCES_EXT:
+                    (t.get("extensions") or {}).pop(e, None)
+                if "extensions" in t and not t["extensions"]:
+                    del t["extensions"]
+        mode = "remplacee"
+    else:
+        doc.setdefault("images", []).append(neuve)
+        doc.setdefault("samplers", []).append({"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497})
+        doc.setdefault("textures", []).append({"source": len(doc["images"]) - 1, "sampler": len(doc["samplers"]) - 1})
+        t = len(doc["textures"]) - 1
+        lies = set()
+        for p in a_uv:
+            if not isinstance(p.get("material"), int):
+                materiaux.append({"name": "texture_projection",
+                                  "pbrMetallicRoughness": {"metallicFactor": 0.0, "roughnessFactor": 0.8}})
+                p["material"] = len(materiaux) - 1
+            lies.add(p["material"])
+        for i in lies:
+            materiaux[i].setdefault("pbrMetallicRoughness", {})["baseColorTexture"] = {"index": t}
+        touches = sorted(lies)
+        mode = "ajoutee"
+    for i in touches:
+        pbr = materiaux[i].setdefault("pbrMetallicRoughness", {})
+        info = pbr["baseColorTexture"]
+        info.pop("texCoord", None)
+        (info.get("extensions") or {}).pop("KHR_texture_transform", None)
+        if "extensions" in info and not info["extensions"]:
+            del info["extensions"]
+        f = pbr.get("baseColorFactor")
+        if isinstance(f, list) and len(f) == 4:
+            pbr["baseColorFactor"] = [1.0, 1.0, 1.0, f[3]]
+    # une extension de source d'image que plus aucune texture n'emploie sort des listes
+    for e in _SOURCES_EXT:
+        if not any(e in (t.get("extensions") or {}) for t in doc.get("textures") or []):
+            for cle in ("extensionsUsed", "extensionsRequired"):
+                if e in (doc.get(cle) or []):
+                    doc[cle].remove(e)
+                    if not doc[cle]:
+                        del doc[cle]
+    return ecrire_glb(doc, binc), {"texture": mode, "materiaux": touches}
 

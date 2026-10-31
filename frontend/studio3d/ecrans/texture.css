@@ -59,3 +59,33 @@
 .tx-style img, .tx-choisie img { width: 46px; height: 46px; object-fit: cover; border: 1px solid var(--stroke); border-radius: var(--r); flex: none; }
 .tx-style .ec-bouton { margin-left: auto; }
 .tx-style:empty, .tx-choisie:empty { display: none; }
+
+/* t394 — volet 2/2 : la texture auto, les retouches, l'atlas à plat. Angles vifs : `var(--r)` seulement. */
+.tx-volets { margin-bottom: 8px; }
+.pj-dispos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.pj-dispos button { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 2px; border: 1px solid var(--stroke);
+  border-radius: var(--r); background: transparent; color: var(--ink-soft); cursor: pointer; }
+.pj-dispos button b { font-family: var(--f-mono); font-size: 13px; color: var(--ink-strong); font-weight: 600; }
+.pj-dispos button span { font-family: var(--f-mono); font-size: 9.5px; }
+.pj-dispos button.on { border-color: var(--cat-3dstudio, var(--accent)); background: color-mix(in srgb, var(--cat-3dstudio, var(--accent)) 18%, transparent); }
+.pj-curseur { display: flex; justify-content: space-between; }
+.pj-curseur input { flex: 1; width: auto; }
+.pj-curseur output { width: 28px; text-align: right; font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-muted); }
+.pj-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.pj-grille .ec-bouton { justify-content: center; }
+.pj-essai { border-style: dashed; }
+.pj-legende { display: flex; flex-wrap: wrap; gap: 4px 8px; font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft); }
+.pj-legende:empty { display: none; }
+.pj-legende span { display: inline-flex; align-items: center; gap: 3px; }
+.pj-legende i { width: 9px; height: 9px; display: inline-block; border: 1px solid var(--stroke); }
+.pj-stats { font-family: var(--f-mono); font-size: 10.5px; }
+.pj-atlas { margin: 0; display: flex; flex-direction: column; gap: 4px; }
+.pj-atlas canvas { width: 100%; aspect-ratio: 1; display: block; background: var(--bg-base); border: 1px solid var(--stroke);
+  border-radius: var(--r); image-rendering: auto; touch-action: none; }
+.pj-atlas figcaption { font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft); }
+.tx-vue.pj-pinceau canvas { cursor: crosshair; }
+/* les colonnes défilent : aucun bloc ne s'y écrase (sans quoi les segments à overflow caché tombaient à 2 px dès que
+   l'atlas allongeait la colonne de gauche) */
+.tx-ecran .ec-gauche > *, .tx-ecran .ec-droite > *, #txVoletRef > *, #txVoletProj > * { flex-shrink: 0; }
+#txVoletRef, #txVoletProj { display: flex; flex-direction: column; gap: inherit; }
+#txVoletRef[hidden], #txVoletProj[hidden] { display: none; }

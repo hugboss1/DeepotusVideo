@@ -154,3 +154,41 @@ export function usd(n, lg = "fr") {
   const s = v < 0.1 ? v.toFixed(3) : v.toFixed(2);
   return lg === "en" ? "$" + s : s.replace(".", ",") + " $";
 }
+
+/* ── t394 : les dispositions de la TEXTURE AUTO (projection multi-vues) ──────────────────────────────────────────
+   Relevé de Sorceress (§4 de l'inventaire) : 4 vues (36 cr), 6, 8 en anneau, 10, 12 « détail » (quatre côtés puis
+   les moitiés haute et basse zoomées), 16 (pas de 22,5°), 18 « sphère complète » (anneau + plongée + contre-plongée
+   + pôles). Chez nous chaque vue est UNE image du modèle d'image choisi : le devis vaut N × le prix d'une image.
+   Une pose : azimut et élévation (le repère de la rosace), `zoom` (1 = le modèle entier, 2 = la moitié) et
+   `decalage` (la cible monte ou descend de decalage × rayon : les moitiés haute et basse de la disposition 12). */
+export const DISPOSITIONS = [4, 6, 8, 10, 12, 16, 18];
+
+const pose = (azimut, elevation, zoom = 1, decalage = 0) => ({ azimut, elevation, zoom, decalage });
+const anneau = (n, elevation = 0, depart = 0) => Array.from({ length: n }, (_, i) => pose(arrondi(depart + (360 * i) / n), elevation));
+const POLES = [pose(0, ELEVATION_MAX), pose(0, -ELEVATION_MAX)];
+
+export function poses(n) {
+  switch (Number(n)) {
+    case 4: return anneau(4, 15);
+    case 6: return [...anneau(4, 10), ...POLES];
+    case 8: return anneau(8, 10);
+    case 10: return [...anneau(8, 10), ...POLES];
+    case 12: return [...anneau(4, 10), ...anneau(4, 15).map((p) => ({ ...p, zoom: 2, decalage: 0.5 })),
+      ...anneau(4, -15).map((p) => ({ ...p, zoom: 2, decalage: -0.5 }))];
+    case 16: return anneau(16, 10);
+    case 18: return [...anneau(8, 0), ...anneau(4, 45, 45), ...anneau(4, -45, 45), ...POLES];
+    default: return [];
+  }
+}
+
+/* le prix d'UNE image chez un modèle du registre (4K compte double là où le modèle le prend), puis le devis d'une
+   disposition : N × ce prix. Le serveur refait ce calcul (POST /devis action « lot ») avant tout envoi. */
+export function prixImage(modele, resolution) {
+  if (!modele || !Number.isFinite(Number(modele.usd))) return null;
+  return Number(modele.usd) * (resolution === "4K" && (modele.resolutions || []).includes("4K") ? 2 : 1);
+}
+export function devisDisposition(n, modele, resolution) {
+  const p = prixImage(modele, resolution);
+  const k = poses(n).length;
+  return p == null || !k ? null : { vues: k, usd: Math.round(p * k * 1e6) / 1e6 };
+}
