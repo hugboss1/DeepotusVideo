@@ -199,6 +199,12 @@ ENGINES = {
     },
 }
 
+# t390 (31/10/2026) : les moteurs relevés chez Sorceress et sur fal (Tripo P2 et Smart Mesh, Hunyuan 3.1, TRELLIS 2,
+# Rodin 2.5, Meshy 7.1), chacun avec son SCHÉMA de réglages (clés = paramètres fal), son endpoint texte s'il en a un
+# et son devis : voir app.services.moteurs3d_neufs. Les sept d'hier gardent leurs adaptateurs.
+from app.services import moteurs3d_neufs as _M3N  # noqa: E402
+ENGINES.update(_M3N.registre())
+
 # Besoins de plan → moteur, avec la capacité QUI justifie le choix (§13 phase D
 # « comparer les moteurs selon l'asset »). La justification est rendue par
 # l'API et stockée sur le job : une recommandation sans motif est un ordre.
@@ -351,6 +357,8 @@ _QUALITES_RODIN = ("high", "medium", "low", "extra-low")
 
 def build_engine_args(engine: str, image_urls: list[str], opts: dict) -> dict:
     """Map the common request to the chosen engine's fal arguments."""
+    if engine in _M3N.MOTEURS:                    # t390 : schéma de réglages, image ou prompt
+        return _M3N.args(engine, image_urls, opts)
     fmt = (opts.get("format") or "glb").lower()
     primary = image_urls[0] if image_urls else None
     if engine == "tripo-h3.1":
@@ -483,6 +491,8 @@ async def _run_engine(engine, args, endpoint=None):
     # déjà ordonnée et plafonnée) : le déduire ICI évite de le faire remonter
     # dans chaque appelant — et garde la signature historique utilisable.
     n = max((len(v) for v in args.values() if isinstance(v, list)), default=1)
+    if engine in _M3N.MOTEURS and not endpoint:   # t390 : un tir sans image part sur l'endpoint texte
+        endpoint = _M3N.endpoint(engine, texte="prompt" in args and _M3N.MOTEURS[engine]["cle_image"] not in args)
     ep = endpoint or resolve_endpoint(engine, n)
     try:
         res = await fal_client.subscribe_async(ep, arguments=args, with_logs=False)
@@ -529,6 +539,12 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
 
     out_dir = settings.outputs_path / "assets3d" / job_id
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    # t390 : le mode TEXTE de l'écran Créer — aucun envoi d'image, le prompt part à l'endpoint texte du moteur
+    if not payload.get("image_filename") and str(payload.get("prompt") or "").strip():
+        if not ENGINES[engine].get("texte"):
+            raise ValueError(f"{ENGINES[engine]['label']} ne génère pas depuis un texte")
+        return await tirer_moteur(job_id, [], payload, [], on_step, cles=[])
 
     await _step("Uploading", 10)
     # basename + containment check: the raw payload value must never escape the
@@ -617,7 +633,9 @@ async def tirer_moteur(job_id: str, image_urls: list, payload: dict,
                  "face_limit": payload.get("face_limit"),
                  "quad": payload.get("quad"),
                  "geometry_detaillee": payload.get("geometry_detaillee"),
-                 "seed": payload.get("seed")}
+                 "seed": payload.get("seed"),
+                 # t390 : réglages du schéma d'un moteur neuf, et le prompt d'un tir en mode texte
+                 "reglages": payload.get("reglages"), "prompt": payload.get("prompt")}
     # UN SEUL mécanisme pour le plafond du registre ET l'ordre imposé : avec
     # views=4 la liste vaut source + 4 vues = 5 images alors que `max_images`
     # en déclare 4 (§8 : un drapeau qui ment est pire que pas de drapeau), et

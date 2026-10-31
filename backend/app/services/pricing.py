@@ -841,6 +841,12 @@ def _ligne_detourage(op: dict, p: dict) -> dict:
                  tranches, unite, tranches * taux)
 
 
+def _moteurs_neufs() -> frozenset:
+    """Les ids des moteurs 3D neufs (t390), lus à l'appel : pricing ne dépend pas d'asset3d_service à l'import."""
+    from app.services import moteurs3d_neufs as _M3N
+    return frozenset(_M3N.MOTEURS)
+
+
 def estimate(op: dict, p: dict | None = None) -> dict:
     """Estimate the cost of an operation.
 
@@ -1084,6 +1090,16 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         dur = items * per
         lines.append(_line("fal", "News reel (ffmpeg)", dur, "s", 0.0))  # local ffmpeg = free
         # the cards usually reuse fetched images; add nothing unless generating
+    elif kind == "asset3d" and str(op.get("engine") or "").lower() in _moteurs_neufs():
+        # t390 : un moteur neuf a son devis ligne par ligne (tarifs fal relevés le 31/10/2026, relevé t387) ;
+        # sans réglages, ceux du schéma ; `textures: False` coupe la texture comme pour les sept d'hier
+        from app.services import moteurs3d_neufs as _M3N
+        engine = str(op.get("engine")).lower()
+        reg = dict(op.get("reglages") or {})
+        if not op.get("textures", True) and engine in _M3N.COUPE_TEXTURE:
+            reg.setdefault(*_M3N.COUPE_TEXTURE[engine])
+        for libelle, usd in _M3N.prix(engine, reg):
+            lines.append(_line("fal", f"3D ({libelle})", 1, "gen", usd))
     elif kind == "asset3d":
         # Game Assets 3D: a 3D mesh generation (engine-priced) + optional
         # multi-view edits. Rates seeded from each provider's docs (editable).

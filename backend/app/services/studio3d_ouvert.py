@@ -129,7 +129,10 @@ def modeles() -> list[dict]:
         e = numerotees[-1]
         m = {"job": ligne["id"], "nom": ligne["nom"], "moteur": ligne["moteur"], "phase": ligne["phase"],
              "created_at": ligne["created_at"], "version": e["version"], "url": e["url"],
-             "vignette": vignette(ligne["id"], e["version"]), "illisible": False}
+             "vignette": vignette(ligne["id"], e["version"]), "illisible": False,
+             # t389 : l'image source (shot_0), pour le volet avant/après de la galerie de l'écran Créer
+             "source": (f"/api/assets/3d/{ligne['id']}/shot/0"
+                        if (_job_dir(ligne["id"]) / "shot_0.png").is_file() else None)}
         try:
             m.update(lire_glb(_job_dir(ligne["id"]) / e["file"]))
         except (OSError, ValueError, KeyError):

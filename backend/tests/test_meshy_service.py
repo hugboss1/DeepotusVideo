@@ -467,7 +467,9 @@ async def main():
     # Magnific, publiée sous h3.1 sur fal). Le pin reste EXACT à dessein —
     # c'est lui qui force à passer par ici pour tout ajout de moteur.
     assert set(ENGINES) == {"tripo", "tripo-h3.1", "hunyuan", "trellis",
-                            "rodin", "triposr", "hunyuan-local"}   # T107 : + le moteur local
+                            "rodin", "triposr", "hunyuan-local",   # T107 : + le moteur local
+                            # t390 (31/10/2026) : Meshy y entre PAR FAL (meshy-7.1) ; l'id « meshy » reste au 3D Studio
+                            "tripo-p2", "tripo-p1", "hunyuan-3.1", "trellis-2", "rodin-2.5", "meshy-7.1"}
     assert "meshy" not in ENGINES
     ok("ENGINES fal — 6 moteurs + 1 local, meshy ne s'y invite pas")
 

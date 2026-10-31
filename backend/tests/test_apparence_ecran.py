@@ -109,7 +109,8 @@ if M is not None:
           (r.stdout + r.stderr)[-300:])
     avant = AIDE.avant_dzapparence(BUN) if hasattr(AIDE, "avant_dzapparence") else ""
     check("3.5 l'inverse avant_dzapparence défait le maillon, et le rejouer redonne le bundle à l'octet",
-          avant and M.MARKER not in avant and "data-dz-apparence" not in avant and M.appliquer(avant) == BUN)
+          avant and M.MARKER not in avant and "data-dz-apparence" not in avant
+          and M.appliquer(avant) == (AIDE.avant_dzcreer3d(BUN) if hasattr(AIDE, "avant_dzcreer3d") else BUN))   # t389 : dzcreer3d suit dzapparence
     src_aide = (_ICI / "_i18n_l1_aide.py").read_text(encoding="utf-8")
     _g = src_aide[src_aide.index("def avant_dzfils("):]
     _g = _g[:_g.index("\ndef ", 5)]

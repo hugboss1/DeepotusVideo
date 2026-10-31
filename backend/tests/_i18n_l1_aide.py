@@ -334,11 +334,22 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzcreer3d(bundle: str) -> str:
+    """Le bundle d'avant l'écran Créer de l'onglet 3D (maillon de queue patch_bundle_dzcreer3d, t389, 31/10/2026,
+    posé APRÈS dzapparence : c'est la queue de la chaîne : hôte de l'écran en tête de l'onglet 3D, ancien formulaire
+    rangé dessous) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzcreer3d as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzapparence(bundle: str) -> str:
     """Le bundle d'avant la palette de Réglages › Apparence (maillon de queue patch_bundle_dzapparence, t382,
     30/10/2026, posé APRÈS dzfils : c'est la queue de la chaîne : hôte du panneau entre l'aide et la carte des
     animations) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzapparence as _m
+    bundle = avant_dzcreer3d(bundle)             # 31/10 (t389) : le maillon posé APRÈS dzapparence, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

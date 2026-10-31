@@ -42,7 +42,9 @@ POSES = ("", "t-pose", "a-pose")
 
 # Ce que chaque moteur fait d'une pose demandée : "moteur" (paramètre natif), "vues" (prompt des vues multiples),
 # None (rien : grisé). Un moteur absent d'ici n'en fait rien.
-MODES = {"rodin": "moteur", "tripo": "vues", "tripo-h3.1": "vues", "meshy": "moteur"}
+MODES = {"rodin": "moteur", "tripo": "vues", "tripo-h3.1": "vues", "meshy": "moteur",
+         # t390 : les moteurs neufs qui ont un paramètre de pose natif (Meshy pose_mode, Rodin TAPose)
+         "meshy-7.1": "moteur", "rodin-2.5": "moteur"}
 
 # La phrase de pose posée dans les prompts (vues multi-angles, prompt Rodin). Anglais : elle part au générateur.
 PHRASES = {

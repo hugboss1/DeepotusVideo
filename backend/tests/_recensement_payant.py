@@ -29,6 +29,7 @@ MODULES = {
     "inspiration": RACINE / "api" / "inspiration_routes.py",   # t313 : matière, angles et rédaction d'une inspiration (Anthropic)
     "schema": RACINE / "api" / "schema_routes.py",   # t314 : le détourage fal d'un schéma (calques du Vectorlab)
     "comparatif3d": RACINE / "api" / "comparatif3d_routes.py",   # t344 : N moteurs image → 3D en un clic (fal)
+    "studio3d": RACINE / "api" / "studio3d_routes.py",   # t389 : l'écran Créer — N modèles × images × exemplaires (fal)
     "mouvement": RACINE / "api" / "mouvement_routes.py",   # t343 : vidéo → mouvement sur le rig (Uthana)
     "blender": RACINE / "api" / "blender_routes.py",   # t331 : generate_3d de mcp-for-blender (clés ou abonnement de l'add-on)
     "parallaxe": RACINE / "api" / "parallaxe_routes.py",   # t341 : décor en calques de parallaxe (Qwen-Image-Layered / Seedream Layerize, fal)

@@ -181,7 +181,9 @@ def _job(nom: str, glb: bytes | None = None, avec_ref=True) -> str:
 def test_le_registre_garde_ses_moteurs_et_gagne_ses_capacites():
     # non-régression : d'autres bancs épinglent l'ensemble des clés
     assert set(A3.ENGINES) == {"tripo", "tripo-h3.1", "hunyuan", "trellis",
-                               "rodin", "triposr", "hunyuan-local"}   # T107 : + le moteur local
+                               "rodin", "triposr", "hunyuan-local",   # T107 : + le moteur local
+                               # t390 (31/10/2026) : les moteurs relevés chez Sorceress et sur fal
+                               "tripo-p2", "tripo-p1", "hunyuan-3.1", "trellis-2", "rodin-2.5", "meshy-7.1"}
     for eid, e in A3.ENGINES.items():
         for flag in ("multiview", "max_images", "texture_modes", "draft",
                      "detailed", "pbr", "tpose", "quality_passthrough",
@@ -552,7 +554,7 @@ def test_routes_phase_d():
             r = await c.get("/api/assets3d/engines")
             assert r.status_code == 200, r.text
             d = r.json()
-            assert len(d["engines"]) == 7 and d["default"] == "tripo"   # 6 fal + le local (T107)
+            assert len(d["engines"]) == 13 and d["default"] == "tripo"   # 6 fal + le local (T107) + 6 neufs (t390)
             e0 = d["engines"][0]
             assert "endpoint" not in e0            # pas d'URL fournisseur en clair
             assert "multiview" in e0 and "available" in e0
@@ -1311,7 +1313,7 @@ def test_route_engines_expose_h31_et_ses_deux_paliers():
         async with httpx.AsyncClient(transport=ASGITransport(app=app),
                                      base_url="http://t") as c:
             d = (await c.get("/api/assets3d/engines")).json()
-            assert len(d["engines"]) == 7   # 6 fal + le local (T107)
+            assert len(d["engines"]) == 13   # 6 fal + le local (T107) + 6 neufs (t390)
             h = [e for e in d["engines"] if e["id"] == "tripo-h3.1"][0]
             assert h["label"] == "Tripo H3.1"
             assert h["usd_brouillon"] == 0.20 and h["usd_texture"] == 0.30

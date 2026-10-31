@@ -206,5 +206,16 @@ async function appliquerAdresse(search, pousser) {
   }
 }
 
+/* t389 : « Ouvrir dans 3D Studio ▸ » de l'onglet Créer. Le sous-onglet recrée cette page sans paramètre : le modèle et
+   l'écran arrivent par un relais (localStorage, écrit par dz-creer3d.js), lu UNE fois s'il a moins d'une minute */
+function relais() {
+  try {
+    const r = JSON.parse(localStorage.getItem("deepotus.studio3d.ouvrir") || "null");
+    localStorage.removeItem("deepotus.studio3d.ouvrir");
+    if (r && r.job && Date.now() - Number(r.t || 0) < 60000) return ecrireAdresse({ job: r.job, ecran: r.ecran });
+  } catch { /* stockage fermé ou relais illisible : on ouvre la page telle quelle */ }
+  return null;
+}
+
 construire();
-appliquerAdresse(location.search, false);
+appliquerAdresse((!location.search && relais()) || location.search, false);
