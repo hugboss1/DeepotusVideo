@@ -15,7 +15,8 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const ico = (cle) => `<svg class="dzi dzi--16" aria-hidden="true" focusable="false"><use href="/shared/icons/dz-icons.svg#${cle}"></use></svg>`;
 
 /* les écrans livrés ; les autres passent par l'écran d'attente (bientot) */
-const MODULES = { ouvrir: "./ouvrir.js", importer: "./importer.js", preparer: "./preparer.js", decor: "./decor.js" };
+const MODULES = { ouvrir: "./ouvrir.js", importer: "./importer.js", preparer: "./preparer.js", decor: "./decor.js",
+  animer: "./animer.js" };
 
 const E = { ouvert: null, ecran: "ouvrir", sale: false, sections: {}, modules: {}, chargement: null };
 

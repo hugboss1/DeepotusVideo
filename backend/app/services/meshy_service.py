@@ -55,6 +55,7 @@ ALLOWED_BASES = {
     "openapi/v1/retexture",
     "openapi/v1/rigging",
     "openapi/v1/animations",
+    "openapi/v1/text-to-motion",   # t399 : texte → mouvement de l'écran Animer (mode swift, BVH)
     "openapi/v1/text-to-image",
     "openapi/v1/image-to-image",
 }

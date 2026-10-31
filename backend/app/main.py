@@ -579,6 +579,9 @@ app.include_router(comparatif3d_router, prefix="/api/comparatif3d")
 # t388 (31/10/2026) : /api/studio3d — 3D Studio à écrans : galerie, modèle ouvert, préréglages de Préparer (lecture)
 from app.api.studio3d_routes import router as studio3d_router
 app.include_router(studio3d_router, prefix="/api/studio3d")
+# t398 + t399 (31/10/2026) : /api/studio3d/animer — écran Animer : catalogue Meshy, favoris, collections, texte → mouvement
+from app.api.studio3d_animer_routes import router as studio3d_animer_router
+app.include_router(studio3d_animer_router, prefix="/api/studio3d/animer")
 # t376 (29/10/2026) : /api/assets3d/pose — choix Aucune / T-pose / A-pose (état gratuit, classement vision payant
 # une fois par image), local seulement
 from app.api.pose3d_routes import router as pose3d_router
