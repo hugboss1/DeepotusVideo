@@ -13890,5 +13890,49 @@
  "poses : une liste de 1 à 32 poses est attendue": {
   "fr": "poses : une liste de 1 à 32 poses est attendue",
   "en": "poses: a list of 1 to 32 poses is expected"
+ },
+ "{quoi} : plus de {v} Mo": {
+  "fr": "{quoi} : plus de {v} Mo",
+  "en": "{quoi}: more than {v} MB"
+ },
+ "des textures ne s'envoient qu'avec un import Daz Genesis 8 (type=daz)": {
+  "fr": "des textures ne s'envoient qu'avec un import Daz Genesis 8 (type=daz)",
+  "en": "textures are only sent with a Daz Genesis 8 import (type=daz)"
+ },
+ "{textures} textures : {TEXTURES_NB_MAX} au plus par import": {
+  "fr": "{textures} textures : {TEXTURES_NB_MAX} au plus par import",
+  "en": "{textures} textures: {TEXTURES_NB_MAX} at most per import"
+ },
+ "textures : plus de {v} Mo en tout": {
+  "fr": "textures : plus de {v} Mo en tout",
+  "en": "textures: more than {v} MB in total"
+ },
+ "nom de texture refusé : {v}": {
+  "fr": "nom de texture refusé : {v}",
+  "en": "texture name refused: {v}"
+ },
+ "{v} n'est pas une image (TIFF, PNG, JPEG, BMP, TGA, EXR, HDR, WebP)": {
+  "fr": "{v} n'est pas une image (TIFF, PNG, JPEG, BMP, TGA, EXR, HDR, WebP)",
+  "en": "{v} is not an image (TIFF, PNG, JPEG, BMP, TGA, EXR, HDR, WebP)"
+ },
+ "format {v} non lu : GLB, glTF, OBJ, STL, FBX ou VRM": {
+  "fr": "format {v} non lu : GLB, glTF, OBJ, STL, FBX ou VRM",
+  "en": "format {v} not supported: GLB, glTF, OBJ, STL, FBX or VRM"
+ },
+ "fichier de plus de {v} Mo": {
+  "fr": "fichier de plus de {v} Mo",
+  "en": "file larger than {v} MB"
+ },
+ "Daz Genesis 8 : le FBX exporté par Daz Studio est attendu (.fbx)": {
+  "fr": "Daz Genesis 8 : le FBX exporté par Daz Studio est attendu (.fbx)",
+  "en": "Daz Genesis 8: the FBX exported by Daz Studio is expected (.fbx)"
+ },
+ "{name} : plus de {v} Mo": {
+  "fr": "{name} : plus de {v} Mo",
+  "en": "{name}: more than {v} MB"
+ },
+ "ce VRM n'est pas un GLB binaire": {
+  "fr": "ce VRM n'est pas un GLB binaire",
+  "en": "this VRM is not a binary GLB"
  }
 }
