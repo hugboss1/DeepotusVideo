@@ -1,12 +1,12 @@
 /* t391 (31/10/2026) — écran IMPORTER du 3D Studio : un modèle venu d'ailleurs devient un job, puis s'ouvre.
 
    Formats lus aujourd'hui par le serveur (POST /api/assets/3d/importer, `mesh_convert.importer_job`, local et
-   gratuit) : OBJ, STL, glTF, GLB. Un glTF/GLB riggé garde son squelette. FBX (Mixamo), VRM et Daz Genesis 8 sont
-   annoncés comme tels, sans bouton : ils demandent une conversion par Blender (tâche t391 du suivi). */
+   gratuit) : OBJ, STL, glTF, GLB ; FBX (Mixamo…) converti par Blender en arrière-plan et VRM (un GLB) depuis t391
+   (POST /api/studio3d/importer, service studio3d_import). Daz Genesis 8 (FBX + dossier de textures) reste annoncé. */
 "use strict";
 import { T } from "./coque_calc.js";
 
-const ACCEPTE = ".obj,.stl,.gltf,.glb";
+const ACCEPTE = ".obj,.stl,.gltf,.glb,.fbx,.vrm";
 const I = { s: null, ctx: null, occupe: false };
 
 export async function monter(section, ctx) {
@@ -23,8 +23,8 @@ export async function monter(section, ctx) {
     <div class="ec-avis" id="imAvis"></div>
     <div class="ec-label">${esc(T("importer.types"))}</div>
     <div class="ec-types">
-      ${["gltf", "obj", "stl"].map((t) => `<div class="ec-type"><b>${esc(T("type." + t))}</b><span>${esc(T("type." + t + "_aide"))}</span></div>`).join("")}
-      ${["fbx", "vrm", "daz"].map((t) => `<div class="ec-type bientot"><b>${esc(T("type." + t))} <span class="ec-badge discret">${esc(T("bientot.badge"))}</span></b><span>${esc(T("type." + t + "_aide"))}</span></div>`).join("")}
+      ${["gltf", "obj", "stl", "fbx", "vrm"].map((t) => `<div class="ec-type"><b>${esc(T("type." + t))}</b><span>${esc(T("type." + t + "_aide"))}</span></div>`).join("")}
+      ${["daz"].map((t) => `<div class="ec-type bientot"><b>${esc(T("type." + t))} <span class="ec-badge discret">${esc(T("bientot.badge"))}</span></b><span>${esc(T("type." + t + "_aide"))}</span></div>`).join("")}
     </div>
   </div>`;
   const depot = section.querySelector("#imDepot");
@@ -52,7 +52,7 @@ async function envoyer(fichier) {
   try {
     const fd = new FormData();
     fd.append("file", fichier, fichier.name);
-    const r = await fetch("/api/assets/3d/importer", { method: "POST", body: fd });
+    const r = await fetch("/api/studio3d/importer", { method: "POST", body: fd });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error((j && typeof j.detail === "string" && j.detail) || String(r.status));
     avis.textContent = T("importer.fait", { n: j.triangles });

@@ -13742,5 +13742,13 @@
  "retirer : des identifiants entiers sont attendus": {
   "fr": "retirer : des identifiants entiers sont attendus",
   "en": "remove: integer identifiers are expected"
+ },
+ "Blender 4.2 ou plus récent est introuvable (BLENDER_PATH, Program Files ou PATH) — l'import FBX passe par lui ; installe-le depuis blender.org, c'est gratuit.": {
+  "fr": "Blender 4.2 ou plus récent est introuvable (BLENDER_PATH, Program Files ou PATH) — l'import FBX passe par lui ; installe-le depuis blender.org, c'est gratuit.",
+  "en": "Blender 4.2 or later was not found (BLENDER_PATH, Program Files or PATH) — FBX import goes through it; install it from blender.org, it is free."
+ },
+ "Blender n'a pas converti le FBX (code {code}) : {fin}": {
+  "fr": "Blender n'a pas converti le FBX (code {code}) : {fin}",
+  "en": "Blender did not convert the FBX (code {code}): {fin}"
  }
 }

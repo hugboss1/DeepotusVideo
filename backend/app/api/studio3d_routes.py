@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 
 router = APIRouter()
 
@@ -141,3 +141,24 @@ async def studio3d_creer(body: dict, background_tasks: BackgroundTasks):
     return {"tirs": [{"moteur": l["engine"], "job": l["job"], "job_id": l["job_id"],
                       "image": l.get("image_filename") or "", "exemplaire": l["exemplaire"]} for l in lignes],
             "total_usd": dv["total_usd"]}
+
+
+# ── t391 : l'écran Importer — GLB, glTF, OBJ, STL, et désormais FBX (par Blender) et VRM ─────────────────────────────
+
+@router.post("/importer")
+async def studio3d_importer(file: UploadFile = File(...)):
+    """Un modèle venu d'ailleurs devient un job du 3D Studio. Local et gratuit. 400 format / fichier refusé, 503 Blender
+    absent (FBX seulement)."""
+    from app.services import mesh_optimize, studio3d_export as SE, studio3d_import as SI
+    from app.config import settings
+    data = await file.read()
+    try:
+        r = await asyncio.to_thread(SI.importer, data, file.filename or "modele")
+    except SE.BlenderIndisponible as e:
+        raise HTTPException(503, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    st = mesh_optimize.glb_stats(settings.outputs_path / "assets3d" / r["job"] / "model.glb")
+    return {**r, "triangles": st["tris"]}

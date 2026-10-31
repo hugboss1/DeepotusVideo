@@ -169,8 +169,8 @@
   "studio3decrans.importer.deposer": {"fr": "Dépose un modèle ici, ou clique pour le choisir", "en": "Drop a model here, or click to choose it", "contexte": true},
   "studio3decrans.importer.envoi": {"fr": "Import de {f}…", "en": "Importing {f}…", "contexte": true},
   "studio3decrans.importer.fait": {"fr": "Importé : {n} triangles.", "en": "Imported: {n} triangles.", "contexte": true},
-  "studio3decrans.importer.formats": {"fr": ".glb, .gltf, .obj, .stl — local et gratuit", "en": ".glb, .gltf, .obj, .stl — local and free", "contexte": true},
-  "studio3decrans.importer.refus_format": {"fr": "Format .{f} non lu : GLB, glTF, OBJ ou STL", "en": "Format .{f} not supported: GLB, glTF, OBJ or STL", "contexte": true},
+  "studio3decrans.importer.formats": {"fr": ".glb, .gltf, .obj, .stl, .fbx, .vrm — local et gratuit", "en": ".glb, .gltf, .obj, .stl, .fbx, .vrm — local and free", "contexte": true},
+  "studio3decrans.importer.refus_format": {"fr": "Format .{f} non lu : GLB, glTF, OBJ, STL, FBX ou VRM", "en": "Format .{f} not supported: GLB, glTF, OBJ, STL, FBX or VRM", "contexte": true},
   "studio3decrans.importer.types": {"fr": "Types d'import", "en": "Import types", "contexte": true},
   "studio3decrans.onglet.affiner": {"fr": "Affiner", "en": "Refine", "contexte": true},
   "studio3decrans.onglet.animer": {"fr": "Animer", "en": "Animate", "contexte": true},
@@ -263,7 +263,7 @@
   "studio3decrans.type.daz": {"fr": "Daz Genesis 8", "en": "Daz Genesis 8", "contexte": true},
   "studio3decrans.type.daz_aide": {"fr": "FBX et dossier de textures, prévu.", "en": "FBX and texture folder, planned.", "contexte": true},
   "studio3decrans.type.fbx": {"fr": "FBX (Mixamo)", "en": "FBX (Mixamo)", "contexte": true},
-  "studio3decrans.type.fbx_aide": {"fr": "Conversion par Blender, prévue.", "en": "Conversion through Blender, planned.", "contexte": true},
+  "studio3decrans.type.fbx_aide": {"fr": "Converti par Blender en arrière-plan : squelette, poids et animations gardés.", "en": "Converted by Blender in the background: skeleton, weights and animations kept.", "contexte": true},
   "studio3decrans.type.gltf": {"fr": "glTF / GLB", "en": "glTF / GLB", "contexte": true},
   "studio3decrans.type.gltf_aide": {"fr": "Un modèle riggé garde son squelette et ses animations.", "en": "A rigged model keeps its skeleton and animations.", "contexte": true},
   "studio3decrans.type.obj": {"fr": "OBJ", "en": "OBJ", "contexte": true},
@@ -271,5 +271,5 @@
   "studio3decrans.type.stl": {"fr": "STL", "en": "STL", "contexte": true},
   "studio3decrans.type.stl_aide": {"fr": "Maillage d'impression, sans texture.", "en": "Print mesh, no texture.", "contexte": true},
   "studio3decrans.type.vrm": {"fr": "VRM (VRoid)", "en": "VRM (VRoid)", "contexte": true},
-  "studio3decrans.type.vrm_aide": {"fr": "Avatars VRM, prévus.", "en": "VRM avatars, planned.", "contexte": true}
+  "studio3decrans.type.vrm_aide": {"fr": "Avatar VRM : un GLB, squelette humanoïde et matériaux compris.", "en": "VRM avatar: a GLB, humanoid skeleton and materials included.", "contexte": true}
 }
