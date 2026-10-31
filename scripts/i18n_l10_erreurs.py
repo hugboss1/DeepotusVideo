@@ -45,6 +45,7 @@ ERREURS = {"RefusInspiration", "InspirationInconnue", "InspirationEnCours",   # 
            "RefusPages", "AppelEchoue", "VisionEnCours",
            "RefusAccord",   # t314 : devis du détourage d'un schéma non accepté (409 {message, usd})   # revue finale t312 : AppelEchoue = premier appel Claude en échec réseau   # t312 tâche 4 : dépôt refusé par scan_pages.charger (400/413/415/422)
            "RefusFil",   # t380 : refus des fils sociaux suivis de News (400/404/409/502/503)
+           "RefusExport", "BlenderIndisponible",   # t400 : refus de l'écran Exporter du 3D Studio (400/503)
            "FichierIllisible"}   # t328 : FichierIllisible = ValueError de whatsapp_diffusions (fichier illisible)
                                        # t311 : RefusValidation = refus de validation_client.valider_post (400/404/409)   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
                                        # L4.1 T3 : FluxCoupe = RuntimeError (flux Anthropic coupé)
