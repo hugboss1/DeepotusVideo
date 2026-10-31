@@ -13334,5 +13334,77 @@
  "Couleur manquante ou illisible : {j} (#rrggbb attendu)": {
   "fr": "Couleur manquante ou illisible : {j} (#rrggbb attendu)",
   "en": "Missing or unreadable colour: {j} (#rrggbb expected)"
+ },
+ "version « {v} » — un entier à partir de 1": {
+  "fr": "version « {v} » — un entier à partir de 1",
+  "en": "version \"{v}\" — an integer from 1"
+ },
+ "impression : seuls .stl et .3mf sont servis": {
+  "fr": "impression : seuls .stl et .3mf sont servis",
+  "en": "printing: only .stl and .3mf are served"
+ },
+ "impression : fichier introuvable": {
+  "fr": "impression : fichier introuvable",
+  "en": "printing: file not found"
+ },
+ "impression : nom invalide": {
+  "fr": "impression : nom invalide",
+  "en": "printing: invalid name"
+ },
+ "clip « {v} » absent de ce modèle ({anims} clip(s))": {
+  "fr": "clip « {v} » absent de ce modèle ({anims} clip(s))",
+  "en": "clip \"{v}\" is not in this model ({anims} clip(s))"
+ },
+ "clip : un index ou un nom est attendu": {
+  "fr": "clip : un index ou un nom est attendu",
+  "en": "clip: an index or a name is expected"
+ },
+ "ce modèle n'a aucune animation : exporte le maillage seul, ou anime-le d'abord": {
+  "fr": "ce modèle n'a aucune animation : exporte le maillage seul, ou anime-le d'abord",
+  "en": "this model has no animation: export the mesh only, or animate it first"
+ },
+ "variante « {v} » — {v2}": {
+  "fr": "variante « {v} » — {v2}",
+  "en": "variant \"{v}\" — {v2}"
+ },
+ "fbx : variante « maillage » ou « animation »": {
+  "fr": "fbx : variante « maillage » ou « animation »",
+  "en": "fbx: variant \"maillage\" (mesh) or \"animation\""
+ },
+ "Blender 4.2 ou plus récent est introuvable (BLENDER_PATH, Program Files ou PATH) — installe-le depuis blender.org, c'est gratuit.": {
+  "fr": "Blender 4.2 ou plus récent est introuvable (BLENDER_PATH, Program Files ou PATH) — installe-le depuis blender.org, c'est gratuit.",
+  "en": "Blender 4.2 or newer not found (BLENDER_PATH, Program Files or PATH) — install it from blender.org, it is free."
+ },
+ "fichier : nom invalide": {
+  "fr": "fichier : nom invalide",
+  "en": "file: invalid name"
+ },
+ "scène vide": {
+  "fr": "scène vide",
+  "en": "empty scene"
+ },
+ "clips : une liste d'index ou de noms est attendue": {
+  "fr": "clips : une liste d'index ou de noms est attendue",
+  "en": "clips: a list of indices or names is expected"
+ },
+ "Blender n'a pas écrit le FBX (code {code}) : {fin}": {
+  "fr": "Blender n'a pas écrit le FBX (code {code}) : {fin}",
+  "en": "Blender did not write the FBX (code {code}): {fin}"
+ },
+ "Blender a dépassé {DELAI_BLENDER_S} s": {
+  "fr": "Blender a dépassé {DELAI_BLENDER_S} s",
+  "en": "Blender exceeded {DELAI_BLENDER_S} s"
+ },
+ "modèle 3D inconnu : {name}": {
+  "fr": "modèle 3D inconnu : {name}",
+  "en": "unknown 3D model: {name}"
+ },
+ "{id} : aucune version numérotée": {
+  "fr": "{id} : aucune version numérotée",
+  "en": "{id}: no numbered version"
+ },
+ "{id} : version {version} absente": {
+  "fr": "{id} : version {version} absente",
+  "en": "{id}: version {version} missing"
  }
 }
