@@ -75,3 +75,9 @@ et NON le sous-dossier gltf/.
 Rien d'autre n'a été ajouté : pas de three.webgpu.js, pas d'addons hors de
 la liste demandée, pas de sources non minifiées en double dès lors qu'une
 version minifiée existe déjà (three.module.min.js / three.core.min.js).
+
+Ajout du 31/10/2026 (t401, Décor du 3D Studio)
+----------------------------------------------
+  addons/exporters/GLTFExporter.js                  — examples/jsm/exporters/GLTFExporter.js de three@0.185.1
+Même version que le moteur (npm pack three@0.185.1, aucun CDN). Il n'importe que depuis « three » (specifier
+nu) : aucun frère requis. Sert l'export GLB de la végétation procédurale (frontend/studio3d/ecrans/decor.js).

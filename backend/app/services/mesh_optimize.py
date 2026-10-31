@@ -32,6 +32,8 @@ PRESETS = {
     "balanced": 25000,
     "high": 50000,       # high detail
     "ultra": 100000,
+    "extreme": 150000,   # t392 : échelle complète de Sorceress (écran Préparer du 3D Studio)
+    "max": 200000,       # max detail
 }
 TARGET_MIN, TARGET_MAX = 100, 2_000_000
 _GLB_MAGIC = 0x46546C67
