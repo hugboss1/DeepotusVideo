@@ -353,6 +353,87 @@ def test_la_guerison_ne_rend_jamais_une_pose_plus_etiree():
             assert mot in str(e), (mot, str(e))
 
 
+def test_un_triangle_plat_retourne_ou_ecrase_est_vu_sans_qu_aucune_arete_ne_s_etire():
+    # un triangle PLAT (base 1, hauteur 0,3) : son sommet traverse la base — les longueurs ne changent pas, il est
+    # RETOURNÉ ; posé sur la base, ses arêtes perdent 14 % (sous la tolérance de 25 %), il est EFFONDRÉ
+    repos = [(0, 0, 0), (1, 0, 0), (0.5, 0.3, 0)]
+    tri = [(0, 1, 2)]
+    assert PC.triangles_abimes(repos, [(0, 0, 0), (1, 0, 0), (0.5, -0.3, 0)], tri) == ([], [0])
+    assert PC.triangles_abimes(repos, [(0, 0, 0), (1, 0, 0), (0.5, 0.02, 0)], tri) == ([0], [])
+    assert PC.triangles_abimes(repos, [(0, 0, 0), (1, 0, 0), (0.5, 0.2, 0)], tri) == ([], [])      # 67 % : sain
+    # tourné d'un bloc de 180° autour de Y : la normale attendue tourne avec lui, il n'est pas retourné
+    tourne = [(0, 0, 0), (-1, 0, 0), (-0.5, 0.3, 0)]
+    assert PC.triangles_abimes(repos, tourne, tri) == ([], [0])
+    assert PC.triangles_abimes(repos, tourne, tri, attendues=[(0, 0, -0.3)]) == ([], [])
+    # un triangle de repos d'aire nulle est ignoré
+    assert PC.triangles_abimes([(0, 0, 0), (1, 0, 0), (2, 0, 0)], [(0, 0, 0), (0, 1, 0), (2, 0, 0)], tri) == ([], [])
+
+
+def test_la_guerison_repare_une_aisselle_effondree_que_l_etirement_ne_voit_pas():
+    """Cas synthétique : le coin haut-arrière de l'aisselle gauche (0,18 ; 1,45 ; −0,1) donné en entier à la colonne ;
+    le bras levé de 60°, le triangle qu'il ferme avec le bras s'ÉCRASE alors que ses arêtes restent sous ± 25 %."""
+    pe = PC.Peau(RIG)
+    v = next(i for i, p in enumerate(pe.positions) if math.dist(p, (0.18, 1.45, -0.1)) < 1e-4)
+    poids = [dict(w) for w in pe.poids]
+    poids[v] = {pe.par_nom("spine_03"): 1.0}
+    pose = {pe.par_nom("upperarm_l"): [0, 0, -60]}
+
+    def triangles_du_coin(ps):
+        posees = PC.poser(pe, ps, pose)
+        eff, ret = PC.triangles_abimes(pe.positions, posees, pe.triangles, PC._attendues(pe, ps, PC._deltas(pe, pose)))
+        return [t for t in eff + ret if v in pe.triangles[t]], posees
+    abimes_, posees = triangles_du_coin(poids)
+    assert abimes_, "le coin injecté devrait écraser un triangle"
+    assert all(abs(r - 1) <= 0.25 for a, b, r in PC._etirements(pe, posees) if v in (a, b))   # l'étirement est aveugle
+    mauvais, defauts = PC.abimes(pe, poids, pose)
+    assert v in mauvais and defauts["effondres"] + defauts["retournes"] >= 1, defauts
+    gueris, rap = PC.guerison(pe, poids, poses=[pose])
+    assert not triangles_du_coin(gueris)[0], "l'aisselle est toujours écrasée"
+    assert gueris[v] != poids[v] and abs(sum(gueris[v].values()) - 1) < 1e-9
+    r = rap["guerison"][0]
+    assert r["apres"] < r["avant"] and r["defauts_apres"]["effondres"] + r["defauts_apres"]["retournes"] \
+        < r["defauts_avant"]["effondres"] + r["defauts_avant"]["retournes"], r
+
+
+def test_la_symetrie_est_detectee_et_la_torsion_de_colonne_reste_symetrique():
+    pe = PC.Peau(SYM)
+    sy = PC.symetrie(pe)
+    assert sy is not None
+    pts, osm = sy
+    assert all(pts[pts[i]] == i for i in range(len(pts)))
+    noms = {j: o["nom"] for j, o in pe.os.items()}
+    assert noms[osm[pe.par_nom("upperarm_l")]] == "upperarm_r" and osm[pe.par_nom("spine_02")] == pe.par_nom("spine_02")
+    # un maillage déformé d'un seul côté (le bras gauche décalé) n'est pas symétrique : rien n'est symétrisé
+    pa = PC.Peau(SYM)
+    pa.positions = [(p[0] + 0.05, p[1], p[2]) if p[0] > 0.3 else p for p in pa.positions]
+    assert PC.symetrie(pa) is None and PC.symetriser(pa, pa.poids)[1] == {"symetrie": {"detectee": False, "points": 0}}
+    # la batterie joue la torsion dans les DEUX sens
+    bat = PC.batterie(pe)
+    s2 = pe.par_nom("spine_02")
+    assert {tuple(p[s2]) for p in bat if s2 in p and p[s2][1]} == {(0, 15, 0), (0, -15, 0)}
+    # une torsion seule est chirale (le mannequin, symétrique aussi d'avant en arrière, ne le montre pas) : une peau
+    # rendue asymétrique d'un seul côté redevient symétrique, chaque paire prenant la moyenne de ses deux côtés
+    tordu = [dict(w) for w in pe.poids]
+    g = [i for i, p in enumerate(pe.positions) if p[0] > 0.2 and p[1] > 1.4][:12]
+    for i in g:
+        tordu[i] = PC._normaliser(PC._melange(tordu[i], {pe.par_nom("spine_03"): 1.0}, 0.4))
+    assert asymetrie(PC.ecrire_peau(pe, tordu)) > 0.1
+    remis, r = PC.symetriser(pe, tordu)
+    assert r["symetrie"]["detectee"] and r["symetrie"]["points"] == 2 * len(g), r
+    assert asymetrie(PC.ecrire_peau(pe, remis)) < 1e-5
+    for i in g:       # la moyenne : le côté touché garde la moitié du geste, son miroir en reçoit l'autre moitié
+        s3 = pe.par_nom("spine_03")
+        assert abs(remis[i].get(s3, 0) - remis[pts[i]].get(s3, 0)) < 1e-9
+        assert min(pe.poids[i].get(s3, 0), tordu[i].get(s3, 0)) - 1e-9 <= remis[i].get(s3, 0) <= max(pe.poids[i].get(s3, 0), tordu[i].get(s3, 0)) + 1e-9
+    # le correctif en un clic (batterie avec torsions) sur une peau symétrique : symétrique, et il le dit
+    out, rap = PC.corriger(SYM, "tout")
+    assert asymetrie(out) < 1e-5, asymetrie(out)
+    assert [e["etape"] for e in rap["etapes"]] == ["epaules", "confinement", "coutures", "guerison", "symetrie"]
+    assert rap["etapes"][-1]["symetrie"]["detectee"]
+    _, rg = PC.corriger(SYM, "guerison")
+    assert rg["symetrie"]["detectee"] and len(rg["guerison"]) == len(bat)
+
+
 def test_le_miroir_les_corrections_gardent_une_peau_symetrique_symetrique():
     assert asymetrie(SYM) < 1e-6
     pe = PC.Peau(SYM)
