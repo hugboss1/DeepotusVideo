@@ -1323,8 +1323,13 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         lines.append(_line("fal", f"Upscale esrgan x{n}", n, "image", n * float(p.get("esrgan_usd", 0.002))))
     elif kind == "heygen_photo_avatar":
         lines.append(_line("heygen", "Avatar photo HeyGen", 1, "avatar", float(p.get("heygen_photo_avatar_usd", 1.32))))
+    elif kind == "hy_motion":
+        # t405 : HY-Motion texte → mouvement sur fal, au tir (relevé t387 : 0,08 $ le 1B, 0,06 $ le /fast 0.46B)
+        rapide = str(op.get("modele") or "") == "hy-motion-fast"
+        lines.append(_line("fal", "HY-Motion" + (" fast" if rapide else "") + " (texte → mouvement)", 1, "gen",
+                           float(p.get("hy_motion_fast_usd" if rapide else "hy_motion_usd", 0.06 if rapide else 0.08))))
     elif kind == "meshy":
-        cr = float(op["credits"] if op.get("credits") is not None else p.get("meshy_task_credits_defaut", 20.0))
+        cr =float(op["credits"] if op.get("credits") is not None else p.get("meshy_task_credits_defaut", 20.0))
         lines.append(_line("meshy", "Tâche Meshy", cr, "credits", cr * float(p["meshy_credit_usd"])))
     elif kind == "animate":
         # Animation node: per-frame Pillow + ffmpeg, all local compute, no

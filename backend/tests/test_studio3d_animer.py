@@ -6,7 +6,7 @@ Tout est SIMULÉ au niveau HTTP : le module `httpx` de `meshy_service` est rempl
 `httpx.MockTransport` qui note chaque requête — aucune ne part, rien n'est dépensé. Données isolées (DEEPOTUS_DATA_DIR
 temporaire) ; personnage riggé SYNTHÉTIQUE (`_squelette_synthetique.glb_cible`), BVH « Mixamo » synthétique.
 Run : python tests/test_studio3d_animer.py (depuis backend/)"""
-import asyncio, json, os, pathlib, re, shutil, subprocess, sys, tempfile, types
+import asyncio, json, math, os, pathlib, re, shutil, subprocess, sys, tempfile, types
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = tempfile.mkdtemp(prefix="dzs3anim_")
 os.environ["DEEPOTUS_DATA_DIR"] = _tmp
@@ -279,9 +279,282 @@ def test_texte_mode_et_bornes_annonces_a_l_ecran():
     assert t["modes"][0]["lisible"] and not t["modes"][1]["lisible"]
     assert t["modes"][0]["devis"]["credits"] == {"meshy": 3.0} and t["modes"][1]["devis"]["credits"] == {"meshy": 10.0}
     assert t["duree"] == {"min": 2.0, "max": 10.0, "pas": 0.5} and t["prompt_max"] == 400
-    assert {a["id"] for a in t["autres"]} == {"hy-motion", "kimodo", "gvhmr"}
+    assert {a["id"]: a["raison"] for a in t["autres"]} == {"kimodo": "sans_api", "gvhmr": "non_commercial"}
+    hy = t["hy"]
+    assert [(m["id"], m["devis"]["total_usd"]) for m in hy["modeles"]] == [("hy-motion", 0.08), ("hy-motion-fast", 0.06)]
+    assert all(m["devis"]["breakdown"][0]["provider"] == "fal" for m in hy["modeles"])
+    assert hy["duree"] == {"min": 0.5, "max": 12.0, "pas": 0.5} and hy["guidance"]["defaut"] == 5.0
+    assert hy["licence"]["nom"] == "Tencent HY-MOTION 1.0 Community License"
+    assert hy["licence"]["url"].startswith("https://github.com/Tencent-Hunyuan/HY-Motion-1.0/")
+    assert "UE" in hy["licence"]["territoires_exclus"] and "Royaume-Uni" in hy["licence"]["territoires_exclus"]
     assert SA.valider_texte({"prompt": "saut", "duree": 10})["duree"] == 10.0
     assert SA.valider_texte({"prompt": "Un  saut   périlleux !", "duree": 2.5})["nom"] == "Un_saut_p_rilleux"
+
+
+# ── 3 bis. HY-Motion (t405) : convertisseur dict → BVH, licence, tir fal SIMULÉ ─────────────────────
+
+from app.services import mouvement_rig as MR   # noqa: E402
+
+N_HY = 12
+
+
+def _ry(deg):
+    a = math.radians(deg)
+    c, s_ = math.cos(a), math.sin(a)
+    return ((c, 0.0, s_), (0.0, 1.0, 0.0), (-s_, 0.0, c))
+
+
+def _en_6d(m):          # convention amont : colonnes 0 et 1 de la matrice 3×3, aplaties ligne par ligne
+    return [m[0][0], m[0][1], m[1][0], m[1][1], m[2][0], m[2][1]]
+
+
+def _motion(rep, coude=0.0, lot=True, plat=False):
+    """Un dict HY-Motion synthétique : N_HY images, toutes les rotations à l'identité sauf le coude GAUCHE (L_Elbow,
+    os 18) plié de `coude` degrés autour de Y ; la racine avance de 1 cm par image en X."""
+    imgs = []
+    for f in range(N_HY):
+        os_ = []
+        for j in range(22):
+            ang = coude * f / (N_HY - 1) if j == 18 else 0.0
+            if rep == "rot6d":
+                os_.append(_en_6d(_ry(ang)))
+            elif rep == "axe":
+                os_.append([0.0, math.radians(ang), 0.0])
+            else:
+                os_.append([math.cos(math.radians(ang) / 2), 0.0, math.sin(math.radians(ang) / 2), 0.0])
+        imgs.append([v for o in os_ for v in o] if plat else os_)
+    transl = [[0.01 * f, 0.9, 0.0] for f in range(N_HY)]
+    cle = {"rot6d": "rot6d", "axe": "poses", "quat": "quat"}[rep]
+    if lot:
+        return {cle: [imgs], "transl": [transl], "text": "test"}
+    return {cle: imgs, "transl": transl}
+
+
+def _ecart_q(a, b):
+    d = abs(sum(x * y for x, y in zip(a, b)))
+    return 1 - min(1.0, d)
+
+
+def test_hymotion_convertisseur_accepte_les_trois_formes_et_rend_la_pose_de_repos():
+    for rep, plat in (("rot6d", False), ("axe", False), ("quat", False), ("rot6d", True), ("quat", True)):
+        bvh = SA.hymotion_vers_bvh(_motion(rep, lot=not plat, plat=plat))
+        m = MR.lire_bvh(bvh)
+        assert m["n"] == N_HY and m["fps"] == 30.0 and len(m["os"]) == 22, (rep, m["n"], m["fps"])
+        noms = [o["nom"] for o in m["os"]]
+        assert noms[0] == "Hips" and "LeftForeArm" in noms and "RightToeBase" in noms, noms
+        # des rôles RECONNUS par mouvement_rig : cuisse, bras, avant-bras, main des deux côtés
+        roles = {MR.role(n) for n in noms}
+        for r in ("bassin", "cuisse_g", "cuisse_d", "bras_g", "avantbras_g", "main_d", "pied_g", "epaule_d", "tete"):
+            assert r in roles, (rep, r)
+        # identité partout → toutes les rotations à l'identité : la pose de repos SMPL (en T)
+        for serie in m["rot"]:
+            for q in serie:
+                assert _ecart_q(q, MR.Q_ID) < 1e-9, (rep, q)
+        assert m["trans"][0][3] == (3.0, 90.0, 0.0), m["trans"][0][3]          # mètres → centimètres
+    # la pose de repos SMPL : la main gauche à droite de l'épaule (+X), le pied sous le bassin
+    R, P, _ = MR.monde(m["os"], None, None)
+    i = {o["nom"]: k for k, o in enumerate(m["os"])}
+    assert P[i["LeftHand"]][0] > P[i["LeftArm"]][0] + 45 and abs(P[i["LeftHand"]][1] - P[i["LeftArm"]][1]) < 5
+    assert P[i["LeftFoot"]][1] < P[i["Hips"]][1] - 75
+
+
+def test_hymotion_convertisseur_refuse_les_formes_inconnues():
+    def refus(motion):
+        try:
+            SA.hymotion_vers_bvh(motion)
+        except ValueError as e:
+            return str(e)
+        raise AssertionError(f"accepté à tort : {str(motion)[:60]}")
+    bon = _motion("rot6d", lot=False)
+    assert "(L, 22, 6)" in refus({"rot6d": [[[0.0] * 5] * 22] * 3})
+    assert "(L, 22, 6)" in refus({"rot6d": [[[1, 0, 0, 1, 0, 0]] * 21] * 3})
+    assert "(L, 22, 3)" in refus({"poses": [[[0, 0]] * 22] * 3})
+    assert "aucune rotation" in refus({"keypoints3d": [[[0, 0, 0]] * 22]})
+    assert "transl" in refus({**bon, "transl": bon["transl"][:-1]})
+    assert "non finie" in refus({"rot6d": [[[float("nan"), 0, 0, 1, 0, 0]] * 22]})
+    assert "dégénéré" in refus({"rot6d": [[[0, 0, 0, 0, 0, 0]] * 22]})
+    assert "JSON" in refus("pas du json")
+    assert "objet" in refus([1, 2, 3])
+    assert "cadence" in refus({**bon, "fps": 0})
+
+
+def test_euler_zxy_recompose_la_matrice():
+    import random
+    rnd = random.Random(7)
+    for _ in range(200):
+        v = [rnd.uniform(-2, 2) for _ in range(3)]
+        m = SA._mat_axe_angle(v)
+        z, x, y = SA.euler_zxy(m)
+        q = MR.q_mul(MR.q_mul(MR.q_axe("Z", z), MR.q_axe("X", x)), MR.q_axe("Y", y))
+        assert _ecart_q(q, MR.q_de_matrice(m)) < 1e-9, (v, z, x, y)
+    # blocage de cardan (x = ±90°) : la matrice est quand même rendue
+    m = SA._mat_axe_angle((math.pi / 2, 0, 0))
+    z, x, y = SA.euler_zxy(m)
+    q = MR.q_mul(MR.q_mul(MR.q_axe("Z", z), MR.q_axe("X", x)), MR.q_axe("Y", y))
+    assert abs(x - 90) < 1e-6 and _ecart_q(q, MR.q_de_matrice(m)) < 1e-9
+
+
+def _angle_coude_cible(motion, aligner=True):
+    """Le mouvement converti, reciblé sur le personnage « Unreal » synthétique : l'angle (degrés) entre le bras et
+    l'avant-bras GAUCHES à la dernière image, et le résultat brut."""
+    src = MR.lire_bvh(SA.hymotion_vers_bvh(motion))
+    doc, _ = mesh_edit.lire_glb(RIG)
+    cible = MR.squelette_glb(doc)
+    res = MR.recibler(src, cible, aligner=aligner)
+    k = len(res["temps"]) - 1
+    rots = [res["rot"][i][k] if i in res["rot"] else None for i in range(len(cible))]
+    trans = [res["trans"][i][k] if i in res["trans"] else None for i in range(len(cible))]
+    _R, P, _S = MR.monde(cible, rots, trans)
+    i = {o["nom"]: n for n, o in enumerate(cible)}
+    bras = [P[i["lowerarm_l"]][c] - P[i["upperarm_l"]][c] for c in range(3)]
+    avant = [P[i["hand_l"]][c] - P[i["lowerarm_l"]][c] for c in range(3)]
+    return SQ.angle(bras, avant), res, cible
+
+
+def test_hymotion_reciblage_repos_puis_coude_a_90_degres():
+    # identité : sans alignement, chaque os relié garde EXACTEMENT sa rotation de repos
+    _a, res, cible = _angle_coude_cible(_motion("rot6d"), aligner=False)
+    assert res["rapport"]["relies"] >= 18, res["rapport"]
+    for i, serie in res["rot"].items():
+        for q in serie:
+            assert _ecart_q(q, cible[i]["r"]) < 1e-9, (cible[i]["nom"], q)
+    # l'angle du coude de la SOURCE (SMPL n'a pas le bras parfaitement droit : ≈ 7,6° au repos)
+    bras_s = SA.SMPL_OS[18][2]                       # L_Shoulder → L_Elbow
+    avant_s = SA.SMPL_OS[20][2]                      # L_Elbow → L_Wrist
+    attendu0 = SQ.angle(bras_s, avant_s)
+    plie = tuple(sum(_ry(-90.0)[r][c] * avant_s[c] for c in range(3)) for r in range(3))
+    attendu90 = SQ.angle(bras_s, plie)
+    assert 5 < attendu0 < 10 and 85 < attendu90 < 100, (attendu0, attendu90)
+    # identité avec alignement : la pose de la source (en T) est rendue sur la cible (en A)
+    a0, _r, _c = _angle_coude_cible(_motion("rot6d"))
+    assert abs(a0 - attendu0) < 1.0, (a0, attendu0)
+    # un coude gauche plié de 90° (autour de Y) arrive plié de même sur le rig cible, dans les trois représentations
+    for rep in ("rot6d", "axe", "quat"):
+        a, res, _c = _angle_coude_cible(_motion(rep, coude=-90.0))
+        assert abs(a - attendu90) < 1.0, (rep, a, attendu90)
+        assert res["rapport"]["correspondance"]["lowerarm_l"] == "LeftForeArm"
+
+
+def _fal_stub(appels, rendre):
+    async def subscribe_async(endpoint, arguments=None, with_logs=False, **kw):
+        appels.append((endpoint, dict(arguments or {})))
+        return rendre
+    mod = types.ModuleType("fal_client")
+    mod.subscribe_async = subscribe_async
+    return mod
+
+
+def test_hy_motion_refuse_dans_l_ordre_puis_recible_le_dict():
+    from app.services import plafonds as P
+    corps = {"job": "perso", "version": 1, "modele": "hy-motion", "prompt": "lève le bras et plie le coude",
+             "duree": 2.5, "nom": "coude_hy"}
+    FAL = []
+    TELE = []
+    motion = json.dumps(_motion("rot6d", coude=-90.0)).encode("utf-8")
+    vieux_fal = sys.modules.get("fal_client")
+    vieux_tele = SA._telecharger
+    sys.modules["fal_client"] = _fal_stub(FAL, {"motion_json": {"url": "https://v3.fal.media/files/m/coude.json",
+                                                                "content_type": "application/json"}, "seed": 42})
+
+    async def tele(url):
+        TELE.append(url)
+        return motion
+    SA._telecharger = tele
+
+    async def main():
+        o = {}
+        async with _client() as c:
+            settings.FAL_KEY = ""
+            post = lambda **kw: c.post("/api/studio3d/animer/texte", json={**corps, "confirme_cout": True, **kw})
+            o["modele"] = (await post(modele="kimodo", licence_acceptee=True)).status_code
+            # la licence d'abord : même sans clé fal, même avec une saisie fausse
+            o["sans_licence"] = (await post(prompt="", duree=99)).json()
+            o["licence_texte"] = (await post(licence_acceptee="oui")).status_code
+            o["sans_cle"] = (await post(licence_acceptee=True, prompt="")).status_code
+            settings.FAL_KEY = "cle-fal-de-banc"
+            o["vide"] = (await post(licence_acceptee=True, prompt=" ")).status_code
+            o["duree"] = (await post(licence_acceptee=True, duree=12.5)).status_code
+            o["duree_court"] = (await post(licence_acceptee=True, duree=0.4)).status_code
+            o["guidance"] = (await post(licence_acceptee=True, guidance=11)).status_code
+            o["graine"] = (await post(licence_acceptee=True, seed=-1)).status_code
+            o["caisse"] = (await post(licence_acceptee=True, job="caisse")).json()
+            o["chemin"] = (await post(licence_acceptee=True, job="../perso")).status_code
+            r = await c.post("/api/studio3d/animer/texte", json={**corps, "licence_acceptee": True})
+            o["sans_confirme"] = (r.status_code, r.json())
+            r = await c.post("/api/studio3d/animer/texte", json={**corps, "modele": "hy-motion-fast",
+                                                                 "licence_acceptee": True})
+            o["fast_devis"] = r.json()["detail"]["devis"]["total_usd"]
+            P.enregistrer({"global_usd": 0, "par_moteur": {"fal": 0.001}, "alerte_pct": 80})
+            o["plafond"] = (await post(licence_acceptee=True)).status_code
+            o["fal_avant"] = len(FAL) + len(TELE)
+            r = await c.post("/api/studio3d/animer/texte", json={**corps, "licence_acceptee": True,
+                                                                 "confirme_cout": True, "seed": 9},
+                             headers={"X-DZ-Plafond": "confirme"})
+            o["ok"] = (r.status_code, r.json())
+            o["fin"] = await _attendre(c, "perso", r.json()["tache"])
+            o["sources"] = (await c.get("/api/etabli/mouvement",
+                                        params={"job": "perso", "version": o["fin"].get("version") or 1})).json()
+        return o
+    try:
+        o = asyncio.run(main())
+    finally:
+        settings.FAL_KEY = ""
+        SA._telecharger = vieux_tele
+        if vieux_fal is None:
+            sys.modules.pop("fal_client", None)
+        else:
+            sys.modules["fal_client"] = vieux_fal
+        P.enregistrer({"global_usd": 0, "par_moteur": {}, "alerte_pct": 80})
+    assert o["modele"] == 400
+    assert "Licence HY-Motion" in o["sans_licence"]["detail"] and "Union européenne" in o["sans_licence"]["detail"]
+    assert o["licence_texte"] == 400 and o["sans_cle"] == 503
+    for k in ("vide", "duree", "duree_court", "guidance", "graine", "chemin"):
+        assert o[k] == 400, (k, o[k])
+    assert "squelette" in o["caisse"]["detail"]
+    st, j = o["sans_confirme"]
+    assert st == 409 and j["detail"]["devis"]["total_usd"] == 0.08, j
+    assert j["detail"]["devis"]["breakdown"][0]["provider"] == "fal"
+    assert o["fast_devis"] == 0.06
+    # RIEN n'est parti vers fal tant que la licence, la saisie, le coût ou le plafond refusent
+    assert o["plafond"] == 402 and o["fal_avant"] == 0, (o["plafond"], o["fal_avant"])
+    st, j = o["ok"]
+    assert st == 200 and j["modele"] == "hy-motion" and j["nom"] == "coude_hy", j
+    e = o["fin"]
+    assert e["etat"] == "fini", e
+    assert e["clip"] == "coude_hy" and e["version"] >= 2 and e["rapport"]["relies"] >= 18, e
+    # l'appel fal : l'endpoint et les paramètres du relevé, au format dict
+    assert FAL == [("fal-ai/hunyuan-motion", {"prompt": corps["prompt"], "duration": 2.5, "guidance_scale": 5.0,
+                                              "output_format": "dict", "seed": 9})], FAL
+    assert TELE == ["https://v3.fal.media/files/m/coude.json"]
+    d = J / "perso"
+    fiche = json.loads((d / "mouvements" / "coude_hy.bvh.json").read_text("utf-8"))
+    assert fiche["origine"] == "hy-motion" and fiche["modele"] == "hy-motion" and fiche["seed"] == 42
+    assert fiche["licence"].startswith("Tencent HY-MOTION") and fiche["images"] == N_HY
+    assert any(s_["nom"] == "coude_hy.bvh" and s_["origine"] == "hy-motion" for s_ in o["sources"]["sources"])
+    doc, _ = mesh_edit.lire_glb((d / f"model.v{e['version']}.glb").read_bytes())
+    assert "coude_hy" in [a["name"] for a in doc["animations"]]
+
+
+def test_la_licence_hy_motion_se_range_dans_le_dossier_de_donnees():
+    async def main():
+        async with _client() as c:
+            a = (await c.get("/api/studio3d/animer/licence")).json()
+            b = (await c.post("/api/studio3d/animer/licence", json={"acceptee": True})).json()
+            bidon = (await c.post("/api/studio3d/animer/licence", json={"acceptee": "oui"})).status_code
+            etat = (await c.get("/api/studio3d/animer/etat")).json()
+            disque = json.loads((pathlib.Path(_tmp) / "studio3d" / "animer.json").read_text("utf-8"))
+            fav = (await c.post("/api/studio3d/animer/favoris", json={"id": 92})).json()
+            garde = json.loads((pathlib.Path(_tmp) / "studio3d" / "animer.json").read_text("utf-8"))
+            d = (await c.post("/api/studio3d/animer/licence", json={"acceptee": False})).json()
+        return a, b, bidon, etat, disque, fav, garde, d
+    a, b, bidon, etat, disque, fav, garde, d = asyncio.run(main())
+    assert a["licence"]["acceptee"] is False and b["licence"]["acceptee"] is True and b["licence"]["le"]
+    assert bidon == 400
+    assert etat["texte"]["hy"]["licence"]["acceptee"] is True and etat["fal"] is False
+    assert disque["licences"]["hy-motion"]["acceptee"] is True
+    assert garde["licences"]["hy-motion"]["acceptee"] is True and 92 in fav["favoris"]   # un favori ne l'efface pas
+    assert d["licence"]["acceptee"] is False and SA.licence_hy()["acceptee"] is False
+    SA.marquer_favori(92, False)
 
 
 # ── 4. appliquer une animation du catalogue ─────────────────────────────────

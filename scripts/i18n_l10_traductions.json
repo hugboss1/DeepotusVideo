@@ -13890,5 +13890,109 @@
  "poses : une liste de 1 à 32 poses est attendue": {
   "fr": "poses : une liste de 1 à 32 poses est attendue",
   "en": "poses: a list of 1 to 32 poses is expected"
+ },
+ "acceptee : true ou false attendu": {
+  "fr": "acceptee : true ou false attendu",
+  "en": "acceptee: true or false expected"
+ },
+ "Licence HY-Motion non acceptée : lis la « Tencent HY-MOTION 1.0 Community License » (elle exclut l'Union européenne, le Royaume-Uni et la Corée du Sud) et coche la case pour ton usage.": {
+  "fr": "Licence HY-Motion non acceptée : lis la « Tencent HY-MOTION 1.0 Community License » (elle exclut l'Union européenne, le Royaume-Uni et la Corée du Sud) et coche la case pour ton usage.",
+  "en": "HY-Motion licence not accepted: read the \"Tencent HY-MOTION 1.0 Community License\" (it excludes the European Union, the United Kingdom and South Korea) and tick the box for your use."
+ },
+ "Clé fal absente — Réglages › Clés : HY-Motion passe par ton compte fal.": {
+  "fr": "Clé fal absente — Réglages › Clés : HY-Motion passe par ton compte fal.",
+  "en": "fal key missing — Settings › Keys: HY-Motion goes through your fal account."
+ },
+ "HY-Motion : aucune rotation reconnue (clés lues : {cles}) — attendu « rot6d » (L, 22, 6), « poses » axe-angle (L, 22, 3) ou « quat » (L, 22, 4)": {
+  "fr": "HY-Motion : aucune rotation reconnue (clés lues : {cles}) — attendu « rot6d » (L, 22, 6), « poses » axe-angle (L, 22, 3) ou « quat » (L, 22, 4)",
+  "en": "HY-Motion: no rotation recognised (keys read: {cles}) — expected \"rot6d\" (L, 22, 6), \"poses\" axis-angle (L, 22, 3) or \"quat\" (L, 22, 4)"
+ },
+ "fal : HY-Motion n'a rendu aucun mouvement (motion_json absent)": {
+  "fr": "fal : HY-Motion n'a rendu aucun mouvement (motion_json absent)",
+  "en": "fal: HY-Motion returned no motion (motion_json missing)"
+ },
+ "modèle : « meshy », « hy-motion » ou « hy-motion-fast »": {
+  "fr": "modèle : « meshy », « hy-motion » ou « hy-motion-fast »",
+  "en": "model: \"meshy\", \"hy-motion\" or \"hy-motion-fast\""
+ },
+ "modèle : « hy-motion » ou « hy-motion-fast » attendu": {
+  "fr": "modèle : « hy-motion » ou « hy-motion-fast » attendu",
+  "en": "model: \"hy-motion\" or \"hy-motion-fast\" expected"
+ },
+ "durée : un nombre de secondes, de {HY_DUREE_MIN} à {HY_DUREE_MAX}": {
+  "fr": "durée : un nombre de secondes, de {HY_DUREE_MIN} à {HY_DUREE_MAX}",
+  "en": "duration: a number of seconds, from {HY_DUREE_MIN} to {HY_DUREE_MAX}"
+ },
+ "durée HY-Motion : de {HY_DUREE_MIN} à {HY_DUREE_MAX} s": {
+  "fr": "durée HY-Motion : de {HY_DUREE_MIN} à {HY_DUREE_MAX} s",
+  "en": "HY-Motion duration: from {HY_DUREE_MIN} to {HY_DUREE_MAX} s"
+ },
+ "guidance : de {HY_GUIDANCE_MIN} à {HY_GUIDANCE_MAX}": {
+  "fr": "guidance : de {HY_GUIDANCE_MIN} à {HY_GUIDANCE_MAX}",
+  "en": "guidance: from {HY_GUIDANCE_MIN} to {HY_GUIDANCE_MAX}"
+ },
+ "graine : un entier de 0 à 2147483647": {
+  "fr": "graine : un entier de 0 à 2147483647",
+  "en": "seed: an integer from 0 to 2147483647"
+ },
+ "rot6d dégénéré (première colonne nulle)": {
+  "fr": "rot6d dégénéré (première colonne nulle)",
+  "en": "degenerate rot6d (first column is zero)"
+ },
+ "rot6d dégénéré (colonnes parallèles)": {
+  "fr": "rot6d dégénéré (colonnes parallèles)",
+  "en": "degenerate rot6d (parallel columns)"
+ },
+ "quaternion nul": {
+  "fr": "quaternion nul",
+  "en": "zero quaternion"
+ },
+ "HY-Motion : un objet JSON est attendu (rot6d, transl…)": {
+  "fr": "HY-Motion : un objet JSON est attendu (rot6d, transl…)",
+  "en": "HY-Motion: a JSON object is expected (rot6d, transl…)"
+ },
+ "HY-Motion : {n} images ({MAX_IMAGES} au plus)": {
+  "fr": "HY-Motion : {n} images ({MAX_IMAGES} au plus)",
+  "en": "HY-Motion: {n} frames ({MAX_IMAGES} at most)"
+ },
+ "HY-Motion : cadence hors bornes (1 à 240 i/s)": {
+  "fr": "HY-Motion : cadence hors bornes (1 à 240 i/s)",
+  "en": "HY-Motion: frame rate out of bounds (1 to 240 fps)"
+ },
+ "HY-Motion : « {cle} » vide ou illisible": {
+  "fr": "HY-Motion : « {cle} » vide ou illisible",
+  "en": "HY-Motion: \"{cle}\" empty or unreadable"
+ },
+ "HY-Motion : « {cle} » de forme {v} — attendu (L, 22, {k})": {
+  "fr": "HY-Motion : « {cle} » de forme {v} — attendu (L, 22, {k})",
+  "en": "HY-Motion: \"{cle}\" has shape {v} — expected (L, 22, {k})"
+ },
+ "HY-Motion : « {cle} » image {f} : valeur non finie": {
+  "fr": "HY-Motion : « {cle} » image {f} : valeur non finie",
+  "en": "HY-Motion: \"{cle}\" frame {f}: non-finite value"
+ },
+ "HY-Motion : le mouvement rendu n'est pas du JSON": {
+  "fr": "HY-Motion : le mouvement rendu n'est pas du JSON",
+  "en": "HY-Motion: the returned motion is not JSON"
+ },
+ "HY-Motion : « {cle} » de forme {v} — attendu ({n}, 3)": {
+  "fr": "HY-Motion : « {cle} » de forme {v} — attendu ({n}, 3)",
+  "en": "HY-Motion: \"{cle}\" has shape {v} — expected ({n}, 3)"
+ },
+ "HY-Motion : « {cle} » : valeur non finie": {
+  "fr": "HY-Motion : « {cle} » : valeur non finie",
+  "en": "HY-Motion: \"{cle}\": non-finite value"
+ },
+ "HY-Motion : « {cle} » image {f} : nombres attendus": {
+  "fr": "HY-Motion : « {cle} » image {f} : nombres attendus",
+  "en": "HY-Motion: \"{cle}\" frame {f}: numbers expected"
+ },
+ "HY-Motion : « {cle} » image {f} : {e}": {
+  "fr": "HY-Motion : « {cle} » image {f} : {e}",
+  "en": "HY-Motion: \"{cle}\" frame {f}: {e}"
+ },
+ "HY-Motion : « {cle} » : nombres attendus": {
+  "fr": "HY-Motion : « {cle} » : nombres attendus",
+  "en": "HY-Motion: \"{cle}\": numbers expected"
  }
 }
