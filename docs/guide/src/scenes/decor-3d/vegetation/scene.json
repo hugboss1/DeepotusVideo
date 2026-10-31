@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Végétation : un arbre en quelques réglages",
+    "en": "Vegetation: a tree in a few settings"
+  },
+  "legende": {
+    "fr": "Choisissez une espèce, réglez la taille, le feuillage, la saison et le vent, puis exportez ou rangez l'arbre.",
+    "en": "Pick a species, set size, foliage, season and wind, then export or store the tree."
+  },
+  "captures": [
+    {
+      "fr": "vegetation.fr.webp",
+      "en": "vegetation.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        169,
+        131,
+        41
+      ],
+      "bulle": {
+        "fr": "1. L'espèce, à sa hauteur réelle",
+        "en": "1. The species, at its real height"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        76,
+        840,
+        109,
+        39
+      ],
+      "bulle": {
+        "fr": "2. Saison, feuillage, vent",
+        "en": "2. Season, foliage, wind"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1149,
+        573,
+        283,
+        50
+      ],
+      "bulle": {
+        "fr": "3. Ranger ou télécharger",
+        "en": "3. Store or download"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        169,
+        131,
+        41
+      ],
+      "bulle": {
+        "fr": "1. L'espèce, à sa hauteur réelle",
+        "en": "1. The species, at its real height"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        93,
+        840,
+        93,
+        39
+      ],
+      "bulle": {
+        "fr": "2. Saison, feuillage, vent",
+        "en": "2. Season, foliage, wind"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        1149,
+        573,
+        283,
+        50
+      ],
+      "bulle": {
+        "fr": "3. Ranger ou télécharger",
+        "en": "3. Store or download"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

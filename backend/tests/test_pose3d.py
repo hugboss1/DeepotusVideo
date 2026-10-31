@@ -96,7 +96,10 @@ print("C. état du choix")
 check("C modes relevés moteur par moteur",
       {e: P.mode_moteur(e) for e in A3.ENGINES} == {"tripo": "vues", "tripo-h3.1": "vues", "rodin": "moteur",
                                                      "hunyuan": None, "trellis": None, "triposr": None,
-                                                     "hunyuan-local": None}, str({e: P.mode_moteur(e) for e in A3.ENGINES}))
+                                                     "hunyuan-local": None,
+                                                     # t390 : pose native pour Rodin 2.5 et Meshy 7.1, rien ailleurs
+                                                     "tripo-p2": None, "tripo-p1": None, "hunyuan-3.1": None,
+                                                     "trellis-2": None, "rodin-2.5": "moteur", "meshy-7.1": "moteur"}, str({e: P.mode_moteur(e) for e in A3.ENGINES}))
 check("C meshy (3D Studio) : paramètre natif pose_mode", P.mode_moteur("meshy") == "moteur")
 e = P.etat("rodin", False, "a knight")
 check("C rodin + personnage : actif, sans avertissement", e["actif"] and e["raison"] == "" and e["avertissement"] == "")

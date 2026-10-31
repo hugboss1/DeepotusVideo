@@ -26,6 +26,8 @@ ECRAN_DE_ZONE = {
     "chemins": "settings",               # t378 (30/10/2026) : les emplacements de Réglages › Chemins (dz-chemins.js)
     "fils": "news",                      # t381 (30/10/2026) : les fils suivis de News › Sources (dz-fils.js)
     "apparence": "settings",             # t382 (30/10/2026) : la palette de Réglages › Apparence (dz-apparence.js)
+    "creer3d": "assets3d",               # t389/t404 (31/10/2026) : l'onglet 3D = « Créer » de Game Assets (dz-creer3d.js)
+    "studio3decrans": "assets3d",        # t388-t403/t404 : les écrans du 3D Studio (frontend/studio3d/ecrans/)
 }
 # préfixe « zone.objet » rattaché à un autre écran que sa zone (consulté AVANT ECRAN_DE_ZONE)
 ECRAN_DE_PREFIXE = {"avatar.noeud": "studio",           # titres des nœuds avatar du graphe du Studio
@@ -33,7 +35,7 @@ ECRAN_DE_PREFIXE = {"avatar.noeud": "studio",           # titres des nœuds avat
 # zone → lab affiché dans un cadre intégré (les iframes que monte la SPA)
 CADRE_DE_ZONE = {"vectorlab": "/vectorlab/", "photolab": "/photolab/", "sprites": "/spritelab/",
                  "tuiles": "/tilelab/", "cartes": "/cardforge/", "matiere": "/materialforge/",
-                 "studio3d": "/studio3d/"}
+                 "studio3d": "/studio3d/", "studio3decrans": "/studio3d/"}
 # rôle d'une clé qui désigne un MESSAGE (état, erreur), pas un élément : le dernier segment, ou son dernier morceau
 # après « _ » (montage.projets.montage_vide). « titre » et « aide » n'y sont PAS : ce sont souvent de vraies infobulles.
 ROLES_MESSAGES = {"echec", "erreur", "err", "vide", "aucun", "aucune", "chargement", "en_cours", "illisible",

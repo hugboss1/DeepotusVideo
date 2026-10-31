@@ -1,0 +1,512 @@
+{
+ "_note": "t404 (31/10/2026) : éléments retenus des écrans bâtis en gabarits HTML (onglet 3D « Créer », écrans du 3D Studio) ; lu par scripts/agent/catalogue_gabarits.py, tenu par le skill connaissance-agent",
+ "groupes": [
+  {
+   "fichiers": [
+    "frontend/shared/dz-creer3d.js"
+   ],
+   "cles": {
+    "creer3d.ancien.montrer": "bouton",
+    "creer3d.galerie.avant_apres": "champ",
+    "creer3d.modeles.reglages": "bouton",
+    "creer3d.modeles.titre": "panneau",
+    "creer3d.ouvrir.animer": "bouton",
+    "creer3d.ouvrir.decor": "bouton",
+    "creer3d.ouvrir.preparer": "bouton",
+    "creer3d.ouvrir.rig": "bouton",
+    "creer3d.ouvrir.texture": "bouton",
+    "creer3d.pose.titre": "champ",
+    "creer3d.saisie.estime": "panneau",
+    "creer3d.saisie.generer": "bouton",
+    "creer3d.saisie.images": "champ",
+    "creer3d.saisie.mode": "champ",
+    "creer3d.saisie.prompt": "champ",
+    "creer3d.saisie.quantite": "champ"
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/affiner.js",
+    "frontend/studio3d/ecrans/poids_calc.js"
+   ],
+   "cles": {
+    "studio3decrans.aff.adoucir_tout": "bouton",
+    "studio3decrans.aff.aller_rig": "bouton",
+    "studio3decrans.aff.annuler": [
+     "bouton",
+     "studio3decrans.aff.annuler_aide"
+    ],
+    "studio3decrans.aff.attenuation": "champ",
+    "studio3decrans.aff.contenir_tout": "bouton",
+    "studio3decrans.aff.enregistrer": "bouton",
+    "studio3decrans.aff.force": "champ",
+    "studio3decrans.aff.guerir_batterie": "bouton",
+    "studio3decrans.aff.jouer": "bouton",
+    "studio3decrans.aff.liaison": [
+     "bouton",
+     "studio3decrans.aff.liaison_aide"
+    ],
+    "studio3decrans.aff.libres": [
+     "bouton",
+     "studio3decrans.aff.libres_aide"
+    ],
+    "studio3decrans.aff.miroir": [
+     "champ",
+     "studio3decrans.aff.miroir_aide"
+    ],
+    "studio3decrans.aff.op_epaules": "bouton",
+    "studio3decrans.aff.operations": "champ",
+    "studio3decrans.aff.os_titre": "panneau",
+    "studio3decrans.aff.outil_lasso": [
+     "outil",
+     "studio3decrans.aff.outil_lasso_aide"
+    ],
+    "studio3decrans.aff.outil_os": [
+     "outil",
+     "studio3decrans.aff.outil_os_aide"
+    ],
+    "studio3decrans.aff.outil_peindre": [
+     "outil",
+     "studio3decrans.aff.outil_peindre_aide"
+    ],
+    "studio3decrans.aff.outil_pose": [
+     "outil",
+     "studio3decrans.aff.outil_pose_aide"
+    ],
+    "studio3decrans.aff.panneau_isoler": "bouton",
+    "studio3decrans.aff.pose_titre": [
+     "panneau",
+     "studio3decrans.aff.pose_aide"
+    ],
+    "studio3decrans.aff.poses_essai": "bouton",
+    "studio3decrans.aff.raccourcis": "panneau",
+    "studio3decrans.aff.retablir": [
+     "bouton",
+     "studio3decrans.aff.retablir_aide"
+    ],
+    "studio3decrans.aff.retirer_ilots": "bouton",
+    "studio3decrans.aff.scan_tout": "bouton",
+    "studio3decrans.aff.taille": "champ",
+    "studio3decrans.aff.tout": [
+     "bouton",
+     "studio3decrans.aff.tout_aide"
+    ],
+    "studio3decrans.aff.vue_poids": [
+     "champ",
+     "studio3decrans.aff.vue_poids_aide"
+    ]
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/animer.js",
+    "frontend/studio3d/ecrans/animer_calc.js"
+   ],
+   "cles": {
+    "studio3decrans.anim.aller_rig": "bouton",
+    "studio3decrans.anim.appliquer": "bouton",
+    "studio3decrans.anim.appliquer_court": [
+     "bouton",
+     "studio3decrans.anim.a_appliquer"
+    ],
+    "studio3decrans.anim.boucle": "champ",
+    "studio3decrans.anim.choisie": "panneau",
+    "studio3decrans.anim.collection_ajouter": "champ",
+    "studio3decrans.anim.collection_nouvelle_court": [
+     "bouton",
+     "studio3decrans.anim.collection_nouvelle"
+    ],
+    "studio3decrans.anim.collection_supprimer": "bouton",
+    "studio3decrans.anim.collections": "panneau",
+    "studio3decrans.anim.conduite": [
+     "bouton",
+     "studio3decrans.anim.conduite_aide"
+    ],
+    "studio3decrans.anim.duree": "champ",
+    "studio3decrans.anim.favori_ajouter": "bouton",
+    "studio3decrans.anim.generer": "bouton",
+    "studio3decrans.anim.importer_fichier": "bouton",
+    "studio3decrans.anim.intensite": "champ",
+    "studio3decrans.anim.jouer": "bouton",
+    "studio3decrans.anim.modeles": "champ",
+    "studio3decrans.anim.onglet_favoris": "onglet",
+    "studio3decrans.anim.onglet_generer": "onglet",
+    "studio3decrans.anim.onglet_generes": "onglet",
+    "studio3decrans.anim.onglet_importer": "onglet",
+    "studio3decrans.anim.onglet_tous": "onglet",
+    "studio3decrans.anim.prompt": "champ",
+    "studio3decrans.anim.recherche": "champ",
+    "studio3decrans.anim.repos": [
+     "bouton",
+     "studio3decrans.anim.repos_aide"
+    ],
+    "studio3decrans.anim.rt_aligner": [
+     "champ",
+     "studio3decrans.anim.rt_aligner_aide"
+    ],
+    "studio3decrans.anim.rt_appliquer": "bouton",
+    "studio3decrans.anim.rt_boucle": "champ",
+    "studio3decrans.anim.rt_sur_place": "champ",
+    "studio3decrans.anim.source": "champ",
+    "studio3decrans.anim.temps": "champ",
+    "studio3decrans.anim.toutes": "champ",
+    "studio3decrans.anim.video_etabli": "bouton",
+    "studio3decrans.anim.vitesse": "champ",
+    "studio3decrans.anim.vue_p": [
+     "outil",
+     "studio3decrans.anim.vue_p_aide"
+    ]
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/coque.js",
+    "frontend/studio3d/ecrans/coque_calc.js"
+   ],
+   "cles": {
+    "studio3decrans.bandeau.envoyer": "bouton",
+    "studio3decrans.bandeau.fermer": "bouton",
+    "studio3decrans.bandeau.ouvert": "panneau",
+    "studio3decrans.graphe.liens": "panneau",
+    "studio3decrans.onglet.affiner": [
+     "onglet",
+     "studio3decrans.aide.affiner"
+    ],
+    "studio3decrans.onglet.animer": [
+     "onglet",
+     "studio3decrans.aide.animer"
+    ],
+    "studio3decrans.onglet.decor": [
+     "onglet",
+     "studio3decrans.aide.decor"
+    ],
+    "studio3decrans.onglet.etabli": [
+     "onglet",
+     "studio3decrans.aide.etabli"
+    ],
+    "studio3decrans.onglet.exporter": [
+     "onglet",
+     "studio3decrans.aide.exporter"
+    ],
+    "studio3decrans.onglet.graphe": [
+     "onglet",
+     "studio3decrans.aide.graphe"
+    ],
+    "studio3decrans.onglet.importer": [
+     "onglet",
+     "studio3decrans.aide.importer"
+    ],
+    "studio3decrans.onglet.ouvrir": [
+     "onglet",
+     "studio3decrans.aide.ouvrir"
+    ],
+    "studio3decrans.onglet.preparer": [
+     "onglet",
+     "studio3decrans.aide.preparer"
+    ],
+    "studio3decrans.onglet.rig": [
+     "onglet",
+     "studio3decrans.aide.rig"
+    ],
+    "studio3decrans.onglet.texture": [
+     "onglet",
+     "studio3decrans.aide.texture"
+    ]
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/decor.js",
+    "frontend/studio3d/ecrans/decor_calc.js"
+   ],
+   "cles": {
+    "studio3decrans.decor.acc_budget": "bouton",
+    "studio3decrans.decor.acc_exporter": "bouton",
+    "studio3decrans.decor.acc_hauteur": "champ",
+    "studio3decrans.decor.acc_ouvrir": "bouton",
+    "studio3decrans.decor.acc_poser": [
+     "bouton",
+     "studio3decrans.decor.acc_poser_aide"
+    ],
+    "studio3decrans.decor.acc_role": [
+     "champ",
+     "studio3decrans.decor.acc_role_aide"
+    ],
+    "studio3decrans.decor.accessoire": [
+     "onglet",
+     "studio3decrans.decor.accessoire_aide"
+    ],
+    "studio3decrans.decor.densite": "champ",
+    "studio3decrans.decor.echelle": "champ",
+    "studio3decrans.decor.ecorce": "champ",
+    "studio3decrans.decor.especes": [
+     "champ",
+     "studio3decrans.decor.approche"
+    ],
+    "studio3decrans.decor.feuillage": "champ",
+    "studio3decrans.decor.feuilles": "champ",
+    "studio3decrans.decor.fiche": "panneau",
+    "studio3decrans.decor.forme": "champ",
+    "studio3decrans.decor.frisson": "champ",
+    "studio3decrans.decor.glb": "bouton",
+    "studio3decrans.decor.graine": [
+     "champ",
+     "studio3decrans.decor.graine_aide"
+    ],
+    "studio3decrans.decor.importer": [
+     "champ",
+     "studio3decrans.decor.importer_aide"
+    ],
+    "studio3decrans.decor.niveaux": "champ",
+    "studio3decrans.decor.onglet_arbres": "onglet",
+    "studio3decrans.decor.onglet_sol": "onglet",
+    "studio3decrans.decor.ranger": [
+     "bouton",
+     "studio3decrans.decor.ranger_aide"
+    ],
+    "studio3decrans.decor.recette": "bouton",
+    "studio3decrans.decor.runtime": "bouton",
+    "studio3decrans.decor.saison": "champ",
+    "studio3decrans.decor.taille": "champ",
+    "studio3decrans.decor.teinteecorce": [
+     "champ",
+     "studio3decrans.decor.teinte_aide"
+    ],
+    "studio3decrans.decor.teintefeuille": [
+     "champ",
+     "studio3decrans.decor.teinte_aide"
+    ],
+    "studio3decrans.decor.variante": "bouton",
+    "studio3decrans.decor.vegetation": "onglet",
+    "studio3decrans.decor.vent": "champ",
+    "studio3decrans.decor.ventdirection": "champ",
+    "studio3decrans.decor.ventforce": "champ",
+    "studio3decrans.decor.ventvitesse": "champ"
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/etabli.js"
+   ],
+   "cles": {
+    "studio3decrans.etabli.relire": "bouton"
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/exporter.js",
+    "frontend/studio3d/ecrans/exporter_calc.js",
+    "frontend/studio3d/ecrans/preparer.js"
+   ],
+   "cles": {
+    "studio3decrans.exp.blender": [
+     "bouton",
+     "studio3decrans.exp.aide_blender"
+    ],
+    "studio3decrans.exp.clips": "panneau",
+    "studio3decrans.exp.deja": "panneau",
+    "studio3decrans.exp.fbx": [
+     "bouton",
+     "studio3decrans.exp.aide_fbx"
+    ],
+    "studio3decrans.exp.glb_animation": [
+     "bouton",
+     "studio3decrans.exp.aide_glb_animation"
+    ],
+    "studio3decrans.exp.glb_maillage": [
+     "bouton",
+     "studio3decrans.exp.aide_glb_maillage"
+    ],
+    "studio3decrans.exp.glb_pose": [
+     "bouton",
+     "studio3decrans.exp.aide_glb_pose"
+    ],
+    "studio3decrans.exp.godot": [
+     "bouton",
+     "studio3decrans.exp.aide_godot"
+    ],
+    "studio3decrans.exp.impression": [
+     "bouton",
+     "studio3decrans.exp.aide_impression"
+    ],
+    "studio3decrans.exp.jouer": "bouton",
+    "studio3decrans.exp.lod": [
+     "bouton",
+     "studio3decrans.exp.aide_lod"
+    ],
+    "studio3decrans.exp.nom_fichier": "champ",
+    "studio3decrans.exp.nommage": "champ",
+    "studio3decrans.exp.pose": [
+     "champ",
+     "studio3decrans.exp.pose_aide"
+    ],
+    "studio3decrans.exp.prets": "panneau",
+    "studio3decrans.exp.ranger": [
+     "bouton",
+     "studio3decrans.exp.aide_ranger"
+    ],
+    "studio3decrans.exp.section_formats": [
+     "panneau",
+     "studio3decrans.exp.aide_formats"
+    ],
+    "studio3decrans.exp.textures": [
+     "bouton",
+     "studio3decrans.exp.aide_textures"
+    ],
+    "studio3decrans.exp.threejs": [
+     "bouton",
+     "studio3decrans.exp.aide_threejs"
+    ],
+    "studio3decrans.exp.unity": [
+     "bouton",
+     "studio3decrans.exp.aide_unity"
+    ],
+    "studio3decrans.exp.unreal": [
+     "bouton",
+     "studio3decrans.exp.aide_unreal"
+    ],
+    "studio3decrans.exp.usage": "champ",
+    "studio3decrans.exp.version": "panneau",
+    "studio3decrans.rendu.texture": "champ"
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/importer.js"
+   ],
+   "cles": {
+    "studio3decrans.importer.deposer": "champ"
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/coque_calc.js",
+    "frontend/studio3d/ecrans/ouvrir.js"
+   ],
+   "cles": {
+    "studio3decrans.filtre.personnages": "bouton",
+    "studio3decrans.ouvrir.ouvrir": "bouton",
+    "studio3decrans.ouvrir.recherche": "champ"
+   }
+  },
+  {
+   "fichiers": [
+    "backend/app/services/mesh_optimize.py",
+    "frontend/studio3d/ecrans/preparer.js"
+   ],
+   "cles": {
+    "studio3decrans.preparer.cible": "champ",
+    "studio3decrans.preparer.approuver": "bouton",
+    "studio3decrans.preparer.etabli": "bouton",
+    "studio3decrans.preparer.fiche": "panneau",
+    "studio3decrans.preparer.reoptimiser": "bouton",
+    "studio3decrans.preparer.revenir": "bouton",
+    "studio3decrans.preparer.telecharger": "panneau",
+    "studio3decrans.preparer.versions": "panneau",
+    "studio3decrans.preparer.vue_les_deux": "champ",
+    "studio3decrans.preset.game": "champ"
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/projection.js",
+    "frontend/studio3d/ecrans/texture.js"
+   ],
+   "cles": {
+    "studio3decrans.tex.pj_affichage": "champ",
+    "studio3decrans.tex.pj_annuler": "bouton",
+    "studio3decrans.tex.pj_atlas": "panneau",
+    "studio3decrans.tex.pj_cacher": "champ",
+    "studio3decrans.tex.pj_debruiter": [
+     "bouton",
+     "studio3decrans.tex.pj_debruiter_aide"
+    ],
+    "studio3decrans.tex.pj_disposition": "champ",
+    "studio3decrans.tex.pj_enregistrer": "bouton",
+    "studio3decrans.tex.pj_fil": "champ",
+    "studio3decrans.tex.pj_lancer": "bouton",
+    "studio3decrans.tex.pj_ombre": "champ",
+    "studio3decrans.tex.pj_outil_combler": [
+     "outil",
+     "studio3decrans.tex.pj_outila_combler"
+    ],
+    "studio3decrans.tex.pj_outil_estomper": [
+     "outil",
+     "studio3decrans.tex.pj_outila_estomper"
+    ],
+    "studio3decrans.tex.pj_outil_gomme": [
+     "outil",
+     "studio3decrans.tex.pj_outila_gomme"
+    ],
+    "studio3decrans.tex.pj_retablir": "bouton",
+    "studio3decrans.tex.pj_soigner": [
+     "bouton",
+     "studio3decrans.tex.pj_soigner_aide"
+    ],
+    "studio3decrans.tex.pj_tout_combler": [
+     "bouton",
+     "studio3decrans.tex.pj_tout_combler_aide"
+    ],
+    "studio3decrans.tex.prompt": "champ",
+    "studio3decrans.tex.volet_proj": [
+     "onglet",
+     "studio3decrans.tex.voleta_proj"
+    ],
+    "studio3decrans.tex.volet_ref": [
+     "onglet",
+     "studio3decrans.tex.voleta_ref"
+    ]
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/rig.js"
+   ],
+   "cles": {
+    "studio3decrans.rigx.ajuster": "bouton",
+    "studio3decrans.rigx.axe": [
+     "champ",
+     "studio3decrans.rigx.axe_aide"
+    ],
+    "studio3decrans.rigx.enfants": "champ",
+    "studio3decrans.rigx.fiche_titre": "panneau",
+    "studio3decrans.rigx.ia_bouton_sans": "bouton",
+    "studio3decrans.rigx.ia_hauteur": "champ",
+    "studio3decrans.rigx.miroir": "champ",
+    "studio3decrans.rigx.nudge_aide": "bouton",
+    "studio3decrans.rigx.ombrage": "champ",
+    "studio3decrans.rigx.os_titre": "panneau",
+    "studio3decrans.rigx.poitrine": "champ",
+    "studio3decrans.rigx.recalculer": [
+     "bouton",
+     "studio3decrans.rigx.recalculer_aide"
+    ],
+    "studio3decrans.rigx.recommencer": "bouton",
+    "studio3decrans.rigx.reference": "champ",
+    "studio3decrans.rigx.vue": "champ"
+   }
+  },
+  {
+   "fichiers": [
+    "frontend/studio3d/ecrans/texture.js"
+   ],
+   "cles": {
+    "studio3decrans.tex.cadrer": "bouton",
+    "studio3decrans.tex.eclairage": "champ",
+    "studio3decrans.tex.generer": "bouton",
+    "studio3decrans.tex.modele": "champ",
+    "studio3decrans.tex.orbite": "bouton",
+    "studio3decrans.tex.prompt_defaut": "bouton",
+    "studio3decrans.tex.rail": "panneau",
+    "studio3decrans.tex.ratio": "champ",
+    "studio3decrans.tex.res_texture": "champ",
+    "studio3decrans.tex.resolution": "champ",
+    "studio3decrans.tex.retexturer": "bouton",
+    "studio3decrans.tex.style_deposer": "bouton",
+    "studio3decrans.tex.style_depuis_choisie": "bouton",
+    "studio3decrans.tex.style_texte": "champ",
+    "studio3decrans.tex.vues": "champ"
+   }
+  }
+ ]
+}

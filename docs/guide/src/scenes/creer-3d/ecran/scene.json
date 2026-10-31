@@ -1,0 +1,68 @@
+{
+  "titre": {
+    "fr": "L'onglet 3D : Créer",
+    "en": "The 3D tab: Create"
+  },
+  "legende": {
+    "fr": "À gauche les modèles à cocher, au centre la galerie, à droite la source, la quantité et le total estimé.",
+    "en": "On the left the models to tick, in the middle the gallery, on the right the source, quantity and estimated total."
+  },
+  "captures": [
+    {
+      "fr": "choix.fr.webp",
+      "en": "choix.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        251,
+        728,
+        25,
+        25
+      ],
+      "bulle": {
+        "fr": "1. Cochez un ou plusieurs modèles",
+        "en": "1. Tick one or more models"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        249,
+        77,
+        77
+      ],
+      "bulle": {
+        "fr": "2. Choisissez l'image source",
+        "en": "2. Pick the source image"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "curseur": [
+        1291,
+        581
+      ],
+      "surligne": [
+        1149,
+        519,
+        283,
+        38
+      ],
+      "bulle": {
+        "fr": "3. Total estimé, puis Générer",
+        "en": "3. Estimated total, then Generate"
+      }
+    }
+  ]
+}

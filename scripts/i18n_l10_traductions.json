@@ -13334,5 +13334,561 @@
  "Couleur manquante ou illisible : {j} (#rrggbb attendu)": {
   "fr": "Couleur manquante ou illisible : {j} (#rrggbb attendu)",
   "en": "Missing or unreadable colour: {j} (#rrggbb expected)"
+ },
+ "version « {v} » — un entier à partir de 1": {
+  "fr": "version « {v} » — un entier à partir de 1",
+  "en": "version \"{v}\" — an integer from 1"
+ },
+ "impression : seuls .stl et .3mf sont servis": {
+  "fr": "impression : seuls .stl et .3mf sont servis",
+  "en": "printing: only .stl and .3mf are served"
+ },
+ "impression : fichier introuvable": {
+  "fr": "impression : fichier introuvable",
+  "en": "printing: file not found"
+ },
+ "impression : nom invalide": {
+  "fr": "impression : nom invalide",
+  "en": "printing: invalid name"
+ },
+ "clip « {v} » absent de ce modèle ({anims} clip(s))": {
+  "fr": "clip « {v} » absent de ce modèle ({anims} clip(s))",
+  "en": "clip \"{v}\" is not in this model ({anims} clip(s))"
+ },
+ "clip : un index ou un nom est attendu": {
+  "fr": "clip : un index ou un nom est attendu",
+  "en": "clip: an index or a name is expected"
+ },
+ "ce modèle n'a aucune animation : exporte le maillage seul, ou anime-le d'abord": {
+  "fr": "ce modèle n'a aucune animation : exporte le maillage seul, ou anime-le d'abord",
+  "en": "this model has no animation: export the mesh only, or animate it first"
+ },
+ "variante « {v} » — {v2}": {
+  "fr": "variante « {v} » — {v2}",
+  "en": "variant \"{v}\" — {v2}"
+ },
+ "fbx : variante « maillage » ou « animation »": {
+  "fr": "fbx : variante « maillage » ou « animation »",
+  "en": "fbx: variant \"maillage\" (mesh) or \"animation\""
+ },
+ "Blender 4.2 ou plus récent est introuvable (BLENDER_PATH, Program Files ou PATH) — installe-le depuis blender.org, c'est gratuit.": {
+  "fr": "Blender 4.2 ou plus récent est introuvable (BLENDER_PATH, Program Files ou PATH) — installe-le depuis blender.org, c'est gratuit.",
+  "en": "Blender 4.2 or newer not found (BLENDER_PATH, Program Files or PATH) — install it from blender.org, it is free."
+ },
+ "fichier : nom invalide": {
+  "fr": "fichier : nom invalide",
+  "en": "file: invalid name"
+ },
+ "scène vide": {
+  "fr": "scène vide",
+  "en": "empty scene"
+ },
+ "clips : une liste d'index ou de noms est attendue": {
+  "fr": "clips : une liste d'index ou de noms est attendue",
+  "en": "clips: a list of indices or names is expected"
+ },
+ "Blender n'a pas écrit le FBX (code {code}) : {fin}": {
+  "fr": "Blender n'a pas écrit le FBX (code {code}) : {fin}",
+  "en": "Blender did not write the FBX (code {code}): {fin}"
+ },
+ "Blender a dépassé {DELAI_BLENDER_S} s": {
+  "fr": "Blender a dépassé {DELAI_BLENDER_S} s",
+  "en": "Blender exceeded {DELAI_BLENDER_S} s"
+ },
+ "modèle 3D inconnu : {name}": {
+  "fr": "modèle 3D inconnu : {name}",
+  "en": "unknown 3D model: {name}"
+ },
+ "{id} : aucune version numérotée": {
+  "fr": "{id} : aucune version numérotée",
+  "en": "{id}: no numbered version"
+ },
+ "{id} : version {version} absente": {
+  "fr": "{id} : version {version} absente",
+  "en": "{id}: version {version} missing"
+ },
+ "modèle d'image inconnu : {v}": {
+  "fr": "modèle d'image inconnu : {v}",
+  "en": "unknown image model: {v}"
+ },
+ "{manque} non configurée (Réglages › Clés d'API) pour {modele}.": {
+  "fr": "{manque} non configurée (Réglages › Clés d'API) pour {modele}.",
+  "en": "{manque} not set (Settings › API keys) for {modele}."
+ },
+ "{manque} non configurée (Réglages › Clés d'API) : la retexture passe par ton compte Meshy, le maillage voyage par le stockage fal.": {
+  "fr": "{manque} non configurée (Réglages › Clés d'API) : la retexture passe par ton compte Meshy, le maillage voyage par le stockage fal.",
+  "en": "{manque} not set (Settings › API keys): the retexture goes through your Meshy account, the mesh travels through fal storage."
+ },
+ "max_usd doit être un nombre": {
+  "fr": "max_usd doit être un nombre",
+  "en": "max_usd must be a number"
+ },
+ "{modele} ne prend pas la résolution {res}": {
+  "fr": "{modele} ne prend pas la résolution {res}",
+  "en": "{modele} does not take resolution {res}"
+ },
+ "resolution doit être {v}": {
+  "fr": "resolution doit être {v}",
+  "en": "resolution must be {v}"
+ },
+ "référence inconnue : {v}": {
+  "fr": "référence inconnue : {v}",
+  "en": "unknown reference: {v}"
+ },
+ "référence inconnue : {rid}": {
+  "fr": "référence inconnue : {rid}",
+  "en": "unknown reference: {rid}"
+ },
+ "image absente": {
+  "fr": "image absente",
+  "en": "image missing"
+ },
+ "image trop lourde (> {v} Mo)": {
+  "fr": "image trop lourde (> {v} Mo)",
+  "en": "image too large (> {v} MB)"
+ },
+ "{modele} ne prend pas la résolution {resolution} (permises : {v})": {
+  "fr": "{modele} ne prend pas la résolution {resolution} (permises : {v})",
+  "en": "{modele} does not take resolution {resolution} (allowed: {v})"
+ },
+ "ratio inconnu : {v} (permis : {v2})": {
+  "fr": "ratio inconnu : {v} (permis : {v2})",
+  "en": "unknown aspect ratio: {v} (allowed: {v2})"
+ },
+ "prompt trop long ({prompt} > {PROMPT_MAX} caractères)": {
+  "fr": "prompt trop long ({prompt} > {PROMPT_MAX} caractères)",
+  "en": "prompt too long ({prompt} > {PROMPT_MAX} characters)"
+ },
+ "vue ou éclairage inconnu": {
+  "fr": "vue ou éclairage inconnu",
+  "en": "unknown view or lighting"
+ },
+ "texte de style trop long ({prompt} > 600 caractères, limite de Meshy)": {
+  "fr": "texte de style trop long ({prompt} > 600 caractères, limite de Meshy)",
+  "en": "style text too long ({prompt} > 600 characters, Meshy's limit)"
+ },
+ "une référence d'image ou un texte de style est nécessaire": {
+  "fr": "une référence d'image ou un texte de style est nécessaire",
+  "en": "an image reference or a style text is required"
+ },
+ "{modele} n'a rendu aucune image": {
+  "fr": "{modele} n'a rendu aucune image",
+  "en": "{modele} returned no image"
+ },
+ "image illisible (base64 attendu)": {
+  "fr": "image illisible (base64 attendu)",
+  "en": "unreadable image (base64 expected)"
+ },
+ "Nano Banana Pro n'a rendu aucune image : {v}": {
+  "fr": "Nano Banana Pro n'a rendu aucune image : {v}",
+  "en": "Nano Banana Pro returned no image: {v}"
+ },
+ "Clé fal absente — ajoute-la dans les Réglages (Clés d'API) : les modèles 3D choisis passent par fal.": {
+  "fr": "Clé fal absente — ajoute-la dans les Réglages (Clés d'API) : les modèles 3D choisis passent par fal.",
+  "en": "fal key missing — add it in Settings (API keys): the selected 3D models run on fal."
+ },
+ "{label} ne génère pas depuis un texte": {
+  "fr": "{label} ne génère pas depuis un texte",
+  "en": "{label} does not generate from text"
+ },
+ "moteur neuf inconnu : {moteur}": {
+  "fr": "moteur neuf inconnu : {moteur}",
+  "en": "unknown new engine: {moteur}"
+ },
+ "{moteur} : réglage inconnu {k}": {
+  "fr": "{moteur} : réglage inconnu {k}",
+  "en": "{moteur}: unknown setting {k}"
+ },
+ "une image ou un prompt est nécessaire": {
+  "fr": "une image ou un prompt est nécessaire",
+  "en": "an image or a prompt is required"
+ },
+ "{moteur}.{k} : booléen attendu": {
+  "fr": "{moteur}.{k} : booléen attendu",
+  "en": "{moteur}.{k}: boolean expected"
+ },
+ "{moteur}.{k} : {v} hors de {valeurs}": {
+  "fr": "{moteur}.{k} : {v} hors de {valeurs}",
+  "en": "{moteur}.{k}: {v} not in {valeurs}"
+ },
+ "{moteur}.{k} : entier attendu": {
+  "fr": "{moteur}.{k} : entier attendu",
+  "en": "{moteur}.{k}: integer expected"
+ },
+ "{moteur}.{k} : {v} hors de [{min}, {max}]": {
+  "fr": "{moteur}.{k} : {v} hors de [{min}, {max}]",
+  "en": "{moteur}.{k}: {v} outside [{min}, {max}]"
+ },
+ "coche au moins un modèle": {
+  "fr": "coche au moins un modèle",
+  "en": "tick at least one model"
+ },
+ "quantité : de 1 à 4": {
+  "fr": "quantité : de 1 à 4",
+  "en": "quantity: from 1 to 4"
+ },
+ "pose inconnue : {pose}": {
+  "fr": "pose inconnue : {pose}",
+  "en": "unknown pose: {pose}"
+ },
+ "{n} générations demandées : {TIRS_MAX} au plus en un clic": {
+  "fr": "{n} générations demandées : {TIRS_MAX} au plus en un clic",
+  "en": "{n} generations requested: {TIRS_MAX} at most in one click"
+ },
+ "moteur 3D inconnu : {m}": {
+  "fr": "moteur 3D inconnu : {m}",
+  "en": "unknown 3D engine: {m}"
+ },
+ "quantité : un entier de 1 à 4": {
+  "fr": "quantité : un entier de 1 à 4",
+  "en": "quantity: an integer from 1 to 4"
+ },
+ "le mode texte demande une description": {
+  "fr": "le mode texte demande une description",
+  "en": "text mode needs a description"
+ },
+ "ces modèles ne génèrent pas depuis un texte : {v}": {
+  "fr": "ces modèles ne génèrent pas depuis un texte : {v}",
+  "en": "these models do not generate from text: {v}"
+ },
+ "choisis une image source": {
+  "fr": "choisis une image source",
+  "en": "pick a source image"
+ },
+ "le mode image prend une seule image ; le mode multi-images en prend plusieurs": {
+  "fr": "le mode image prend une seule image ; le mode multi-images en prend plusieurs",
+  "en": "image mode takes a single image; multi-image mode takes several"
+ },
+ "image introuvable dans la Bibliothèque : {fn}": {
+  "fr": "image introuvable dans la Bibliothèque : {fn}",
+  "en": "image not found in the Library: {fn}"
+ },
+ "modèle plat : aucune hauteur à mesurer": {
+  "fr": "modèle plat : aucune hauteur à mesurer",
+  "en": "flat model: no height to measure"
+ },
+ "hauteur_m attend un nombre de mètres": {
+  "fr": "hauteur_m attend un nombre de mètres",
+  "en": "hauteur_m expects a number of metres"
+ },
+ "hauteur_m hors de [{HAUTEUR_MIN}, {HAUTEUR_MAX}] m": {
+  "fr": "hauteur_m hors de [{HAUTEUR_MIN}, {HAUTEUR_MAX}] m",
+  "en": "hauteur_m outside [{HAUTEUR_MIN}, {HAUTEUR_MAX}] m"
+ },
+ "action_id : un entier du catalogue Meshy est attendu": {
+  "fr": "action_id : un entier du catalogue Meshy est attendu",
+  "en": "action_id: an integer from the Meshy catalogue is expected"
+ },
+ "animation {v} absente du catalogue Meshy": {
+  "fr": "animation {v} absente du catalogue Meshy",
+  "en": "animation {v} not in the Meshy catalogue"
+ },
+ "« {nom} » est livrée avec le rig : elle ne s'applique pas (0 à 696)": {
+  "fr": "« {nom} » est livrée avec le rig : elle ne s'applique pas (0 à 696)",
+  "en": "\"{nom}\" ships with the rig: it is not applied (0 to 696)"
+ },
+ "Clé Meshy absente — Réglages › Clés : l'animation passe par ton compte Meshy.": {
+  "fr": "Clé Meshy absente — Réglages › Clés : l'animation passe par ton compte Meshy.",
+  "en": "Meshy key missing — Settings › Keys: animation runs on your Meshy account."
+ },
+ "Ce modèle n'a pas de rig Meshy : rigge-le dans l'écran Rig (l'action peut y être jointe), puis reviens.": {
+  "fr": "Ce modèle n'a pas de rig Meshy : rigge-le dans l'écran Rig (l'action peut y être jointe), puis reviens.",
+  "en": "This model has no Meshy rig: rig it in the Rig screen (the action can be attached there), then come back."
+ },
+ "Clé Meshy absente — Réglages › Clés : le texte → mouvement passe par ton compte Meshy.": {
+  "fr": "Clé Meshy absente — Réglages › Clés : le texte → mouvement passe par ton compte Meshy.",
+  "en": "Meshy key missing — Settings › Keys: text → motion runs on your Meshy account."
+ },
+ "Ce modèle n'a pas de squelette : rigge-le d'abord dans l'écran Rig.": {
+  "fr": "Ce modèle n'a pas de squelette : rigge-le d'abord dans l'écran Rig.",
+  "en": "This model has no skeleton: rig it first in the Rig screen."
+ },
+ "{k} : une liste d'identifiants est attendue": {
+  "fr": "{k} : une liste d'identifiants est attendue",
+  "en": "{k}: a list of identifiers is expected"
+ },
+ "collection inconnue": {
+  "fr": "collection inconnue",
+  "en": "unknown collection"
+ },
+ "vue : « tous », « favoris » ou « collection »": {
+  "fr": "vue : « tous », « favoris » ou « collection »",
+  "en": "view: \"tous\", \"favoris\" or \"collection\""
+ },
+ "job « {v} » : nom de dossier invalide": {
+  "fr": "job « {v} » : nom de dossier invalide",
+  "en": "job \"{v}\": invalid folder name"
+ },
+ "{job}/{nom} introuvable": {
+  "fr": "{job}/{nom} introuvable",
+  "en": "{job}/{nom} not found"
+ },
+ "poitrine : vrai ou faux": {
+  "fr": "poitrine : vrai ou faux",
+  "en": "poitrine: true or false"
+ },
+ "joints : un objet {os: [x, y, z]} est attendu": {
+  "fr": "joints : un objet {os: [x, y, z]} est attendu",
+  "en": "joints: an object {os: [x, y, z]} is expected"
+ },
+ "GLB à plusieurs buffers ou à buffer externe : hors périmètre du rig local": {
+  "fr": "GLB à plusieurs buffers ou à buffer externe : hors périmètre du rig local",
+  "en": "GLB with several buffers or an external buffer: outside the local rig's scope"
+ },
+ "aucun maillage avec des positions dans ce GLB": {
+  "fr": "aucun maillage avec des positions dans ce GLB",
+  "en": "no mesh with positions in this GLB"
+ },
+ "{total} sommets : au-delà de {MAX_SOMMETS}, allège d'abord le modèle (écran Préparer)": {
+  "fr": "{total} sommets : au-delà de {MAX_SOMMETS}, allège d'abord le modèle (écran Préparer)",
+  "en": "{total} vertices: above {MAX_SOMMETS}, lighten the model first (Prepare screen)"
+ },
+ "os inconnu(s) : {v}": {
+  "fr": "os inconnu(s) : {v}",
+  "en": "unknown bone(s): {v}"
+ },
+ "GLB compressé ({e}) : ses positions ne sont pas lisibles ici — rouvre une version non compressée (Préparer garde la v1)": {
+  "fr": "GLB compressé ({e}) : ses positions ne sont pas lisibles ici — rouvre une version non compressée (Préparer garde la v1)",
+  "en": "Compressed GLB ({e}): its positions cannot be read here — reopen an uncompressed version (Prepare keeps v1)"
+ },
+ "articulation « {i} » : trois nombres finis [x, y, z] sont attendus": {
+  "fr": "articulation « {i} » : trois nombres finis [x, y, z] sont attendus",
+  "en": "joint \"{i}\": three finite numbers [x, y, z] are expected"
+ },
+ "articulation « {i} » hors du modèle": {
+  "fr": "articulation « {i} » hors du modèle",
+  "en": "joint \"{i}\" outside the model"
+ },
+ "identifiant d'animation : un entier du catalogue Meshy est attendu": {
+  "fr": "identifiant d'animation : un entier du catalogue Meshy est attendu",
+  "en": "animation identifier: an integer from the Meshy catalogue is expected"
+ },
+ "animation {i} absente du catalogue Meshy": {
+  "fr": "animation {i} absente du catalogue Meshy",
+  "en": "animation {i} not in the Meshy catalogue"
+ },
+ "collection : un nom est attendu": {
+  "fr": "collection : un nom est attendu",
+  "en": "collection: a name is expected"
+ },
+ "ce modèle n'a pas de rig Meshy : passe par l'écran Rig": {
+  "fr": "ce modèle n'a pas de rig Meshy : passe par l'écran Rig",
+  "en": "this model has no Meshy rig: go through the Rig screen"
+ },
+ "meshy: la tâche {atid} n'a rendu aucun GLB d'animation": {
+  "fr": "meshy: la tâche {atid} n'a rendu aucun GLB d'animation",
+  "en": "meshy: task {atid} returned no animation GLB"
+ },
+ "prompt : décris le mouvement (« marche prudente, regarde à gauche »)": {
+  "fr": "prompt : décris le mouvement (« marche prudente, regarde à gauche »)",
+  "en": "prompt: describe the motion (\"careful walk, looks left\")"
+ },
+ "prompt : {PROMPT_MAX} caractères au plus": {
+  "fr": "prompt : {PROMPT_MAX} caractères au plus",
+  "en": "prompt: {PROMPT_MAX} characters at most"
+ },
+ "durée : un nombre de secondes, de {DUREE_MIN} à {DUREE_MAX}": {
+  "fr": "durée : un nombre de secondes, de {DUREE_MIN} à {DUREE_MAX}",
+  "en": "duration: a number of seconds, from {DUREE_MIN} to {DUREE_MAX}"
+ },
+ "durée : de {DUREE_MIN} à {DUREE_MAX} s": {
+  "fr": "durée : de {DUREE_MIN} à {DUREE_MAX} s",
+  "en": "duration: from {DUREE_MIN} to {DUREE_MAX} s"
+ },
+ "durée : par pas de {DUREE_PAS} s": {
+  "fr": "durée : par pas de {DUREE_PAS} s",
+  "en": "duration: in steps of {DUREE_PAS} s"
+ },
+ "mode : « swift » (BVH) ou « prime » (FBX)": {
+  "fr": "mode : « swift » (BVH) ou « prime » (FBX)",
+  "en": "mode: \"swift\" (BVH) or \"prime\" (FBX)"
+ },
+ "mode « prime » : Meshy rend un FBX, qu'aucun lecteur embarqué ne lit — choisis « swift » (BVH), relu et reciblé ici": {
+  "fr": "mode « prime » : Meshy rend un FBX, qu'aucun lecteur embarqué ne lit — choisis « swift » (BVH), relu et reciblé ici",
+  "en": "\"prime\" mode: Meshy returns an FBX that no embedded reader can read — pick \"swift\" (BVH), read and retargeted here"
+ },
+ "meshy: la tâche {tid} n'a rendu aucun mouvement": {
+  "fr": "meshy: la tâche {tid} n'a rendu aucun mouvement",
+  "en": "meshy: task {tid} returned no motion"
+ },
+ "meshy: mouvement rendu en {fmt}, illisible ici (BVH attendu)": {
+  "fr": "meshy: mouvement rendu en {fmt}, illisible ici (BVH attendu)",
+  "en": "meshy: motion returned as {fmt}, unreadable here (BVH expected)"
+ },
+ "{job}/{nom_v} introuvable": {
+  "fr": "{job}/{nom_v} introuvable",
+  "en": "{job}/{nom_v} not found"
+ },
+ "collections : {COLLECTIONS_MAX} au plus": {
+  "fr": "collections : {COLLECTIONS_MAX} au plus",
+  "en": "collections: {COLLECTIONS_MAX} at most"
+ },
+ "collection inconnue : {cid}": {
+  "fr": "collection inconnue : {cid}",
+  "en": "unknown collection: {cid}"
+ },
+ "collection : {IDS_MAX} animations au plus": {
+  "fr": "collection : {IDS_MAX} animations au plus",
+  "en": "collection: {IDS_MAX} animations at most"
+ },
+ "favoris : {IDS_MAX} au plus": {
+  "fr": "favoris : {IDS_MAX} au plus",
+  "en": "favourites: {IDS_MAX} at most"
+ },
+ "retirer : des identifiants entiers sont attendus": {
+  "fr": "retirer : des identifiants entiers sont attendus",
+  "en": "remove: integer identifiers are expected"
+ },
+ "Blender 4.2 ou plus récent est introuvable (BLENDER_PATH, Program Files ou PATH) — l'import FBX passe par lui ; installe-le depuis blender.org, c'est gratuit.": {
+  "fr": "Blender 4.2 ou plus récent est introuvable (BLENDER_PATH, Program Files ou PATH) — l'import FBX passe par lui ; installe-le depuis blender.org, c'est gratuit.",
+  "en": "Blender 4.2 or later was not found (BLENDER_PATH, Program Files or PATH) — FBX import goes through it; install it from blender.org, it is free."
+ },
+ "Blender n'a pas converti le FBX (code {code}) : {fin}": {
+  "fr": "Blender n'a pas converti le FBX (code {code}) : {fin}",
+  "en": "Blender did not convert the FBX (code {code}): {fin}"
+ },
+ "action doit être « generer », « lot » ou « retexturer »": {
+  "fr": "action doit être « generer », « lot » ou « retexturer »",
+  "en": "action must be “generer”, “lot” or “retexturer”"
+ },
+ "vues doit être {v}": {
+  "fr": "vues doit être {v}",
+  "en": "vues must be {v}"
+ },
+ "{quoi} hors bornes ({bas} à {haut})": {
+  "fr": "{quoi} hors bornes ({bas} à {haut})",
+  "en": "{quoi} out of range ({bas} to {haut})"
+ },
+ "captures : une liste de {v} vues est attendue": {
+  "fr": "captures : une liste de {v} vues est attendue",
+  "en": "captures: a list of {v} views is expected"
+ },
+ "disposition {v} : {captures} captures reçues": {
+  "fr": "disposition {v} : {captures} captures reçues",
+  "en": "layout {v}: {captures} captures received"
+ },
+ "une image PNG est attendue": {
+  "fr": "une image PNG est attendue",
+  "en": "a PNG image is expected"
+ },
+ "atlas {lg}×{ht} : chaque côté entre {v} et {v2} px": {
+  "fr": "atlas {lg}×{ht} : chaque côté entre {v} et {v2} px",
+  "en": "atlas {lg}×{ht}: each side must be between {v} and {v2} px"
+ },
+ "GLB à tampon externe : non géré": {
+  "fr": "GLB à tampon externe : non géré",
+  "en": "GLB with an external buffer: not supported"
+ },
+ "{images} textures de couleur de base dans ce modèle : la projection n'en peint qu'une": {
+  "fr": "{images} textures de couleur de base dans ce modèle : la projection n'en peint qu'une",
+  "en": "{images} base colour textures in this model: projection paints only one"
+ },
+ "ce modèle n'a pas de coordonnées UV (TEXCOORD_0) : rien où peindre l'atlas": {
+  "fr": "ce modèle n'a pas de coordonnées UV (TEXCOORD_0) : rien où peindre l'atlas",
+  "en": "this model has no UV coordinates (TEXCOORD_0): nowhere to paint the atlas"
+ },
+ "{quoi} : un nombre est attendu": {
+  "fr": "{quoi} : un nombre est attendu",
+  "en": "{quoi}: a number is expected"
+ },
+ "vue {v} : {capture, pose} attendu": {
+  "fr": "vue {v} : {capture, pose} attendu",
+  "en": "view {v}: {capture, pose} expected"
+ },
+ "modifs : une liste non vide de {mesh, primitive, sommets, joints, poids} est attendue": {
+  "fr": "modifs : une liste non vide de {mesh, primitive, sommets, joints, poids} est attendue",
+  "en": "modifs: a non-empty list of {mesh, primitive, sommets, joints, poids} is expected"
+ },
+ "opération inconnue « {v} » : orphelins, confinement, epaules, coutures, guerison ou tout": {
+  "fr": "opération inconnue « {v} » : orphelins, confinement, epaules, coutures, guerison ou tout",
+  "en": "unknown operation \"{v}\": orphelins, confinement, epaules, coutures, guerison or tout"
+ },
+ "os : le nom d'un os est attendu": {
+  "fr": "os : le nom d'un os est attendu",
+  "en": "os: a bone name is expected"
+ },
+ "parametres : un objet est attendu": {
+  "fr": "parametres : un objet est attendu",
+  "en": "parametres: an object is expected"
+ },
+ "ce modèle n'a pas de peau (JOINTS_0 / WEIGHTS_0) : rigge-le d'abord (écran Rig)": {
+  "fr": "ce modèle n'a pas de peau (JOINTS_0 / WEIGHTS_0) : rigge-le d'abord (écran Rig)",
+  "en": "this model has no skin (JOINTS_0 / WEIGHTS_0): rig it first (Rig screen)"
+ },
+ "pose : un objet {os: [x, y, z]} (degrés) ou {os: [x, y, z, w]} (quaternion) est attendu": {
+  "fr": "pose : un objet {os: [x, y, z]} (degrés) ou {os: [x, y, z, w]} (quaternion) est attendu",
+  "en": "pose: an object {os: [x, y, z]} (degrees) or {os: [x, y, z, w]} (quaternion) is expected"
+ },
+ "{cle} : un nombre entre {lo} et {hi} est attendu": {
+  "fr": "{cle} : un nombre entre {lo} et {hi} est attendu",
+  "en": "{cle}: a number between {lo} and {hi} is expected"
+ },
+ "apercu : vrai ou faux": {
+  "fr": "apercu : vrai ou faux",
+  "en": "apercu: true or false"
+ },
+ "modifs : chaque entrée est un objet {mesh, primitive, sommets, joints, poids}": {
+  "fr": "modifs : chaque entrée est un objet {mesh, primitive, sommets, joints, poids}",
+  "en": "modifs: each entry is an object {mesh, primitive, sommets, joints, poids}"
+ },
+ "primitive introuvable : maillage {mi}, primitive {pi}": {
+  "fr": "primitive introuvable : maillage {mi}, primitive {pi}",
+  "en": "primitive not found: mesh {mi}, primitive {pi}"
+ },
+ "maillage {mi}, primitive {pi} : pas de poids de peau": {
+  "fr": "maillage {mi}, primitive {pi} : pas de poids de peau",
+  "en": "mesh {mi}, primitive {pi}: no skin weights"
+ },
+ "maillage {mi} : aucun nœud ne le lie à une peau": {
+  "fr": "maillage {mi} : aucun nœud ne le lie à une peau",
+  "en": "mesh {mi}: no node binds it to a skin"
+ },
+ "sommets, joints, poids : listes de k, 4·k et 4·k valeurs": {
+  "fr": "sommets, joints, poids : listes de k, 4·k et 4·k valeurs",
+  "en": "sommets, joints, poids: lists of k, 4·k and 4·k values"
+ },
+ "pose : os inconnu « {v} »": {
+  "fr": "pose : os inconnu « {v} »",
+  "en": "pose: unknown bone \"{v}\""
+ },
+ "pose : « {nom} » attend trois angles (degrés) ou un quaternion": {
+  "fr": "pose : « {nom} » attend trois angles (degrés) ou un quaternion",
+  "en": "pose: \"{nom}\" expects three angles (degrees) or a quaternion"
+ },
+ "pose : quaternion nul pour « {nom} »": {
+  "fr": "pose : quaternion nul pour « {nom} »",
+  "en": "pose: zero quaternion for \"{nom}\""
+ },
+ "os inconnu « {v} »": {
+  "fr": "os inconnu « {v} »",
+  "en": "unknown bone \"{v}\""
+ },
+ "sommet {v} hors de 0..{v2}": {
+  "fr": "sommet {v} hors de 0..{v2}",
+  "en": "vertex {v} outside 0..{v2}"
+ },
+ "sommet {v} : indice d'os hors de 0..{v2}": {
+  "fr": "sommet {v} : indice d'os hors de 0..{v2}",
+  "en": "vertex {v}: bone index outside 0..{v2}"
+ },
+ "sommet {v} : poids négatif ou non fini": {
+  "fr": "sommet {v} : poids négatif ou non fini",
+  "en": "vertex {v}: negative or non-finite weight"
+ },
+ "sommet {v} : aucun poids (au moins un os doit le tenir)": {
+  "fr": "sommet {v} : aucun poids (au moins un os doit le tenir)",
+  "en": "vertex {v}: no weight (at least one bone must hold it)"
+ },
+ "deformees : vrai ou faux": {
+  "fr": "deformees : vrai ou faux",
+  "en": "deformees: true or false"
+ },
+ "deformees : une pose est requise (lance le test de pose)": {
+  "fr": "deformees : une pose est requise (lance le test de pose)",
+  "en": "deformees: a pose is required (start the pose test)"
+ },
+ "poses : une liste de 1 à 32 poses est attendue": {
+  "fr": "poses : une liste de 1 à 32 poses est attendue",
+  "en": "poses: a list of 1 to 32 poses is expected"
  }
 }

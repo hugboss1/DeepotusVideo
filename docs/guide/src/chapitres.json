@@ -585,6 +585,45 @@
       "etat": "v3"
     },
     {
+      "id": "creer-3d",
+      "famille": "jeu3d",
+      "lot": "t404",
+      "icone": "dz-lab3d-generer-modele",
+      "fr": "Créer un modèle 3D",
+      "en": "Create a 3D model",
+      "anciens": [],
+      "ecrans": [
+        "Game Assets — onglet 3D « Créer »"
+      ],
+      "etat": "v3"
+    },
+    {
+      "id": "studio3d-ecrans",
+      "famille": "jeu3d",
+      "lot": "t404",
+      "icone": "dz-lab3d-rig",
+      "fr": "Le 3D Studio, écran par écran",
+      "en": "The 3D Studio, screen by screen",
+      "anciens": [],
+      "ecrans": [
+        "3D Studio à écrans (Ouvrir, Importer, Préparer, Établi, Texture, Rig, Affiner, Animer, Exporter, Graphe)"
+      ],
+      "etat": "v3"
+    },
+    {
+      "id": "decor-3d",
+      "famille": "jeu3d",
+      "lot": "t404",
+      "icone": "dz-cat-decor",
+      "fr": "Décor : arbres et accessoires",
+      "en": "Scenery: trees and props",
+      "anciens": [],
+      "ecrans": [
+        "3D Studio — écran Décor (végétation, accessoire)"
+      ],
+      "etat": "v3"
+    },
+    {
       "id": "matieres",
       "famille": "jeu3d",
       "lot": "t179",

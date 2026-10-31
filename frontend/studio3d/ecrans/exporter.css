@@ -1,0 +1,42 @@
+/* t400 (31/10/2026) — écran EXPORTER du 3D Studio. Reprend la grille et les contrôles d'ecrans.css (.ec-*) ; ici,
+   seulement ce qui lui est propre. Angles vifs : aucun rayon (règle du 3D Studio à écrans). */
+
+.ex-ecran .ec-centre { min-height: 0; }
+.ex-ecran .ec-vues { flex: 1 1 auto; min-height: 220px; }
+
+/* les clips du GLB : case « garder », nom, durée, choix de la pose, rejouer */
+.ex-clips { display: flex; flex-direction: column; gap: 2px; }
+.ex-clip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "c n d" ". p j";
+  align-items: center; gap: 2px 8px; padding: 6px 8px; border: 1px solid var(--stroke); background: var(--bg-panel-2); }
+.ex-clip > input[type="checkbox"] { grid-area: c; margin: 0; accent-color: var(--cat-3dstudio, var(--accent)); }
+.ex-clip-nom { grid-area: n; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--ink-strong); }
+.ex-clip-duree { grid-area: d; font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft); }
+.ex-clip-pose { grid-area: p; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-soft); cursor: pointer; }
+.ex-clip-pose input { margin: 0; accent-color: var(--cat-3dstudio, var(--accent)); }
+.ex-jouer { grid-area: j; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 22px; padding: 0;
+  border: 1px solid var(--stroke); background: transparent; color: var(--ink-soft); cursor: pointer; }
+.ex-jouer:hover { border-color: var(--accent); color: var(--ink-strong); }
+.ex-jouer:focus-visible, .ex-clip input:focus-visible { outline: 1px solid var(--amber); outline-offset: 1px; }
+
+/* déjà exportés : une liste sobre de liens */
+.ex-deja { display: flex; flex-direction: column; gap: 2px; }
+.ex-fichier { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 3px 0; font-family: var(--f-mono);
+  font-size: 11px; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--stroke); }
+.ex-fichier:hover { color: var(--ink-strong); border-bottom-color: var(--accent); }
+
+/* fichiers prêts, sous le viewport */
+.ex-prets { flex: 0 0 auto; max-height: 34%; overflow: auto; padding: 8px 14px 12px; border-top: 1px solid var(--stroke);
+  background: var(--bg-panel); }
+.ex-liste { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ex-liste li { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ex-liste .ec-bouton { min-width: 0; max-width: 60%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ex-detail { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft); }
+
+/* panneau de droite : une section par famille d'export */
+.ex-section { display: flex; flex-direction: column; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--stroke); }
+.ex-section:last-child { border-bottom: 0; }
+.ex-select { width: 100%; padding: 5px 6px; border: 1px solid var(--stroke); background: var(--bg-panel-2); color: var(--ink);
+  font: inherit; font-size: 12px; }
+.ex-select:focus-visible { outline: 1px solid var(--amber); outline-offset: -1px; }
+.ex-formats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.ex-formats .ec-bouton { justify-content: center; }

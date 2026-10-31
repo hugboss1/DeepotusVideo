@@ -89,11 +89,17 @@ PAYANTES = {
     # gratuite en pratique, mais le chemin atteint le puits FLUX et la garde de generate_material est sur sa route
     ("routes", "POST", "/materials/from-photo"),
     ("routes", "POST", "/assets/3d/{job}/rig"),
+    ("studio3d", "POST", "/creer"),   # t389 : l'écran Créer de l'onglet 3D — garde « moteurs3d » sur le total puis par tir
     ("comparatif3d", "POST", ""),   # t344 : le comparatif des moteurs 3D — N tirs, garde « moteurs3d » sur le total puis par tir
     ("routes", "POST", "/etabli/pieces/ia"),   # t342 : Tripo Segmentation (fal), garde « moteurs3d » après confirme_cout
     ("mouvement", "POST", "/video"),   # t343 : vidéo → mouvement (Uthana), garde « moteurs3d » après la clé et confirme_cout
     ("blender", "POST", "/generer"),   # t331 : generate_3d dans Blender, garde « moteurs3d » après confirme_cout
     ("parallaxe", "POST", "/decouper"),   # t341 : décor en calques (fal), garde « tuiles » après la clé et confirme_cout
+    ("studio3d_texture", "POST", "/{job}/generer"),   # t393 : référence de texture (modèle d'image), garde « moteurs3d »
+    ("studio3d_texture", "POST", "/{job}/retexturer"),   # t393 : retexture Meshy de l'écran Texture, garde « moteurs3d »
+    ("studio3d_texture", "POST", "/{job}/generer-lot"),   # t394 : texture auto, N vues (modèle d'image), UNE garde « moteurs3d » sur le total
+    ("studio3d_animer", "POST", "/appliquer"),   # t398 : une animation du catalogue Meshy sur le rig, garde « moteurs3d »
+    ("studio3d_animer", "POST", "/texte"),       # t399 : texte → mouvement Meshy (BVH), garde « moteurs3d »
     ("routes", "POST", "/assets/3d/{job}/convert"),   # T105 : fbx/usdz/blend par Meshy convert   # T104 : rig + animations Meshy d'un job fal (crédits)
     ("routes", "POST", "/audio/sfx-video"),   # t187 (G5) : le bruitage d'une vidéo (Sonilo, Mirelo, Kling, Hunyuan, ThinkSound)
     ("routes", "POST", "/vfx-ia"),   # t188 (G6) : les 12 VFX IA vidéo -> vidéo (MiniMax H3, LTX 2.3, VOID, Kling O3, FLUX 3, Topaz, PixVerse)
@@ -254,6 +260,10 @@ anciens["schema"] = _shr.replace("R._plafond(", "_sans_garde(") if "R._plafond("
 _c3r = (RP.MODULES["comparatif3d"]).read_text(encoding="utf-8")
 anciens["comparatif3d"] = (_c3r.replace("_R._plafond(", "_sans_garde(").replace("_PLAF.juger(", "_sans_garde(")
                            if "_R._plafond(" in _c3r else None)
+# t389 : l'écran Créer de l'onglet 3D n'existait pas en bfec23e — même témoin : ses DEUX gardes retirées
+_s3r = (RP.MODULES["studio3d"]).read_text(encoding="utf-8")
+anciens["studio3d"] = (_s3r.replace("_R._plafond(", "_sans_garde(").replace("_PLAF.juger(", "_sans_garde(")
+                       if "_R._plafond(" in _s3r else None)
 # t341 : le décor en calques de parallaxe n'existait pas en bfec23e — même témoin
 _pxr = (RP.MODULES["parallaxe"]).read_text(encoding="utf-8")
 anciens["parallaxe"] = _pxr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _pxr else None
@@ -269,6 +279,11 @@ anciens["pose3d"] = _p3r.replace("P.classer_image(", "_sans_garde(") if "P.class
 # t380 : les fils sociaux suivis n'existaient pas en bfec23e — même témoin
 _nfr = (RP.MODULES["news_fils"]).read_text(encoding="utf-8")
 anciens["news_fils"] = _nfr.replace("NF.relever(", "_sans_garde(") if "NF.relever(" in _nfr else None
+# t393 : l'écran Texture du 3D Studio n'existait pas en bfec23e — même témoin
+_s3a = (RP.MODULES["studio3d_animer"]).read_text(encoding="utf-8")   # t398-t399 : même témoin
+anciens["studio3d_animer"] = _s3a.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _s3a else None
+_s3t = (RP.MODULES["studio3d_texture"]).read_text(encoding="utf-8")
+anciens["studio3d_texture"] = _s3t.replace("_R._plafond(", "_sans_garde(") if "_R._plafond(" in _s3t else None
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

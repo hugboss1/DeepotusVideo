@@ -2,9 +2,9 @@
 
 Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
-- 1126 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 53 sont payantes.
+- 1148 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 58 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 48 chapitres dans le sommaire v3, en 6 familles.
+- 51 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -1359,6 +1359,43 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Icônes Deepotus Glyph (G6)** : Le 3D Studio, l'Atelier, les Matières, l'Établi et le Plateau 3D passent aux icônes Deepotus Glyph ; le favicon devient le logo Deepotus. (PR #285 · commits 0e77a512, b92b1313)
 - [x] **Listes déroulantes sans emoji** : Les photos du téléphone sont groupées sous « Téléphone » dans les listes, sans emoji collé dans les options. (PR #291 · commit a360d7ef)
 
+### Créer un modèle 3D (`creer-3d`, lot t404, reprend : nouveau) — 8 manques
+
+**Game Assets — onglet 3D « Créer »** — accès : Game Assets → onglet 3D
+
+- [x] **Plusieurs moteurs cochés** : Un job par moteur coché, sur la même source ; total additionné. — *Colonne « Choisir les modèles »* (t389 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Réglages par moteur** : La roue d'un moteur déplie ses paramètres, validés par le serveur. — *Roue ⚙ d'un moteur* (t389/t390 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Modes Image, Texte, Multi-images** : Source image de la Bibliothèque, description, ou un modèle par image. — *Mode de saisie* (t389 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Quantité et devis** : 1 à 4 exemplaires ; total estimé recalculé gratuitement à chaque changement. — *Quantité, Estimé* (t389 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Générer sur devis confirmé** **payant** : Dialogue du nombre de générations et du total, puis un job par tir. — *Générer* (t389 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Pose conseillée** : A-pose ou T-pose pour les moteurs qui savent poser (Rodin, Meshy 7.1). — *Pose conseillée* (t389 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Galerie et envoi au 3D Studio** : Filtres, recherche, grille, volet avant/après ; un bouton par écran du 3D Studio. — *Préparer · Texture · Rig · Animer · Décor* (t389 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Nouveaux moteurs** **payant** : Meshy 7.1, Tripo P2, Tripo H3.1, Hunyuan 3.1, TRELLIS 2, Rodin 2.5 avec leurs réglages. (t390 · chantier « 3D Studio à écrans » (31/10/2026))
+
+### Le 3D Studio, écran par écran (`studio3d-ecrans`, lot t404, reprend : nouveau) — 10 manques
+
+**3D Studio à écrans (Ouvrir, Importer, Préparer, Établi, Texture, Rig, Affiner, Animer, Exporter, Graphe)** — accès : Game Assets → sous-onglet 3D Studio (/studio3d)
+
+- [x] **Barre d'écrans et bandeau Ouvert** : Trois groupes d'onglets ; le modèle ouvert, ses chiffres et sa version ; envoi à l'écran suivant. (t388 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Ouvrir et Importer** : Galerie de tous les modèles ; import GLB, glTF, OBJ, STL, FBX (Blender), VRM. — *Ouvrir, Importer* (t388/t391 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Préparer** : Fiche, préréglages de triangles, Ré-optimiser en nouvelle version, comparaison côte à côte. — *Préparer* (t392 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Établi intégré** : L'Établi dans un écran de la coque, sur le modèle ouvert. — *Établi* (t403 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Texture : référence et retexture** **payant** : Capture par vue et éclairage, image de référence, planche de style, retexture Meshy. — *Texture › Référence* (t393 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Texture : projection multi-vues** **payant** : Texture auto en 4 à 18 vues projetées sur l'atlas, pinceaux, débruitage IA, version. — *Texture › Projection* (t394 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Rig semi-automatique** : Gabarit SMPL de 22 os, articulations au gizmo, poids calculés en local ; auto-rig Meshy. — *Rig* (t395 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Affiner les poids** : Peinture des poids, poses d'essai, corrections automatiques, version. — *Affiner* (t396/t397 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Animer** **payant** : Catalogue Meshy, texte vers mouvement, import BVH/GLB reciblé, mode conduite. — *Animer* (t398/t399 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Exporter** : GLB maillage, pose, animation ; FBX, Godot, Unreal, Unity, three.js, LOD, textures, impression, Bibliothèque. — *Exporter* (t400 · chantier « 3D Studio à écrans » (31/10/2026))
+
+### Décor : arbres et accessoires (`decor-3d`, lot t404, reprend : nouveau) — 4 manques
+
+**3D Studio — écran Décor (végétation, accessoire)** — accès : 3D Studio → Décor
+
+- [x] **Végétation procédurale** : 23 espèces à leur hauteur réelle, feuillage, saisons, écorce, teintes, graine. — *Décor › Végétation* (t401 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Vent** : Force, vitesse, direction, frémissement dans l'aperçu et la recette. — *Vent* (t401 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Exports de l'arbre** : GLB, recette .decor.json, runtime de vent three.js, rangement comme modèle 3D. — *Export* (t401 · chantier « 3D Studio à écrans » (31/10/2026))
+- [x] **Accessoire** : Poser au sol à la hauteur réelle en nouvelle version, rôle et budget de triangles. — *Décor › Accessoire* (t402 · chantier « 3D Studio à écrans » (31/10/2026))
+
 ### Créer des matières (Material Forge) (`matieres`, lot t179, reprend : nouveau) — 13 manques
 
 **Material Forge (Matières)** — accès : Game Assets → sous-onglet Matières (/materialforge/)
@@ -1543,3 +1580,4 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t287 | 6 | 6 |
 | t320 | 0 | 0 |
 | t360 | 9 | 9 |
+| t404 | 22 | 22 |

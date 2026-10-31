@@ -576,6 +576,27 @@ app.include_router(tutoriels_router, prefix="/api/tutoriels")
 # t344 (29/10/2026) : /api/comparatif3d — banc comparatif des moteurs image -> 3D (tir payant gardé, existants gratuit)
 from app.api.comparatif3d_routes import router as comparatif3d_router
 app.include_router(comparatif3d_router, prefix="/api/comparatif3d")
+# t388 (31/10/2026) : /api/studio3d — 3D Studio à écrans : galerie, modèle ouvert, préréglages de Préparer (lecture)
+from app.api.studio3d_routes import router as studio3d_router
+app.include_router(studio3d_router, prefix="/api/studio3d")
+# t400 (31/10/2026) : /api/studio3d/exporter — écran Exporter : GLB maillage / pose / animation, paquet three.js, FBX
+from app.api.studio3d_export_routes import router as studio3d_export_router
+app.include_router(studio3d_export_router, prefix="/api/studio3d/exporter")
+# t393 (31/10/2026) : /api/studio3d/texture — écran Texture : références d'image (capture → modèle d'image), retexture Meshy
+from app.api.studio3d_texture_routes import router as studio3d_texture_router
+app.include_router(studio3d_texture_router, prefix="/api/studio3d/texture")
+# t395 (31/10/2026) : /api/studio3d/rig — écran Rig : gabarit SMPL, squelette + poids locaux (gratuit) → version
+from app.api.studio3d_rig_routes import router as studio3d_rig_router
+app.include_router(studio3d_rig_router, prefix="/api/studio3d/rig")
+# t402 (31/10/2026) : /api/studio3d/decor — Décor › Accessoire : poser au sol, hauteur réelle, rôles (local, gratuit)
+from app.api.studio3d_decor_routes import router as studio3d_decor_router
+app.include_router(studio3d_decor_router, prefix="/api/studio3d/decor")
+# t398 + t399 (31/10/2026) : /api/studio3d/animer — écran Animer : catalogue Meshy, favoris, collections, texte → mouvement
+from app.api.studio3d_animer_routes import router as studio3d_animer_router
+app.include_router(studio3d_animer_router, prefix="/api/studio3d/animer")
+# t396 + t397 (31/10/2026) : /api/studio3d/affiner — écran Affiner : poids peints et corrections automatiques (local, gratuit)
+from app.api.studio3d_affiner_routes import router as studio3d_affiner_router
+app.include_router(studio3d_affiner_router, prefix="/api/studio3d/affiner")
 # t376 (29/10/2026) : /api/assets3d/pose — choix Aucune / T-pose / A-pose (état gratuit, classement vision payant
 # une fois par image), local seulement
 from app.api.pose3d_routes import router as pose3d_router

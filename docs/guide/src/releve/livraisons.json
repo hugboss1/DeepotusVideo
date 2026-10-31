@@ -9309,6 +9309,200 @@
      "payant": false
     }
    ]
+  },
+  {
+   "ecran": "Game Assets — onglet 3D « Créer »",
+   "acces": "Game Assets → onglet 3D",
+   "fonctions": [
+    {
+     "nom": "Plusieurs moteurs cochés",
+     "quoi": "Un job par moteur coché, sur la même source ; total additionné.",
+     "comment": "Colonne « Choisir les modèles »",
+     "depuis": "2026-10-31",
+     "ref": "t389 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Réglages par moteur",
+     "quoi": "La roue d'un moteur déplie ses paramètres, validés par le serveur.",
+     "comment": "Roue ⚙ d'un moteur",
+     "depuis": "2026-10-31",
+     "ref": "t389/t390 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Modes Image, Texte, Multi-images",
+     "quoi": "Source image de la Bibliothèque, description, ou un modèle par image.",
+     "comment": "Mode de saisie",
+     "depuis": "2026-10-31",
+     "ref": "t389 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Quantité et devis",
+     "quoi": "1 à 4 exemplaires ; total estimé recalculé gratuitement à chaque changement.",
+     "comment": "Quantité, Estimé",
+     "depuis": "2026-10-31",
+     "ref": "t389 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Générer sur devis confirmé",
+     "quoi": "Dialogue du nombre de générations et du total, puis un job par tir.",
+     "comment": "Générer",
+     "depuis": "2026-10-31",
+     "ref": "t389 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": true
+    },
+    {
+     "nom": "Pose conseillée",
+     "quoi": "A-pose ou T-pose pour les moteurs qui savent poser (Rodin, Meshy 7.1).",
+     "comment": "Pose conseillée",
+     "depuis": "2026-10-31",
+     "ref": "t389 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Galerie et envoi au 3D Studio",
+     "quoi": "Filtres, recherche, grille, volet avant/après ; un bouton par écran du 3D Studio.",
+     "comment": "Préparer · Texture · Rig · Animer · Décor",
+     "depuis": "2026-10-31",
+     "ref": "t389 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Nouveaux moteurs",
+     "quoi": "Meshy 7.1, Tripo P2, Tripo H3.1, Hunyuan 3.1, TRELLIS 2, Rodin 2.5 avec leurs réglages.",
+     "comment": "",
+     "depuis": "2026-10-31",
+     "ref": "t390 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": true
+    }
+   ]
+  },
+  {
+   "ecran": "3D Studio à écrans (Ouvrir, Importer, Préparer, Établi, Texture, Rig, Affiner, Animer, Exporter, Graphe)",
+   "acces": "Game Assets → sous-onglet 3D Studio (/studio3d)",
+   "fonctions": [
+    {
+     "nom": "Barre d'écrans et bandeau Ouvert",
+     "quoi": "Trois groupes d'onglets ; le modèle ouvert, ses chiffres et sa version ; envoi à l'écran suivant.",
+     "comment": "",
+     "depuis": "2026-10-31",
+     "ref": "t388 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Ouvrir et Importer",
+     "quoi": "Galerie de tous les modèles ; import GLB, glTF, OBJ, STL, FBX (Blender), VRM.",
+     "comment": "Ouvrir, Importer",
+     "depuis": "2026-10-31",
+     "ref": "t388/t391 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Préparer",
+     "quoi": "Fiche, préréglages de triangles, Ré-optimiser en nouvelle version, comparaison côte à côte.",
+     "comment": "Préparer",
+     "depuis": "2026-10-31",
+     "ref": "t392 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Établi intégré",
+     "quoi": "L'Établi dans un écran de la coque, sur le modèle ouvert.",
+     "comment": "Établi",
+     "depuis": "2026-10-31",
+     "ref": "t403 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Texture : référence et retexture",
+     "quoi": "Capture par vue et éclairage, image de référence, planche de style, retexture Meshy.",
+     "comment": "Texture › Référence",
+     "depuis": "2026-10-31",
+     "ref": "t393 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": true
+    },
+    {
+     "nom": "Texture : projection multi-vues",
+     "quoi": "Texture auto en 4 à 18 vues projetées sur l'atlas, pinceaux, débruitage IA, version.",
+     "comment": "Texture › Projection",
+     "depuis": "2026-10-31",
+     "ref": "t394 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": true
+    },
+    {
+     "nom": "Rig semi-automatique",
+     "quoi": "Gabarit SMPL de 22 os, articulations au gizmo, poids calculés en local ; auto-rig Meshy.",
+     "comment": "Rig",
+     "depuis": "2026-10-31",
+     "ref": "t395 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Affiner les poids",
+     "quoi": "Peinture des poids, poses d'essai, corrections automatiques, version.",
+     "comment": "Affiner",
+     "depuis": "2026-10-31",
+     "ref": "t396/t397 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Animer",
+     "quoi": "Catalogue Meshy, texte vers mouvement, import BVH/GLB reciblé, mode conduite.",
+     "comment": "Animer",
+     "depuis": "2026-10-31",
+     "ref": "t398/t399 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": true
+    },
+    {
+     "nom": "Exporter",
+     "quoi": "GLB maillage, pose, animation ; FBX, Godot, Unreal, Unity, three.js, LOD, textures, impression, Bibliothèque.",
+     "comment": "Exporter",
+     "depuis": "2026-10-31",
+     "ref": "t400 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    }
+   ]
+  },
+  {
+   "ecran": "3D Studio — écran Décor (végétation, accessoire)",
+   "acces": "3D Studio → Décor",
+   "fonctions": [
+    {
+     "nom": "Végétation procédurale",
+     "quoi": "23 espèces à leur hauteur réelle, feuillage, saisons, écorce, teintes, graine.",
+     "comment": "Décor › Végétation",
+     "depuis": "2026-10-31",
+     "ref": "t401 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Vent",
+     "quoi": "Force, vitesse, direction, frémissement dans l'aperçu et la recette.",
+     "comment": "Vent",
+     "depuis": "2026-10-31",
+     "ref": "t401 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Exports de l'arbre",
+     "quoi": "GLB, recette .decor.json, runtime de vent three.js, rangement comme modèle 3D.",
+     "comment": "Export",
+     "depuis": "2026-10-31",
+     "ref": "t401 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    },
+    {
+     "nom": "Accessoire",
+     "quoi": "Poser au sol à la hauteur réelle en nouvelle version, rôle et budget de triangles.",
+     "comment": "Décor › Accessoire",
+     "depuis": "2026-10-31",
+     "ref": "t402 · chantier « 3D Studio à écrans » (31/10/2026)",
+     "payant": false
+    }
+   ]
   }
  ]
 }

@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Exporter vers un jeu, le web ou l'impression",
+    "en": "Export to a game, the web or a printer"
+  },
+  "legende": {
+    "fr": "Un bouton par cible : GLB, FBX, Godot, Unreal, Unity, paquet three.js, LOD, textures, impression 3D.",
+    "en": "One button per target: GLB, FBX, Godot, Unreal, Unity, three.js package, LOD, textures, 3D printing."
+  },
+  "captures": [
+    {
+      "fr": "exporter.fr.webp",
+      "en": "exporter.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        194,
+        283,
+        44
+      ],
+      "bulle": {
+        "fr": "Le GLB avec ses clips",
+        "en": "The GLB with its clips"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        270,
+        283,
+        44
+      ],
+      "bulle": {
+        "fr": "Une scène Godot prête",
+        "en": "A ready Godot scene"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        501,
+        283,
+        44
+      ],
+      "bulle": {
+        "fr": "Le paquet pour le web",
+        "en": "The package for the web"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        194,
+        283,
+        44
+      ],
+      "bulle": {
+        "fr": "Le GLB avec ses clips",
+        "en": "The GLB with its clips"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        270,
+        283,
+        44
+      ],
+      "bulle": {
+        "fr": "Une scène Godot prête",
+        "en": "A ready Godot scene"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        482,
+        283,
+        25
+      ],
+      "bulle": {
+        "fr": "Le paquet pour le web",
+        "en": "The package for the web"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

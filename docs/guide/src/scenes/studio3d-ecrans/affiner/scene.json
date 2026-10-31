@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Affiner : peindre les poids, corriger d'un clic",
+    "en": "Refine: paint weights, fix in one click"
+  },
+  "legende": {
+    "fr": "Une pose d'essai montre où la peau se déforme ; le pinceau ou Tout corriger règle le problème, puis on enregistre une version.",
+    "en": "A test pose shows where the skin deforms; the brush or Fix everything solves it, then you save a version."
+  },
+  "captures": [
+    {
+      "fr": "affiner.fr.webp",
+      "en": "affiner.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        183,
+        93,
+        34
+      ],
+      "bulle": {
+        "fr": "1. Une pose d'essai",
+        "en": "1. A test pose"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        796,
+        86,
+        90,
+        39
+      ],
+      "bulle": {
+        "fr": "2. Peindre les poids",
+        "en": "2. Paint the weights"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        8,
+        406,
+        253,
+        50
+      ],
+      "bulle": {
+        "fr": "Ou tout corriger, gratuit",
+        "en": "Or fix everything, free"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        183,
+        99,
+        34
+      ],
+      "bulle": {
+        "fr": "1. Une pose d'essai",
+        "en": "1. A test pose"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        829,
+        86,
+        77,
+        39
+      ],
+      "bulle": {
+        "fr": "2. Peindre les poids",
+        "en": "2. Paint the weights"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        8,
+        399,
+        253,
+        50
+      ],
+      "bulle": {
+        "fr": "Ou tout corriger, gratuit",
+        "en": "Or fix everything, free"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

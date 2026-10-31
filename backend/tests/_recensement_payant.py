@@ -29,11 +29,14 @@ MODULES = {
     "inspiration": RACINE / "api" / "inspiration_routes.py",   # t313 : matière, angles et rédaction d'une inspiration (Anthropic)
     "schema": RACINE / "api" / "schema_routes.py",   # t314 : le détourage fal d'un schéma (calques du Vectorlab)
     "comparatif3d": RACINE / "api" / "comparatif3d_routes.py",   # t344 : N moteurs image → 3D en un clic (fal)
+    "studio3d": RACINE / "api" / "studio3d_routes.py",   # t389 : l'écran Créer — N modèles × images × exemplaires (fal)
     "mouvement": RACINE / "api" / "mouvement_routes.py",   # t343 : vidéo → mouvement sur le rig (Uthana)
     "blender": RACINE / "api" / "blender_routes.py",   # t331 : generate_3d de mcp-for-blender (clés ou abonnement de l'add-on)
     "parallaxe": RACINE / "api" / "parallaxe_routes.py",   # t341 : décor en calques de parallaxe (Qwen-Image-Layered / Seedream Layerize, fal)
     "pose3d": RACINE / "api" / "pose3d_routes.py",   # t376 : la classification vision de la source 3D (Anthropic)
     "news_fils": RACINE / "api" / "news_fils_routes.py",   # t380 : le relevé payant d'un fil social suivi (Apify)
+    "studio3d_texture": RACINE / "api" / "studio3d_texture_routes.py",   # t393 : écran Texture (image fal, retexture Meshy) ; t394 : texture auto (lot de N vues)
+    "studio3d_animer": RACINE / "api" / "studio3d_animer_routes.py",   # t398-t399 : écran Animer (animation Meshy, texte → mouvement)
 }
 
 PUITS = {
@@ -84,6 +87,7 @@ PUITS = {
     "decomposer_par_ia",   # t341 : décor en calques de parallaxe (fal) — POST /api/parallaxe/decouper
     "generer_3d",   # t331 : generate_3d dans le Blender ouvert (blender_mcp.generer_3d) — POST /api/blender/generer
     "convertir_par_meshy",   # T105 : fbx/usdz/blend par Meshy convert (1 crédit par tâche)
+    "ST.generer_reference",   # t393 : la capture du 3D Studio chez un modèle d'image (studio3d_texture._tirer -> fal / OpenAI), une fois par vue dans le lot de t394 (/{job}/generer-lot)
     "_run_manuscript_job", "_run_adapt_job", "_run_bible_model3d",
     "ouvrir_session_direct",   # t161 : le jeton client Decart (le Direct, facturé à la seconde)
     "relayer_fal",   # t168f : le relais du Direct par fal (le WebSocket fal tenu par le serveur, facturé à la seconde)

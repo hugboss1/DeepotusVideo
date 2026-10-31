@@ -1,0 +1,68 @@
+{
+  "titre": {
+    "fr": "Rig : un squelette placé à la main, gratuit",
+    "en": "Rig: a skeleton placed by hand, free"
+  },
+  "legende": {
+    "fr": "Le gabarit de 22 os se cale sur le modèle ; on ajuste les articulations puis on recalcule les poids, en local.",
+    "en": "The 22-bone template fits the model; adjust the joints, then recompute the weights locally."
+  },
+  "captures": [
+    {
+      "fr": "rig.fr.webp",
+      "en": "rig.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        8,
+        99,
+        253,
+        25
+      ],
+      "bulle": {
+        "fr": "Les os du gabarit",
+        "en": "The template's bones"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        165,
+        283,
+        44
+      ],
+      "bulle": {
+        "fr": "1. Ajuster les articulations",
+        "en": "1. Adjust the joints"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "curseur": [
+        1291,
+        365
+      ],
+      "surligne": [
+        1149,
+        340,
+        283,
+        50
+      ],
+      "bulle": {
+        "fr": "2. Recalculer les poids",
+        "en": "2. Recompute the weights"
+      }
+    }
+  ]
+}

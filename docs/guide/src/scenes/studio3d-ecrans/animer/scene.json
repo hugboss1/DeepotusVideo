@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Animer : bibliothèque, texte et clavier",
+    "en": "Animate: library, text and keyboard"
+  },
+  "legende": {
+    "fr": "Les clips du modèle se jouent à gauche ; le catalogue Meshy, le texte → mouvement et l'import de BVH sont à côté.",
+    "en": "The model's clips play on the left; the Meshy catalogue, text → motion and BVH import sit alongside."
+  },
+  "captures": [
+    {
+      "fr": "animer.fr.webp",
+      "en": "animer.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        181,
+        92,
+        109,
+        39
+      ],
+      "bulle": {
+        "fr": "680 animations Meshy",
+        "en": "680 Meshy animations"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1139,
+        637,
+        293,
+        50
+      ],
+      "bulle": {
+        "fr": "Texte → mouvement, sur devis",
+        "en": "Text → motion, quoted first"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        805,
+        85,
+        136,
+        44
+      ],
+      "bulle": {
+        "fr": "Promener le personnage au clavier",
+        "en": "Walk the character with the keyboard"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        185,
+        92,
+        105,
+        39
+      ],
+      "bulle": {
+        "fr": "680 animations Meshy",
+        "en": "680 Meshy animations"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1139,
+        651,
+        293,
+        50
+      ],
+      "bulle": {
+        "fr": "Texte → mouvement, sur devis",
+        "en": "Text → motion, quoted first"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        797,
+        85,
+        117,
+        44
+      ],
+      "bulle": {
+        "fr": "Promener le personnage au clavier",
+        "en": "Walk the character with the keyboard"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

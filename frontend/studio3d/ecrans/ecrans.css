@@ -1,0 +1,200 @@
+/* t388 (31/10/2026) — 3D Studio à écrans : barre d'onglets, bandeau « Ouvert », écrans. Jetons de la charte
+   (deepotus.tokens.css, importée par studio3d.css) ; angles vifs : aucun rayon littéral, `var(--r)` seulement.
+   Couleur de section : --cat-3dstudio (DESIGN.md §15). */
+
+body.ec-actif { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--bg-base); }
+body.ec-actif .studio { flex: 1; height: auto; min-height: 0; }
+body.ec-actif:not(.ec-graphe) .studio { display: none; }
+
+/* ── barre d'onglets : trois groupes, filets entre eux ───────────────────── */
+.ec-barre {
+  flex: none; display: flex; align-items: stretch; justify-content: center; gap: 2px; padding: 0 12px;
+  background: var(--bg-panel); border-bottom: 1px solid var(--stroke); overflow-x: auto; scrollbar-width: thin;
+}
+.ec-onglet {
+  display: flex; align-items: center; gap: 7px; height: 42px; padding: 0 14px; border: 0; border-bottom: 2px solid transparent;
+  border-radius: var(--r); background: transparent; color: var(--ink); font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+}
+.ec-onglet:hover:not(:disabled) { color: var(--ink-strong); background: var(--bg-panel-2); }
+.ec-onglet.on { color: var(--ink-strong); border-bottom-color: var(--cat-3dstudio, var(--accent));
+  background: color-mix(in srgb, var(--cat-3dstudio, var(--accent)) 14%, transparent); }
+.ec-onglet:disabled { color: var(--ink-muted); cursor: not-allowed; opacity: .55; }
+.ec-onglet:focus-visible { outline: 1px solid var(--amber); outline-offset: -2px; }
+.ec-filet { width: 1px; margin: 9px 8px; background: var(--stroke-strong); flex: none; }
+
+/* ── bandeau « Ouvert » ──────────────────────────────────────────────────── */
+.ec-bandeau {
+  flex: none; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 4px 16px;
+  background: var(--bg-panel-3); border-bottom: 1px solid var(--stroke); font-size: 12.5px; color: var(--ink);
+}
+.ec-band-label { font-family: var(--f-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--cat-3dstudio, var(--accent)); }
+.ec-band-vide { color: var(--ink-soft); }
+.ec-band-vignette { width: 30px; height: 30px; object-fit: cover; border: 1px solid var(--stroke); border-radius: var(--r); }
+.ec-band-nom { color: var(--ink-strong); }
+.ec-band-detail { font-family: var(--f-mono); font-size: 11px; color: var(--ink-soft); }
+.ec-band-sale { font-size: 11px; color: var(--amber); }
+.ec-band-erreur { font-size: 11px; color: var(--red); }
+.ec-band-droite { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.ec-band-version { font-family: var(--f-mono); font-size: 11px; color: var(--ink-muted); }
+.ec-badge { font-family: var(--f-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; padding: 2px 6px;
+  border: 1px solid var(--cat-3dstudio, var(--accent)); color: var(--cat-3dstudio, var(--accent)); border-radius: var(--r); }
+.ec-badge.discret { border-color: var(--stroke-strong); color: var(--ink-soft); }
+.ec-envoyer { padding: 6px 12px; border: 1px solid var(--cat-3dstudio, var(--accent)); border-radius: var(--r);
+  background: color-mix(in srgb, var(--cat-3dstudio, var(--accent)) 22%, transparent); color: var(--ink-strong);
+  font-weight: 600; font-size: 12px; cursor: pointer; }
+.ec-fermer { width: 26px; height: 26px; border: 1px solid var(--stroke); border-radius: var(--r); background: transparent;
+  color: var(--ink-soft); cursor: pointer; font-size: 15px; line-height: 1; }
+
+/* ── zone des écrans ─────────────────────────────────────────────────────── */
+.ec-zone { flex: 1; min-height: 0; overflow: hidden; }
+.ec-ecran { height: 100%; overflow: auto; }
+.ec-trois { display: grid; grid-template-columns: 270px minmax(0, 1fr) 300px; height: 100%; }
+.ec-gauche, .ec-droite { background: var(--bg-panel); padding: 14px; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.ec-gauche { border-right: 1px solid var(--stroke); }
+/* une colonne qui défile ne RÉTRÉCIT pas ses enfants : sans ceci, une colonne pleine écrasait ses boutons (volets du
+   Décor à 12 px de haut, relevé t404) */
+.ec-gauche > *, .ec-droite > * { flex-shrink: 0; }
+.ec-droite { border-left: 1px solid var(--stroke); }
+.ec-centre { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.ec-label { margin-top: 8px; font-family: var(--f-mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+.ec-sous { margin-top: 4px; font-size: 11px; color: var(--ink-soft); }
+.ec-note { font-size: 11px; line-height: 1.5; color: var(--ink-muted); }
+.ec-avis { min-height: 16px; font-size: 12px; color: var(--amber); }
+.ec-avis:empty { min-height: 0; }
+.ec-erreur { padding: 24px; color: var(--red); }
+.ec-vide { grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--ink-soft); border: 1px dashed var(--stroke-strong); border-radius: var(--r); }
+
+.ec-bouton, .ec-principal {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid var(--stroke-strong);
+  border-radius: var(--r); background: var(--bg-panel-2); color: var(--ink); font-size: 12px; cursor: pointer; text-decoration: none;
+}
+.ec-bouton:hover { border-color: var(--accent); color: var(--ink-strong); }
+.ec-bouton.bloc { display: flex; width: 100%; box-sizing: border-box; }
+.ec-principal { justify-content: center; width: 100%; padding: 10px; border-color: var(--cat-3dstudio, var(--accent));
+  background: color-mix(in srgb, var(--cat-3dstudio, var(--accent)) 30%, var(--bg-panel-2)); color: var(--ink-strong); font-weight: 600; }
+.ec-principal:disabled, .ec-bouton:disabled { opacity: .45; cursor: not-allowed; }
+
+.ec-segments { display: inline-flex; border: 1px solid var(--stroke); border-radius: var(--r); overflow: hidden; }
+.ec-segments button { padding: 6px 10px; border: 0; border-right: 1px solid var(--stroke); background: transparent;
+  color: var(--ink-soft); font-size: 11.5px; cursor: pointer; }
+.ec-segments button:last-child { border-right: 0; }
+.ec-segments button.on { background: color-mix(in srgb, var(--cat-3dstudio, var(--accent)) 26%, transparent); color: var(--ink-strong); }
+.ec-segments.ec-plein { display: flex; flex-wrap: wrap; }
+.ec-segments.ec-plein button { flex: 1 1 auto; }
+
+.ec-champ { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink); }
+.ec-champ input[type="number"], .ec-champ input[type="text"], .ec-recherche {
+  padding: 6px 8px; border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel-2); color: var(--ink-strong); font: inherit; }
+.ec-champ input[type="color"] { width: 100%; height: 26px; border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel-2); }
+.ec-valeur { align-self: flex-end; margin-top: -18px; font-family: var(--f-mono); font-size: 11px; color: var(--ink-soft); }
+.ec-bascule { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink); }
+.ec-ligne { display: flex; align-items: flex-end; gap: 8px; }
+.ec-ligne .ec-champ { flex: 1; }
+
+/* ── Ouvrir ──────────────────────────────────────────────────────────────── */
+.ec-ouvrir { padding: 14px 18px; }
+.ec-outils { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 12px; }
+.ec-filtres { display: flex; flex-wrap: wrap; gap: 6px; }
+.ec-filtre { padding: 5px 10px; border: 1px solid var(--stroke); border-radius: var(--r); background: transparent;
+  color: var(--ink-soft); font-family: var(--f-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; cursor: pointer; }
+.ec-filtre b { color: var(--ink-muted); font-weight: 400; }
+.ec-filtre.on { border-color: var(--cat-3dstudio, var(--accent)); color: var(--ink-strong); }
+.ec-grille { display: flex; align-items: center; gap: 8px; margin-left: auto; font-family: var(--f-mono); font-size: 10px;
+  text-transform: uppercase; letter-spacing: .1em; color: var(--ink-soft); }
+.ec-recherche { min-width: 200px; }
+.ec-cartes { display: grid; grid-template-columns: repeat(var(--ec-colonnes, 4), minmax(0, 1fr)); gap: 12px; }
+.ec-carte { display: flex; flex-direction: column; border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel); }
+.ec-carte.on { border-color: var(--cat-3dstudio, var(--accent)); }
+.ec-carte-image { position: relative; aspect-ratio: 1; padding: 0; border: 0; background: var(--bg-panel-3); cursor: pointer; overflow: hidden; }
+.ec-carte-image img { width: 100%; height: 100%; object-fit: contain; }
+.ec-sans-image { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; color: var(--ink-muted); }
+.ec-sans-image .dzi { width: 40px; height: 40px; }
+.ec-pastilles { position: absolute; top: 6px; left: 6px; display: flex; gap: 4px; }
+.ec-carte-texte { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; min-width: 0; }
+.ec-carte-texte b { color: var(--ink-strong); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ec-carte-texte span { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft); }
+.ec-carte-actions { display: flex; gap: 4px; padding: 0 8px 8px; }
+.ec-carte-actions .ec-bouton { flex: 1; justify-content: center; padding: 6px 4px; font-size: 11px; }
+
+/* ── Importer ────────────────────────────────────────────────────────────── */
+.ec-importer { max-width: 880px; margin: 0 auto; padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+.ec-depot { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 40px; border: 1px dashed var(--stroke-strong);
+  border-radius: var(--r); background: var(--bg-panel); color: var(--ink); cursor: pointer; text-align: center; }
+.ec-depot span { font-size: 11.5px; color: var(--ink-soft); }
+.ec-depot.survol { border-color: var(--cat-3dstudio, var(--accent)); }
+.ec-depot.petit { flex-direction: row; padding: 12px; }
+.ec-types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ec-type { display: flex; flex-direction: column; gap: 4px; padding: 10px; border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel); }
+.ec-type b { color: var(--ink-strong); font-size: 12.5px; }
+.ec-type span { font-size: 11px; color: var(--ink-soft); }
+.ec-type.bientot { opacity: .7; }
+
+/* ── Préparer et Décor : viewport ────────────────────────────────────────── */
+.ec-barre-vue { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 8px; border-bottom: 1px solid var(--stroke); background: var(--bg-panel-3); }
+.ec-vues { flex: 1; min-height: 0; display: flex; gap: 2px; background: var(--stroke); }
+.ec-vue { position: relative; flex: 1; min-width: 0; margin: 0; background: var(--bg-base); }
+.ec-vue canvas { display: block; width: 100%; height: 100%; }
+.ec-vue figcaption { position: absolute; left: 10px; bottom: 8px; font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft);
+  background: color-mix(in srgb, var(--bg-base) 70%, transparent); padding: 3px 6px; }
+.ec-mesure { margin-right: auto; font-family: var(--f-mono); font-size: 11px; color: var(--ink-soft); }
+.ec-fiche { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; margin: 0; font-size: 12px; }
+.ec-fiche dt { color: var(--ink-soft); }
+.ec-fiche dd { margin: 0; text-align: right; font-family: var(--f-mono); color: var(--ink-strong); }
+.ec-versions { display: flex; flex-direction: column; gap: 4px; }
+.ec-version { display: flex; justify-content: space-between; padding: 5px 8px; border: 1px solid var(--stroke); border-radius: var(--r);
+  background: transparent; color: var(--ink); font-family: var(--f-mono); font-size: 11px; cursor: pointer; }
+.ec-version span { color: var(--ink-soft); }
+.ec-version.on { border-color: var(--cat-3dstudio, var(--accent)); }
+.ec-resume { font-size: 12px; color: var(--ink); }
+.ec-resume b { font-family: var(--f-mono); color: var(--cat-3dstudio, var(--accent)); }
+.ec-resume span { color: var(--ink-soft); }
+.ec-presets { display: flex; flex-wrap: wrap; gap: 4px; }
+.ec-preset { padding: 5px 8px; border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel-2); color: var(--ink);
+  font-size: 11px; cursor: pointer; }
+.ec-preset span { font-family: var(--f-mono); color: var(--ink-soft); }
+.ec-preset.on { border-color: var(--ink-strong); color: var(--ink-strong); }
+.ec-preset:disabled { opacity: .4; cursor: not-allowed; }
+.ec-cible { display: flex; align-items: center; gap: 8px; }
+.ec-cible input[type="range"] { flex: 1; }
+.ec-cible input[type="number"] { width: 90px; }
+.ec-bornes { display: flex; justify-content: space-between; font-family: var(--f-mono); font-size: 10px; color: var(--ink-muted); }
+.ec-telechargements { display: flex; flex-direction: column; gap: 4px; }
+
+/* ── Décor ───────────────────────────────────────────────────────────────── */
+.ec-especes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.ec-especes button { padding: 6px 8px; border: 1px solid var(--stroke); border-radius: var(--r); background: transparent;
+  color: var(--ink); font-size: 11.5px; text-align: left; cursor: pointer; }
+.ec-especes button.on { border-color: var(--cat-3dstudio, var(--accent)); color: var(--ink-strong);
+  background: color-mix(in srgb, var(--cat-3dstudio, var(--accent)) 16%, transparent); }
+.ec-volets { display: flex; }
+.ec-volets button { flex: 1; }
+.ec-fiche-courte { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+.ec-fiche-courte span { font-family: var(--f-mono); font-size: 11px; color: var(--ink-soft); }
+.ec-liste { margin: 0; padding-left: 18px; font-size: 12px; line-height: 1.6; color: var(--ink); }
+
+/* ── écrans d'attente ────────────────────────────────────────────────────── */
+.ec-bientot { max-width: 720px; margin: 0 auto; padding: 28px 24px; display: flex; flex-direction: column; gap: 10px; }
+.ec-bientot h2 { margin: 0; font-size: 17px; font-weight: 600; color: var(--ink-strong); }
+.ec-bientot ul { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.7; color: var(--ink); }
+.ec-liens { display: flex; flex-direction: column; gap: 6px; max-width: 420px; }
+
+/* ── le graphe d'hier : où vit désormais chaque fonction ─────────────────── */
+.ec-graphe-liens { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--stroke);
+  background: var(--bg-panel-3); }
+.ec-graphe-titre { font-size: 11.5px; color: var(--ink-soft); margin-right: 4px; }
+.ec-puce { padding: 3px 8px; border: 1px solid var(--stroke); border-radius: var(--r); background: transparent; color: var(--ink);
+  font-family: var(--f-mono); font-size: 10.5px; cursor: pointer; }
+.ec-puce:hover { border-color: var(--cat-3dstudio, var(--accent)); }
+
+@media (max-width: 1100px) {
+  .ec-trois { grid-template-columns: 230px minmax(0, 1fr) 250px; }
+  .ec-types { grid-template-columns: 1fr; }
+}
+
+/* ── Établi (t403) : la page de l'Établi dans un cadre, sur toute la hauteur ── */
+.ec-etabli { display: flex; flex-direction: column; height: 100%; }
+.ec-etabli-barre { display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-bottom: 1px solid var(--stroke); background: var(--bg-panel-3); }
+.ec-etabli-barre .ec-note { margin-right: auto; }
+.ec-etabli-cadre { flex: 1; width: 100%; border: 0; background: var(--bg-base); }

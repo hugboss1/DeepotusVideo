@@ -1,0 +1,120 @@
+{
+  "titre": {
+    "fr": "Accessoire : poser au sol, à la bonne taille",
+    "en": "Prop: on the ground, at the right size"
+  },
+  "legende": {
+    "fr": "Le modèle ouvert est posé au sol et mis à sa hauteur réelle ; son rôle indique le budget de triangles conseillé.",
+    "en": "The open model is placed on the ground at its real height; its role gives the advised triangle budget."
+  },
+  "captures": [
+    {
+      "fr": "accessoire.fr.webp",
+      "en": "accessoire.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        139,
+        283,
+        41
+      ],
+      "bulle": {
+        "fr": "1. La hauteur réelle, en mètres",
+        "en": "1. The real height, in metres"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        1291,
+        201
+      ],
+      "surligne": [
+        1149,
+        176,
+        283,
+        50
+      ],
+      "bulle": {
+        "fr": "2. Poser au sol : une nouvelle version",
+        "en": "2. Set on the ground: a new version"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        395,
+        283,
+        45
+      ],
+      "bulle": {
+        "fr": "Le budget de triangles du rôle",
+        "en": "The role's triangle budget"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        139,
+        283,
+        41
+      ],
+      "bulle": {
+        "fr": "1. La hauteur réelle, en mètres",
+        "en": "1. The real height, in metres"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        1291,
+        201
+      ],
+      "surligne": [
+        1149,
+        176,
+        283,
+        50
+      ],
+      "bulle": {
+        "fr": "2. Poser au sol : une nouvelle version",
+        "en": "2. Set on the ground: a new version"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        395,
+        283,
+        29
+      ],
+      "bulle": {
+        "fr": "Le budget de triangles du rôle",
+        "en": "The role's triangle budget"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

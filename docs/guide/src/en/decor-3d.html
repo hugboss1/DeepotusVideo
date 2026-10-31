@@ -1,0 +1,36 @@
+<p class="chapeau-chap">You will be able to grow trees, shrubs and ground cover at their real size, animate them in the wind and export them, then prepare a generated object as a scenery prop. The whole screen is free: nothing goes to a provider.</p>
+
+<h3>Grow a tree</h3>
+<figure class="scene" data-scene="decor-3d/vegetation"></figure>
+<ol class="etapes">
+<li>In the 3D Studio, open the <b class="ui">Scenery</b> screen, <b class="ui">Vegetation</b> panel. No open model is needed.</li>
+<li>Pick a species under <b class="ui">Trees</b> or <b class="ui">Shrubs &amp; ground</b>: 23 in all, each at its real adult height, in metres.</li>
+<li>Set the size, the number of branch levels and the foliage: <b class="ui">Real leaves</b>, or <b class="ui">Cards</b>, lighter for a game.</li>
+<li>Pick the <b class="ui">Season</b>: in winter, deciduous trees lose their leaves and evergreens get frosted. Bark and tints are set just below.</li>
+<li><b class="ui">New variation</b> draws another <b class="ui">Seed</b>: another individual of the same species. The same seed and settings always give back the same tree.</li>
+</ol>
+<p>The sheet under the view gives height, spread, triangles and leaves, updated on every setting.</p>
+
+<h3>The wind</h3>
+<p>Tick <b class="ui">Wind</b>, then set the strength, speed, direction and leaf flutter: the preview moves at once. The wind lives in the preview and in the recipe; the GLB itself stays still until the wind runtime animates it.</p>
+
+<h3>Export the tree</h3>
+<div class="cartes">
+<article><i data-dz="dz-lab3d-maillage"></i><h4>Save as a 3D model</h4><p><b class="ui">Save as a 3D model</b> makes it a 3D Studio model and opens it: Prepare and Export take it from there.</p></article>
+<article><i data-dz="dz-action-exporter"></i><h4>The GLB</h4><p><b class="ui">Download the GLB</b> gives the tree at real scale, tints included, exported in the browser.</p></article>
+<article><i data-dz="dz-action-enregistrer"></i><h4>The recipe</h4><p><b class="ui">Download the recipe (.decor.json)</b> keeps the species, the seed and every setting. <b class="ui">Import a recipe</b> rebuilds the same tree later.</p></article>
+<article><i data-dz="dz-cat-decor"></i><h4>The wind runtime</h4><p><b class="ui">Download the wind runtime (three.js)</b> gives a script that sways the GLB's leaves according to the recipe, in your web project.</p></article>
+</div>
+
+<h3>Prepare a prop</h3>
+<figure class="scene" data-scene="decor-3d/accessoire"></figure>
+<ol class="etapes">
+<li>Open a model (a rock, crate or plant generated in <a href="#creer-3d">Create</a>), then the <b class="ui">Prop</b> panel of the Scenery screen.</li>
+<li>Enter the <b class="ui">Real height (m)</b>, then <b class="ui">Set on the ground · new version</b>: the model is centred, set at height zero and scaled, in a new version.</li>
+<li>Pick its role in the scenery, from foreground to repeated crowd: the screen shows the advised triangle budget against the model's count.</li>
+<li><b class="ui">Triangle budget: Prepare</b> opens Prepare to lighten it; <b class="ui">Export the prop</b> opens Export.</li>
+</ol>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>A species starts from the closest vegetation preset: it is an approximation, not a botanical survey. Adjust shape and foliage by eye.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Prepare opens without preselecting the role's preset: pick it by hand, from the budget shown in Scenery.</p></aside>

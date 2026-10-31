@@ -1,0 +1,92 @@
+{
+  "titre": {
+    "fr": "Préparer : alléger sans perdre l'original",
+    "en": "Prepare: lighten without losing the original"
+  },
+  "legende": {
+    "fr": "Un préréglage fixe la cible de triangles ; Ré-optimiser écrit une nouvelle version, comparée côte à côte.",
+    "en": "A preset sets the triangle target; Re-optimise writes a new version, compared side by side."
+  },
+  "captures": [
+    {
+      "fr": "preparer.fr.webp",
+      "en": "preparer.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        204,
+        144,
+        38
+      ],
+      "bulle": {
+        "fr": "1. Un budget de triangles",
+        "en": "1. A triangle budget"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "curseur": [
+        1291,
+        400
+      ],
+      "surligne": [
+        1149,
+        375,
+        283,
+        50
+      ],
+      "bulle": {
+        "fr": "2. Une nouvelle version, gratuite",
+        "en": "2. A new version, free"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        204,
+        132,
+        38
+      ],
+      "bulle": {
+        "fr": "1. Un budget de triangles",
+        "en": "1. A triangle budget"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "curseur": [
+        1291,
+        400
+      ],
+      "surligne": [
+        1149,
+        375,
+        283,
+        50
+      ],
+      "bulle": {
+        "fr": "2. Une nouvelle version, gratuite",
+        "en": "2. A new version, free"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

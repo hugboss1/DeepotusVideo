@@ -8,6 +8,12 @@
 <link rel="stylesheet" href="/shared/icons/dz-icons.css">
 <link rel="stylesheet" href="studio3d.css">
 <link rel="stylesheet" href="graphe_vues.css">
+<link rel="stylesheet" href="ecrans/ecrans.css">
+<link rel="stylesheet" href="ecrans/exporter.css">
+<link rel="stylesheet" href="ecrans/texture.css">
+<link rel="stylesheet" href="ecrans/rig.css">
+<link rel="stylesheet" href="ecrans/animer.css">
+<link rel="stylesheet" href="ecrans/affiner.css">
 <script src="/shared/dz-i18n-dico.js"></script>
 <script src="/shared/dz-i18n.js"></script>
 <script src="/shared/icons/dz-icons.js"></script>
@@ -254,5 +260,8 @@
 <script src="/shared/dz-modeles-ia.js"></script>
 <script type="module" src="studio3d.js"></script>
 <script type="module" src="graphe_vues.js"></script>
+<!-- t388 (31/10/2026) : la coque du 3D Studio à écrans (barre d'onglets, bandeau « Ouvert », écrans) ; le graphe
+     ci-dessus devient l'écran « Graphe ». Chargée APRÈS studio3d.js : elle lit window.__dzStudio3d. -->
+<script type="module" src="ecrans/coque.js"></script>
 </body>
 </html>

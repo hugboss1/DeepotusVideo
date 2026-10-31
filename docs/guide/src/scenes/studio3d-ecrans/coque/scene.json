@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "La barre d'écrans et le bandeau « Ouvert »",
+    "en": "The screen bar and the “Open” banner"
+  },
+  "legende": {
+    "fr": "Ouvrir et Importer à gauche ; le parcours du modèle au centre ; Décor et Graphe à droite. Le bandeau rappelle le modèle ouvert.",
+    "en": "Open and Import on the left; the model's journey in the middle; Scenery and Graph on the right. The banner shows the open model."
+  },
+  "captures": [
+    {
+      "fr": "ouvrir.fr.webp",
+      "en": "ouvrir.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        173,
+        0,
+        101,
+        54
+      ],
+      "bulle": {
+        "fr": "Ouvrir : tous vos modèles",
+        "en": "Open: all your models"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        947,
+        0,
+        115,
+        54
+      ],
+      "bulle": {
+        "fr": "Préparer → Exporter, dans l'ordre",
+        "en": "Prepare → Export, in order"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        0,
+        37,
+        1440,
+        52
+      ],
+      "bulle": {
+        "fr": "Le modèle ouvert et sa version",
+        "en": "The open model and its version"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        169,
+        0,
+        95,
+        54
+      ],
+      "bulle": {
+        "fr": "Ouvrir : tous vos modèles",
+        "en": "Open: all your models"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        957,
+        0,
+        103,
+        54
+      ],
+      "bulle": {
+        "fr": "Préparer → Exporter, dans l'ordre",
+        "en": "Prepare → Export, in order"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        0,
+        37,
+        1440,
+        52
+      ],
+      "bulle": {
+        "fr": "Le modèle ouvert et sa version",
+        "en": "The open model and its version"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
