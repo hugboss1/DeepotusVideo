@@ -16,7 +16,7 @@ const ico = (cle) => `<svg class="dzi dzi--16" aria-hidden="true" focusable="fal
 
 /* les écrans livrés ; les autres passent par l'écran d'attente (bientot) */
 const MODULES = { ouvrir: "./ouvrir.js", importer: "./importer.js", preparer: "./preparer.js", decor: "./decor.js",
-  texture: "./texture.js", exporter: "./exporter.js", rig: "./rig.js" };
+  texture: "./texture.js", exporter: "./exporter.js", rig: "./rig.js", animer: "./animer.js" };
 
 const E = { ouvert: null, ecran: "ouvrir", sale: false, sections: {}, modules: {}, chargement: null };
 

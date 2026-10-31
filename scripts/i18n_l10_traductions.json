@@ -13578,5 +13578,169 @@
  "hauteur_m hors de [{HAUTEUR_MIN}, {HAUTEUR_MAX}] m": {
   "fr": "hauteur_m hors de [{HAUTEUR_MIN}, {HAUTEUR_MAX}] m",
   "en": "hauteur_m outside [{HAUTEUR_MIN}, {HAUTEUR_MAX}] m"
+ },
+ "action_id : un entier du catalogue Meshy est attendu": {
+  "fr": "action_id : un entier du catalogue Meshy est attendu",
+  "en": "action_id: an integer from the Meshy catalogue is expected"
+ },
+ "animation {v} absente du catalogue Meshy": {
+  "fr": "animation {v} absente du catalogue Meshy",
+  "en": "animation {v} not in the Meshy catalogue"
+ },
+ "« {nom} » est livrée avec le rig : elle ne s'applique pas (0 à 696)": {
+  "fr": "« {nom} » est livrée avec le rig : elle ne s'applique pas (0 à 696)",
+  "en": "\"{nom}\" ships with the rig: it is not applied (0 to 696)"
+ },
+ "Clé Meshy absente — Réglages › Clés : l'animation passe par ton compte Meshy.": {
+  "fr": "Clé Meshy absente — Réglages › Clés : l'animation passe par ton compte Meshy.",
+  "en": "Meshy key missing — Settings › Keys: animation runs on your Meshy account."
+ },
+ "Ce modèle n'a pas de rig Meshy : rigge-le dans l'écran Rig (l'action peut y être jointe), puis reviens.": {
+  "fr": "Ce modèle n'a pas de rig Meshy : rigge-le dans l'écran Rig (l'action peut y être jointe), puis reviens.",
+  "en": "This model has no Meshy rig: rig it in the Rig screen (the action can be attached there), then come back."
+ },
+ "Clé Meshy absente — Réglages › Clés : le texte → mouvement passe par ton compte Meshy.": {
+  "fr": "Clé Meshy absente — Réglages › Clés : le texte → mouvement passe par ton compte Meshy.",
+  "en": "Meshy key missing — Settings › Keys: text → motion runs on your Meshy account."
+ },
+ "Ce modèle n'a pas de squelette : rigge-le d'abord dans l'écran Rig.": {
+  "fr": "Ce modèle n'a pas de squelette : rigge-le d'abord dans l'écran Rig.",
+  "en": "This model has no skeleton: rig it first in the Rig screen."
+ },
+ "{k} : une liste d'identifiants est attendue": {
+  "fr": "{k} : une liste d'identifiants est attendue",
+  "en": "{k}: a list of identifiers is expected"
+ },
+ "collection inconnue": {
+  "fr": "collection inconnue",
+  "en": "unknown collection"
+ },
+ "vue : « tous », « favoris » ou « collection »": {
+  "fr": "vue : « tous », « favoris » ou « collection »",
+  "en": "view: \"tous\", \"favoris\" or \"collection\""
+ },
+ "job « {v} » : nom de dossier invalide": {
+  "fr": "job « {v} » : nom de dossier invalide",
+  "en": "job \"{v}\": invalid folder name"
+ },
+ "{job}/{nom} introuvable": {
+  "fr": "{job}/{nom} introuvable",
+  "en": "{job}/{nom} not found"
+ },
+ "poitrine : vrai ou faux": {
+  "fr": "poitrine : vrai ou faux",
+  "en": "poitrine: true or false"
+ },
+ "joints : un objet {os: [x, y, z]} est attendu": {
+  "fr": "joints : un objet {os: [x, y, z]} est attendu",
+  "en": "joints: an object {os: [x, y, z]} is expected"
+ },
+ "GLB à plusieurs buffers ou à buffer externe : hors périmètre du rig local": {
+  "fr": "GLB à plusieurs buffers ou à buffer externe : hors périmètre du rig local",
+  "en": "GLB with several buffers or an external buffer: outside the local rig's scope"
+ },
+ "aucun maillage avec des positions dans ce GLB": {
+  "fr": "aucun maillage avec des positions dans ce GLB",
+  "en": "no mesh with positions in this GLB"
+ },
+ "{total} sommets : au-delà de {MAX_SOMMETS}, allège d'abord le modèle (écran Préparer)": {
+  "fr": "{total} sommets : au-delà de {MAX_SOMMETS}, allège d'abord le modèle (écran Préparer)",
+  "en": "{total} vertices: above {MAX_SOMMETS}, lighten the model first (Prepare screen)"
+ },
+ "os inconnu(s) : {v}": {
+  "fr": "os inconnu(s) : {v}",
+  "en": "unknown bone(s): {v}"
+ },
+ "GLB compressé ({e}) : ses positions ne sont pas lisibles ici — rouvre une version non compressée (Préparer garde la v1)": {
+  "fr": "GLB compressé ({e}) : ses positions ne sont pas lisibles ici — rouvre une version non compressée (Préparer garde la v1)",
+  "en": "Compressed GLB ({e}): its positions cannot be read here — reopen an uncompressed version (Prepare keeps v1)"
+ },
+ "articulation « {i} » : trois nombres finis [x, y, z] sont attendus": {
+  "fr": "articulation « {i} » : trois nombres finis [x, y, z] sont attendus",
+  "en": "joint \"{i}\": three finite numbers [x, y, z] are expected"
+ },
+ "articulation « {i} » hors du modèle": {
+  "fr": "articulation « {i} » hors du modèle",
+  "en": "joint \"{i}\" outside the model"
+ },
+ "identifiant d'animation : un entier du catalogue Meshy est attendu": {
+  "fr": "identifiant d'animation : un entier du catalogue Meshy est attendu",
+  "en": "animation identifier: an integer from the Meshy catalogue is expected"
+ },
+ "animation {i} absente du catalogue Meshy": {
+  "fr": "animation {i} absente du catalogue Meshy",
+  "en": "animation {i} not in the Meshy catalogue"
+ },
+ "collection : un nom est attendu": {
+  "fr": "collection : un nom est attendu",
+  "en": "collection: a name is expected"
+ },
+ "ce modèle n'a pas de rig Meshy : passe par l'écran Rig": {
+  "fr": "ce modèle n'a pas de rig Meshy : passe par l'écran Rig",
+  "en": "this model has no Meshy rig: go through the Rig screen"
+ },
+ "meshy: la tâche {atid} n'a rendu aucun GLB d'animation": {
+  "fr": "meshy: la tâche {atid} n'a rendu aucun GLB d'animation",
+  "en": "meshy: task {atid} returned no animation GLB"
+ },
+ "prompt : décris le mouvement (« marche prudente, regarde à gauche »)": {
+  "fr": "prompt : décris le mouvement (« marche prudente, regarde à gauche »)",
+  "en": "prompt: describe the motion (\"careful walk, looks left\")"
+ },
+ "prompt : {PROMPT_MAX} caractères au plus": {
+  "fr": "prompt : {PROMPT_MAX} caractères au plus",
+  "en": "prompt: {PROMPT_MAX} characters at most"
+ },
+ "durée : un nombre de secondes, de {DUREE_MIN} à {DUREE_MAX}": {
+  "fr": "durée : un nombre de secondes, de {DUREE_MIN} à {DUREE_MAX}",
+  "en": "duration: a number of seconds, from {DUREE_MIN} to {DUREE_MAX}"
+ },
+ "durée : de {DUREE_MIN} à {DUREE_MAX} s": {
+  "fr": "durée : de {DUREE_MIN} à {DUREE_MAX} s",
+  "en": "duration: from {DUREE_MIN} to {DUREE_MAX} s"
+ },
+ "durée : par pas de {DUREE_PAS} s": {
+  "fr": "durée : par pas de {DUREE_PAS} s",
+  "en": "duration: in steps of {DUREE_PAS} s"
+ },
+ "mode : « swift » (BVH) ou « prime » (FBX)": {
+  "fr": "mode : « swift » (BVH) ou « prime » (FBX)",
+  "en": "mode: \"swift\" (BVH) or \"prime\" (FBX)"
+ },
+ "mode « prime » : Meshy rend un FBX, qu'aucun lecteur embarqué ne lit — choisis « swift » (BVH), relu et reciblé ici": {
+  "fr": "mode « prime » : Meshy rend un FBX, qu'aucun lecteur embarqué ne lit — choisis « swift » (BVH), relu et reciblé ici",
+  "en": "\"prime\" mode: Meshy returns an FBX that no embedded reader can read — pick \"swift\" (BVH), read and retargeted here"
+ },
+ "meshy: la tâche {tid} n'a rendu aucun mouvement": {
+  "fr": "meshy: la tâche {tid} n'a rendu aucun mouvement",
+  "en": "meshy: task {tid} returned no motion"
+ },
+ "meshy: mouvement rendu en {fmt}, illisible ici (BVH attendu)": {
+  "fr": "meshy: mouvement rendu en {fmt}, illisible ici (BVH attendu)",
+  "en": "meshy: motion returned as {fmt}, unreadable here (BVH expected)"
+ },
+ "{job}/{nom_v} introuvable": {
+  "fr": "{job}/{nom_v} introuvable",
+  "en": "{job}/{nom_v} not found"
+ },
+ "collections : {COLLECTIONS_MAX} au plus": {
+  "fr": "collections : {COLLECTIONS_MAX} au plus",
+  "en": "collections: {COLLECTIONS_MAX} at most"
+ },
+ "collection inconnue : {cid}": {
+  "fr": "collection inconnue : {cid}",
+  "en": "unknown collection: {cid}"
+ },
+ "collection : {IDS_MAX} animations au plus": {
+  "fr": "collection : {IDS_MAX} animations au plus",
+  "en": "collection: {IDS_MAX} animations at most"
+ },
+ "favoris : {IDS_MAX} au plus": {
+  "fr": "favoris : {IDS_MAX} au plus",
+  "en": "favourites: {IDS_MAX} at most"
+ },
+ "retirer : des identifiants entiers sont attendus": {
+  "fr": "retirer : des identifiants entiers sont attendus",
+  "en": "remove: integer identifiers are expected"
  }
 }

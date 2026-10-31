@@ -36,6 +36,7 @@ MODULES = {
     "pose3d": RACINE / "api" / "pose3d_routes.py",   # t376 : la classification vision de la source 3D (Anthropic)
     "news_fils": RACINE / "api" / "news_fils_routes.py",   # t380 : le relevé payant d'un fil social suivi (Apify)
     "studio3d_texture": RACINE / "api" / "studio3d_texture_routes.py",   # t393 : écran Texture (image fal, retexture Meshy)
+    "studio3d_animer": RACINE / "api" / "studio3d_animer_routes.py",   # t398-t399 : écran Animer (animation Meshy, texte → mouvement)
 }
 
 PUITS = {
