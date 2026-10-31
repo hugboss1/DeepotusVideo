@@ -34,6 +34,7 @@ MODULES = {
     "parallaxe": RACINE / "api" / "parallaxe_routes.py",   # t341 : décor en calques de parallaxe (Qwen-Image-Layered / Seedream Layerize, fal)
     "pose3d": RACINE / "api" / "pose3d_routes.py",   # t376 : la classification vision de la source 3D (Anthropic)
     "news_fils": RACINE / "api" / "news_fils_routes.py",   # t380 : le relevé payant d'un fil social suivi (Apify)
+    "studio3d_texture": RACINE / "api" / "studio3d_texture_routes.py",   # t393 : écran Texture (image fal, retexture Meshy)
 }
 
 PUITS = {
@@ -84,6 +85,7 @@ PUITS = {
     "decomposer_par_ia",   # t341 : décor en calques de parallaxe (fal) — POST /api/parallaxe/decouper
     "generer_3d",   # t331 : generate_3d dans le Blender ouvert (blender_mcp.generer_3d) — POST /api/blender/generer
     "convertir_par_meshy",   # T105 : fbx/usdz/blend par Meshy convert (1 crédit par tâche)
+    "ST.generer_reference",   # t393 : la capture du 3D Studio chez un modèle d'image (studio3d_texture._tirer -> fal / OpenAI)
     "_run_manuscript_job", "_run_adapt_job", "_run_bible_model3d",
     "ouvrir_session_direct",   # t161 : le jeton client Decart (le Direct, facturé à la seconde)
     "relayer_fal",   # t168f : le relais du Direct par fal (le WebSocket fal tenu par le serveur, facturé à la seconde)

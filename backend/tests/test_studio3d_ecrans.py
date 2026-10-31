@@ -173,7 +173,10 @@ def test_la_page_charge_la_coque_apres_le_graphe_sans_texte_neuf_dans_le_html():
 
 
 def test_les_cles_des_ecrans_existent_en_fr_et_en():
-    dico = json.loads((RACINE / "frontend/shared/i18n/studio3decrans.json").read_text(encoding="utf-8"))
+    # t393 : chaque écran peut tenir son propre dictionnaire (studio3decrans_<écran>.json), même espace de clés
+    dico = {}
+    for f in sorted((RACINE / "frontend/shared/i18n").glob("studio3decrans*.json")):
+        dico.update(json.loads(f.read_text(encoding="utf-8")))
     src = "".join((RACINE / "frontend/studio3d/ecrans" / f).read_text(encoding="utf-8")
                   for f in os.listdir(RACINE / "frontend/studio3d/ecrans") if f.endswith(".js"))
     cles = {k for k in re.findall(r'\bT\("([a-z0-9_.]+)"', src) if not k.endswith((".", "_"))}

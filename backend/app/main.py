@@ -579,6 +579,9 @@ app.include_router(comparatif3d_router, prefix="/api/comparatif3d")
 # t388 (31/10/2026) : /api/studio3d — 3D Studio à écrans : galerie, modèle ouvert, préréglages de Préparer (lecture)
 from app.api.studio3d_routes import router as studio3d_router
 app.include_router(studio3d_router, prefix="/api/studio3d")
+# t393 (31/10/2026) : /api/studio3d/texture — écran Texture : références d'image (capture → modèle d'image), retexture Meshy
+from app.api.studio3d_texture_routes import router as studio3d_texture_router
+app.include_router(studio3d_texture_router, prefix="/api/studio3d/texture")
 # t376 (29/10/2026) : /api/assets3d/pose — choix Aucune / T-pose / A-pose (état gratuit, classement vision payant
 # une fois par image), local seulement
 from app.api.pose3d_routes import router as pose3d_router

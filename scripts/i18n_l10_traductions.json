@@ -13334,5 +13334,97 @@
  "Couleur manquante ou illisible : {j} (#rrggbb attendu)": {
   "fr": "Couleur manquante ou illisible : {j} (#rrggbb attendu)",
   "en": "Missing or unreadable colour: {j} (#rrggbb expected)"
+ },
+ "action doit être « generer » ou « retexturer »": {
+  "fr": "action doit être « generer » ou « retexturer »",
+  "en": "action must be “generer” or “retexturer”"
+ },
+ "modèle 3D inconnu : {name}": {
+  "fr": "modèle 3D inconnu : {name}",
+  "en": "unknown 3D model: {name}"
+ },
+ "modèle d'image inconnu : {v}": {
+  "fr": "modèle d'image inconnu : {v}",
+  "en": "unknown image model: {v}"
+ },
+ "{manque} non configurée (Réglages › Clés d'API) pour {modele}.": {
+  "fr": "{manque} non configurée (Réglages › Clés d'API) pour {modele}.",
+  "en": "{manque} not set (Settings › API keys) for {modele}."
+ },
+ "{manque} non configurée (Réglages › Clés d'API) : la retexture passe par ton compte Meshy, le maillage voyage par le stockage fal.": {
+  "fr": "{manque} non configurée (Réglages › Clés d'API) : la retexture passe par ton compte Meshy, le maillage voyage par le stockage fal.",
+  "en": "{manque} not set (Settings › API keys): the retexture goes through your Meshy account, the mesh travels through fal storage."
+ },
+ "max_usd doit être un nombre": {
+  "fr": "max_usd doit être un nombre",
+  "en": "max_usd must be a number"
+ },
+ "{modele} ne prend pas la résolution {res}": {
+  "fr": "{modele} ne prend pas la résolution {res}",
+  "en": "{modele} does not take resolution {res}"
+ },
+ "resolution doit être {v}": {
+  "fr": "resolution doit être {v}",
+  "en": "resolution must be {v}"
+ },
+ "{id} : aucune version numérotée": {
+  "fr": "{id} : aucune version numérotée",
+  "en": "{id}: no numbered version"
+ },
+ "{id} : version {version} absente": {
+  "fr": "{id} : version {version} absente",
+  "en": "{id}: version {version} missing"
+ },
+ "référence inconnue : {v}": {
+  "fr": "référence inconnue : {v}",
+  "en": "unknown reference: {v}"
+ },
+ "référence inconnue : {rid}": {
+  "fr": "référence inconnue : {rid}",
+  "en": "unknown reference: {rid}"
+ },
+ "image absente": {
+  "fr": "image absente",
+  "en": "image missing"
+ },
+ "image trop lourde (> {v} Mo)": {
+  "fr": "image trop lourde (> {v} Mo)",
+  "en": "image too large (> {v} MB)"
+ },
+ "{modele} ne prend pas la résolution {resolution} (permises : {v})": {
+  "fr": "{modele} ne prend pas la résolution {resolution} (permises : {v})",
+  "en": "{modele} does not take resolution {resolution} (allowed: {v})"
+ },
+ "ratio inconnu : {v} (permis : {v2})": {
+  "fr": "ratio inconnu : {v} (permis : {v2})",
+  "en": "unknown aspect ratio: {v} (allowed: {v2})"
+ },
+ "prompt trop long ({prompt} > {PROMPT_MAX} caractères)": {
+  "fr": "prompt trop long ({prompt} > {PROMPT_MAX} caractères)",
+  "en": "prompt too long ({prompt} > {PROMPT_MAX} characters)"
+ },
+ "vue ou éclairage inconnu": {
+  "fr": "vue ou éclairage inconnu",
+  "en": "unknown view or lighting"
+ },
+ "texte de style trop long ({prompt} > 600 caractères, limite de Meshy)": {
+  "fr": "texte de style trop long ({prompt} > 600 caractères, limite de Meshy)",
+  "en": "style text too long ({prompt} > 600 characters, Meshy's limit)"
+ },
+ "une référence d'image ou un texte de style est nécessaire": {
+  "fr": "une référence d'image ou un texte de style est nécessaire",
+  "en": "an image reference or a style text is required"
+ },
+ "{modele} n'a rendu aucune image": {
+  "fr": "{modele} n'a rendu aucune image",
+  "en": "{modele} returned no image"
+ },
+ "image illisible (base64 attendu)": {
+  "fr": "image illisible (base64 attendu)",
+  "en": "unreadable image (base64 expected)"
+ },
+ "Nano Banana Pro n'a rendu aucune image : {v}": {
+  "fr": "Nano Banana Pro n'a rendu aucune image : {v}",
+  "en": "Nano Banana Pro returned no image: {v}"
  }
 }

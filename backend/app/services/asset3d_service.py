@@ -956,8 +956,12 @@ def _glb_courant(job: str) -> str:
 async def texturer_asset3d(job: str, *, resolution: str = "2k",
                            pbr: bool = True, ai_model: str = "meshy-7",
                            style_prompt: str | None = None,
-                           garder_uv: bool = False, on_step=None) -> dict:
+                           garder_uv: bool = False, on_step=None,
+                           vues_style: list | None = None) -> dict:
     """Texture un maillage existant chez Meshy, et l'ajoute en NOUVELLE version.
+
+    `vues_style` (t393, écran Texture du 3D Studio) : des images choisies À L'ÉCRAN (chemins absolus) qui remplacent
+    les vues du manifeste comme référence de style ; absent, rien ne change.
 
     Refuse tant que la géométrie n'est pas approuvée : c'est la même porte que
     `refine_asset3d`, parce que c'est la même dépense évitable — texturer un
@@ -990,6 +994,8 @@ async def texturer_asset3d(job: str, *, resolution: str = "2k",
     vues = [s for s in (man.get("shots") or [])[1:] if (d / s).is_file()][:4]
     if not vues and (d / "shot_0.png").is_file():
         vues = ["shot_0.png"]
+    if vues_style:      # t393 : `d / chemin absolu` rend le chemin absolu, l'envoi plus bas reste le même
+        vues = [str(v) for v in vues_style if (d / v).is_file()][:4]
     if not vues and not (style_prompt or "").strip():
         raise ValueError(
             "Aucune vue conservée et aucun style demandé : Meshy a besoin "
