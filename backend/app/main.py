@@ -594,6 +594,9 @@ app.include_router(studio3d_decor_router, prefix="/api/studio3d/decor")
 # t398 + t399 (31/10/2026) : /api/studio3d/animer — écran Animer : catalogue Meshy, favoris, collections, texte → mouvement
 from app.api.studio3d_animer_routes import router as studio3d_animer_router
 app.include_router(studio3d_animer_router, prefix="/api/studio3d/animer")
+# t396 + t397 (31/10/2026) : /api/studio3d/affiner — écran Affiner : poids peints et corrections automatiques (local, gratuit)
+from app.api.studio3d_affiner_routes import router as studio3d_affiner_router
+app.include_router(studio3d_affiner_router, prefix="/api/studio3d/affiner")
 # t376 (29/10/2026) : /api/assets3d/pose — choix Aucune / T-pose / A-pose (état gratuit, classement vision payant
 # une fois par image), local seulement
 from app.api.pose3d_routes import router as pose3d_router
