@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { ECRANS, SUIVANT, ECRAN_DU_NOEUD, permis, lireAdresse, ecrireAdresse, nb, bandeau, filtrer, compter, estDecor,
   reduction, presetProche, curseurVersTris, trisVersCurseur, cibleBornee } from "../ecrans/coque_calc.js";
 import { ESPECES, GROUPES, ONGLETS, REGLAGES_DEFAUT, presetDe, optionsPour, hauteurCible, echelleVers, vent, recette, lireRecette,
-  nomFichier, melanger } from "../ecrans/decor_calc.js";
+  nomFichier, melanger, VARIANTES_DEFAUT, corpsVariantes, valeurMasque, profilMasque, cadreCartes, vueCarte, facesCartes,
+  ATLAS, USAGES_LOD, niveauxLod } from "../ecrans/decor_calc.js";
 import * as DONNEES from "../../lib3d/eztree/presets/donnees.js";
 
 const eq = (a, b) => assert.deepEqual(a, b);
@@ -191,6 +192,52 @@ t("la recette : aller-retour, clés inconnues et types faux écartés, refus d'u
   assert.equal(recette({ espece: "pin", taille: "grand", graine: 3 }).nom, "pin_grand_3");
   assert.equal(nomFichier("Chêne du Lac !"), "chene_du_lac");
   assert.equal(nomFichier("***"), "decor");
+});
+
+/* ── Décor › Accessoire (t402) : variantes, masque de vent, cartes, LOD ── */
+t("les variantes : le corps envoyé reste dans les bornes du service", () => {
+  eq(corpsVariantes("j", 2, {}), { job: "j", version: 2, ...VARIANTES_DEFAUT });
+  const c = corpsVariantes("j", 1, { nombre: 12, graine: -3, echelle_pct: 90, teinte: 2, luminosite: 1, rotation: 0 });
+  eq([c.nombre, c.graine, c.echelle_pct, c.teinte, c.luminosite, c.rotation], [8, 0, 50, 1, 0.6, false]);
+  eq(corpsVariantes("j", 1, { nombre: 1.4 }).nombre, 2);
+  eq(corpsVariantes("j", 1, { graine: 7.9 }).graine, 7);
+  eq(corpsVariantes("j", 1, { teinte: "x" }).teinte, 0.25);
+});
+
+t("le masque de vent croît avec la hauteur (mêmes valeurs que studio3d_decor.valeur_masque)", () => {
+  eq(valeurMasque(0.5, 2), 0.25);
+  eq(valeurMasque(0.2, 1, 0.25), 0);
+  assert.ok(Math.abs(valeurMasque(0.625, 1, 0.25) - 0.5) < 1e-12);
+  eq([valeurMasque(-1), valeurMasque(0), valeurMasque(1), valeurMasque(3)], [0, 0, 1, 1]);
+  for (const [c, s] of [[0.5, 0], [1.5, 0], [3, 0.4]]) {
+    const v = Array.from({ length: 51 }, (_, i) => valeurMasque(i / 50, c, s));
+    for (let i = 1; i < v.length; i++) assert.ok(v[i] >= v[i - 1], `${c}/${s}/${i}`);
+    eq(v[50], 1);
+  }
+  eq(profilMasque(1, 0, 120, 40, 4).split(" "), ["0,40", "30,30", "60,20", "90,10", "120,0"]);
+});
+
+t("les cartes : cadre carré, huit caméras sur l'azimut, faces et cases de l'atlas", () => {
+  const c = cadreCartes({ min: [-1, 0, -0.5], max: [3, 2, 0.5] });          // même boîte que le banc python
+  eq(c.centre, [1, 1, 0]);
+  assert.ok(Math.abs(c.cote - 2 * Math.sqrt(4.25)) < 1e-12);
+  eq(cadreCartes({ min: [0, 0, 0], max: [1, 10, 1] }).cote, 10);
+  const k = { centre: [0, 1, 0], cote: 2 };
+  eq(vueCarte(0, k), { position: [0, 1, 4], cible: [0, 1, 0], colonne: 0, ligne: 0 });     // face : +Z
+  eq(vueCarte(2, k).position, [4, 1, 0]);                                                  // 90° : +X
+  eq(vueCarte(4, k).position, [0, 1, -4]);
+  eq([vueCarte(5, k).colonne, vueCarte(5, k).ligne], [1, 1]);
+  eq(ATLAS, { colonnes: 4, lignes: 2 });
+  eq(facesCartes(2).map((f) => f.case), [0, 4, 2, 6]);
+  eq(facesCartes(3).map((f) => f.case), [0, 4, 1, 5, 3, 7]);
+  assert.throws(() => facesCartes(4), /plans/);
+});
+
+t("la chaîne de LOD : les usages de mesh_lod et une ligne par niveau", () => {
+  eq(USAGES_LOD, ["mobile", "pc", "impression"]);
+  eq(niveauxLod({ niveaux: [{ niveau: 0, tris: 900 }, { niveau: 1, tris: 300 }] }),
+    [{ niveau: 0, triangles: 900 }, { niveau: 1, triangles: 300 }]);
+  eq(niveauxLod(null), []);
 });
 
 console.log(`\nOK — ${ok} tests (3D Studio à écrans)`);
