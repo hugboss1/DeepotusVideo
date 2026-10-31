@@ -1,0 +1,628 @@
+{
+ "base": "http://127.0.0.1:8808",
+ "preparation": "backend de preuve t404 (scratchpad t404/preuve/serve.py) : données COPIÉES des preuves t388-t403 (mannequin riggé, héros animé, imports), aucune clé ; le devis de Créer est gratuit, rien de payant n'est cliqué",
+ "scenes": [
+  {
+   "scene": "creer-3d/ecran",
+   "url": "/",
+   "titre": {
+    "fr": "L'onglet 3D : Créer",
+    "en": "The 3D tab: Create"
+   },
+   "legende": {
+    "fr": "À gauche les modèles à cocher, au centre la galerie, à droite la source, la quantité et le total estimé.",
+    "en": "On the left the models to tick, in the middle the gallery, on the right the source, quantity and estimated total."
+   },
+   "avant": [
+    {
+     "clic": "texte:Game Assets",
+     "apres": 2500
+    },
+    {
+     "clic": "texte:3D",
+     "apres": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "choix",
+     "etapes": [
+      {
+       "clic": "css:button[data-img=\"sorciere_source.png\"]",
+       "apres": 900
+      },
+      {
+       "clic": "css:input[data-moteur=\"hunyuan-local\"]",
+       "apres": 1500
+      },
+      {
+       "clic": "css:input[data-moteur=\"trellis-2\"]",
+       "apres": 2500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:input[data-moteur=\"trellis-2\"]",
+     "bulle": {
+      "fr": "1. Cochez un ou plusieurs modèles",
+      "en": "1. Tick one or more models"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:button[data-img=\"sorciere_source.png\"]",
+     "bulle": {
+      "fr": "2. Choisissez l'image source",
+      "en": "2. Pick the source image"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "curseur": "css:.c3d-go",
+     "surligne": "css:.c3d-total",
+     "bulle": {
+      "fr": "3. Total estimé, puis Générer",
+      "en": "3. Estimated total, then Generate"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "creer-3d/galerie",
+   "url": "/",
+   "titre": {
+    "fr": "La galerie et l'envoi au 3D Studio",
+    "en": "The gallery and sending to the 3D Studio"
+   },
+   "legende": {
+    "fr": "Chaque modèle se filtre, se compare à sa source et part d'un clic vers l'écran voulu du 3D Studio.",
+    "en": "Each model can be filtered, compared with its source and sent in one click to the chosen 3D Studio screen."
+   },
+   "avant": [
+    {
+     "clic": "texte:Game Assets",
+     "apres": 2500
+    },
+    {
+     "clic": "texte:3D",
+     "apres": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "galerie"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:button[data-filtre=\"rigges\"]",
+     "bulle": {
+      "fr": "Tous, riggés ou non riggés",
+      "en": "All, rigged or not rigged"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "curseur": "css:button[data-ouvrir][data-ecran=\"rig\"]",
+     "surligne": "css:button[data-ouvrir][data-ecran=\"rig\"]",
+     "bulle": {
+      "fr": "Ouvrir ce modèle dans Rig",
+      "en": "Open this model in Rig"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio3d-ecrans/coque",
+   "url": "/studio3d/?job=mannequin_preuve&ecran=ouvrir",
+   "titre": {
+    "fr": "La barre d'écrans et le bandeau « Ouvert »",
+    "en": "The screen bar and the “Open” banner"
+   },
+   "legende": {
+    "fr": "Ouvrir et Importer à gauche ; le parcours du modèle au centre ; Décor et Graphe à droite. Le bandeau rappelle le modèle ouvert.",
+    "en": "Open and Import on the left; the model's journey in the middle; Scenery and Graph on the right. The banner shows the open model."
+   },
+   "avant": [
+    {
+     "attente": 3500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "ouvrir"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:button.ec-onglet[data-ecran=\"ouvrir\"]",
+     "bulle": {
+      "fr": "Ouvrir : tous vos modèles",
+      "en": "Open: all your models"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:button.ec-onglet[data-ecran=\"exporter\"]",
+     "bulle": {
+      "fr": "Préparer → Exporter, dans l'ordre",
+      "en": "Prepare → Export, in order"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#ecBandeau",
+     "bulle": {
+      "fr": "Le modèle ouvert et sa version",
+      "en": "The open model and its version"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio3d-ecrans/preparer",
+   "url": "/studio3d/?job=import_aller_retour_9a3ea268&ecran=preparer",
+   "titre": {
+    "fr": "Préparer : alléger sans perdre l'original",
+    "en": "Prepare: lighten without losing the original"
+   },
+   "legende": {
+    "fr": "Un préréglage fixe la cible de triangles ; Ré-optimiser écrit une nouvelle version, comparée côte à côte.",
+    "en": "A preset sets the triangle target; Re-optimise writes a new version, compared side by side."
+   },
+   "avant": [
+    {
+     "attente": 4500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "preparer"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:button.ec-preset[data-preset=\"game\"]",
+     "bulle": {
+      "fr": "1. Un budget de triangles",
+      "en": "1. A triangle budget"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "curseur": "css:#prGo",
+     "surligne": "css:#prGo",
+     "bulle": {
+      "fr": "2. Une nouvelle version, gratuite",
+      "en": "2. A new version, free"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio3d-ecrans/texture",
+   "url": "/studio3d/?job=f8ba73ca&ecran=texture",
+   "titre": {
+    "fr": "Texture : référence, retexture et projection",
+    "en": "Texture: reference, retexture and projection"
+   },
+   "legende": {
+    "fr": "Visez une vue, générez une image de référence, puis retexturez ou projetez sur l'atlas en plusieurs vues.",
+    "en": "Aim at a view, generate a reference image, then retexture or project onto the atlas from several views."
+   },
+   "avant": [
+    {
+     "attente": 5000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "texture"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#txCadrer",
+     "bulle": {
+      "fr": "1. Vue et éclairage de la capture",
+      "en": "1. Capture view and lighting"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#txGenerer",
+     "bulle": {
+      "fr": "2. Image de référence, sur devis",
+      "en": "2. Reference image, quoted first"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:button[data-volet=\"proj\"]",
+     "bulle": {
+      "fr": "Projection multi-vues",
+      "en": "Multi-view projection"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio3d-ecrans/rig",
+   "url": "/studio3d/?job=mannequin_preuve&ecran=rig",
+   "titre": {
+    "fr": "Rig : un squelette placé à la main, gratuit",
+    "en": "Rig: a skeleton placed by hand, free"
+   },
+   "legende": {
+    "fr": "Le gabarit de 22 os se cale sur le modèle ; on ajuste les articulations puis on recalcule les poids, en local.",
+    "en": "The 22-bone template fits the model; adjust the joints, then recompute the weights locally."
+   },
+   "avant": [
+    {
+     "attente": 5000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "rig"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#rgTitreOs",
+     "bulle": {
+      "fr": "Les os du gabarit",
+      "en": "The template's bones"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#rgAjuster",
+     "bulle": {
+      "fr": "1. Ajuster les articulations",
+      "en": "1. Adjust the joints"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "curseur": "css:#rgAppliquer",
+     "surligne": "css:#rgAppliquer",
+     "bulle": {
+      "fr": "2. Recalculer les poids",
+      "en": "2. Recompute the weights"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio3d-ecrans/affiner",
+   "url": "/studio3d/?job=mannequin_preuve&ecran=affiner",
+   "titre": {
+    "fr": "Affiner : peindre les poids, corriger d'un clic",
+    "en": "Refine: paint weights, fix in one click"
+   },
+   "legende": {
+    "fr": "Une pose d'essai montre où la peau se déforme ; le pinceau ou Tout corriger règle le problème, puis on enregistre une version.",
+    "en": "A test pose shows where the skin deforms; the brush or Fix everything solves it, then you save a version."
+   },
+   "avant": [
+    {
+     "attente": 5000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "affiner",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Bras levés",
+        "en": "texte:Arms raised"
+       },
+       "apres": 2000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Bras levés",
+      "en": "texte:Arms raised"
+     },
+     "bulle": {
+      "fr": "1. Une pose d'essai",
+      "en": "1. A test pose"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Peindre (2)",
+      "en": "texte:Paint (2)"
+     },
+     "bulle": {
+      "fr": "2. Peindre les poids",
+      "en": "2. Paint the weights"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:#afTout",
+     "bulle": {
+      "fr": "Ou tout corriger, gratuit",
+      "en": "Or fix everything, free"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio3d-ecrans/animer",
+   "url": "/studio3d/?job=import_heros_anime_v1_animation_7cba9621&ecran=animer",
+   "titre": {
+    "fr": "Animer : bibliothèque, texte et clavier",
+    "en": "Animate: library, text and keyboard"
+   },
+   "legende": {
+    "fr": "Les clips du modèle se jouent à gauche ; le catalogue Meshy, le texte → mouvement et l'import de BVH sont à côté.",
+    "en": "The model's clips play on the left; the Meshy catalogue, text → motion and BVH import sit alongside."
+   },
+   "avant": [
+    {
+     "attente": 5000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "animer"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Catalogue",
+      "en": "texte:Catalogue"
+     },
+     "bulle": {
+      "fr": "680 animations Meshy",
+      "en": "680 Meshy animations"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#anGenererGo",
+     "bulle": {
+      "fr": "Texte → mouvement, sur devis",
+      "en": "Text → motion, quoted first"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#anConduite",
+     "bulle": {
+      "fr": "Promener le personnage au clavier",
+      "en": "Walk the character with the keyboard"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio3d-ecrans/exporter",
+   "url": "/studio3d/?job=import_heros_anime_v1_animation_7cba9621&ecran=exporter",
+   "titre": {
+    "fr": "Exporter vers un jeu, le web ou l'impression",
+    "en": "Export to a game, the web or a printer"
+   },
+   "legende": {
+    "fr": "Un bouton par cible : GLB, FBX, Godot, Unreal, Unity, paquet three.js, LOD, textures, impression 3D.",
+    "en": "One button per target: GLB, FBX, Godot, Unreal, Unity, three.js package, LOD, textures, 3D printing."
+   },
+   "avant": [
+    {
+     "attente": 4500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "exporter"
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Animation · .glb",
+      "en": "texte:Animation · .glb"
+     },
+     "bulle": {
+      "fr": "Le GLB avec ses clips",
+      "en": "The GLB with its clips"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "contient:Godot 4",
+      "en": "contient:Godot 4"
+     },
+     "bulle": {
+      "fr": "Une scène Godot prête",
+      "en": "A ready Godot scene"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Paquet three.js · .zip",
+      "en": "contient:three.js"
+     },
+     "bulle": {
+      "fr": "Le paquet pour le web",
+      "en": "The package for the web"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "decor-3d/vegetation",
+   "url": "/studio3d/?ecran=decor",
+   "titre": {
+    "fr": "Végétation : un arbre en quelques réglages",
+    "en": "Vegetation: a tree in a few settings"
+   },
+   "legende": {
+    "fr": "Choisissez une espèce, réglez la taille, le feuillage, la saison et le vent, puis exportez ou rangez l'arbre.",
+    "en": "Pick a species, set size, foliage, season and wind, then export or store the tree."
+   },
+   "avant": [
+    {
+     "attente": 6000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "vegetation",
+     "etapes": [
+      {
+       "clic": {
+        "fr": "texte:Automne",
+        "en": "texte:Autumn"
+       },
+       "apres": 3500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:button[data-espece=\"chene\"]",
+     "bulle": {
+      "fr": "1. L'espèce, à sa hauteur réelle",
+      "en": "1. The species, at its real height"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": {
+      "fr": "texte:Automne",
+      "en": "texte:Autumn"
+     },
+     "bulle": {
+      "fr": "2. Saison, feuillage, vent",
+      "en": "2. Season, foliage, wind"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": {
+      "fr": "texte:Ranger comme modèle 3D",
+      "en": "contient:3D model"
+     },
+     "bulle": {
+      "fr": "3. Ranger ou télécharger",
+      "en": "3. Store or download"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "decor-3d/accessoire",
+   "url": "/studio3d/?job=import_saule_moyen_1_7b727192&ecran=decor",
+   "titre": {
+    "fr": "Accessoire : poser au sol, à la bonne taille",
+    "en": "Prop: on the ground, at the right size"
+   },
+   "legende": {
+    "fr": "Le modèle ouvert est posé au sol et mis à sa hauteur réelle ; son rôle indique le budget de triangles conseillé.",
+    "en": "The open model is placed on the ground at its real height; its role gives the advised triangle budget."
+   },
+   "avant": [
+    {
+     "attente": 5000
+    }
+   ],
+   "captures": [
+    {
+     "nom": "accessoire",
+     "etapes": [
+      {
+       "js": "document.querySelector('button[data-volet=\"accessoire\"]').click()"
+      },
+      {
+       "attente": 3500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#dcHauteur",
+     "bulle": {
+      "fr": "1. La hauteur réelle, en mètres",
+      "en": "1. The real height, in metres"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "curseur": "css:button[data-action=\"poser\"]",
+     "surligne": "css:button[data-action=\"poser\"]",
+     "bulle": {
+      "fr": "2. Poser au sol : une nouvelle version",
+      "en": "2. Set on the ground: a new version"
+     }
+    },
+    {
+     "capture": 0,
+     "duree": 2.6,
+     "surligne": "css:#dcBudget",
+     "bulle": {
+      "fr": "Le budget de triangles du rôle",
+      "en": "The role's triangle budget"
+     }
+    }
+   ]
+  }
+ ]
+}

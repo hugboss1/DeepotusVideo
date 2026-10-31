@@ -1,0 +1,36 @@
+<p class="chapeau-chap">Vous saurez faire pousser des arbres, des arbustes et du couvre-sol à leur taille réelle, les animer au vent et les exporter, puis préparer un objet généré comme accessoire de décor. Tout l'écran est gratuit : rien ne part chez un fournisseur.</p>
+
+<h3>Faire pousser un arbre</h3>
+<figure class="scene" data-scene="decor-3d/vegetation"></figure>
+<ol class="etapes">
+<li>Dans le 3D Studio, ouvrez l'écran <b class="ui">Décor</b>, volet <b class="ui">Végétation</b>. Aucun modèle ouvert n'est nécessaire.</li>
+<li>Choisissez une espèce dans <b class="ui">Arbres</b> ou <b class="ui">Arbustes et sol</b> : 23 au total, chacune à sa hauteur adulte réelle, en mètres.</li>
+<li>Réglez la taille, le nombre de niveaux de branches et le feuillage : <b class="ui">Feuilles réelles</b>, ou <b class="ui">Cartes</b>, plus légères pour un jeu.</li>
+<li>Choisissez la <b class="ui">Saison</b> : en hiver, les arbres caducs perdent leurs feuilles et les persistants se givrent. Écorce et teintes se règlent juste en dessous.</li>
+<li><b class="ui">Nouvelle variante</b> tire une autre <b class="ui">Graine</b> : un autre individu de la même espèce. Même graine et mêmes réglages redonnent toujours le même arbre.</li>
+</ol>
+<p>La fiche sous la vue donne hauteur, envergure, triangles et feuilles, mis à jour à chaque réglage.</p>
+
+<h3>Le vent</h3>
+<p>Cochez <b class="ui">Vent</b>, puis réglez la force, la vitesse, la direction et le frémissement des feuilles : l'aperçu bouge aussitôt. Le vent vit dans l'aperçu et dans la recette ; le GLB, lui, reste immobile tant que le runtime de vent ne l'anime pas.</p>
+
+<h3>Exporter l'arbre</h3>
+<div class="cartes">
+<article><i data-dz="dz-lab3d-maillage"></i><h4>Ranger comme modèle 3D</h4><p><b class="ui">Ranger comme modèle 3D</b> en fait un modèle du 3D Studio et l'ouvre : Préparer et Exporter le reprennent.</p></article>
+<article><i data-dz="dz-action-exporter"></i><h4>Le GLB</h4><p><b class="ui">Télécharger le GLB</b> donne l'arbre à l'échelle réelle, teintes comprises, exporté dans le navigateur.</p></article>
+<article><i data-dz="dz-action-enregistrer"></i><h4>La recette</h4><p><b class="ui">Télécharger la recette (.decor.json)</b> garde l'espèce, la graine et tous les réglages. <b class="ui">Importer une recette</b> refait le même arbre plus tard.</p></article>
+<article><i data-dz="dz-cat-decor"></i><h4>Le runtime de vent</h4><p><b class="ui">Télécharger le runtime de vent (three.js)</b> donne un script qui fait onduler les feuilles du GLB selon la recette, dans votre projet web.</p></article>
+</div>
+
+<h3>Préparer un accessoire</h3>
+<figure class="scene" data-scene="decor-3d/accessoire"></figure>
+<ol class="etapes">
+<li>Ouvrez un modèle (rocher, caisse, plante générés dans <a href="#creer-3d">Créer</a>), puis le volet <b class="ui">Accessoire</b> de l'écran Décor.</li>
+<li>Saisissez la <b class="ui">Hauteur réelle (m)</b>, puis <b class="ui">Poser au sol · nouvelle version</b> : le modèle est centré, posé à hauteur zéro et mis à l'échelle, dans une nouvelle version.</li>
+<li>Choisissez son rôle dans le décor, de premier plan à répété en foule : l'écran affiche le budget de triangles conseillé face au compte du modèle.</li>
+<li><b class="ui">Budget de triangles : Préparer</b> ouvre Préparer pour l'alléger ; <b class="ui">Exporter l'accessoire</b> ouvre Exporter.</li>
+</ol>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Une espèce part du préréglage de végétation le plus proche : c'est une approche, pas un relevé botanique. Ajustez la forme et le feuillage à l'œil.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Préparer s'ouvre sans présélectionner le préréglage du rôle : choisissez-le à la main, d'après le budget affiché dans Décor.</p></aside>

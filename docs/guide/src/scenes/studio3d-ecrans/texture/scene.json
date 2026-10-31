@@ -1,0 +1,112 @@
+{
+  "titre": {
+    "fr": "Texture : référence, retexture et projection",
+    "en": "Texture: reference, retexture and projection"
+  },
+  "legende": {
+    "fr": "Visez une vue, générez une image de référence, puis retexturez ou projetez sur l'atlas en plusieurs vues.",
+    "en": "Aim at a view, generate a reference image, then retexture or project onto the atlas from several views."
+  },
+  "captures": [
+    {
+      "fr": "texture.fr.webp",
+      "en": "texture.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        984,
+        83,
+        92,
+        44
+      ],
+      "bulle": {
+        "fr": "1. Vue et éclairage de la capture",
+        "en": "1. Capture view and lighting"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        406,
+        283,
+        50
+      ],
+      "bulle": {
+        "fr": "2. Image de référence, sur devis",
+        "en": "2. Reference image, quoted first"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1285,
+        92,
+        146,
+        39
+      ],
+      "bulle": {
+        "fr": "Projection multi-vues",
+        "en": "Multi-view projection"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1008,
+        83,
+        90,
+        44
+      ],
+      "bulle": {
+        "fr": "1. Vue et éclairage de la capture",
+        "en": "1. Capture view and lighting"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1149,
+        406,
+        283,
+        50
+      ],
+      "bulle": {
+        "fr": "2. Image de référence, sur devis",
+        "en": "2. Reference image, quoted first"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1285,
+        92,
+        146,
+        39
+      ],
+      "bulle": {
+        "fr": "Projection multi-vues",
+        "en": "Multi-view projection"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

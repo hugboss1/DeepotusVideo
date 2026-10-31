@@ -1,0 +1,63 @@
+<p class="chapeau-chap">You will be able to take a 3D model from start to finish in the 3D Studio: lighten it, texture it, give it a skeleton, fix its skin, animate it and export it to a game, the web or a printer. Almost everything is local and free; the AI steps are paid, on a confirmed quote.</p>
+
+<h3>Finding your way: the screen bar</h3>
+<figure class="scene" data-scene="studio3d-ecrans/coque"></figure>
+<p>The 3D Studio is the <b class="ui">3D Studio</b> sub-tab of Game Assets. Its bar has three groups: <b class="ui">Open</b> and <b class="ui">Import</b>; then the model's journey, from <b class="ui">Prepare</b> to <b class="ui">Export</b>, greyed out while no model is open; finally <b class="ui">Scenery</b> and <b class="ui">Graph</b>, the former Meshy graph.</p>
+<ol class="etapes">
+<li><b class="ui">Open</b> shows all your models (generated, imported, retouched), with filters and search. A click on a thumbnail opens the model in Prepare.</li>
+<li><b class="ui">Import</b> takes a .glb, .gltf, .obj, .stl, .fbx or .vrm file. FBX goes through Blender and is refused if Blender is missing.</li>
+<li>The <b class="ui">Open</b> banner recalls the model, its bones, vertices, triangles and version. Every operation writes a new version; the old one stays.</li>
+<li>The banner's “Send to …” button moves to the next screen of the journey, without saving anything.</li>
+</ol>
+
+<h3>Prepare: lighten the model</h3>
+<figure class="scene" data-scene="studio3d-ecrans/preparer"></figure>
+<p>The sheet gives vertices, triangles, meshes, materials and bones. A preset, from Micro prop to Max detail, or the slider sets the target. <b class="ui">Re-optimize · new version</b> decimates locally and opens the result; <b class="ui">Both</b> compares original and optimised side by side. <b class="ui">Back to the original (v1)</b> deletes nothing. To repair or cut, <b class="ui">Open in the Workbench</b> leads to the <b class="ui">Workbench</b> screen, on the same model (see <a href="#etabli">the Workbench</a>).</p>
+
+<h3>Texture: repaint the model</h3>
+<figure class="scene" data-scene="studio3d-ecrans/texture"></figure>
+<ol class="etapes">
+<li><b class="ui">Reference</b> panel: aim at a view and a lighting, then <b class="ui">Frame</b>. The dotted frame shows what will go to the image model.</li>
+<li><b class="ui">Generate</b> sends the capture to the chosen image model and stores the image in the references rail.</li>
+<li><b class="ui">Retexture</b> has Meshy repaint the mesh from the chosen reference or a style text, as a new version.</li>
+<li><b class="ui">Projection</b> panel: <b class="ui">Run auto texture</b> captures 4 to 18 views, has them painted and projects them onto the UV atlas. Eraser, smudge, fill, <b class="ui">Fill all gaps</b> and <b class="ui">Heal</b> retouch locally, then <b class="ui">Save as a version</b>.</li>
+</ol>
+
+<h3>Rig: give it a skeleton</h3>
+<figure class="scene" data-scene="studio3d-ecrans/rig"></figure>
+<p>The 22-bone template fits the model. <b class="ui">Adjust joints</b> lets you drag them with the gizmo, with <b class="ui">Mirror</b> and <b class="ui">Children</b>; Shift+click picks several. <b class="ui">Recompute weights</b> writes a rigged version, for free. <b class="ui">Meshy auto-rig</b> does the job by AI, paid, after confirmation.</p>
+
+<h3>Refine: fix the skin</h3>
+<figure class="scene" data-scene="studio3d-ecrans/affiner"></figure>
+<ol class="etapes">
+<li>A test pose, such as <b class="ui">Arms raised</b>, shows where the skin deforms. <b class="ui">Bind pose</b> returns to rest.</li>
+<li>Pick the bone with <b class="ui">Select bone (1)</b>, then <b class="ui">Paint (2)</b> or <b class="ui">Lasso (3)</b>, with the Set, Add, Subtract, Smooth or Blur operation.</li>
+<li>Or <b class="ui">Fix everything</b>: shoulders, limbs, seams and healing over a battery of poses, in one version.</li>
+<li><b class="ui">Save weights</b> writes your retouches into a new version.</li>
+</ol>
+
+<h3>Animate: bring it to life</h3>
+<figure class="scene" data-scene="studio3d-ecrans/animer"></figure>
+<p><b class="ui">Generated</b> plays the model's clips. <b class="ui">Catalogue</b> browses 680 Meshy animations, with starred items and collections; “Apply” puts them on the model, paid. <b class="ui">Generate</b> turns a text into motion, also paid. <b class="ui">Import a motion</b> retargets a BVH or an animated GLB onto your skeleton, for free. <b class="ui">Drive mode</b> walks the character with the keyboard (ZQSD, WASD or arrows).</p>
+
+<h3>Export: deliver</h3>
+<figure class="scene" data-scene="studio3d-ecrans/exporter"></figure>
+<p>One button per target, all local and free: <b class="ui">Skeletal mesh only · .glb</b>, <b class="ui">Pose · .glb</b>, <b class="ui">Animation · .glb</b>, <b class="ui">FBX via Blender</b>, <b class="ui">Godot 4 · .tscn scene + hitboxes</b>, Unreal, Unity, <b class="ui">three.js package · .zip</b>, <b class="ui">LOD chain · .zip</b>, <b class="ui">PBR textures · .zip</b> and <b class="ui">STL + 3MF in millimetres</b>. The links arrive in Ready files. <b class="ui">Save to Library</b> makes it one more model.</p>
+
+<h3>Good to know</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Paid, counted under the “moteurs3d” category: the reference image, auto texture, AI denoising, retexture, auto-rig, applying an animation and text to motion. Each one shows a quote, then asks for confirmation. Everything else is local and free.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Nothing is overwritten: every screen writes one more version. A click on a version, in Prepare or Export, reopens the model as it was.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>“Close the model” (×) asks for no confirmation, even with unsaved changes: save first.</p></aside>
+
+<h3>Refine shortcuts</h3>
+<div class="tableau"><table>
+<thead><tr><th>Key</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>P</kbd></td><td>Bone, Paint, Lasso, Pose</td></tr>
+<tr><td><kbd>R</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd></td><td>Set, Add, Subtract, Smooth, Blur</td></tr>
+<tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Shrink or grow the brush</td></tr>
+<tr><td><kbd>M</kbd></td><td>Mirror</td></tr>
+<tr><td><kbd>5</kbd></td><td>Isolate the chosen bone</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo, redo a stroke</td></tr>
+</tbody>
+</table></div>

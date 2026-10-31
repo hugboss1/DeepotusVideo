@@ -1,0 +1,63 @@
+<p class="chapeau-chap">Vous saurez mener un modèle 3D de bout en bout dans le 3D Studio : l'alléger, le texturer, lui poser un squelette, corriger sa peau, l'animer et l'exporter vers un jeu, le web ou l'impression. Presque tout est local et gratuit ; les étapes IA sont payantes, sur devis confirmé.</p>
+
+<h3>Se repérer : la barre d'écrans</h3>
+<figure class="scene" data-scene="studio3d-ecrans/coque"></figure>
+<p>Le 3D Studio est le sous-onglet <b class="ui">3D Studio</b> de Game Assets. Sa barre a trois groupes : <b class="ui">Ouvrir</b> et <b class="ui">Importer</b> ; puis le parcours du modèle, de <b class="ui">Préparer</b> à <b class="ui">Exporter</b>, grisé tant qu'aucun modèle n'est ouvert ; enfin <b class="ui">Décor</b> et <b class="ui">Graphe</b>, l'ancien graphe Meshy.</p>
+<ol class="etapes">
+<li><b class="ui">Ouvrir</b> montre tous vos modèles (générés, importés, retouchés), avec filtres et recherche. Un clic sur une vignette ouvre le modèle dans Préparer.</li>
+<li><b class="ui">Importer</b> reçoit un fichier .glb, .gltf, .obj, .stl, .fbx ou .vrm. Le FBX passe par Blender, refusé s'il est absent.</li>
+<li>Le bandeau <b class="ui">Ouvert</b> rappelle le modèle, ses os, sommets, triangles et sa version. Chaque opération écrit une nouvelle version ; l'ancienne reste.</li>
+<li>Le bouton « Envoyer vers … » du bandeau passe à l'écran suivant du parcours, sans rien enregistrer.</li>
+</ol>
+
+<h3>Préparer : alléger le modèle</h3>
+<figure class="scene" data-scene="studio3d-ecrans/preparer"></figure>
+<p>La fiche donne sommets, triangles, maillages, matériaux et os. Un préréglage, de Micro accessoire à Détail maximal, ou le curseur fixe la cible. <b class="ui">Ré-optimiser · nouvelle version</b> décime en local et ouvre le résultat ; <b class="ui">Les deux</b> compare original et optimisé côte à côte. <b class="ui">Revenir à l'original (v1)</b> n'efface rien. Pour réparer ou couper, <b class="ui">Ouvrir dans l'Établi</b> mène à l'écran <b class="ui">Établi</b>, sur le même modèle (voir <a href="#etabli">l'Établi</a>).</p>
+
+<h3>Texture : repeindre le modèle</h3>
+<figure class="scene" data-scene="studio3d-ecrans/texture"></figure>
+<ol class="etapes">
+<li>Volet <b class="ui">Référence</b> : visez une vue, un éclairage, puis <b class="ui">Cadrer</b>. Le cadre en pointillés montre ce qui partira au modèle d'image.</li>
+<li><b class="ui">Générer</b> envoie la capture au modèle d'image choisi et range l'image dans le rail des références.</li>
+<li><b class="ui">Retexturer</b> fait repeindre le maillage par Meshy d'après la référence choisie ou un texte de style, en nouvelle version.</li>
+<li>Volet <b class="ui">Projection</b> : <b class="ui">Lancer la texture auto</b> capture 4 à 18 vues, les fait peindre et les projette sur l'atlas UV. Gomme, estomper, combler, <b class="ui">Tout combler</b> et <b class="ui">Soigner</b> retouchent en local, puis <b class="ui">Enregistrer en version</b>.</li>
+</ol>
+
+<h3>Rig : poser un squelette</h3>
+<figure class="scene" data-scene="studio3d-ecrans/rig"></figure>
+<p>Le gabarit de 22 os se cale sur le modèle. <b class="ui">Ajuster les articulations</b> permet de les tirer au gizmo, avec <b class="ui">Miroir</b> et <b class="ui">Enfants</b> ; Maj+clic en prend plusieurs. <b class="ui">Recalculer les poids</b> écrit une version riggée, gratuitement. <b class="ui">Auto-rig Meshy</b> fait le travail par l'IA, payant, après confirmation.</p>
+
+<h3>Affiner : corriger la peau</h3>
+<figure class="scene" data-scene="studio3d-ecrans/affiner"></figure>
+<ol class="etapes">
+<li>Une pose d'essai, comme <b class="ui">Bras levés</b>, montre où la peau se déforme. <b class="ui">Pose de liaison</b> revient au repos.</li>
+<li>Choisissez l'os avec <b class="ui">Os (1)</b>, puis <b class="ui">Peindre (2)</b> ou <b class="ui">Lasso (3)</b>, avec l'opération Fixer, Ajouter, Retirer, Lisser ou Flouter.</li>
+<li>Ou bien <b class="ui">Tout corriger</b> : épaules, membres, coutures et guérison sur une batterie de poses, en une version.</li>
+<li><b class="ui">Enregistrer les poids</b> écrit vos retouches dans une nouvelle version.</li>
+</ol>
+
+<h3>Animer : donner du mouvement</h3>
+<figure class="scene" data-scene="studio3d-ecrans/animer"></figure>
+<p><b class="ui">Générés</b> joue les clips du modèle. <b class="ui">Catalogue</b> parcourt 680 animations Meshy, avec favoris et collections ; « Appliquer » les pose sur le modèle, payant. <b class="ui">Générer</b> transforme un texte en mouvement, payant aussi. <b class="ui">Importer un mouvement</b> recible un BVH ou un GLB animé sur votre squelette, gratuitement. <b class="ui">Mode conduite</b> promène le personnage au clavier (ZQSD, WASD ou flèches).</p>
+
+<h3>Exporter : livrer</h3>
+<figure class="scene" data-scene="studio3d-ecrans/exporter"></figure>
+<p>Un bouton par cible, tous locaux et gratuits : <b class="ui">Maillage seul · .glb</b>, <b class="ui">Pose · .glb</b>, <b class="ui">Animation · .glb</b>, <b class="ui">FBX par Blender</b>, <b class="ui">Godot 4 · scène .tscn + hitboxes</b>, Unreal, Unity, <b class="ui">Paquet three.js · .zip</b>, <b class="ui">Chaîne de LOD · .zip</b>, <b class="ui">Textures PBR · .zip</b> et <b class="ui">STL + 3MF aux millimètres</b>. Les liens arrivent dans Fichiers prêts. <b class="ui">Ranger en Bibliothèque</b> en fait un modèle de plus.</p>
+
+<h3>Bon à savoir</h3>
+<aside class="cout"><i data-dz="dz-etat-plafond"></i><p>Payants, comptés sous la catégorie « moteurs3d » : l'image de référence, la texture auto, le débruitage IA, la retexture, l'auto-rig, l'application d'une animation et le texte vers mouvement. Chacun affiche un devis puis demande confirmation. Tout le reste est local et gratuit.</p></aside>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Rien ne s'écrase : chaque écran écrit une version de plus. Un clic sur une version, dans Préparer ou Exporter, rouvre le modèle tel qu'il était.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>« Fermer le modèle » (×) ne demande pas de confirmation, même avec des modifications non enregistrées : enregistrez d'abord.</p></aside>
+
+<h3>Raccourcis d'Affiner</h3>
+<div class="tableau"><table>
+<thead><tr><th>Touche</th><th>Effet</th></tr></thead>
+<tbody>
+<tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>P</kbd></td><td>Os, Peindre, Lasso, Pose</td></tr>
+<tr><td><kbd>R</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> <kbd>F</kbd></td><td>Fixer, Ajouter, Retirer, Lisser, Flouter</td></tr>
+<tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Réduire ou agrandir le pinceau</td></tr>
+<tr><td><kbd>M</kbd></td><td>Miroir</td></tr>
+<tr><td><kbd>5</kbd></td><td>Isoler l'os choisi</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Annuler, rétablir un trait</td></tr>
+</tbody>
+</table></div>

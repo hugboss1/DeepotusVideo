@@ -742,6 +742,79 @@ def test_partages_absents(depot):
     assert not any(k.startswith(("campagnes.", "agent.")) for k in S.extraire(depot))
 
 
+# t404 (31/10/2026) : les écrans bâtis en GABARITS HTML (onglet 3D « Créer », écrans du 3D Studio) — éléments désignés
+# clé par clé dans scripts/agent/gabarits_html.json, gardés tant que le code les emploie
+GAB_COQUE = 'const E = [{ id: "texture" }, { id: "rig" }];\nh += `<button title="${T("aide." + e.id)}">${T("onglet." + e.id)}</button>`;'
+GAB_AFFINER = ('b.innerHTML = `<button data-t="1">${T("aff.tout")}</button><p>${T("aff.en_cours")}</p>`;\n'
+               'const OUTILS = ["lasso"]; seg("outil", OUTILS);\n'           # `aff.${cle}_${x}` : morceaux cités ailleurs
+               'const seg = (cle, l) => l.map((x) => `<button>${T(`aff.${cle}_${x}`)}</button>`);\n'
+               'h += T("aff.vue_" + v.toLowerCase()); const V = ["Poids"];'
+               'const ONG = { arbres: [1], sol: [2] }; Object.keys(ONG).map((o) => T("aff.onglet_" + o));')   # clé d'objet   # "aff.vue_" + … : casse ignorée
+GAB_CREER = 'h += \'<button class="go">\' + esc(T("creer3d.saisie.generer")) + "</button>";'
+CLES_GAB = {k: {"fr": k.rsplit(".", 1)[-1], "en": k.rsplit(".", 1)[-1].upper()} for k in (
+    "studio3decrans.onglet.texture", "studio3decrans.aide.texture", "studio3decrans.onglet.decor",
+    "studio3decrans.aff.tout", "studio3decrans.aff.retire", "creer3d.saisie.generer", "studio3decrans.aff.outil_lasso",
+    "studio3decrans.aff.outil_pose", "studio3decrans.aff.vue_poids", "studio3decrans.aff.vue_fil", "studio3decrans.aff.onglet_sol")}
+TABLE_GAB = {"groupes": [
+    {"fichiers": ["frontend/studio3d/ecrans/coque.js"],
+     "cles": {"studio3decrans.onglet.texture": ["onglet", "studio3decrans.aide.texture"],
+              "studio3decrans.onglet.decor": "onglet"}},                 # « decor » absent du code : pas de fiche
+    {"fichiers": ["frontend/studio3d/ecrans/affiner.js"],
+     "cles": {"studio3decrans.aff.tout": "bouton", "studio3decrans.aff.retire": "bouton",   # plus employée
+              "studio3decrans.aff.absente": "bouton",                    # absente du dictionnaire
+              "studio3decrans.aff.outil_lasso": "outil", "studio3decrans.aff.outil_pose": "outil",   # « pose » : jamais cité
+              "studio3decrans.aff.vue_poids": "champ", "studio3decrans.aff.vue_fil": "champ",
+              "studio3decrans.aff.onglet_sol": "onglet"}},     # « fil » : jamais cité
+    {"fichiers": ["frontend/shared/dz-creer3d.js"], "cles": {"creer3d.saisie.generer": "bouton"}}]}
+
+
+def _gabarits(tmp_path, table=TABLE_GAB):
+    racine = _depot(tmp_path, BUNDLE)
+    _ecrire(racine / "frontend" / "shared" / "i18n" / "gab.json", json.dumps(CLES_GAB))
+    _ecrire(racine / "frontend" / "studio3d" / "ecrans" / "coque.js", GAB_COQUE)
+    _ecrire(racine / "frontend" / "studio3d" / "ecrans" / "affiner.js", GAB_AFFINER)
+    _ecrire(racine / "frontend" / "shared" / "dz-creer3d.js", GAB_CREER)
+    _ecrire(racine / "scripts" / "agent" / "gabarits_html.json", table if isinstance(table, str) else json.dumps(table))
+    return racine
+
+
+def test_gabarits_cles_designees(tmp_path):
+    e = S.extraire(_gabarits(tmp_path))
+    o = e["studio3decrans.onglet.texture"]                       # clé composée : "onglet. + id "texture"
+    assert o["type"] == "onglet" and o["ecran"] == "assets3d" and o["cadre"] == "/studio3d/"
+    assert o["libelle"]["fr"] == "texture" and o["infobulle"] == {"fr": "texture", "en": "TEXTURE"}
+    assert o["sources"] == ["frontend/studio3d/ecrans/coque.js"]
+    t = e["studio3decrans.aff.tout"]                             # T("aff.tout") : le T des écrans préfixe sa zone
+    assert t["type"] == "bouton" and t["cadre"] == "/studio3d/" and t["infobulle"] is None
+    g = e["creer3d.saisie.generer"]                              # l'onglet Créer vit dans la SPA : pas de cadre
+    assert g["ecran"] == "assets3d" and g["cadre"] is None
+    assert e["studio3decrans.aff.outil_lasso"]["type"] == "outil" and e["studio3decrans.aff.vue_poids"]["type"] == "champ"
+    assert e["studio3decrans.aff.onglet_sol"]["type"] == "onglet"
+    for k in ("studio3decrans.onglet.decor", "studio3decrans.aff.retire", "studio3decrans.aff.absente",
+              "studio3decrans.aff.en_cours", "studio3decrans.aff.outil_pose", "studio3decrans.aff.vue_fil"):                    # plus employée, absente, ou jamais désignée
+        assert k not in e, k
+
+
+def test_gabarits_table_absente(depot):
+    assert not any(k.startswith(("creer3d.", "studio3decrans.")) for k in S.extraire(depot))
+
+
+@pytest.mark.parametrize("table", ['{"groupes": {}}', "[1]", "{pas du json",
+                                   json.dumps({"groupes": [{"fichiers": [], "cles": {"a.b.c": "lien"}}]})])
+def test_gabarits_table_mal_formee(tmp_path, table):
+    with pytest.raises(RuntimeError):
+        S.extraire(_gabarits(tmp_path, table))
+
+
+def test_vrai_catalogue_studio3d_ecrans():
+    e = S.extraire(RACINE)
+    assert e["creer3d.saisie.generer"]["ecran"] == "assets3d" and e["creer3d.saisie.generer"]["cadre"] is None
+    for ecran in ("ouvrir", "importer", "preparer", "etabli", "texture", "rig", "affiner", "animer", "exporter", "decor",
+                  "graphe"):
+        o = e[f"studio3decrans.onglet.{ecran}"]
+        assert o["type"] == "onglet" and o["cadre"] == "/studio3d/" and o["infobulle"]["fr"], ecran
+
+
 # t309 (26/10/2026) : la forme POSITIONNELLE de el(tag, style, texte) (dz-pour-qui.js) — la fabrique pose son texte en
 # 3e argument d'un el(…) ; une variable rendue par une fabrique de bouton ou de champ reçoit ses attributs ensuite
 POUR_QUI_JS = "\n".join([

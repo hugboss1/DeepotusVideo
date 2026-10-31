@@ -1,0 +1,92 @@
+{
+  "titre": {
+    "fr": "La galerie et l'envoi au 3D Studio",
+    "en": "The gallery and sending to the 3D Studio"
+  },
+  "legende": {
+    "fr": "Chaque modèle se filtre, se compare à sa source et part d'un clic vers l'écran voulu du 3D Studio.",
+    "en": "Each model can be filtered, compared with its source and sent in one click to the chosen 3D Studio screen."
+  },
+  "captures": [
+    {
+      "fr": "galerie.fr.webp",
+      "en": "galerie.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        589,
+        124,
+        83,
+        40
+      ],
+      "bulle": {
+        "fr": "Tous, riggés ou non riggés",
+        "en": "All, rigged or not rigged"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "curseur": [
+        678,
+        424
+      ],
+      "surligne": [
+        655,
+        404,
+        46,
+        40
+      ],
+      "bulle": {
+        "fr": "Ouvrir ce modèle dans Rig",
+        "en": "Open this model in Rig"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        579,
+        124,
+        84,
+        40
+      ],
+      "bulle": {
+        "fr": "Tous, riggés ou non riggés",
+        "en": "All, rigged or not rigged"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "curseur": [
+        674,
+        424
+      ],
+      "surligne": [
+        651,
+        404,
+        46,
+        40
+      ],
+      "bulle": {
+        "fr": "Ouvrir ce modèle dans Rig",
+        "en": "Open this model in Rig"
+      }
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}
