@@ -111,6 +111,34 @@ def test_correspondance_mixamo_vers_unreal():
     assert noms["thigh_r"] == "RightUpLeg" and noms["ball_l"] == "LeftToeBase" and noms["pelvis"] == "Hips"
 
 
+def _chaine(*noms_parents):
+    return [{"nom": n, "parent": p} for n, p in noms_parents]
+
+
+def test_correspondance_leg_shin_de_meshy():
+    """Mesuré le 31/10 sur un vrai BVH de Meshy Text to Motion : la cuisse s'y nomme « LeftLeg » et le tibia
+    « LeftShin », quand le rig Meshy (convention Mixamo) dit « LeftUpLeg » / « LeftLeg ». Deux « jambes » enchaînées
+    sans « cuisse » : la plus haute EST la cuisse — sinon le tibia recevait la rotation de la cuisse, figée."""
+    meshy_bvh = _chaine(("Hips", None), ("LeftLeg", 0), ("LeftShin", 1), ("LeftFoot", 2),
+                        ("RightLeg", 0), ("RightShin", 4), ("RightFoot", 5))
+    mixamo = _chaine(("Hips", None), ("LeftUpLeg", 0), ("LeftLeg", 1), ("LeftFoot", 2),
+                     ("RightUpLeg", 0), ("RightLeg", 4), ("RightFoot", 5))
+    for src, cib, attendu in (
+            (meshy_bvh, mixamo, {"LeftUpLeg": "LeftLeg", "LeftLeg": "LeftShin", "RightUpLeg": "RightLeg",
+                                 "RightLeg": "RightShin", "LeftFoot": "LeftFoot", "RightFoot": "RightFoot",
+                                 "Hips": "Hips"}),
+            (mixamo, meshy_bvh, {"LeftLeg": "LeftUpLeg", "LeftShin": "LeftLeg", "RightLeg": "RightUpLeg",
+                                 "RightShin": "RightLeg", "LeftFoot": "LeftFoot", "RightFoot": "RightFoot",
+                                 "Hips": "Hips"})):
+        m = MR.correspondance(src, cib)
+        noms = {cib[i]["nom"]: src[j]["nom"] for i, j in m.items()}
+        assert noms == attendu, noms
+    # une seule « jambe » de chaque côté reste une jambe (pas de cuisse inventée)
+    court = _chaine(("Hips", None), ("LeftLeg", 0), ("LeftFoot", 1))
+    assert {court[i]["nom"]: mixamo[j]["nom"] for i, j in MR.correspondance(mixamo, court).items()} == \
+        {"Hips": "Hips", "LeftLeg": "LeftLeg", "LeftFoot": "LeftFoot"}
+
+
 # ── reciblage ────────────────────────────────────────────────────────────
 
 def test_reciblage_suit_les_directions_de_la_source():
