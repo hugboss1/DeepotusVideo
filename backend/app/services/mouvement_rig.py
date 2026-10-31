@@ -557,6 +557,12 @@ def correspondance(src: list[dict], cible: list[dict]) -> dict[int, int]:
                 out.setdefault(r, []).append(i)
         for r in out:
             out[r].sort(key=lambda i: _profondeur(squ, i))
+        # « Leg » est ambigu : le BVH de Meshy Text to Motion nomme la cuisse « LeftLeg » et le tibia « LeftShin »
+        # (relevé réel du 31/10). Deux « jambes » sans « cuisse » d'un côté : la plus haute est la cuisse.
+        for c in ("g", "d"):
+            jambes = out.get(f"jambe_{c}") or []
+            if f"cuisse_{c}" not in out and len(jambes) >= 2:
+                out[f"cuisse_{c}"], out[f"jambe_{c}"] = jambes[:1], jambes[1:]
         return out
     rs, rc = par_role(src), par_role(cible)
     m: dict[int, int] = {}

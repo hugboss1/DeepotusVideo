@@ -14,14 +14,22 @@
    - IMPORTER UN MOUVEMENT : les routes du mouvement de l'Établi (/api/etabli/mouvement/*, t343) — BVH/GLB importé,
      reciblé, retimé ; la vidéo → mouvement Uthana reste dans l'Établi (lien), on ne recopie pas sa logique ;
    - MODE CONDUITE : ZQSD (AZERTY) / WASD (QWERTY) / flèches promènent le personnage sur le sol pendant qu'un clip de
-     marche boucle — sans physique. Le calcul vit dans animer_calc.js (banc node). */
+     marche boucle ; la physique des os à ressort suit (t405). Le calcul vit dans animer_calc.js (banc node).
+   t405 : HY-MOTION (fal, 0,08 / 0,06 $) en second modèle texte → mouvement, éteint tant que la case de sa licence
+   (qui exclut l'UE et le Royaume-Uni) n'est pas cochée ; Kimodo et GVHMR grisés avec leur raison exacte ;
+   PHYSIQUE dans le viewport (Jiggle, Hair, Cloth : os à ressort, réglages, physics-config.json), MAINS et IK
+   (Gun / Hand / Sword G-D, repères déplaçables, pieds verrouillés), affichage des os et des repères. Les gestes
+   three.js de la pose vivante sont dans animer_pose.js. */
 "use strict";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { TransformControls } from "three/addons/controls/TransformControls.js";
 import { creerCanevas, charger, vider, orienter } from "/lib3d/viewer.js";
 import { T, listeGeneres, choisirMarche, cleCategorie, cleSous, pagesVisibles, requeteCatalogue, VUES, vueCamera, miroir,
-  curseurVersTemps, tempsVersCurseur, horloge, VITESSES, actionDeTouche, pasConduite, bornerDuree, DUREE, prix,
-  blocageTexte, lienEtabli } from "./animer_calc.js";
+  curseurVersTemps, tempsVersCurseur, horloge, VITESSES, actionDeTouche, pasConduite, bornerDuree, prix,
+  blocageTexte, lienEtabli, estHy, bornesDuree, corpsTexte, FAMILLES, PHYSIQUE_DEFAUT, PHYSIQUE_BORNES, configPhysique,
+  prise, ORDRE_PRISES } from "./animer_calc.js";
+import { analyser, cliche, restaurer, resoudreMembre, courberDoigts, pasPhysique, remettreRessorts, positionMonde } from "./animer_pose.js";
 
 const A = {
   s: null, ctx: null, fiche: null, api: null, mixer: null, action: null, courant: null, clips: new Map(),
@@ -30,6 +38,10 @@ const A = {
   choisie: null, devisChoisie: null, droite: "generer", prompt: "", duree: 3, mode: "swift", occupe: false,
   suivi: null, avis: "", erreur: "", conduite: false, touches: new Set(), pos: { x: 0, z: 0, cap: 0 }, base: null,
   taille: 1.7, source: null, rt: { nom: "", vitesse: 1, boucle: true, en_place: false, aligner: true }, aJouer: null,
+  /* t405 */
+  modele: "meshy", guidance: 5, squ: null, cliche: null, sol: [0, 0, 0], ancre: null, aides: null, squelette: null, tc: null,
+  physique: { actifs: { jiggle: false, hair: false, cloth: false }, mains: true, reglages: { ...PHYSIQUE_DEFAUT } },
+  ik: { g: null, d: null, pieds: null }, voir: { os: false, reperes: true },
 };
 let _loader = null;
 const loader = () => (_loader = _loader || new GLTFLoader());
@@ -79,6 +91,7 @@ export async function monter(section, ctx) {
         <button class="ec-bouton" id="anRepos" title="${esc(T("anim.repos_aide"))}">${ico("dz-lab3d-os")} ${esc(T("anim.repos"))}</button>
         <button class="ec-bouton" id="anConduite" aria-pressed="false" title="${esc(T("anim.conduite_aide"))}">${ico("dz-outil-photo-deplacer")} ${esc(T("anim.conduite"))}</button>
       </div>
+      <div class="ec-barre-vue an-outils" id="anOutils"></div>
       <div class="ec-vues">
         <figure class="ec-vue an-vue"><canvas tabindex="0" aria-label="${esc(T("anim.viewport"))}"></canvas>
           <figcaption id="anCap"></figcaption>
@@ -100,12 +113,15 @@ export async function monter(section, ctx) {
       <div class="ec-segments ec-plein" id="anDroite" role="tablist">
         <button data-droite="generer" role="tab">${esc(T("anim.onglet_generer"))}</button>
         <button data-droite="importer" role="tab">${esc(T("anim.onglet_importer"))}</button>
+        <button data-droite="physique" role="tab">${esc(T("anim.onglet_physique"))}</button>
       </div>
       <div id="anGenerer"></div>
       <div id="anImporter" class="hidden"></div>
+      <div id="anPhysique" class="hidden"></div>
     </aside>
   </div>`;
   A.api = creerCanevas(section.querySelector(".an-vue canvas"));
+  monterAides();
   brancher();
   boucle();
   await Promise.all([lireAnimer(), lireCollections()]);
@@ -120,7 +136,7 @@ export async function ouvrir(fiche) {
   if (!meme) { A.etat = null; A.choisie = A.choisie && fiche ? A.choisie : null; A.source = null; A.suivi = null; }
   quitterConduite();
   peindre();
-  if (!fiche) { arreter(); vider(A.api); A.clips.clear(); return; }
+  if (!fiche) { arreter(); oublierPose(); vider(A.api); A.clips.clear(); A.chargeLe = null; peindre(); return; }
   await Promise.all([chargerModele(fiche), lireEtat(), lireAnimer()]);
   peindre();
   if (A.aJouer) {
@@ -252,6 +268,7 @@ function peindreCentre() {
   $("#anRepos").disabled = !rigge();
   $("#anClavier").classList.toggle("hidden", !A.conduite);
   $("#anClavier").textContent = A.conduite && !choisirMarche(generes()) ? T("anim.conduite_sans_marche") : T("anim.conduite_touches");
+  peindreOutils();
   peindreJouer();
 }
 
@@ -296,32 +313,74 @@ function peindreDroite() {
   }
   $("#anGenerer").classList.toggle("hidden", A.droite !== "generer");
   $("#anImporter").classList.toggle("hidden", A.droite !== "importer");
-  if (A.droite === "generer") peindreGenerer(); else peindreImporter();
+  $("#anPhysique").classList.toggle("hidden", A.droite !== "physique");
+  if (A.droite === "generer") peindreGenerer();
+  else if (A.droite === "importer") peindreImporter();
+  else peindrePhysique();
+}
+
+function blocage() {
+  const lic = licenceHy();
+  return blocageTexte({ fiche: A.fiche, meshy: A.animer && A.animer.meshy, fal: A.animer && A.animer.fal, prompt: A.prompt,
+    mode: A.mode, modele: A.modele, licence: lic && lic.acceptee,
+    occupe: A.occupe || (!!A.suivi && !["fini", "echec", "interrompu"].includes(A.suivi.etat)) });
+}
+const licenceHy = () => (A.animer && A.animer.texte && A.animer.texte.hy && A.animer.texte.hy.licence) || null;
+const devisHy = (id) => (((A.animer && A.animer.texte && A.animer.texte.hy && A.animer.texte.hy.modeles) || []).find((m) => m.id === id) || {}).devis;
+
+/* le prix du modèle choisi, pour le bouton et le dialogue */
+function prixChoisi() {
+  if (estHy(A.modele)) return prix(devisHy(A.modele));
+  const m = ((A.animer && A.animer.texte && A.animer.texte.modes) || []).find((x) => x.id === A.mode);
+  return m ? prix(m.devis) : "";
 }
 
 function peindreGenerer() {
   const { esc, ico } = A.ctx;
   const t = (A.animer && A.animer.texte) || null;
   const modes = (t && t.modes) || [];
-  const swift = modes.find((m) => m.id === "swift");
-  const bloc = blocageTexte({ fiche: A.fiche, meshy: A.animer && A.animer.meshy, prompt: A.prompt, mode: A.mode, occupe: A.occupe || !!A.suivi && !["fini", "echec", "interrompu"].includes(A.suivi.etat) });
-  const raisons = { licence: "anim.raison_licence", sans_api: "anim.raison_sans_api", non_commercial: "anim.raison_non_commercial" };
+  const hy = (t && t.hy) || null;
+  const lic = licenceHy();
+  const bloc = blocage();
+  /* les raisons EXACTES des modèles du relevé que l'on ne branche pas (Sorceress les montre) */
+  const raisons = { kimodo: "anim.raison_kimodo", gvhmr: "anim.raison_gvhmr" };
+  const choisi = (id, mode) => (id === "meshy" ? A.modele === "meshy" && A.mode === mode : A.modele === id);
   let h = `<div class="ec-label">${esc(T("anim.modeles"))}</div><div class="an-modeles">`
-    + modes.map((m) => `<label class="an-modele ${m.lisible ? "" : "off"}"><input type="checkbox" data-mode="${m.id}" ${m.id === A.mode ? "checked" : ""} ${m.lisible ? "" : "disabled"}>
+    + modes.map((m) => `<label class="an-modele ${m.lisible ? "" : "off"}"><input type="checkbox" data-modele="meshy" data-mode="${m.id}" ${choisi("meshy", m.id) ? "checked" : ""} ${m.lisible ? "" : "disabled"}>
         <span><b>${esc(T("anim.modele_" + m.id))}</b><i>${esc(m.lisible ? prix(m.devis) : T("anim.raison_fbx"))}</i></span></label>`).join("")
+    + ((hy && hy.modeles) || []).map((m) => {
+      const ok = !!(lic && lic.acceptee);
+      return `<label class="an-modele ${ok ? "" : "off"}"><input type="checkbox" data-modele="${esc(m.id)}" ${choisi(m.id) ? "checked" : ""} ${ok ? "" : "disabled"}>
+        <span><b>${esc(T("anim.modele_" + m.id.replace(/-/g, "_")))}</b><i>${esc(ok ? prix(m.devis) + " · fal" : T("anim.raison_licence"))}</i></span></label>`;
+    }).join("")
     + ((t && t.autres) || []).map((m) => `<label class="an-modele off"><input type="checkbox" disabled>
-        <span><b>${esc(T("anim.modele_" + m.id.replace("-", "_")))}</b><i>${esc(T(raisons[m.raison] || "anim.raison_sans_api"))}</i></span></label>`).join("")
-    + `</div>`
-    + `<label class="ec-champ">${esc(T("anim.prompt"))}<textarea id="anPrompt" rows="4" maxlength="400" placeholder="${esc(T("anim.prompt_exemple"))}">${esc(A.prompt)}</textarea></label>`
+        <span><b>${esc(T("anim.modele_" + m.id.replace(/-/g, "_")))}</b><i>${esc(T(raisons[m.id] || "anim.raison_sans_api"))}</i></span></label>`).join("")
+    + `</div>`;
+  if (lic) {
+    h += `<div class="an-licence ${lic.acceptee ? "on" : ""}">
+      <b>${esc(T("anim.licence_titre"))}</b>
+      <span>${esc(T("anim.licence_texte", { n: lic.nom }))}</span>
+      <span>${esc(T("anim.licence_avis"))}</span>
+      <a href="${esc(lic.url)}" target="_blank" rel="noopener noreferrer">${ico("dz-action-ouvrir-externe")} ${esc(T("anim.licence_lire"))}</a>
+      <label class="ec-bascule"><input type="checkbox" id="anLicence" ${lic.acceptee ? "checked" : ""}> ${esc(T("anim.licence_case"))}</label>
+    </div>`;
+  }
+  const b = bornesDuree(A.modele);
+  h += `<label class="ec-champ">${esc(T("anim.prompt"))}<textarea id="anPrompt" rows="4" maxlength="400" placeholder="${esc(T("anim.prompt_exemple"))}">${esc(A.prompt)}</textarea></label>`
     + `<div class="an-compteur">${A.prompt.length} / 400</div>`
     + `<label class="ec-champ">${esc(T("anim.duree"))} <b class="an-val" id="anDureeVal">${esc(String(A.duree).replace(".", ","))} s</b>
-        <input type="range" id="anDuree" min="${DUREE.min}" max="${DUREE.max}" step="${DUREE.pas}" value="${A.duree}"></label>`
-    + `<label class="ec-champ off">${esc(T("anim.intensite"))}<input type="range" min="0" max="100" value="60" disabled></label>`
-    + `<div class="ec-note">${esc(T("anim.intensite_non"))}</div>`
-    + `<button class="ec-principal" id="anGenererGo" ${bloc ? "disabled" : ""}>${ico("dz-etat-ia")} ${esc(T("anim.generer", { p: swift ? prix(swift.devis) : "" }))}</button>`
+        <input type="range" id="anDuree" min="${b.min}" max="${b.max}" step="${b.pas}" value="${A.duree}"></label>`;
+  if (estHy(A.modele)) {
+    h += `<label class="ec-champ" title="${esc(T("anim.guidance_aide"))}">${esc(T("anim.guidance"))} <b class="an-val" id="anGuidanceVal">${esc(String(A.guidance).replace(".", ","))}</b>
+        <input type="range" id="anGuidance" min="1" max="10" step="0.5" value="${A.guidance}"></label>`;
+  } else {
+    h += `<label class="ec-champ off">${esc(T("anim.intensite"))}<input type="range" min="0" max="100" value="60" disabled></label>`
+      + `<div class="ec-note">${esc(T("anim.intensite_non"))}</div>`;
+  }
+  h += `<button class="ec-principal" id="anGenererGo" ${bloc ? "disabled" : ""}>${ico("dz-etat-ia")} ${esc(T("anim.generer", { p: prixChoisi() }))}</button>`
     + (bloc && bloc !== "anim.bloc_prompt" ? `<div class="ec-avis">${esc(T(bloc))}</div>` : "")
     + (!rigge() && A.fiche ? `<button class="ec-bouton bloc" data-aller-rig="1">${ico("dz-lab3d-rig")} ${esc(T("anim.aller_rig"))}</button>` : "")
-    + `<div class="ec-note">${esc(T("anim.texte_note"))}</div>`;
+    + `<div class="ec-note">${esc(T(estHy(A.modele) ? "anim.texte_note_hy" : "anim.texte_note"))}</div>`;
   h += peindreSuivi();
   $("#anGenerer").innerHTML = h;
 }
@@ -403,11 +462,27 @@ function brancher() {
     else if ((b = el("#anAppliquer"))) await appliquerChoisie();
     else if ((b = el("#anImporterFichier"))) $("#anFichier").click();
     else if ((b = el("#anRtGo"))) await appliquerSource();
+    else if ((b = el("[data-famille]"))) basculerFamille(b.dataset.famille);
+    else if ((b = el("[data-prise]"))) appliquerPrise(b.dataset.prise);
+    else if ((b = el("[data-voir]"))) basculerVoir(b.dataset.voir);
+    else if ((b = el("#anPieds"))) basculerPieds();
+    else if ((b = el("[data-deplacer]"))) attacher(b.dataset.deplacer);
+    else if ((b = el("[data-retirer-ik]"))) retirerIK(b.dataset.retirerIk);
+    else if ((b = el("#anPhysDefaut"))) { A.physique.reglages = { ...PHYSIQUE_DEFAUT }; remettreRessorts(A.squ); peindrePhysique(); }
+    else if ((b = el("#anPhysConfig"))) telechargerConfig();
   });
   s.addEventListener("change", async (ev) => {
     const t = ev.target;
     if (t.matches("[data-ajout]") && t.value) { const c = t.value; t.value = ""; await modifierCollection(c, { ajouter: [+t.dataset.ajout] }); }
-    else if (t.matches("[data-mode]")) { A.mode = t.checked ? t.dataset.mode : A.mode; peindreGenerer(); }
+    else if (t.matches("[data-modele]")) {
+      if (t.checked) {
+        A.modele = t.dataset.modele;
+        if (t.dataset.mode) A.mode = t.dataset.mode;
+        A.duree = bornerDuree(A.duree, bornesDuree(A.modele));
+      }
+      peindreGenerer();
+    }
+    else if (t.id === "anLicence") await poserLicence(t.checked);
     else if (t.id === "anFichier") await importerFichier(t.files && t.files[0]);
     else if (t.name === "anSource") { A.source = t.value; const it = generes().find((c) => c.cle === A.source); if (it) A.rt.nom = it.nom.replace(/\.(bvh|glb)$/i, ""); peindreImporter(); }
     else if (t.id === "anVitesse") { A.vitesse = Number(t.value) || 1; if (A.mixer) A.mixer.timeScale = A.vitesse; }
@@ -425,15 +500,22 @@ function brancher() {
       const c = A.s.querySelector(".an-compteur");
       if (c) c.textContent = `${A.prompt.length} / 400`;
       const go = $("#anGenererGo");
-      if (go) go.disabled = !!blocageTexte({ fiche: A.fiche, meshy: A.animer && A.animer.meshy, prompt: A.prompt, mode: A.mode, occupe: A.occupe });
+      if (go) go.disabled = !!blocage();
     }
-    else if (t.id === "anDuree") { A.duree = bornerDuree(t.value); $("#anDureeVal").textContent = String(A.duree).replace(".", ",") + " s"; }
+    else if (t.id === "anDuree") { A.duree = bornerDuree(t.value, bornesDuree(A.modele)); $("#anDureeVal").textContent = String(A.duree).replace(".", ",") + " s"; }
+    else if (t.id === "anGuidance") { A.guidance = Number(t.value) || 5; $("#anGuidanceVal").textContent = String(A.guidance).replace(".", ","); }
+    else if (t.matches("[data-reglage]")) {
+      A.physique.reglages[t.dataset.reglage] = Number(t.value);
+      const v = A.s.querySelector(`[data-reglage-val="${t.dataset.reglage}"]`);
+      if (v) v.textContent = String(Number(t.value)).replace(".", ",");
+    }
     else if (t.id === "anRtVit") { A.rt.vitesse = Number(t.value); $("#anRtVitVal").textContent = `× ${A.rt.vitesse}`; }
     else if (t.id === "anTemps" && A.action) {
       A.joue = false;
       A.action.paused = true;
       A.action.time = curseurVersTemps(t.value, A.action.getClip().duration);
       A.mixer.update(0);
+      if (A.squ) A.cliche = cliche(A.squ);
       peindreJouer();
       majHorloge();
     }
@@ -535,25 +617,38 @@ async function appliquerChoisie() {
 
 async function generer() {
   const f = A.fiche;
-  if (blocageTexte({ fiche: f, meshy: A.animer && A.animer.meshy, prompt: A.prompt, mode: A.mode, occupe: A.occupe })) return;
-  const m = ((A.animer && A.animer.texte && A.animer.texte.modes) || []).find((x) => x.id === A.mode);
-  const p = m ? prix(m.devis) : "";
+  if (blocage()) return;
+  const p = prixChoisi();
   const D = window.__dzDialogue;
-  if (!D || !(await D.confirmer(T("anim.confirmer_texte", { p, s: String(A.duree).replace(".", ","), v: f.version }),
-    { titre: T("anim.onglet_generer"), ok: T("anim.confirmer_ok", { p }) }))) return;
+  const hy = estHy(A.modele);
+  const q = hy ? T("anim.confirmer_hy", { p, s: String(A.duree).replace(".", ","), v: f.version, m: T("anim.modele_" + A.modele.replace(/-/g, "_")) })
+    : T("anim.confirmer_texte", { p, s: String(A.duree).replace(".", ","), v: f.version });
+  if (!D || !(await D.confirmer(q, { titre: T("anim.onglet_generer"), ok: T("anim.confirmer_ok", { p }) }))) return;
   A.occupe = true; A.erreur = A.avis = ""; A.suivi = { etat: "prepare" }; peindreGenerer();
   try {
-    const r = await poster("/api/studio3d/animer/texte", { job: f.job, version: f.version, prompt: A.prompt.trim(),
-      duree: A.duree, mode: A.mode, confirme_cout: true });
+    const lic = licenceHy();
+    const corps = corpsTexte({ fiche: f, modele: A.modele, mode: A.mode, prompt: A.prompt, duree: A.duree, guidance: A.guidance,
+      licence: !!(lic && lic.acceptee) });
+    const r = await poster("/api/studio3d/animer/texte", { ...corps, confirme_cout: true });
     suivre(f.job, r.tache, async (fin) => {
       if (fin.etat === "fini" && fin.version) { A.aJouer = fin.clip; await A.ctx.ouvrir(f.job, fin.version, "animer"); }
     });
   } catch (err) {
     A.suivi = null;
-    A.erreur = err.status === 503 ? T("anim.bloc_cle") : T("anim.erreur", { m: err.message });
+    A.erreur = err.status === 503 ? T(hy ? "anim.bloc_cle_fal" : "anim.bloc_cle") : T("anim.erreur", { m: err.message });
   } finally {
     A.occupe = false; peindreDroite();
   }
+}
+
+/* la case « J'ai lu la licence » de HY-Motion : rangée par le serveur dans le dossier de données de l'utilisateur */
+async function poserLicence(acceptee) {
+  try {
+    const r = await poster("/api/studio3d/animer/licence", { acceptee });
+    if (A.animer && A.animer.texte && A.animer.texte.hy) A.animer.texte.hy.licence = r.licence;
+    if (!r.licence.acceptee && estHy(A.modele)) { A.modele = "meshy"; A.mode = "swift"; A.duree = bornerDuree(A.duree); }
+  } catch (e) { A.erreur = T("anim.erreur", { m: e.message }); }
+  peindreGenerer();
 }
 
 function suivre(job, tache, quandFini) {
@@ -607,6 +702,267 @@ async function appliquerSource() {
   peindre();
 }
 
+/* ── t405 : physique, mains et IK dans le viewport (aperçu gratuit) ─────────── */
+
+const CLES_FAMILLE = { jiggle: "anim.phys_jiggle", hair: "anim.phys_hair", cloth: "anim.phys_cloth" };
+const CLES_FAMILLE_SANS = { jiggle: "anim.phys_sans_jiggle", hair: "anim.phys_sans_hair", cloth: "anim.phys_sans_cloth" };
+const CLES_PRISE = { gun_g: "anim.prise_gun_g", gun_d: "anim.prise_gun_d", main_g: "anim.prise_main_g", main_d: "anim.prise_main_d",
+  epee_g: "anim.prise_epee_g", epee_d: "anim.prise_epee_d" };
+const CLES_REGLAGE = { raideur: "anim.phys_raideur", amortissement: "anim.phys_amortissement", gravite: "anim.phys_gravite" };
+const CLES_REGLAGE_AIDE = { raideur: "anim.phys_raideur_aide", amortissement: "anim.phys_amortissement_aide", gravite: "anim.phys_gravite_aide" };
+const CLES_CIBLE = { g: "anim.ik_main_g", d: "anim.ik_main_d", pieds: "anim.ik_pieds" };
+
+/* les aides du viewport : l'ancre (repère du personnage : pieds, cap), les repères IK, le gizmo, le squelette */
+function monterAides() {
+  A.aides = new THREE.Group();
+  A.aides.name = "dzAnimerAides";
+  A.api.scene.add(A.aides);
+  A.ancre = new THREE.Object3D();
+  A.ancre.name = "dzAnimerAncre";
+  A.aides.add(A.ancre);
+  A.tc = new TransformControls(A.api.camera, A.api.renderer.domElement);
+  A.tc.setMode("translate");
+  A.tc.setSize(0.7);
+  A.api.scene.add(A.tc.getHelper());
+  A.tc.addEventListener("dragging-changed", (e) => { A.api.controls.enabled = !e.value; A.glisse = e.value; });
+  const cv = A.s.querySelector(".an-vue canvas");
+  cv.addEventListener("pointerdown", (e) => { A.appui = [e.clientX, e.clientY]; }, true);
+  cv.addEventListener("pointerup", (e) => {
+    if (!A.appui || Math.hypot(e.clientX - A.appui[0], e.clientY - A.appui[1]) > 4 || A.glisse) return;
+    pointerRepere(e, cv);
+  });
+}
+
+/* un clic sur un repère IK l'attrape avec le gizmo */
+function pointerRepere(e, cv) {
+  if (!A.voir.reperes) return;
+  const r = cv.getBoundingClientRect();
+  const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  const ray = new THREE.Raycaster();
+  ray.setFromCamera(ndc, A.api.camera);
+  const marques = ["g", "d"].map((c) => A.ik[c] && A.ik[c].marqueur).filter(Boolean)
+    .concat(A.ik.pieds ? A.ik.pieds.map((p) => p.marqueur) : []);
+  const hit = ray.intersectObjects(marques, false)[0];
+  if (hit) A.tc.attach(hit.object);
+}
+
+function marqueur(couleur) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.01, A.taille * 0.022), 16, 12),
+    new THREE.MeshBasicMaterial({ color: couleur, depthTest: false, transparent: true, opacity: 0.9 }));
+  m.renderOrder = 999;
+  m.visible = A.voir.reperes;
+  A.ancre.add(m);
+  return m;
+}
+
+function oterMarqueur(m) {
+  if (!m) return;
+  if (A.tc.object === m) A.tc.detach();
+  A.ancre.remove(m);
+  m.geometry.dispose(); m.material.dispose();
+}
+
+/* tout ce qui décrit le modèle précédent s'en va avec lui */
+function oublierPose() {
+  for (const c of ["g", "d"]) { if (A.ik[c]) oterMarqueur(A.ik[c].marqueur); A.ik[c] = null; }
+  if (A.ik.pieds) for (const p of A.ik.pieds) oterMarqueur(p.marqueur);
+  A.ik.pieds = null;
+  if (A.squelette) { A.aides.remove(A.squelette); A.squelette.dispose(); A.squelette = null; }
+  A.squ = null; A.cliche = null;
+}
+
+/* le repère du personnage : sa racine (déplacée en mode conduite), son cap, ses pieds */
+function majAncre() {
+  const r = A.api.racine;
+  if (!r || !A.base) return;
+  A.ancre.position.copy(r.position);
+  A.ancre.rotation.set(0, r.rotation.y - A.base.rot, 0);
+  A.ancre.updateMatrixWorld(true);
+}
+
+function peindreOutils() {
+  const { esc, ico } = A.ctx;
+  const squ = A.squ;
+  const ok = rigge() && !!squ;
+  const bouton = (attrs, on, actif, titre, html) =>
+    `<button class="ec-bouton an-outil ${on ? "on" : ""}" ${attrs} aria-pressed="${on ? "true" : "false"}" ${actif ? "" : "disabled"} title="${esc(titre)}">${html}</button>`;
+  let h = `<span class="an-groupe" role="group" aria-label="${esc(T("anim.phys_titre"))}"><span class="an-groupe-nom">${esc(T("anim.phys_titre"))}</span>`;
+  for (const f of FAMILLES) {
+    const n = ok ? squ.familles[f].length : 0;
+    h += bouton(`data-famille="${f}"`, A.physique.actifs[f] && n > 0, n > 0,
+      n > 0 ? T("anim.phys_aide", { n, f: T(CLES_FAMILLE[f]) }) : T(ok ? CLES_FAMILLE_SANS[f] : "anim.sans_rig"), esc(T(CLES_FAMILLE[f])));
+  }
+  const doigts = ok ? squ.doigts.g.length + squ.doigts.d.length : 0;
+  h += bouton(`data-famille="mains"`, A.physique.mains && doigts > 0, doigts > 0,
+    doigts > 0 ? T("anim.phys_mains_aide", { n: doigts }) : T(ok ? "anim.phys_sans_mains" : "anim.sans_rig"),
+    `${ico("dz-outil-vec-main")} ${esc(T("anim.phys_mains"))}`);
+  h += `</span><span class="an-groupe" role="group" aria-label="${esc(T("anim.ik_titre"))}"><span class="an-groupe-nom">${esc(T("anim.ik_titre"))}</span>`;
+  for (const id of ORDRE_PRISES) {
+    const cote = id.slice(-1);
+    const bras = ok && squ.chaines["bras_" + cote];
+    h += bouton(`data-prise="${id}"`, !!(A.ik[cote] && A.ik[cote].prise === id), !!bras,
+      bras ? T(id.startsWith("main") ? "anim.prise_main_aide" : "anim.prise_aide", { p: T(CLES_PRISE[id]) }) : T(ok ? "anim.ik_sans_bras" : "anim.sans_rig"),
+      esc(T(CLES_PRISE[id])));
+  }
+  const jambes = ok && squ.chaines.jambe_g && squ.chaines.jambe_d;
+  h += `</span><span class="an-groupe" role="group" aria-label="${esc(T("anim.voir_titre"))}"><span class="an-groupe-nom">${esc(T("anim.voir_titre"))}</span>`
+    + bouton(`data-voir="os"`, A.voir.os, ok, T("anim.voir_os_aide"), `${ico("dz-lab3d-os")} ${esc(T("anim.voir_os"))}`)
+    + bouton(`data-voir="reperes"`, A.voir.reperes, ok, T("anim.voir_reperes_aide"), esc(T("anim.voir_reperes")))
+    + bouton(`id="anPieds"`, !!A.ik.pieds, !!jambes, jambes ? T("anim.pieds_aide") : T(ok ? "anim.ik_sans_jambes" : "anim.sans_rig"),
+      `${ico("dz-etat-verrouille")} ${esc(T("anim.pieds"))}`)
+    + `</span>`;
+  $("#anOutils").innerHTML = h;
+}
+
+function peindrePhysique() {
+  const { esc, ico } = A.ctx;
+  const squ = A.squ;
+  const r = A.physique.reglages;
+  let h = `<div class="ec-note">${esc(T("anim.phys_intro"))}</div>`;
+  if (!A.fiche || !rigge() || !squ) {
+    $("#anPhysique").innerHTML = h + `<div class="ec-note">${esc(T(A.fiche ? "anim.sans_rig" : "anim.sans_modele"))}</div>`;
+    return;
+  }
+  h += `<div class="an-familles">` + FAMILLES.map((f) => {
+    const n = squ.familles[f].length;
+    return `<div class="an-famille ${n ? "" : "off"}"><b>${esc(T(CLES_FAMILLE[f]))}</b><i>${n ? esc(T("anim.phys_os", { n })) : esc(T(CLES_FAMILLE_SANS[f]))}</i></div>`;
+  }).join("") + `</div>`;
+  for (const k of ["raideur", "amortissement", "gravite"]) {
+    const [mi, ma, pas] = PHYSIQUE_BORNES[k];
+    h += `<label class="ec-champ" title="${esc(T(CLES_REGLAGE_AIDE[k]))}">${esc(T(CLES_REGLAGE[k]))} <b class="an-val" data-reglage-val="${k}">${esc(String(r[k]).replace(".", ","))}</b>
+      <input type="range" data-reglage="${k}" min="${mi}" max="${ma}" step="${pas}" value="${r[k]}"></label>`;
+  }
+  h += `<div class="an-rangee"><button class="ec-bouton" id="anPhysDefaut">${ico("dz-action-reinitialiser")} ${esc(T("anim.phys_defaut"))}</button>
+      <button class="ec-bouton" id="anPhysConfig" title="${esc(T("anim.phys_config_aide"))}">${ico("dz-action-telecharger")} physics-config.json</button></div>`
+    + `<div class="ec-note">${esc(T("anim.phys_conduite"))}</div>`;
+  h += `<div class="ec-label">${esc(T("anim.ik_cibles"))}</div>`;
+  const lignes = [];
+  for (const c of ["g", "d"]) {
+    const x = A.ik[c];
+    if (!x) continue;
+    const sans = x.p.courbure > 0 && !squ.doigts[c].length;
+    lignes.push(`<div class="an-cible"><span><b>${esc(T(CLES_CIBLE[c]))}</b><i>${esc(T(CLES_PRISE[x.prise]))}${x.atteint === false ? " · " + esc(T("anim.ik_hors_portee")) : ""}</i>
+        ${sans ? `<i class="an-note-doigts">${esc(T("anim.prise_sans_doigts"))}</i>` : ""}</span>
+      <button class="an-mini" data-deplacer="${c}" title="${esc(T("anim.ik_deplacer"))}">${ico("dz-outil-photo-deplacer")}</button>
+      <button class="an-mini" data-retirer-ik="${c}" title="${esc(T("anim.ik_retirer"))}" aria-label="${esc(T("anim.ik_retirer"))}">${ico("dz-action-fermer")}</button></div>`);
+  }
+  if (A.ik.pieds) {
+    lignes.push(`<div class="an-cible"><span><b>${esc(T(CLES_CIBLE.pieds))}</b><i>${esc(T("anim.pieds_note"))}</i></span>
+      <button class="an-mini" data-deplacer="pieds" title="${esc(T("anim.ik_deplacer"))}">${ico("dz-outil-photo-deplacer")}</button>
+      <button class="an-mini" data-retirer-ik="pieds" title="${esc(T("anim.ik_retirer"))}" aria-label="${esc(T("anim.ik_retirer"))}">${ico("dz-action-fermer")}</button></div>`);
+  }
+  h += lignes.length ? lignes.join("") : `<div class="ec-note">${esc(T("anim.ik_aucune"))}</div>`;
+  h += `<div class="ec-note">${esc(T("anim.ik_note"))}</div>`;
+  $("#anPhysique").innerHTML = h;
+}
+
+function basculerFamille(f) {
+  if (!A.squ) return;
+  if (f === "mains") A.physique.mains = !A.physique.mains;
+  else if (A.squ.familles[f] && A.squ.familles[f].length) { A.physique.actifs[f] = !A.physique.actifs[f]; remettreRessorts(A.squ); }
+  peindreOutils();
+  if (A.droite === "physique") peindrePhysique();
+}
+
+function basculerVoir(k) {
+  A.voir[k] = !A.voir[k];
+  if (k === "os" && A.squelette) A.squelette.visible = A.voir.os;
+  if (k === "reperes") {
+    for (const m of tousLesReperes()) m.visible = A.voir.reperes;
+    if (!A.voir.reperes) A.tc.detach();
+  }
+  peindreOutils();
+}
+
+const tousLesReperes = () => ["g", "d"].map((c) => A.ik[c] && A.ik[c].marqueur).filter(Boolean)
+  .concat(A.ik.pieds ? A.ik.pieds.map((p) => p.marqueur) : []);
+
+/* Gun / Hand / Sword : la cible de la main (repère du personnage) + la courbure des doigts ; un second clic l'ôte */
+function appliquerPrise(id) {
+  const p = prise(id, A.taille);
+  if (!p || !A.squ || !A.squ.chaines["bras_" + p.cote]) return;
+  const c = p.cote;
+  if (A.ik[c] && A.ik[c].prise === id) { retirerIK(c); return; }
+  if (A.ik[c]) oterMarqueur(A.ik[c].marqueur);
+  const m = marqueur(c === "g" ? 0xf2a33a : 0x3ab0f2);
+  majAncre();
+  if (p.cible) m.position.set(p.cible[0] + A.sol[0], p.cible[1] + A.sol[1], p.cible[2] + A.sol[2]);
+  else m.position.copy(A.ancre.worldToLocal(positionMonde(A.squ.chaines["bras_" + c][2])));
+  A.ik[c] = { prise: id, p, marqueur: m, atteint: true };
+  if (A.voir.reperes) A.tc.attach(m);
+  peindreOutils();
+  if (A.droite !== "physique") { A.droite = "physique"; peindreDroite(); } else peindrePhysique();
+}
+
+function retirerIK(c) {
+  if (c === "pieds") { if (A.ik.pieds) for (const p of A.ik.pieds) oterMarqueur(p.marqueur); A.ik.pieds = null; }
+  else if (A.ik[c]) { oterMarqueur(A.ik[c].marqueur); A.ik[c] = null; }
+  peindreOutils();
+  if (A.droite === "physique") peindrePhysique();
+}
+
+function attacher(c) {
+  const m = c === "pieds" ? A.ik.pieds && A.ik.pieds[0].marqueur : A.ik[c] && A.ik[c].marqueur;
+  if (!m) return;
+  if (!A.voir.reperes) basculerVoir("reperes");
+  A.tc.attach(m);
+}
+
+/* Lock Ends : les pieds restent là où ils sont à l'instant du clic (repère du personnage), l'IK des jambes les y tient */
+function basculerPieds() {
+  if (A.ik.pieds) { retirerIK("pieds"); return; }
+  if (!A.squ || !A.squ.chaines.jambe_g || !A.squ.chaines.jambe_d) return;
+  majAncre();
+  A.ik.pieds = ["g", "d"].map((c) => {
+    const m = marqueur(0x5ad19a);
+    m.position.copy(A.ancre.worldToLocal(positionMonde(A.squ.chaines["jambe_" + c][2])));
+    return { cote: c, marqueur: m };
+  });
+  peindreOutils();
+  if (A.droite === "physique") peindrePhysique();
+}
+
+function telechargerConfig() {
+  const f = A.fiche;
+  const cfg = configPhysique({ job: f && f.job, version: f && f.version, actifs: A.physique.actifs, reglages: A.physique.reglages,
+    os: A.squ ? A.squ.familles : {} });
+  // gardé aussi AVEC le modèle : l'Exporter l'embarque dans le paquet three.js (characters/<nom>/physics-config.json)
+  if (f && f.job) fetch(`/api/studio3d/animer/physique/${encodeURIComponent(f.job)}`, { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(cfg) }).catch(() => {});
+  const url = URL.createObjectURL(new Blob([JSON.stringify(cfg, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = "physics-config.json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* la pose vivante, chaque image, APRÈS le mixer : pieds verrouillés, mains (IK + doigts), physique */
+function poseVivante(dt) {
+  const squ = A.squ, r = A.api.racine;
+  if (!squ || !r) return;
+  majAncre();
+  r.updateMatrixWorld(true);
+  const q = A.ancre.quaternion;
+  if (A.ik.pieds) {
+    for (const p of A.ik.pieds) {
+      const ch = squ.chaines["jambe_" + p.cote];
+      if (ch) resoudreMembre(ch, p.marqueur.getWorldPosition(new THREE.Vector3()), new THREE.Vector3(0, 0, 1).applyQuaternion(q));
+    }
+  }
+  let change = false;
+  for (const c of ["g", "d"]) {
+    const x = A.ik[c];
+    if (!x) continue;
+    const ch = squ.chaines["bras_" + c];
+    if (!ch) continue;
+    const res = resoudreMembre(ch, x.marqueur.getWorldPosition(new THREE.Vector3()), new THREE.Vector3(0, -0.3, -1).normalize().applyQuaternion(q));
+    if (res.atteint !== x.atteint) { x.atteint = res.atteint; change = true; }
+    if (A.physique.mains && x.p.courbure > 0) courberDoigts(squ, c, x.p);
+  }
+  if (FAMILLES.some((f) => A.physique.actifs[f])) pasPhysique(squ, A.physique.actifs, A.physique.reglages, dt);
+  if (change && A.droite === "physique") peindrePhysique();
+}
+
 /* ── le viewport : modèle, clips, lecteur ─────────────────────────────────── */
 
 async function chargerModele(fiche) {
@@ -615,6 +971,7 @@ async function chargerModele(fiche) {
   arreter();
   A.clips.clear();
   A.courant = null;
+  oublierPose();
   try {
     await charger(A.api, fiche.url);
   } catch { A.chargeLe = null; return; }
@@ -626,7 +983,16 @@ async function chargerModele(fiche) {
   A.pos = { x: 0, z: 0, cap: 0 };
   const boite = new THREE.Box3().setFromObject(r);
   A.taille = Math.max(0.2, boite.max.y - boite.min.y) || 1.7;
+  /* les pieds du personnage dans son repère (centre de la boîte au sol, depuis la racine) : l'origine des prises */
+  A.sol = [(boite.min.x + boite.max.x) / 2 - r.position.x, boite.min.y - r.position.y, (boite.min.z + boite.max.z) / 2 - r.position.z];
   memoriserRepos();
+  A.squ = analyser(r);
+  A.cliche = cliche(A.squ);
+  A.squelette = new THREE.SkeletonHelper(r);
+  A.squelette.material.depthTest = false;
+  A.squelette.renderOrder = 998;
+  A.squelette.visible = A.voir.os;
+  A.aides.add(A.squelette);
   for (const c of (A.api.gltf && A.api.gltf.animations) || []) A.clips.set("clip:" + c.name, c);
 }
 
@@ -684,6 +1050,7 @@ function poseDeLiaison() {
   arreter();
   A.courant = null;
   for (const [o, r] of A.repos || []) { o.position.copy(r.p); o.quaternion.copy(r.q); o.scale.copy(r.s); }
+  if (A.squ) { A.cliche = cliche(A.squ); remettreRessorts(A.squ); }
   peindreCentre();
   peindreGauche();
 }
@@ -771,7 +1138,11 @@ function boucle() {
     avant = t;
     if (!A.s || A.s.classList.contains("hidden")) return;
     if (A.conduite) pasDeConduite(dt);
-    if (A.mixer && A.joue) A.mixer.update(dt);
+    /* la pose ANIMÉE (mixer) est photographiée ; à l'arrêt elle est rendue chaque image, puis IK, doigts et physique
+       se posent dessus — jamais les uns sur les autres */
+    if (A.mixer && A.joue) { A.mixer.update(dt); if (A.squ) A.cliche = cliche(A.squ); }
+    else if (A.squ && A.cliche) restaurer(A.squ, A.cliche);
+    if (A.squ) poseVivante(dt);
     if (t - dernier > 100) { dernier = t; majHorloge(); }
   };
   requestAnimationFrame(tic);

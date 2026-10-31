@@ -177,3 +177,69 @@ export function nomFichier(nom) {
     .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60);
   return s || "decor";
 }
+
+/* ── t402 : Décor › Accessoire — variantes, masque de vent, cartes ──────────────────────────────────────────────
+   Le serveur (studio3d_decor.py) écrit ; ce calcul prépare ce que l'écran envoie et ce qu'il montre. Les bornes et
+   les formules sont celles du service (le banc node et le banc python vérifient les mêmes nombres). */
+export const VARIANTES_DEFAUT = { nombre: 4, graine: 1, echelle_pct: 15, rotation: true, teinte: 0.25, luminosite: 0.15 };
+const borne = (v, lo, hi, d) => { const x = Number(v); return Number.isFinite(x) ? Math.min(hi, Math.max(lo, x)) : d; };
+
+/* le corps de POST /api/studio3d/decor/variantes, ramené dans les bornes du service */
+export function corpsVariantes(job, version, r) {
+  const v = { ...VARIANTES_DEFAUT, ...(r || {}) };
+  return { job, version, nombre: Math.round(borne(v.nombre, 2, 8, 4)), graine: Math.floor(borne(v.graine, 0, 2 ** 31 - 1, 1)),
+    rotation: !!v.rotation, echelle_pct: borne(v.echelle_pct, 0, 50, 15), teinte: borne(v.teinte, 0, 1, 0.25),
+    luminosite: borne(v.luminosite, 0, 0.6, 0.15) };
+}
+
+/* le masque de vent : hauteur normalisée t → 0 jusqu'au seuil, puis ((t − seuil) / (1 − seuil))^courbe (croissant) */
+export const VENT_ACC_DEFAUT = { courbe: 1.5, seuil: 0, amplitude: 0.15 };
+export function valeurMasque(t, courbe = 1, seuil = 0) {
+  const x = Math.min(1, Math.max(0, Number(t) || 0));
+  if (x <= seuil) return 0;
+  return Math.pow((x - seuil) / (1 - seuil), courbe);
+}
+
+/* le profil du masque, en points d'une polyligne SVG (largeur l, hauteur h) : l'écran le dessine sous les curseurs */
+export function profilMasque(courbe, seuil, l = 120, h = 40, n = 24) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    pts.push(`${Math.round(t * l * 10) / 10},${Math.round((1 - valeurMasque(t, courbe, seuil)) * h * 10) / 10}`);
+  }
+  return pts.join(" ");
+}
+
+/* les cartes : huit vues orthographiques (azimut 45·k), atlas 4 × 2, cadre carré commun (studio3d_decor.cadre_cartes) */
+export const AZIMUTS = 8;
+export const ATLAS = { colonnes: 4, lignes: 2 };
+export function cadreCartes(boite) {
+  const [x0, y0, z0] = boite.min, [x1, y1, z1] = boite.max;
+  const rayon = Math.hypot((x1 - x0) / 2, (z1 - z0) / 2);
+  return { centre: [(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2], cote: Math.max(2 * rayon, y1 - y0) };
+}
+
+/* la caméra de la vue k : sur l'azimut 45·k (0 = face, +Z), à deux côtés du centre, et sa case dans l'atlas */
+export function vueCarte(k, cadre) {
+  const a = (k % AZIMUTS) * (2 * Math.PI / AZIMUTS), d = 2 * cadre.cote, [cx, cy, cz] = cadre.centre;
+  const r = (x) => Math.round(x * 1e9) / 1e9;
+  return { position: [r(cx + Math.sin(a) * d), r(cy), r(cz + Math.cos(a) * d)], cible: [cx, cy, cz],
+    colonne: k % ATLAS.colonnes, ligne: Math.floor(k / ATLAS.colonnes) };
+}
+
+/* les faces des plans croisés (même règle que le service) : plan k·180°/plans, deux faces, vue la plus proche */
+export function facesCartes(plans) {
+  if (plans !== 2 && plans !== 3) throw new Error("plans : 2 ou 3");
+  const out = [];
+  for (let k = 0; k < plans; k++) {
+    const a = 180 * k / plans;
+    for (const ang of [a, a + 180]) out.push({ angle: ang, case: Math.round(ang / 45) % AZIMUTS });
+  }
+  return out;
+}
+
+/* la chaîne de LOD : les usages de mesh_lod.BUDGETS, et une ligne lisible par niveau */
+export const USAGES_LOD = ["mobile", "pc", "impression"];
+export function niveauxLod(chaine) {
+  return ((chaine && chaine.niveaux) || []).map((n) => ({ niveau: n.niveau, triangles: n.tris ?? n.triangles ?? 0 }));
+}

@@ -13890,5 +13890,225 @@
  "poses : une liste de 1 à 32 poses est attendue": {
   "fr": "poses : une liste de 1 à 32 poses est attendue",
   "en": "poses: a list of 1 to 32 poses is expected"
+ },
+ "{quoi} : plus de {v} Mo": {
+  "fr": "{quoi} : plus de {v} Mo",
+  "en": "{quoi}: more than {v} MB"
+ },
+ "des textures ne s'envoient qu'avec un import Daz Genesis 8 (type=daz)": {
+  "fr": "des textures ne s'envoient qu'avec un import Daz Genesis 8 (type=daz)",
+  "en": "textures are only sent with a Daz Genesis 8 import (type=daz)"
+ },
+ "{textures} textures : {TEXTURES_NB_MAX} au plus par import": {
+  "fr": "{textures} textures : {TEXTURES_NB_MAX} au plus par import",
+  "en": "{textures} textures: {TEXTURES_NB_MAX} at most per import"
+ },
+ "textures : plus de {v} Mo en tout": {
+  "fr": "textures : plus de {v} Mo en tout",
+  "en": "textures: more than {v} MB in total"
+ },
+ "nom de texture refusé : {v}": {
+  "fr": "nom de texture refusé : {v}",
+  "en": "texture name refused: {v}"
+ },
+ "{v} n'est pas une image (TIFF, PNG, JPEG, BMP, TGA, EXR, HDR, WebP)": {
+  "fr": "{v} n'est pas une image (TIFF, PNG, JPEG, BMP, TGA, EXR, HDR, WebP)",
+  "en": "{v} is not an image (TIFF, PNG, JPEG, BMP, TGA, EXR, HDR, WebP)"
+ },
+ "format {v} non lu : GLB, glTF, OBJ, STL, FBX ou VRM": {
+  "fr": "format {v} non lu : GLB, glTF, OBJ, STL, FBX ou VRM",
+  "en": "format {v} not supported: GLB, glTF, OBJ, STL, FBX or VRM"
+ },
+ "fichier de plus de {v} Mo": {
+  "fr": "fichier de plus de {v} Mo",
+  "en": "file larger than {v} MB"
+ },
+ "Daz Genesis 8 : le FBX exporté par Daz Studio est attendu (.fbx)": {
+  "fr": "Daz Genesis 8 : le FBX exporté par Daz Studio est attendu (.fbx)",
+  "en": "Daz Genesis 8: the FBX exported by Daz Studio is expected (.fbx)"
+ },
+ "{name} : plus de {v} Mo": {
+  "fr": "{name} : plus de {v} Mo",
+  "en": "{name}: more than {v} MB"
+ },
+ "ce VRM n'est pas un GLB binaire": {
+  "fr": "ce VRM n'est pas un GLB binaire",
+  "en": "this VRM is not a binary GLB"
+ },
+ "cartes absentes pour {name} v{version} : construis-les d'abord": {
+  "fr": "cartes absentes pour {name} v{version} : construis-les d'abord",
+  "en": "no cards for {name} v{version}: build them first"
+ },
+ "{nom} attend un nombre": {
+  "fr": "{nom} attend un nombre",
+  "en": "{nom} expects a number"
+ },
+ "{nom} hors de [{lo}, {hi}]": {
+  "fr": "{nom} hors de [{lo}, {hi}]",
+  "en": "{nom} outside [{lo}, {hi}]"
+ },
+ "nombre de variantes : un entier de {VARIANTES_MIN} à {VARIANTES_MAX}": {
+  "fr": "nombre de variantes : un entier de {VARIANTES_MIN} à {VARIANTES_MAX}",
+  "en": "number of variants: an integer from {VARIANTES_MIN} to {VARIANTES_MAX}"
+ },
+ "graine : un entier positif": {
+  "fr": "graine : un entier positif",
+  "en": "seed: a positive integer"
+ },
+ "rotation : vrai ou faux": {
+  "fr": "rotation : vrai ou faux",
+  "en": "rotation: true or false"
+ },
+ "GLB compressé (Draco / meshopt) : le masque s'écrit sur un GLB non compressé": {
+  "fr": "GLB compressé (Draco / meshopt) : le masque s'écrit sur un GLB non compressé",
+  "en": "compressed GLB (Draco / meshopt): the mask is written on an uncompressed GLB"
+ },
+ "aucun maillage posé dans la scène": {
+  "fr": "aucun maillage posé dans la scène",
+  "en": "no mesh placed in the scene"
+ },
+ "plans : 2 ou 3": {
+  "fr": "plans : 2 ou 3",
+  "en": "planes: 2 or 3"
+ },
+ "atlas : une image PNG est attendue": {
+  "fr": "atlas : une image PNG est attendue",
+  "en": "atlas: a PNG image is expected"
+ },
+ "atlas : une image PNG en base64 est attendue": {
+  "fr": "atlas : une image PNG en base64 est attendue",
+  "en": "atlas: a base64 PNG image is expected"
+ },
+ "atlas trop lourd (16 Mo au plus)": {
+  "fr": "atlas trop lourd (16 Mo au plus)",
+  "en": "atlas too heavy (16 MB at most)"
+ },
+ "atlas : {ATLAS_COLONNES} × {ATLAS_LIGNES} cases carrées attendues (reçu {w} × {h})": {
+  "fr": "atlas : {ATLAS_COLONNES} × {ATLAS_LIGNES} cases carrées attendues (reçu {w} × {h})",
+  "en": "atlas: {ATLAS_COLONNES} × {ATLAS_LIGNES} square tiles expected (got {w} × {h})"
+ },
+ "atlas : base64 illisible": {
+  "fr": "atlas : base64 illisible",
+  "en": "atlas: unreadable base64"
+ },
+ "acceptee : true ou false attendu": {
+  "fr": "acceptee : true ou false attendu",
+  "en": "acceptee: true or false expected"
+ },
+ "Licence HY-Motion non acceptée : lis la « Tencent HY-MOTION 1.0 Community License » (elle exclut l'Union européenne, le Royaume-Uni et la Corée du Sud) et coche la case pour ton usage.": {
+  "fr": "Licence HY-Motion non acceptée : lis la « Tencent HY-MOTION 1.0 Community License » (elle exclut l'Union européenne, le Royaume-Uni et la Corée du Sud) et coche la case pour ton usage.",
+  "en": "HY-Motion licence not accepted: read the \"Tencent HY-MOTION 1.0 Community License\" (it excludes the European Union, the United Kingdom and South Korea) and tick the box for your use."
+ },
+ "Clé fal absente — Réglages › Clés : HY-Motion passe par ton compte fal.": {
+  "fr": "Clé fal absente — Réglages › Clés : HY-Motion passe par ton compte fal.",
+  "en": "fal key missing — Settings › Keys: HY-Motion goes through your fal account."
+ },
+ "HY-Motion : aucune rotation reconnue (clés lues : {cles}) — attendu « rot6d » (L, 22, 6), « poses » axe-angle (L, 22, 3) ou « quat » (L, 22, 4)": {
+  "fr": "HY-Motion : aucune rotation reconnue (clés lues : {cles}) — attendu « rot6d » (L, 22, 6), « poses » axe-angle (L, 22, 3) ou « quat » (L, 22, 4)",
+  "en": "HY-Motion: no rotation recognised (keys read: {cles}) — expected \"rot6d\" (L, 22, 6), \"poses\" axis-angle (L, 22, 3) or \"quat\" (L, 22, 4)"
+ },
+ "fal : HY-Motion n'a rendu aucun mouvement (motion_json absent)": {
+  "fr": "fal : HY-Motion n'a rendu aucun mouvement (motion_json absent)",
+  "en": "fal: HY-Motion returned no motion (motion_json missing)"
+ },
+ "modèle : « meshy », « hy-motion » ou « hy-motion-fast »": {
+  "fr": "modèle : « meshy », « hy-motion » ou « hy-motion-fast »",
+  "en": "model: \"meshy\", \"hy-motion\" or \"hy-motion-fast\""
+ },
+ "modèle : « hy-motion » ou « hy-motion-fast » attendu": {
+  "fr": "modèle : « hy-motion » ou « hy-motion-fast » attendu",
+  "en": "model: \"hy-motion\" or \"hy-motion-fast\" expected"
+ },
+ "durée : un nombre de secondes, de {HY_DUREE_MIN} à {HY_DUREE_MAX}": {
+  "fr": "durée : un nombre de secondes, de {HY_DUREE_MIN} à {HY_DUREE_MAX}",
+  "en": "duration: a number of seconds, from {HY_DUREE_MIN} to {HY_DUREE_MAX}"
+ },
+ "durée HY-Motion : de {HY_DUREE_MIN} à {HY_DUREE_MAX} s": {
+  "fr": "durée HY-Motion : de {HY_DUREE_MIN} à {HY_DUREE_MAX} s",
+  "en": "HY-Motion duration: from {HY_DUREE_MIN} to {HY_DUREE_MAX} s"
+ },
+ "guidance : de {HY_GUIDANCE_MIN} à {HY_GUIDANCE_MAX}": {
+  "fr": "guidance : de {HY_GUIDANCE_MIN} à {HY_GUIDANCE_MAX}",
+  "en": "guidance: from {HY_GUIDANCE_MIN} to {HY_GUIDANCE_MAX}"
+ },
+ "graine : un entier de 0 à 2147483647": {
+  "fr": "graine : un entier de 0 à 2147483647",
+  "en": "seed: an integer from 0 to 2147483647"
+ },
+ "rot6d dégénéré (première colonne nulle)": {
+  "fr": "rot6d dégénéré (première colonne nulle)",
+  "en": "degenerate rot6d (first column is zero)"
+ },
+ "rot6d dégénéré (colonnes parallèles)": {
+  "fr": "rot6d dégénéré (colonnes parallèles)",
+  "en": "degenerate rot6d (parallel columns)"
+ },
+ "quaternion nul": {
+  "fr": "quaternion nul",
+  "en": "zero quaternion"
+ },
+ "HY-Motion : un objet JSON est attendu (rot6d, transl…)": {
+  "fr": "HY-Motion : un objet JSON est attendu (rot6d, transl…)",
+  "en": "HY-Motion: a JSON object is expected (rot6d, transl…)"
+ },
+ "HY-Motion : {n} images ({MAX_IMAGES} au plus)": {
+  "fr": "HY-Motion : {n} images ({MAX_IMAGES} au plus)",
+  "en": "HY-Motion: {n} frames ({MAX_IMAGES} at most)"
+ },
+ "HY-Motion : cadence hors bornes (1 à 240 i/s)": {
+  "fr": "HY-Motion : cadence hors bornes (1 à 240 i/s)",
+  "en": "HY-Motion: frame rate out of bounds (1 to 240 fps)"
+ },
+ "HY-Motion : « {cle} » vide ou illisible": {
+  "fr": "HY-Motion : « {cle} » vide ou illisible",
+  "en": "HY-Motion: \"{cle}\" empty or unreadable"
+ },
+ "HY-Motion : « {cle} » de forme {v} — attendu (L, 22, {k})": {
+  "fr": "HY-Motion : « {cle} » de forme {v} — attendu (L, 22, {k})",
+  "en": "HY-Motion: \"{cle}\" has shape {v} — expected (L, 22, {k})"
+ },
+ "HY-Motion : « {cle} » image {f} : valeur non finie": {
+  "fr": "HY-Motion : « {cle} » image {f} : valeur non finie",
+  "en": "HY-Motion: \"{cle}\" frame {f}: non-finite value"
+ },
+ "HY-Motion : le mouvement rendu n'est pas du JSON": {
+  "fr": "HY-Motion : le mouvement rendu n'est pas du JSON",
+  "en": "HY-Motion: the returned motion is not JSON"
+ },
+ "HY-Motion : « {cle} » de forme {v} — attendu ({n}, 3)": {
+  "fr": "HY-Motion : « {cle} » de forme {v} — attendu ({n}, 3)",
+  "en": "HY-Motion: \"{cle}\" has shape {v} — expected ({n}, 3)"
+ },
+ "HY-Motion : « {cle} » : valeur non finie": {
+  "fr": "HY-Motion : « {cle} » : valeur non finie",
+  "en": "HY-Motion: \"{cle}\": non-finite value"
+ },
+ "HY-Motion : « {cle} » image {f} : nombres attendus": {
+  "fr": "HY-Motion : « {cle} » image {f} : nombres attendus",
+  "en": "HY-Motion: \"{cle}\" frame {f}: numbers expected"
+ },
+ "HY-Motion : « {cle} » image {f} : {e}": {
+  "fr": "HY-Motion : « {cle} » image {f} : {e}",
+  "en": "HY-Motion: \"{cle}\" frame {f}: {e}"
+ },
+ "HY-Motion : « {cle} » : nombres attendus": {
+  "fr": "HY-Motion : « {cle} » : nombres attendus",
+  "en": "HY-Motion: \"{cle}\": numbers expected"
+ },
+ "physique : un objet avec « reglages » est attendu": {
+  "fr": "physique : un objet avec « reglages » est attendu",
+  "en": "physics: an object with \"reglages\" is expected"
+ },
+ "physique : 64 Ko au plus": {
+  "fr": "physique : 64 Ko au plus",
+  "en": "physics: 64 KB at most"
+ },
+ "job « {job} » : nom de dossier invalide": {
+  "fr": "job « {job} » : nom de dossier invalide",
+  "en": "job \"{job}\": invalid folder name"
+ },
+ "modèle 3D inconnu : {nom}": {
+  "fr": "modèle 3D inconnu : {nom}",
+  "en": "unknown 3D model: {nom}"
  }
 }

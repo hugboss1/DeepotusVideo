@@ -148,16 +148,45 @@ async def studio3d_creer(body: dict, background_tasks: BackgroundTasks):
 
 
 # ── t391 : l'écran Importer — GLB, glTF, OBJ, STL, et désormais FBX (par Blender) et VRM ─────────────────────────────
+# ── t405 : + Daz Genesis 8 / 8.1 — le FBX et N textures du dossier .images (champ `textures`, `type=daz`) ──────────────
+
+from fastapi import Form as _Form   # noqa: E402 — t405 : seul l'Importer lit un champ de formulaire
+
+
+async def _lire_borne(f: UploadFile, plafond: int, quoi: str) -> bytes:
+    """Lit un fichier téléversé sans jamais garder plus que `plafond` octets (au-delà : 400)."""
+    data = await f.read(plafond + 1)
+    if len(data) > plafond:
+        raise HTTPException(400, f"{quoi} : plus de {plafond // (1024 * 1024)} Mo")
+    return data
+
 
 @router.post("/importer")
-async def studio3d_importer(file: UploadFile = File(...)):
+async def studio3d_importer(file: UploadFile = File(...), textures: list[UploadFile] = File(default=[]),
+                            type: str = _Form("")):   # noqa: A002 — le nom du champ de formulaire
     """Un modèle venu d'ailleurs devient un job du 3D Studio. Local et gratuit. 400 format / fichier refusé, 503 Blender
-    absent (FBX seulement)."""
+    absent (FBX seulement). `type=daz` : figure Daz Genesis 8 / 8.1, `textures` = les cartes du dossier .images
+    (chemin relatif dans le nom de fichier), bornées en nombre et en taille."""
     from app.services import mesh_optimize, studio3d_export as SE, studio3d_import as SI
     from app.config import settings
-    data = await file.read()
+    daz = str(type or "").strip().lower() == "daz"
+    if textures and not daz:
+        raise HTTPException(400, "des textures ne s'envoient qu'avec un import Daz Genesis 8 (type=daz)")
+    if len(textures) > SI.TEXTURES_NB_MAX:
+        raise HTTPException(400, f"{len(textures)} textures : {SI.TEXTURES_NB_MAX} au plus par import")
+    data = await _lire_borne(file, SI.TAILLE_MAX, file.filename or "modele")
+    lues, total = [], 0
+    for t in textures:
+        octets = await _lire_borne(t, SI.TEXTURE_TAILLE_MAX, t.filename or "texture")
+        total += len(octets)
+        if total > SI.TEXTURES_TOTAL_MAX:
+            raise HTTPException(400, f"textures : plus de {SI.TEXTURES_TOTAL_MAX // (1024 * 1024)} Mo en tout")
+        lues.append((t.filename or "", octets))
     try:
-        r = await asyncio.to_thread(SI.importer, data, file.filename or "modele")
+        if daz:
+            r = await asyncio.to_thread(SI.importer_daz, data, file.filename or "figure.fbx", lues)
+        else:
+            r = await asyncio.to_thread(SI.importer, data, file.filename or "modele")
     except SE.BlenderIndisponible as e:
         raise HTTPException(503, str(e))
     except ValueError as e:

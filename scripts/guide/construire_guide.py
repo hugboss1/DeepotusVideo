@@ -10,6 +10,13 @@ Sorties : docs/guide/fr.html, en.html, index.html (redirige selon la langue de l
     python scripts/guide/construire_guide.py --check   code 1 si une sortie n'est pas à jour (texte comparé en LF)
     python scripts/guide/construire_guide.py --pdf     écrit puis imprime Deepotus-Guide-FR.pdf / -EN.pdf (Edge headless)
 
+PDF léger (t405) : Chrome/Edge ré-encode toute image non JPEG en bitmap Flate SANS PERTE — 294 captures WebP de
+1440 px pesaient 91 des 96 Mo du PDF français (105 Mo avec le 3D Studio, au-delà des 100 Mo que GitHub accepte). Le
+PDF s'imprime donc depuis une COPIE JETABLE de la page (`_impression-<l>.html`) dont chaque image pointe vers un JPEG
+d'impression (largeur ≤ IMPRESSION_LARGEUR, qualité IMPRESSION_QUALITE, dernière image d'une animation, transparence
+posée sur blanc) : Chrome garde le JPEG tel quel. Même texte, mêmes images, même mise en page ; copie et JPEG effacés
+après. Pillow est requis pour --pdf seulement.
+
 Dans un fragment :
   <i data-dz="dz-nav-montage"></i>                        icône de l'app (SVG en ligne, décorative)
   <figure class="scene" data-scene="montage/couper"></figure>   scène animée (captures + repères, voir motion.md)
@@ -427,6 +434,51 @@ def norm(x):
     return x.replace(b"\r\n", b"\n") if isinstance(x, bytes) else x.replace("\r\n", "\n").encode("utf-8")
 
 
+IMPRESSION_LARGEUR = 1000      # px : 180 mm de colonne A4 à ~140 dpi, un temps de scène (55 mm) à ~450 dpi
+IMPRESSION_QUALITE = 80
+_IMG_SRC = re.compile(r'(<img\b[^>]*?\bsrc=")([^"]+)(")')
+
+
+def _jpeg_impression(source: pathlib.Path, cible: pathlib.Path) -> None:
+    """La version d'impression d'une image : dernière image si animée, alpha posé sur blanc, réduite, JPEG de base."""
+    from PIL import Image
+    with Image.open(source) as im:
+        n = getattr(im, "n_frames", 1)
+        if n > 1:
+            im.seek(n - 1)
+        im = im.convert("RGBA")
+        fond = Image.new("RGBA", im.size, (255, 255, 255, 255))
+        im = Image.alpha_composite(fond, im).convert("RGB")
+        if im.width > IMPRESSION_LARGEUR:
+            im = im.resize((IMPRESSION_LARGEUR, round(im.height * IMPRESSION_LARGEUR / im.width)), Image.LANCZOS)
+        cible.parent.mkdir(parents=True, exist_ok=True)
+        im.save(cible, "JPEG", quality=IMPRESSION_QUALITE, optimize=True, progressive=False)
+
+
+def copie_impression(source: pathlib.Path, dossier: pathlib.Path) -> pathlib.Path:
+    """`_impression-<l>.html` à côté de la page, chaque <img> local pointant vers son JPEG d'impression (`dossier`)."""
+    page = source.read_text("utf-8")
+    faits = {}
+
+    def remplacer(m):
+        src = m.group(2)
+        if src.startswith(("data:", "http:", "https:", "/")) or src.lower().endswith((".jpg", ".jpeg", ".svg")):
+            return m.group(0)
+        if src not in faits:
+            img = (source.parent / html.unescape(src)).resolve()
+            rel = pathlib.Path(html.unescape(src))
+            if not img.is_file() or ".." in rel.parts:
+                return m.group(0)
+            rel = rel.with_name(rel.name + ".jpg")          # x.png et x.webp ne se confondent pas
+            _jpeg_impression(img, dossier / rel)
+            faits[src] = f"{dossier.name}/{rel.as_posix()}"
+        return m.group(1) + html.escape(faits[src], quote=True) + m.group(3)
+
+    copie = source.parent / f"_impression-{source.name}"
+    copie.write_text(_IMG_SRC.sub(remplacer, page), "utf-8", newline="\n")
+    return copie
+
+
 def imprimer():
     edge = next((p for p in (pathlib.Path(r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"),
                              pathlib.Path(r"C:\Program Files\Microsoft\Edge\Application\msedge.exe"),
@@ -438,14 +490,18 @@ def imprimer():
     travaux = [(GUIDE / f"{l}.html", GUIDE / f"Deepotus-Guide-{l.upper()}.pdf") for l in LANGS]
     travaux += [(GUIDE / f"lexique-icones-{l}.html", GUIDE / f"Deepotus-Icones-{l.upper()}.pdf") for l in LANGS
                 if (GUIDE / f"lexique-icones-{l}.html").is_file()]
+    tmp_img = GUIDE / "_impression"
     for source, pdf in travaux:
+        copie = None
+        if source.name in {f"{l}.html" for l in LANGS}:
+            copie = copie_impression(source, tmp_img)
         avant = time.time()
         # Edge rend la main AVANT d'avoir écrit le PDF (son processus d'impression continue en fond : constaté le
         # 10/10, retour en 0,5 s et fichier écrit après) → profil jetable, puis on ATTEND un fichier neuf et stable
         with tempfile.TemporaryDirectory(prefix="dzguide_edge_", ignore_cleanup_errors=True) as profil:
             subprocess.run([str(edge), "--headless=new", "--disable-gpu", "--no-first-run", f"--user-data-dir={profil}",
                             "--no-pdf-header-footer", "--virtual-time-budget=6000", f"--print-to-pdf={pdf}",
-                            source.as_uri()], check=True, capture_output=True, timeout=300)
+                            (copie or source).as_uri()], check=True, capture_output=True, timeout=300)
             taille, fin = -1, time.time() + 180
             while time.time() < fin:
                 if pdf.is_file() and pdf.stat().st_mtime >= avant:
@@ -456,7 +512,10 @@ def imprimer():
                 time.sleep(1.5)
             else:
                 raise SystemExit(f"le PDF {pdf.name} n'a pas été réécrit en 3 minutes")
+        if copie:
+            copie.unlink(missing_ok=True)
         print(f"PDF : {pdf.relative_to(RACINE)} ({pdf.stat().st_size // 1024} Ko)")
+    shutil.rmtree(tmp_img, ignore_errors=True)
 
 
 def main():

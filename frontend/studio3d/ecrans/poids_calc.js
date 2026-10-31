@@ -4,7 +4,8 @@
    Les poids d'un maillage skinné sont ceux de three.js : `j` (skinIndex) et `w` (skinWeight), QUATRE influences par
    sommet, indices dans les os de la peau. Chaque opération garde l'invariant : quatre influences au plus, somme 1 (un
    sommet n'est jamais vidé : si l'os peint tenait tout et qu'on le retire, le reste va à l'os de REPLI, son parent).
-   Relevé de Sorceress (§6, Refine) : outils Choisir l'os (1), Peindre (2), Lasso (3), Pose (P) ; opérations Fixer R,
+   Relevé de Sorceress (§6, Refine) : outils Choisir l'os (1), Peindre (2), Lasso (3, sommets VUS seulement, t405),
+   Pose (P, poignées IK : ik_calc.js) ; opérations Fixer R,
    Ajouter A, Retirer S, Lisser D, Flouter F ; atténuation linéaire / douce / constante ; miroir (M) ; isoler (5) ;
    sommets sans poids ; `[ ]` taille, Ctrl + molette rayon, Maj + molette force ; annuler / rétablir. */
 "use strict";
@@ -366,7 +367,7 @@ export function dansPolygone(x, y, poly) {
   return dedans;
 }
 
-/* `ecran` : Float32Array n·2 (pixels) ; `visible` : Uint8Array n facultatif (face tournée vers la caméra) */
+/* `ecran` : Float32Array n·2 (pixels) ; `visible` : Uint8Array n facultatif (0 : sommet caché, voir visibles) */
 export function selectionLasso(ecran, n, poly, visible = null) {
   if (!poly || poly.length < 3) return [];
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -379,6 +380,97 @@ export function selectionLasso(ecran, n, poly, visible = null) {
     if (dansPolygone(x, y, poly)) out.push(v);
   }
   return out;
+}
+
+/* ── l'occlusion du lasso : un tampon de profondeur logiciel ──────────────── */
+
+/* t405 — Sorceress : « Lasso select polygons (3) — drag on the model ». Le lasso ne prend que les sommets VUS : les
+   triangles (déformés, projetés) de tous les maillages sont rastérisés dans un tampon de profondeur (profondeur de
+   vue, en unités du modèle), restreint à la boîte du lasso ; un sommet est visible si sa profondeur ne dépasse pas
+   de plus de `eps` la PLUS LOINTAINE des surfaces les plus proches de son voisinage 3 × 3 (un sommet de silhouette,
+   ou un triangle plus petit qu'un pixel, n'est pas caché à tort par son propre bord). Choisi contre un lancer de
+   rayon par candidat (BVH absente du projet) et une passe GPU (lecture de pixels, nuanceur de peau à dupliquer) :
+   le calcul vit ici, sous node : ~ 12 ms pour 50 000 sommets et 100 000 triangles (banc qa/affiner.test.mjs). */
+
+export function boitePolygone(poly, W, H, marge = 2) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of poly) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  return [Math.max(0, Math.floor(x0) - marge), Math.max(0, Math.floor(y0) - marge),
+    Math.min(W - 1, Math.ceil(x1) + marge), Math.min(H - 1, Math.ceil(y1) + marge)];
+}
+
+export function tamponProfondeur(W, H, boite = null) {
+  const w = Math.max(1, Math.ceil(W)), h = Math.max(1, Math.ceil(H));
+  const [x0, y0, x1, y1] = boite || [0, 0, w - 1, h - 1];
+  return { W: w, H: h, x0: Math.max(0, x0), y0: Math.max(0, y0), x1: Math.min(w - 1, x1), y1: Math.min(h - 1, y1),
+    z: new Float32Array(w * h).fill(Infinity) };
+}
+
+/* les triangles (index, ou séquentiels) d'un maillage dans le tampon ; `prof` : profondeur de vue (> 0 devant la
+   caméra), les triangles qui passent derrière elle sont ignorés */
+export function rasteriser(tb, ecran, prof, index, n) {
+  const { W, z, x0, y0, x1, y1 } = tb;
+  const m = index ? index.length : n;
+  for (let t = 0; t + 2 < m; t += 3) {
+    const a = index ? index[t] : t, b = index ? index[t + 1] : t + 1, c = index ? index[t + 2] : t + 2;
+    const za = prof[a], zb = prof[b], zc = prof[c];
+    if (!(za > 0 && zb > 0 && zc > 0)) continue;
+    const ax = ecran[a * 2], ay = ecran[a * 2 + 1], bx = ecran[b * 2], by = ecran[b * 2 + 1], cx = ecran[c * 2], cy = ecran[c * 2 + 1];
+    const mx = Math.max(x0, Math.floor(Math.min(ax, bx, cx))), Mx = Math.min(x1, Math.ceil(Math.max(ax, bx, cx)));
+    if (mx > Mx) continue;
+    const my = Math.max(y0, Math.floor(Math.min(ay, by, cy))), My = Math.min(y1, Math.ceil(Math.max(ay, by, cy)));
+    if (my > My) continue;
+    const aire = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+    if (Math.abs(aire) < 1e-12) continue;
+    const inv = 1 / aire;
+    for (let y = my; y <= My; y++) {
+      const py = y + 0.5;
+      for (let x = mx; x <= Mx; x++) {
+        const px = x + 0.5;
+        const wa = ((bx - px) * (cy - py) - (by - py) * (cx - px)) * inv;
+        if (wa < -1e-7) continue;
+        const wb = ((cx - px) * (ay - py) - (cy - py) * (ax - px)) * inv;
+        if (wb < -1e-7) continue;
+        const wc = 1 - wa - wb;
+        if (wc < -1e-7) continue;
+        const zz = wa * za + wb * zb + wc * zc, k = y * W + x;
+        if (zz < z[k]) z[k] = zz;
+      }
+    }
+  }
+}
+
+/* Uint8Array n : 1 si le sommet est vu (ou hors de la boîte du tampon, qu'on n'a pas regardée), 0 s'il est caché */
+export function visibles(tb, ecran, prof, n, eps) {
+  const { W, z, x0, y0, x1, y1 } = tb;
+  const out = new Uint8Array(n).fill(1);
+  for (let v = 0; v < n; v++) {
+    const x = Math.floor(ecran[v * 2]), y = Math.floor(ecran[v * 2 + 1]);
+    if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+    if (!(prof[v] > 0)) { out[v] = 0; continue; }
+    let loin = -Infinity;
+    for (let j = Math.max(y0, y - 1); j <= Math.min(y1, y + 1); j++) {
+      for (let i = Math.max(x0, x - 1); i <= Math.min(x1, x + 1); i++) { const q = z[j * W + i]; if (q > loin) loin = q; }
+    }
+    if (prof[v] > loin + eps) out[v] = 0;
+  }
+  return out;
+}
+
+/* le lasso sur plusieurs maillages : [{ecran, prof, index, n}] → une sélection par maillage. `travers` : l'ancien
+   comportement (tout ce qui est entouré, devant comme derrière). Rend {selections, ms}. */
+export function lassoMaillages(maillages, poly, W, H, { travers = false, eps = 0 } = {}) {
+  const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+  if (!poly || poly.length < 3) return { selections: maillages.map(() => []), ms: 0 };
+  let vis = maillages.map(() => null);
+  if (!travers) {
+    const tb = tamponProfondeur(W, H, boitePolygone(poly, W, H));
+    for (const m of maillages) rasteriser(tb, m.ecran, m.prof, m.index, m.n);
+    vis = maillages.map((m) => visibles(tb, m.ecran, m.prof, m.n, eps));
+  }
+  const selections = maillages.map((m, k) => selectionLasso(m.ecran, m.n, poly, vis[k]));
+  const t1 = typeof performance !== "undefined" ? performance.now() : Date.now();
+  return { selections, ms: t1 - t0 };
 }
 
 export function sansPoids(P) {
@@ -458,6 +550,7 @@ export function role(nom) {
 export const POSES = {
   bras_leves: [["bras", [0, 0, -60]]], bras_avant: [["bras", [0, -60, 0]]], coudes: [["avantbras", [0, -100, 0]]],
   hanches: [["cuisse", [-80, 0, 0]]], genoux: [["jambe", [100, 0, 0]]], cou: [["cou", [35, 0, 0]]],
+  torsion: [["colonne", [0, 15, 0]]],
 };
 export function rotationsDePose(nomPose, noms) {
   const out = {};

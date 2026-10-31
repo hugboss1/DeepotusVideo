@@ -125,15 +125,61 @@
     "studio3decrans.anim.duree": "champ",
     "studio3decrans.anim.favori_ajouter": "bouton",
     "studio3decrans.anim.generer": "bouton",
+    "studio3decrans.anim.guidance": [
+     "champ",
+     "studio3decrans.anim.guidance_aide"
+    ],
+    "studio3decrans.anim.ik_deplacer": "bouton",
+    "studio3decrans.anim.ik_retirer": "bouton",
     "studio3decrans.anim.importer_fichier": "bouton",
     "studio3decrans.anim.intensite": "champ",
     "studio3decrans.anim.jouer": "bouton",
+    "studio3decrans.anim.licence_case": "champ",
+    "studio3decrans.anim.licence_lire": "bouton",
     "studio3decrans.anim.modeles": "champ",
     "studio3decrans.anim.onglet_favoris": "onglet",
     "studio3decrans.anim.onglet_generer": "onglet",
     "studio3decrans.anim.onglet_generes": "onglet",
     "studio3decrans.anim.onglet_importer": "onglet",
+    "studio3decrans.anim.onglet_physique": "onglet",
     "studio3decrans.anim.onglet_tous": "onglet",
+    "studio3decrans.anim.phys_amortissement": [
+     "champ",
+     "studio3decrans.anim.phys_amortissement_aide"
+    ],
+    "studio3decrans.anim.phys_cloth": "champ",
+    "studio3decrans.anim.phys_config_aide": "bouton",
+    "studio3decrans.anim.phys_defaut": "bouton",
+    "studio3decrans.anim.phys_gravite": [
+     "champ",
+     "studio3decrans.anim.phys_gravite_aide"
+    ],
+    "studio3decrans.anim.phys_hair": "champ",
+    "studio3decrans.anim.phys_jiggle": "champ",
+    "studio3decrans.anim.phys_mains": [
+     "champ",
+     "studio3decrans.anim.phys_mains_aide"
+    ],
+    "studio3decrans.anim.phys_raideur": [
+     "champ",
+     "studio3decrans.anim.phys_raideur_aide"
+    ],
+    "studio3decrans.anim.pieds": [
+     "champ",
+     "studio3decrans.anim.pieds_aide"
+    ],
+    "studio3decrans.anim.prise_epee_d": [
+     "bouton",
+     "studio3decrans.anim.prise_aide"
+    ],
+    "studio3decrans.anim.prise_gun_d": [
+     "bouton",
+     "studio3decrans.anim.prise_aide"
+    ],
+    "studio3decrans.anim.prise_main_d": [
+     "bouton",
+     "studio3decrans.anim.prise_main_aide"
+    ],
     "studio3decrans.anim.prompt": "champ",
     "studio3decrans.anim.recherche": "champ",
     "studio3decrans.anim.repos": [
@@ -152,6 +198,14 @@
     "studio3decrans.anim.toutes": "champ",
     "studio3decrans.anim.video_etabli": "bouton",
     "studio3decrans.anim.vitesse": "champ",
+    "studio3decrans.anim.voir_os": [
+     "champ",
+     "studio3decrans.anim.voir_os_aide"
+    ],
+    "studio3decrans.anim.voir_reperes": [
+     "champ",
+     "studio3decrans.anim.voir_reperes_aide"
+    ],
     "studio3decrans.anim.vue_p": [
      "outil",
      "studio3decrans.anim.vue_p_aide"
@@ -220,6 +274,26 @@
     "frontend/studio3d/ecrans/decor_calc.js"
    ],
    "cles": {
+    "studio3decrans.decor.acc_var_creer": [
+     "bouton",
+     "studio3decrans.decor.acc_var_aide"
+    ],
+    "studio3decrans.decor.acc_vent_ecrire": [
+     "bouton",
+     "studio3decrans.decor.acc_vent_aide"
+    ],
+    "studio3decrans.decor.acc_lod_construire": [
+     "bouton",
+     "studio3decrans.decor.acc_lod_aide"
+    ],
+    "studio3decrans.decor.acc_cartes_construire": [
+     "bouton",
+     "studio3decrans.decor.acc_cartes_aide"
+    ],
+    "studio3decrans.decor.acc_plateau_envoyer": [
+     "bouton",
+     "studio3decrans.decor.acc_plateau_aide"
+    ],
     "studio3decrans.decor.acc_budget": "bouton",
     "studio3decrans.decor.acc_exporter": "bouton",
     "studio3decrans.decor.acc_hauteur": "champ",

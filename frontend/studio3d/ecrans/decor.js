@@ -8,8 +8,11 @@
    « Ranger comme modèle 3D » envoie le GLB à POST /api/assets/3d/importer : l'arbre devient un job, que Préparer
    (budget de triangles) et Exporter reprennent comme n'importe quel modèle.
 
-   Volet Accessoire (t402) : un élément généré dans l'onglet 3D, ouvert ici ; ses outils dédiés (pivot au sol,
-   échelle réelle, variantes, masque de vent) arrivent avec t402 — en attendant, il mène à Préparer et Exporter. */
+   Volet Accessoire (t402) : un élément généré dans l'onglet 3D, ouvert ici. Gauche : la fiche et les VARIANTES
+   (graine → échelle, rotation Y, teinte ; chacune un job neuf `<job>_var<k>`). Droite : sol et hauteur réelle, rôle →
+   budget, MASQUE DE VENT (aperçu du balancement dans le canevas, calculé ici avec la même courbe que le serveur, puis
+   écrit comme version), LOD (routes /api/assets/3d/{job}/lod) et CARTES (huit vues rendues ici → atlas → imposteur
+   écrit par le serveur), ENVOI AU PLATEAU 3D (une scène existante ou neuve), Préparer et Exporter. */
 "use strict";
 import * as THREE from "three";
 import { creerCanevas, cadrer, charger } from "/lib3d/viewer.js";
@@ -18,10 +21,15 @@ import * as PRESETS_DONNEES from "/lib3d/eztree/presets/donnees.js";
 import { TreePreset } from "/lib3d/eztree/presets/index.js";
 import { T, nb } from "./coque_calc.js";
 import { ESPECES, ONGLETS, FEUILLES, ECORCES, SAISONS, REGLAGES_DEFAUT, optionsPour, echelleVers, vent, recette,
-  lireRecette, nomFichier, especeDe } from "./decor_calc.js";
+  lireRecette, nomFichier, especeDe, VARIANTES_DEFAUT, corpsVariantes, VENT_ACC_DEFAUT, valeurMasque, profilMasque,
+  cadreCartes, vueCarte, ATLAS, USAGES_LOD, niveauxLod } from "./decor_calc.js";
+import { ajouterVent } from "./decor_runtime.js";
 
 const D = { s: null, ctx: null, api: null, arbre: null, groupe: null, r: { ...REGLAGES_DEFAUT }, onglet: "arbres",
-  volet: "vegetation", nom: "", horloge: new THREE.Clock(), sol: null, minuterie: null };
+  volet: "vegetation", nom: "", horloge: new THREE.Clock(), sol: null, minuterie: null,
+  /* t402 : l'état du volet Accessoire (réglages, résultats du modèle ouvert, aperçu du vent, cartes posées à côté) */
+  acc: { ...VARIANTES_DEFAUT, ...VENT_ACC_DEFAUT, plans: 2, usage: "pc", scene: "", apercu: true },
+  accJob: null, accRes: {}, scenes: null, ventAcc: null, masqueFichier: false, cartes: null };
 void PRESETS_DONNEES;
 
 export async function monter(section, ctx) {
@@ -148,17 +156,36 @@ function peindreDroite() {
   peindreFiche();
 }
 
+/* t402 : un curseur du volet Accessoire (data-acc, valeur affichée à côté du libellé) */
+const curseurAcc = (nom, min, max, pas, unite = "") => `<label class="ec-champ">${D.ctx.esc(T("decor.acc_" + nom))}
+  <span class="ec-valeur">${D.ctx.esc(String(D.acc[nom]))}${D.ctx.esc(unite)}</span>
+  <input type="range" data-acc="${nom}" min="${min}" max="${max}" step="${pas}" value="${D.acc[nom]}"></label>`;
+
 function peindreAccessoire() {
   const { esc, ico } = D.ctx;
   const f = D.ctx.fiche();
   const roles = D.roles || [];
+  const a = D.acc, res = D.accRes;
   D.s.querySelector("#dcGauche").innerHTML = `<div class="ec-label">${esc(T("decor.accessoire"))}</div>
     <div class="ec-note">${esc(T("decor.accessoire_aide"))}</div>
-    ${f ? `<div class="ec-fiche-courte"><b>${esc(f.nom)}</b><span>${esc(T("bandeau.triangles", { n: nb(f.triangles) }))} · v${esc(f.version)}</span></div>`
-    : `<button class="ec-bouton bloc" data-aller="ouvrir">${ico("dz-action-ouvrir")} ${esc(T("decor.acc_ouvrir"))}</button>`}
-    <div class="ec-label">${esc(T("bientot.prevu"))}</div>
-    <ul class="ec-liste">${[3, 4].map((i) => `<li>${esc(T("prevu.decor_" + i))}</li>`).join("")}</ul>`;
-  /* t402 : la droite porte les gestes livrés — sol et hauteur réelle (une version de plus), rôle et budget */
+    ${f ? `<div class="ec-fiche-courte"><b>${esc(f.nom)}</b><span>${esc(T("bandeau.triangles", { n: nb(f.triangles) }))} · v${esc(f.version)}</span></div>
+    <div class="ec-label">${esc(T("decor.acc_variantes"))}</div>
+    ${curseurAcc("nombre", 2, 8, 1)}
+    <div class="ec-ligne"><label class="ec-champ">${esc(T("decor.graine"))}<input type="number" min="0" step="1" data-acc="graine" value="${a.graine}"></label>
+      <button class="ec-bouton" data-action="acc-de">${ico("dz-action-reinitialiser")} ${esc(T("decor.acc_de"))}</button></div>
+    ${curseurAcc("echelle_pct", 0, 50, 1, " %")}
+    ${curseurAcc("teinte", 0, 1, 0.05)}
+    ${curseurAcc("luminosite", 0, 0.6, 0.05)}
+    <label class="ec-bascule"><input type="checkbox" data-acc="rotation" ${a.rotation ? "checked" : ""}> ${esc(T("decor.acc_rotation"))}</label>
+    <button class="ec-principal" data-action="acc-variantes">${ico("dz-action-dupliquer")} ${esc(T("decor.acc_var_creer"))}</button>
+    <div class="ec-note">${esc(T("decor.acc_var_aide"))}</div>
+    <ul class="dc-resultats" id="dcVariantes">${(res.variantes || []).map((v) => `<li>
+      <span class="dc-teinte" style="background:${esc(v.tirage.teinte)}"></span>
+      <span class="dc-res-nom">${esc(v.nom || v.job)}<small>×${esc(v.tirage.echelle.toFixed(2))} · ${esc(String(Math.round(v.tirage.rotation_y)))}°</small></span>
+      <button class="ec-bouton" data-ouvrir-job="${esc(v.job)}">${esc(T("decor.acc_var_ouvrir"))}</button></li>`).join("")}</ul>`
+    : `<button class="ec-bouton bloc" data-aller="ouvrir">${ico("dz-action-ouvrir")} ${esc(T("decor.acc_ouvrir"))}</button>`}`;
+  /* t402 : la droite — sol et hauteur réelle, rôle et budget, vent, LOD et cartes, Plateau, puis Préparer / Exporter */
+  const lod = niveauxLod(res.lod);
   D.s.querySelector("#dcDroite").innerHTML = f ? `<div class="ec-label">${esc(T("decor.acc_sol"))}</div>
     <label class="ec-champ">${esc(T("decor.acc_hauteur"))}<input type="number" id="dcHauteur" min="0.01" max="500" step="0.01"
       placeholder="${esc(T("decor.acc_hauteur_vide"))}"></label>
@@ -167,9 +194,39 @@ function peindreAccessoire() {
     <div class="ec-label">${esc(T("decor.acc_role"))}</div>
     <div class="ec-especes">${roles.map((r) => `<button data-role="${esc(r.role)}" class="${D.role === r.role ? "on" : ""}">${esc(T("role." + r.role))}</button>`).join("")}</div>
     <div class="ec-note" id="dcBudget">${esc(budgetTexte(f))}</div>
+    <div class="ec-label">${esc(T("decor.acc_vent"))}</div>
+    <div class="ec-note">${esc(T(D.masqueFichier ? "decor.acc_vent_present" : "decor.acc_vent_absent"))}</div>
+    ${curseurAcc("courbe", 0.2, 5, 0.1)}
+    ${curseurAcc("seuil", 0, 0.9, 0.05)}
+    <svg class="dc-profil" viewBox="-2 -2 124 44" aria-hidden="true"><polyline id="dcProfil" points="${profilMasque(a.courbe, a.seuil)}"/></svg>
+    <label class="ec-bascule"><input type="checkbox" data-acc="apercu" ${a.apercu ? "checked" : ""}> ${esc(T("decor.acc_apercu"))}</label>
+    ${curseurAcc("amplitude", 0, 1, 0.01, " m")}
+    <button class="ec-principal" data-action="acc-vent">${ico("dz-action-enregistrer")} ${esc(T("decor.acc_vent_ecrire"))}</button>
+    <div class="ec-note">${esc(T("decor.acc_vent_aide"))}</div>
+    <div class="ec-label">${esc(T("decor.acc_lod"))}</div>
+    <div class="ec-segments ec-plein">${USAGES_LOD.map((u) => `<button data-usage="${u}" class="${u === a.usage ? "on" : ""}">${esc(T("decor.acc_lod_" + u))}</button>`).join("")}</div>
+    <button class="ec-bouton bloc" data-action="acc-lod">${ico("dz-lab3d-optimiser")} ${esc(T("decor.acc_lod_construire"))}</button>
+    ${lod.length ? `<ul class="dc-resultats">${lod.map((n) => `<li><span class="dc-res-nom">${esc(T("decor.acc_lod_niveau", { n: n.niveau, t: nb(n.triangles) }))}</span>
+      <a class="ec-bouton" href="/api/assets/3d/${encodeURIComponent(f.job)}/lod/${n.niveau}" download>${ico("dz-action-telecharger")}</a></li>`).join("")}</ul>
+      <a class="ec-bouton bloc" href="/api/assets/3d/${encodeURIComponent(f.job)}/lod-zip" download>${ico("dz-action-telecharger")} ${esc(T("decor.acc_lod_zip"))}</a>` : ""}
+    <div class="ec-note">${esc(T("decor.acc_lod_aide"))}</div>
+    <div class="ec-sous">${esc(T("decor.acc_cartes"))}</div>
+    <div class="ec-segments ec-plein">${[2, 3].map((p) => `<button data-plans="${p}" class="${p === a.plans ? "on" : ""}">${esc(T("decor.acc_plans", { n: p }))}</button>`).join("")}</div>
+    <button class="ec-bouton bloc" data-action="acc-cartes">${ico("dz-lab3d-camera")} ${esc(T("decor.acc_cartes_construire"))}</button>
+    ${res.cartes ? `<a class="ec-bouton bloc" href="${esc(res.cartes.url)}" download>${ico("dz-action-telecharger")} ${esc(T("decor.acc_cartes_glb"))}</a>` : ""}
+    <div class="ec-note">${esc(T("decor.acc_cartes_aide"))}</div>
+    <div class="ec-label">${esc(T("decor.acc_plateau"))}</div>
+    <label class="ec-champ">${esc(T("decor.acc_scene"))}<select id="dcScene">
+      <option value="">${esc(T("decor.acc_scene_neuve"))}</option>
+      ${(D.scenes || []).map((s) => `<option value="${esc(s.id)}" ${s.id === a.scene ? "selected" : ""}>${esc(s.nom)} · ${esc(T("decor.acc_objets", { n: s.instances }))}</option>`).join("")}
+    </select></label>
+    <button class="ec-principal" data-action="acc-plateau">${ico("dz-action-envoyer-vers")} ${esc(T("decor.acc_plateau_envoyer"))}</button>
+    ${res.plateau ? `<a class="ec-bouton bloc" href="${esc(res.plateau.url)}" target="_blank" rel="noopener">${ico("dz-action-ouvrir")} ${esc(T("decor.acc_plateau_ouvrir"))}</a>` : ""}
+    <div class="ec-note">${esc(T("decor.acc_plateau_aide"))}</div>
+    <div class="ec-label">${esc(T("decor.export"))}</div>
     <button class="ec-bouton bloc" data-aller="preparer">${ico("dz-lab3d-optimiser")} ${esc(T("decor.acc_budget"))}</button>
     <button class="ec-bouton bloc" data-aller="exporter">${ico("dz-action-exporter")} ${esc(T("decor.acc_exporter"))}</button>
-    <div class="ec-avis" id="dcAvis"></div>` : "";
+    <div class="ec-avis" id="dcAvis">${esc(D.accAvis || "")}</div>` : "";
 }
 
 function budgetTexte(f) {
@@ -183,11 +240,17 @@ async function montrerAccessoire() {
   const f = D.ctx.fiche();
   if (D.groupe) D.groupe.visible = D.volet !== "accessoire";
   if (D.modele) { D.api.scene.remove(D.modele); D.modele = null; }
+  D.ventAcc = null;
+  oterCartes();
   if (D.volet !== "accessoire") { D.api.racine = D.groupe; peindreFiche(); return; }
+  /* un autre modèle (ou une autre version) : les résultats du précédent ne valent plus */
+  const cle = f ? f.job + "@" + f.version : null;
+  if (cle !== D.accJob) { D.accJob = cle; D.accRes = {}; D.accAvis = ""; }
   if (!D.roles) {
     try { D.roles = (await D.ctx.jget("/api/studio3d/decor/roles")).roles; } catch { D.roles = []; }
-    peindreAccessoire();
   }
+  if (f) await Promise.all([lireLod(f), lireScenes()]);
+  peindreAccessoire();
   if (!f) return;
   try {
     D.api.racine = null;
@@ -195,7 +258,25 @@ async function montrerAccessoire() {
     D.modele = D.api.racine;
     cadrer(D.api);
     D.s.querySelector("#dcMesure").textContent = T("bandeau.triangles", { n: nb(f.triangles) }) + " · v" + f.version;
+    D.masqueFichier = false;
+    D.modele.traverse((o) => { if (o.isMesh && o.geometry.getAttribute("_wind")) D.masqueFichier = true; });
+    preparerVent();
+    peindreAccessoire();
   } catch (e) { echec(e); }
+}
+
+/* ── t402 : appels du volet Accessoire ────────────────────────────────────── */
+async function poster(url, corps) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corps) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j && typeof j.detail === "string" && j.detail) || String(r.status));
+  return j;
+}
+
+function avisAcc(texte) {
+  D.accAvis = texte;
+  const el = D.s.querySelector("#dcAvis");
+  if (el) el.textContent = texte;
 }
 
 async function poser() {
@@ -204,15 +285,163 @@ async function poser() {
   const h = parseFloat(D.s.querySelector("#dcHauteur").value);
   const corps = { job: f.job, version: f.version };
   if (Number.isFinite(h)) corps.hauteur_m = h;
-  const avis = D.s.querySelector("#dcAvis");
-  avis.textContent = T("decor.acc_en_cours");
+  avisAcc(T("decor.acc_en_cours"));
   try {
-    const r = await fetch("/api/studio3d/decor/poser", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(corps) });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error((j && typeof j.detail === "string" && j.detail) || String(r.status));
+    await poster("/api/studio3d/decor/poser", corps);
     await D.ctx.ouvrir(f.job, null, "decor");
-  } catch (e) { avis.textContent = T("erreur.decor", { m: e.message }); }
+  } catch (e) { avisAcc(T("erreur.decor", { m: e.message })); }
+}
+
+async function creerVariantes() {
+  const f = D.ctx.fiche();
+  if (!f) return;
+  avisAcc(T("decor.acc_travail"));
+  try {
+    const j = await poster("/api/studio3d/decor/variantes", corpsVariantes(f.job, f.version, D.acc));
+    D.accRes.variantes = j.variantes;
+    const m = j.variantes.filter((v) => v.nouveau).length;
+    D.accAvis = T("decor.acc_var_faites", { n: j.variantes.length, m, d: j.variantes.length - m });
+    peindreAccessoire();
+  } catch (e) { avisAcc(T("erreur.decor", { m: e.message })); }
+}
+
+/* l'aperçu du vent : le masque calculé ICI sur la hauteur monde (même courbe que le serveur), puis le runtime */
+function preparerVent(recalculer = !D.masqueFichier) {
+  if (!D.modele) return;
+  if (recalculer) {                   // le masque du fichier est montré tel quel tant que courbe et seuil n'ont pas bougé
+    D.modele.updateMatrixWorld(true);
+    const boite = new THREE.Box3().setFromObject(D.modele);
+    const y0 = boite.min.y, h = Math.max(1e-9, boite.max.y - boite.min.y), v = new THREE.Vector3();
+    D.modele.traverse((o) => {
+      if (!o.isMesh) return;
+      const pos = o.geometry.getAttribute("position");
+      const m = o.geometry.getAttribute("_wind") || new THREE.BufferAttribute(new Float32Array(pos.count), 1);
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+        m.setX(i, valeurMasque((v.y - y0) / h, D.acc.courbe, D.acc.seuil));
+      }
+      m.needsUpdate = true;
+      if (!o.geometry.getAttribute("_wind")) o.geometry.setAttribute("_wind", m);
+    });
+  }
+  if (!D.ventAcc) D.ventAcc = ajouterVent(D.modele, recetteAcc());
+  else D.ventAcc.regler(recetteAcc());
+}
+
+const recetteAcc = (force) => ({ reglages: { vent: D.acc.apercu, ventForce: force ?? D.acc.amplitude,
+  ventDirection: D.r.ventDirection, ventVitesse: D.r.ventVitesse, frisson: D.r.frisson } });
+
+async function ecrireVent() {
+  const f = D.ctx.fiche();
+  if (!f) return;
+  avisAcc(T("decor.acc_travail"));
+  try {
+    const j = await poster("/api/studio3d/decor/vent", { job: f.job, version: f.version, courbe: D.acc.courbe, seuil: D.acc.seuil });
+    await D.ctx.ouvrir(f.job, null, "decor");
+    avisAcc(T("decor.acc_vent_fait", { v: j.version }));       // après la réouverture, qui remet l'avis à zéro
+  } catch (e) { avisAcc(T("erreur.decor", { m: e.message })); }
+}
+
+async function lireLod(f) {
+  try { D.accRes.lod = (await D.ctx.jget(`/api/assets/3d/${encodeURIComponent(f.job)}/lod`)).chaine; }
+  catch { D.accRes.lod = null; }
+}
+
+async function construireLod() {
+  const f = D.ctx.fiche();
+  if (!f) return;
+  avisAcc(T("decor.acc_travail"));
+  try {
+    D.accRes.lod = await poster(`/api/assets/3d/${encodeURIComponent(f.job)}/lod`, { usage: D.acc.usage });
+    D.accAvis = T("decor.acc_lod_fait", { n: niveauxLod(D.accRes.lod).length });
+    peindreAccessoire();
+  } catch (e) { avisAcc(T("erreur.decor", { m: e.message })); }
+}
+
+/* les cartes : huit vues orthographiques du modèle, sans sol ni ciel, assemblées en atlas 4 × 2 (fond transparent) */
+async function capturerAtlas(taille = 256) {
+  const boite = new THREE.Box3().setFromObject(D.modele);
+  const cadre = cadreCartes({ min: boite.min.toArray(), max: boite.max.toArray() });
+  const rendu = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+  rendu.setPixelRatio(1);
+  rendu.setSize(taille, taille, false);
+  rendu.setClearColor(0x000000, 0);
+  /* seul le modèle (et les lumières) entre dans les vues : sol, arbre, grille, axes et cartes déjà posées sortent */
+  const sc = D.api.scene, fond = sc.background;
+  const caches = sc.children.filter((o) => o !== D.modele && !o.isLight && o.visible);
+  sc.background = null;
+  for (const o of caches) o.visible = false;
+  if (D.ventAcc) D.ventAcc.regler(recetteAcc(0));               // les vues se prennent au repos
+  const c = cadre.cote / 2;
+  const cam = new THREE.OrthographicCamera(-c, c, c, -c, cadre.cote * 0.01, cadre.cote * 6);
+  const atlas = document.createElement("canvas");
+  atlas.width = ATLAS.colonnes * taille;
+  atlas.height = ATLAS.lignes * taille;
+  const g = atlas.getContext("2d");
+  try {
+    for (let k = 0; k < 8; k++) {
+      const v = vueCarte(k, cadre);
+      cam.position.set(...v.position);
+      cam.up.set(0, 1, 0);
+      cam.lookAt(...v.cible);
+      cam.updateMatrixWorld();
+      rendu.render(sc, cam);
+      g.drawImage(rendu.domElement, v.colonne * taille, v.ligne * taille);
+    }
+  } finally {
+    sc.background = fond;
+    for (const o of caches) o.visible = true;
+    if (D.ventAcc) D.ventAcc.regler(recetteAcc());
+    rendu.dispose();
+    rendu.forceContextLoss();
+  }
+  return { atlas: atlas.toDataURL("image/png"), cadre };
+}
+
+async function construireCartes() {
+  const f = D.ctx.fiche();
+  if (!f || !D.modele) return;
+  avisAcc(T("decor.acc_cartes_en_cours"));
+  try {
+    const { atlas, cadre } = await capturerAtlas();
+    const j = await poster("/api/studio3d/decor/cartes", { job: f.job, version: f.version, atlas, plans: D.acc.plans });
+    D.accRes.cartes = j;
+    D.accAvis = T("decor.acc_cartes_fait", { p: j.plans, t: j.triangles });
+    peindreAccessoire();
+    /* l'imposteur posé à côté du modèle, pour comparer */
+    const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+    const gltf = await new GLTFLoader().loadAsync(j.url + "&t=" + Date.now());
+    oterCartes();
+    D.cartes = gltf.scene;
+    D.cartes.position.x = cadre.cote * 1.15;
+    D.api.scene.add(D.cartes);
+  } catch (e) { avisAcc(T("erreur.decor", { m: e.message })); }
+}
+
+function oterCartes() {
+  if (!D.cartes) return;
+  D.api.scene.remove(D.cartes);
+  D.cartes.traverse((o) => { if (o.geometry) o.geometry.dispose(); });
+  D.cartes = null;
+}
+
+async function lireScenes() {
+  try { D.scenes = (await D.ctx.jget("/api/scenes3d")).scenes || []; } catch { D.scenes = []; }
+  if (D.acc.scene && !D.scenes.some((s) => s.id === D.acc.scene)) D.acc.scene = "";
+}
+
+async function envoyerPlateau() {
+  const f = D.ctx.fiche();
+  if (!f) return;
+  avisAcc(T("decor.acc_travail"));
+  try {
+    const j = await poster("/api/studio3d/decor/plateau", { job: f.job, version: f.version, scene: D.acc.scene || undefined });
+    D.accRes.plateau = j;
+    D.acc.scene = j.scene;
+    await lireScenes();
+    D.accAvis = T("decor.acc_plateau_fait", { s: j.nom, n: j.instances });
+    peindreAccessoire();
+  } catch (e) { avisAcc(T("erreur.decor", { m: e.message })); }
 }
 
 function peindreFiche() {
@@ -231,6 +460,8 @@ function peindreFiche() {
 function surSaisie(e) {
   const el = e.target;
   if (el.id === "dcNom") { D.nom = el.value; return; }
+  if (el.id === "dcScene") { D.acc.scene = el.value; return; }
+  if (el.dataset && el.dataset.acc) return surSaisieAcc(el);
   if (el.id === "dcRecette" && e.type === "change") { if (el.files[0]) importerRecette(el.files[0]); return; }
   const champ = el.dataset && el.dataset.champ;
   if (!champ) return;
@@ -246,10 +477,28 @@ function surSaisie(e) {
   generer();
 }
 
+/* t402 : un réglage du volet Accessoire — l'aperçu du vent suit sans repeindre le panneau */
+function surSaisieAcc(el) {
+  const k = el.dataset.acc, d = D.acc[k];
+  D.acc[k] = typeof d === "boolean" ? el.checked : Number(el.value);
+  const val = el.closest("label") && el.closest("label").querySelector(".ec-valeur");
+  if (val) val.textContent = String(el.value) + val.textContent.replace(/^[\d.,-]+/, "");
+  if (k === "courbe" || k === "seuil") {
+    const p = D.s.querySelector("#dcProfil");
+    if (p) p.setAttribute("points", profilMasque(D.acc.courbe, D.acc.seuil));
+    return preparerVent(true);
+  }
+  if (k === "amplitude" || k === "apercu") return preparerVent(false);
+}
+
 function surClic(e) {
+  if (e.target.closest("a[href]")) return;
   const t = e.target.closest("button, [data-aller]");
   if (!t) return;
   if (t.dataset.aller) return D.ctx.aller(t.dataset.aller);
+  if (t.dataset.ouvrirJob) return D.ctx.ouvrir(t.dataset.ouvrirJob, null, "decor");
+  if (t.dataset.usage) { D.acc.usage = t.dataset.usage; return peindreAccessoire(); }
+  if (t.dataset.plans) { D.acc.plans = Number(t.dataset.plans); return peindreAccessoire(); }
   if (t.dataset.onglet) { D.onglet = t.dataset.onglet; return peindreGauche(); }
   if (t.dataset.espece) {
     D.r.espece = t.dataset.espece;
@@ -273,6 +522,12 @@ function surClic(e) {
     .then((b) => telecharger(b, "deepotus-decor-vent.js")).catch(echec);
   if (a === "ranger") return ranger();
   if (a === "poser") return poser();
+  if (a === "acc-de") { D.acc.graine = Math.floor(Math.random() * 100000); return peindreAccessoire(); }
+  if (a === "acc-variantes") return creerVariantes();
+  if (a === "acc-vent") return ecrireVent();
+  if (a === "acc-lod") return construireLod();
+  if (a === "acc-cartes") return construireCartes();
+  if (a === "acc-plateau") return envoyerPlateau();
 }
 
 const nomCourant = () => D.nom || recette(D.r).nom;
@@ -322,6 +577,7 @@ function appliquerVent() {
 function boucleVent() {
   (function tic() {
     requestAnimationFrame(tic);
+    if (D.ventAcc) D.ventAcc.maj(D.horloge.getElapsedTime());     // t402 : l'accessoire qui porte un masque
     if (!D.arbre) return;
     D.arbre.update(D.horloge.getElapsedTime());
     if (!D.vu && D.arbre.leavesMesh.material.userData.shader) { D.vu = true; appliquerVent(); }

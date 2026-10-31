@@ -18,6 +18,11 @@ Boucle locale SEULEMENT (`routes._require_localhost`) ; les deux routes qui dép
                                   Clé (503) → saisie (400 : prompt vide ou trop long, durée hors de 2 à 10 s ou hors
                                   pas de 0,5, mode prime = FBX illisible, version sans squelette) → `confirme_cout`
                                   (409 + devis) → plafonds (402) → tâche de fond : BVH rangé, reciblé, version de plus.
+                                  t405 : `modele` « hy-motion » | « hy-motion-fast » (fal, 0,08 / 0,06 $) : modèle
+                                  (400) → `licence_acceptee: true` (400) → clé fal (503) → saisie (400 : durée 0,5 à
+                                  12 s, guidance 1 à 10) → job, squelette (400/404) → `confirme_cout` (409 + devis) →
+                                  plafonds (402) → tâche de fond : dict → BVH → reciblé, version de plus.
+- `GET    /licence`, `POST /licence` {acceptee} : la case « J'ai lu la licence HY-Motion » de l'utilisateur (t405).
 - `GET    /tache`                 job, tache : l'état d'une tâche de fond (prepare → genere → recible → fini | echec).
 """
 from __future__ import annotations
@@ -52,6 +57,10 @@ def _depense_locale(request: Request) -> None:
 def _cle_meshy() -> bool:
     from app.services import meshy_service as MS
     return MS.mock_enabled() or bool((settings.MESHY_API_KEY or "").strip())
+
+
+def _cle_fal() -> bool:
+    return bool((settings.FAL_KEY or "").strip())
 
 
 def _job_nu(job) -> str:
@@ -139,12 +148,48 @@ async def supprimer_collection(cid: str):
 
 @router.get("/etat", dependencies=[Depends(_local)])
 async def etat(job: str = ""):
-    out = {"meshy": _cle_meshy(), "texte": SA.etat_texte(), "rig_meshy": False,
+    out = {"meshy": _cle_meshy(), "fal": _cle_fal(), "texte": SA.etat_texte(), "rig_meshy": False,
            "devis_animation": SA.devis_credits(SA.CREDITS_ANIMATION)}
     if job:
         j = _job_nu(job)
         out["rig_meshy"] = bool(SA.rig_meshy(j))
     return out
+
+
+@router.get("/licence", dependencies=[Depends(_local)])
+async def lire_licence():
+    return {"licence": SA.etat_hy()["licence"]}
+
+
+@router.post("/licence", dependencies=[Depends(_local)])
+async def poser_licence(body: dict):
+    """La case « J'ai lu la licence et je l'accepte pour mon usage » de HY-Motion : {acceptee: true | false}."""
+    v = (body or {}).get("acceptee")
+    if not isinstance(v, bool):
+        raise HTTPException(400, "acceptee : true ou false attendu")
+    SA.accepter_licence_hy(v)
+    return {"licence": SA.etat_hy()["licence"]}
+
+
+@router.post("/physique/{job}", dependencies=[Depends(_local)])
+async def garder_physique(job: str, body: dict):
+    """t405 : les réglages physiques de l'aperçu (os à ressort) gardés AVEC le modèle (`physics-config.json` du job) ;
+    l'Exporter les embarque dans le paquet three.js. Gratuit. 400 corps invalide, 404 job inconnu."""
+    import json as _json
+    from app.services import mesh_sources
+    nom = Path(str(job)).name
+    if not nom or nom != job:
+        raise HTTPException(400, f"job « {job} » : nom de dossier invalide")
+    d = mesh_sources._jobs_dir() / nom
+    if not d.is_dir():
+        raise HTTPException(404, f"modèle 3D inconnu : {nom}")
+    if not isinstance(body, dict) or not isinstance(body.get("reglages"), dict):
+        raise HTTPException(400, "physique : un objet avec « reglages » est attendu")
+    texte = _json.dumps(body, ensure_ascii=False, indent=1)
+    if len(texte) > 64 * 1024:
+        raise HTTPException(400, "physique : 64 Ko au plus")
+    (d / "physics-config.json").write_text(texte, encoding="utf-8")
+    return {"job": nom, "fichier": "physics-config.json", "octets": len(texte)}
 
 
 # ───────────────────────────── appliquer une animation du catalogue ─────────────────────────────
@@ -238,13 +283,47 @@ async def _travail_texte(job: str, tache: str, version: int, entree: dict, ligne
         _TACHES.pop(tache, None)
 
 
-@router.post("/texte", dependencies=[Depends(_local), Depends(_depense_locale)])
-async def texte(body: dict):
-    """La voie PAYANTE du texte → mouvement. Tous les refus arrivent AVANT la dépense ; la garde des plafonds juste
-    avant la tâche de fond."""
+async def _travail_hy(job: str, tache: str, version: int, entree: dict):
+    async def suivre(e):
+        SA.poser_etat(job, tache, **e)
+    try:
+        r = await SA.hy_motion_vers_mouvement(job, version, entree, on_etat=suivre)
+        SA.poser_etat(job, tache, etat="fini", **r)
+    except Exception as e:                              # noqa: BLE001
+        logger.warning(f"HY-Motion {tache} : {type(e).__name__}")
+        SA.poser_etat(job, tache, etat="echec", erreur=str(e)[:300])
+    finally:
+        _TACHES.pop(tache, None)
+
+
+def _version_squelettee(body: dict, quoi: str):
+    """(job, version) d'une version qui porte un squelette, ou 400/404 — AVANT toute dépense."""
     from app.api import routes as R
     from app.services import mesh_edit
+    version = body.get("version", 1)
+    # le nom NU d'abord : `_etabli_glb_cible` aplatit « ../perso » en « perso » — ici un chemin est une saisie fausse
+    j, data, _depuis = R._etabli_glb_cible(_job_nu(body.get("job")), version, quoi)
+    try:
+        doc, _ = mesh_edit.lire_glb(data)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not doc.get("skins"):
+        raise HTTPException(400, "Ce modèle n'a pas de squelette : rigge-le d'abord dans l'écran Rig.")
+    return j, version
+
+
+@router.post("/texte", dependencies=[Depends(_local), Depends(_depense_locale)])
+async def texte(body: dict):
+    """La voie PAYANTE du texte → mouvement (Meshy, ou HY-Motion par fal). Tous les refus arrivent AVANT la dépense ;
+    la garde des plafonds juste avant la tâche de fond."""
+    from app.api import routes as R
     body = body or {}
+    try:
+        modele = SA.modele_texte(body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if modele in SA.HY_MODELES:
+        return await _texte_hy(body, modele)
     if not _cle_meshy():
         raise HTTPException(503, "Clé Meshy absente — Réglages › Clés : le texte → mouvement passe par ton compte "
                                  "Meshy.")
@@ -252,15 +331,7 @@ async def texte(body: dict):
         entree = SA.valider_texte(body)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    version = body.get("version", 1)
-    # le nom NU d'abord : `_etabli_glb_cible` aplatit « ../perso » en « perso » — ici un chemin est une saisie fausse
-    j, data, _depuis = R._etabli_glb_cible(_job_nu(body.get("job")), version, "texte → mouvement")
-    try:
-        doc, _ = mesh_edit.lire_glb(data)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    if not doc.get("skins"):
-        raise HTTPException(400, "Ce modèle n'a pas de squelette : rigge-le d'abord dans l'écran Rig.")
+    j, version = _version_squelettee(body, "texte → mouvement")
     devis = SA.devis_credits(SA.MODES[entree["mode"]]["credits"])
     if body.get("confirme_cout") is not True:
         raise HTTPException(409, {"message": "Texte → mouvement payant : confirme le coût avant de lancer.",
@@ -271,6 +342,30 @@ async def texte(body: dict):
     SA.poser_etat(j, tache, etat="prepare", quoi="texte", devis=devis, **entree)
     _TACHES[tache] = asyncio.create_task(_travail_texte(j, tache, int(version), entree, plaf.get("lignes") or []))
     return {"ok": True, "tache": tache, "devis": devis, "etat": "prepare", "nom": entree["nom"]}
+
+
+async def _texte_hy(body: dict, modele: str):
+    """HY-Motion : licence (400) → clé fal (503) → saisie (400) → version squelettée → devis (409) → plafonds (402)."""
+    from app.api import routes as R
+    if body.get("licence_acceptee") is not True:
+        raise HTTPException(400, "Licence HY-Motion non acceptée : lis la « Tencent HY-MOTION 1.0 Community "
+                                 "License » (elle exclut l'Union européenne, le Royaume-Uni et la Corée du Sud) et "
+                                 "coche la case pour ton usage.")
+    if not _cle_fal():
+        raise HTTPException(503, "Clé fal absente — Réglages › Clés : HY-Motion passe par ton compte fal.")
+    try:
+        entree = SA.valider_hy(body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    j, version = _version_squelettee(body, "HY-Motion")
+    devis = SA.devis_hy(modele)
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": "HY-Motion payant : confirme le coût avant de lancer.", "devis": devis})
+    tache = uuid4().hex[:12]
+    await R._plafond({"kind": "hy_motion", "modele": modele}, CATEGORIE, f"hy-motion:{tache}")
+    SA.poser_etat(j, tache, etat="prepare", quoi="texte", devis=devis, **entree)
+    _TACHES[tache] = asyncio.create_task(_travail_hy(j, tache, int(version), entree))
+    return {"ok": True, "tache": tache, "devis": devis, "etat": "prepare", "nom": entree["nom"], "modele": modele}
 
 
 @router.get("/tache", dependencies=[Depends(_local)])
