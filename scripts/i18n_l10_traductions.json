@@ -13407,10 +13407,6 @@
   "fr": "{id} : version {version} absente",
   "en": "{id}: version {version} missing"
  },
- "action doit être « generer » ou « retexturer »": {
-  "fr": "action doit être « generer » ou « retexturer »",
-  "en": "action must be “generer” or “retexturer”"
- },
  "modèle d'image inconnu : {v}": {
   "fr": "modèle d'image inconnu : {v}",
   "en": "unknown image model: {v}"
@@ -13750,5 +13746,53 @@
  "Blender n'a pas converti le FBX (code {code}) : {fin}": {
   "fr": "Blender n'a pas converti le FBX (code {code}) : {fin}",
   "en": "Blender did not convert the FBX (code {code}): {fin}"
+ },
+ "action doit être « generer », « lot » ou « retexturer »": {
+  "fr": "action doit être « generer », « lot » ou « retexturer »",
+  "en": "action must be “generer”, “lot” or “retexturer”"
+ },
+ "vues doit être {v}": {
+  "fr": "vues doit être {v}",
+  "en": "vues must be {v}"
+ },
+ "{quoi} hors bornes ({bas} à {haut})": {
+  "fr": "{quoi} hors bornes ({bas} à {haut})",
+  "en": "{quoi} out of range ({bas} to {haut})"
+ },
+ "captures : une liste de {v} vues est attendue": {
+  "fr": "captures : une liste de {v} vues est attendue",
+  "en": "captures: a list of {v} views is expected"
+ },
+ "disposition {v} : {captures} captures reçues": {
+  "fr": "disposition {v} : {captures} captures reçues",
+  "en": "layout {v}: {captures} captures received"
+ },
+ "une image PNG est attendue": {
+  "fr": "une image PNG est attendue",
+  "en": "a PNG image is expected"
+ },
+ "atlas {lg}×{ht} : chaque côté entre {v} et {v2} px": {
+  "fr": "atlas {lg}×{ht} : chaque côté entre {v} et {v2} px",
+  "en": "atlas {lg}×{ht}: each side must be between {v} and {v2} px"
+ },
+ "GLB à tampon externe : non géré": {
+  "fr": "GLB à tampon externe : non géré",
+  "en": "GLB with an external buffer: not supported"
+ },
+ "{images} textures de couleur de base dans ce modèle : la projection n'en peint qu'une": {
+  "fr": "{images} textures de couleur de base dans ce modèle : la projection n'en peint qu'une",
+  "en": "{images} base colour textures in this model: projection paints only one"
+ },
+ "ce modèle n'a pas de coordonnées UV (TEXCOORD_0) : rien où peindre l'atlas": {
+  "fr": "ce modèle n'a pas de coordonnées UV (TEXCOORD_0) : rien où peindre l'atlas",
+  "en": "this model has no UV coordinates (TEXCOORD_0): nowhere to paint the atlas"
+ },
+ "{quoi} : un nombre est attendu": {
+  "fr": "{quoi} : un nombre est attendu",
+  "en": "{quoi}: a number is expected"
+ },
+ "vue {v} : {capture, pose} attendu": {
+  "fr": "vue {v} : {capture, pose} attendu",
+  "en": "view {v}: {capture, pose} expected"
  }
 }

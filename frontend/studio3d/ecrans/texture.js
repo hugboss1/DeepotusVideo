@@ -13,18 +13,21 @@
    prix accepté (`max_usd`). Le 402 des plafonds est lu par /shared/dz-plafonds.js.
 
    Le calcul (vues, orbite, éclairages, cadre, rail) vit dans texture_calc.js, testé sous node. Le volet 2/2 (t394 :
-   projection multi-vues, pinceaux, atlas UV) s'ajoute à cet écran. */
+   projection multi-vues, pinceaux, atlas UV) vit dans projection.js : l'onglet « Projection » de la colonne de
+   droite et l'atlas à plat de la colonne de gauche ; il reprend d'ici le modèle d'image, la résolution, l'éclairage,
+   le devis et le dialogue maison. */
 "use strict";
 import * as THREE from "three";
 import { creerCanevas, charger, vider, cadrer, montrerRepere } from "/lib3d/viewer.js";
 import { T, langue } from "./coque_calc.js";
+import * as PJ from "./projection.js";
 import { VUES, PAS, ECLAIRAGES, RATIOS, RESOLUTIONS, orbiter, positionCamera, poseDepuis, vueDe, eclairage, cadre,
   tailleCapture, modeleParDefaut, resolutionPermise, trierRail, referenceChoisie, usd, vue } from "./texture_calc.js";
 
 const API = "/api/studio3d/texture";
 const P = { s: null, ctx: null, api: null, fiche: null, centre: null, distance: 3, pose: { azimut: 45, elevation: 20 },
   pas: 45, eclairage: "doux", vif: 1, ambiant: 1, lumieres: null, reg: null, modele: null, resolution: "1K",
-  ratio: "1:1", refs: [], choisie: null, style: null, resMeshy: "2k", occupe: false, suivi: null, charge: 0 };
+  ratio: "1:1", refs: [], choisie: null, style: null, resMeshy: "2k", occupe: false, suivi: null, charge: 0, volet: "ref" };
 
 const $ = (sel) => P.s.querySelector(sel);
 
@@ -43,6 +46,7 @@ export async function monter(section, ctx) {
       <div class="ec-label">${esc(T("tex.ratio"))}</div>
       <div class="ec-segments ec-plein" id="txRatio">${RATIOS.map((r) => `<button data-ratio="${r}">${r}</button>`).join("")}</div>
       <div class="ec-note">${esc(T("tex.ratio_aide"))}</div>
+      ${PJ.htmlAtlas(esc)}
     </aside>
     <main class="ec-centre">
       <div class="ec-barre-vue tx-barre">
@@ -71,6 +75,9 @@ export async function monter(section, ctx) {
       <div class="tx-rail" id="txRail" role="list" aria-label="${esc(T("tex.rail"))}"></div>
     </main>
     <aside class="ec-droite ec-defile">
+      <div class="ec-segments ec-plein tx-volets" id="txVolets" role="tablist">${["ref", "proj"].map((v) =>
+        `<button role="tab" data-volet="${v}" title="${esc(T("tex.voleta_" + v))}">${esc(T("tex.volet_" + v))}</button>`).join("")}</div>
+      <div id="txVoletRef">
       <label class="ec-bascule tx-inactif" title="${esc(T("tex.tpose_aide"))}"><input type="checkbox" disabled> ${esc(T("tex.tpose"))}</label>
       <div class="ec-note">${esc(T("tex.tpose_aide"))}</div>
       <div class="ec-label">${esc(T("tex.generer_titre"))}</div>
@@ -93,6 +100,8 @@ export async function monter(section, ctx) {
       <div class="ec-segments ec-plein" id="txResMeshy">${["2k", "4k", "8k"].map((r) => `<button data-resm="${r}">${r.toUpperCase()}</button>`).join("")}</div>
       <button class="ec-principal" id="txRetexturer">${ico("dz-lab3d-materiau")} <span id="txRetexturerTexte">${esc(T("tex.retexturer"))}</span></button>
       <div class="ec-note">${esc(T("tex.retexture_aide"))}</div>
+      </div>
+      <div id="txVoletProj" hidden>${PJ.htmlPanneau(esc, ico)}</div>
       <div class="ec-avis" id="txAvis" role="status"></div>
     </aside>
   </div>`;
@@ -109,6 +118,11 @@ export async function monter(section, ctx) {
   $("#txPrompt").addEventListener("input", peindreCompte);
   $("#txStyleFichier").addEventListener("change", (e) => { if (e.target.files[0]) deposerStyle(e.target.files[0]); e.target.value = ""; });
 
+  PJ.monter({ section, ctx, api: P.api, avis, envoyer, confirmer, modele: modeleCourant,
+    resolution: () => resolutionPermise(modeleCourant(), P.resolution), fiche: () => P.fiche, reg: () => P.reg,
+    eclairage: () => P.eclairage, lumieresPour, reappliquer: appliquerEclairage,
+    ajouterReference: (r) => { if (r && P.fiche) { P.refs = [r, ...P.refs.filter((x) => x.id !== r.id)]; peindreRail(); } } });
+
   try { P.reg = await ctx.jget(`${API}/modeles`); } catch (e) { P.reg = { modeles: [], ratios: RATIOS, retexture: { devis: {} } }; avis(T("tex.erreur", { m: e.message })); }
   P.modele = modeleParDefaut(P.reg.modeles, P.reg.defaut);
   peindre();
@@ -121,10 +135,12 @@ export async function ouvrir(fiche) {
   if (autre) { P.refs = []; P.choisie = null; P.style = null; }
   peindre();
   const n = ++P.charge;
+  PJ.reinitialiser();                                // un autre GLB : l'atlas peint d'hier ne vaut plus
   if (!fiche) { vider(P.api); return; }
   try {
     await charger(P.api, fiche.url);
     if (n !== P.charge) return;
+    PJ.reinitialiser();
     P.centre = P.api.controls.target.clone();
     P.distance = P.api.camera.position.distanceTo(P.centre) || 3;
     appliquerEclairage();
@@ -192,6 +208,16 @@ function placerLumieres() {
   pose(contre, 180, e + 30);
 }
 
+/* les captures de la texture auto tournent les lumières avec chaque caméra (une vue de dos ne doit pas être à
+   contre-jour) ; `null` les remet sur la caméra de l'écran */
+function lumieresPour(pose) {
+  if (!pose) return placerLumieres();
+  const avant = P.pose;
+  P.pose = pose;
+  placerLumieres();
+  P.pose = avant;
+}
+
 function appliquerEclairage() {
   const L = eclairage(P.eclairage, P.vif, P.ambiant);
   const { hemi, cle, appoint, contre } = P.lumieres;
@@ -257,7 +283,17 @@ function peindre() {
   peindreRail();
   peindreCompte();
   peindreBoutons();
+  peindreVolet();
   if (P.lumieres) appliquerEclairage();
+}
+
+function peindreVolet() {
+  for (const b of P.s.querySelectorAll("#txVolets [data-volet]")) {
+    b.classList.toggle("on", b.dataset.volet === P.volet);
+    b.setAttribute("aria-selected", String(b.dataset.volet === P.volet));
+  }
+  $("#txVoletRef").hidden = P.volet !== "ref";
+  $("#txVoletProj").hidden = P.volet !== "proj";
 }
 
 function modeleCourant() { return ((P.reg && P.reg.modeles) || []).find((m) => m.id === P.modele) || null; }
@@ -346,6 +382,7 @@ function peindreBoutons() {
   const dm = P.reg && P.reg.retexture && P.reg.retexture.devis && P.reg.retexture.devis[P.resMeshy];
   $("#txRetexturerTexte").textContent = dm ? T("tex.retexturer_prix", { cr: dm.credits, usd: usd(dm.usd, lg) }) : T("tex.retexturer");
   r.disabled = !P.fiche || P.occupe || !(P.choisie || $("#txStyleTexte").value.trim());
+  PJ.repeindre();
 }
 
 function avis(t) { const a = $("#txAvis"); if (a) a.textContent = t || ""; }
@@ -355,6 +392,7 @@ function surClic(e) {
   const b = e.target.closest("button");
   if (!b || b.disabled) return;
   const d = b.dataset;
+  if (d.volet) { P.volet = d.volet; return peindreVolet(); }
   if (d.vue) return poser(vue(d.vue));
   if (d.orb) { const [x, y] = d.orb.split(",").map(Number); return poser(orbiter(P.pose, x, y, P.pas)); }
   if (d.pas) { P.pas = +d.pas; return peindreReglages(); }

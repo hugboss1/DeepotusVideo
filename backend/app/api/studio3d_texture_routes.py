@@ -15,6 +15,11 @@ clé (503, la clé nommée) → entrées (400 ; 404 job ou référence inconnus)
                             suivre par GET /api/jobs/{id}. La géométrie non approuvée est refusée (409 `approbation`)
                             sauf `approuver: true`, posé par l'écran dans le dialogue du devis — l'approbation n'est
                             écrite qu'après la garde des plafonds.
+- `POST /{job}/generer-lot` (t394, TEXTURE AUTO) {captures: [{capture, pose}], disposition, modele, resolution,
+                            prompt?, eclairage, confirme_cout, max_usd} : même ordre de refus, UN devis pour les N
+                            vues, UNE garde des plafonds sur ce total, puis N appels ; rend N références avec leur pose.
+Gratuit et local (t394) : `POST /{job}/projection` {version, atlas (PNG), disposition?, vues?} — l'atlas peint dans le
+navigateur devient la couleur de base d'une NOUVELLE version du GLB (operation « texture_projection »).
 Le service : `app.services.studio3d_texture`.
 """
 from __future__ import annotations
@@ -74,7 +79,17 @@ async def texture_devis(body: dict = None):
         if res not in ST.RESOLUTIONS_MESHY:
             raise HTTPException(400, f"resolution doit être {', '.join(ST.RESOLUTIONS_MESHY)}")
         return ST.devis_retexture(res)
-    raise HTTPException(400, "action doit être « generer » ou « retexturer »")
+    if action == "lot":
+        modele = str(body.get("modele") or "")
+        if modele not in ST.ids_modeles():
+            raise HTTPException(400, f"modèle d'image inconnu : {modele[:40]}")
+        res = str(body.get("resolution") or "1K").upper()
+        if res not in ST.resolutions(modele):
+            raise HTTPException(400, f"{modele} ne prend pas la résolution {res}")
+        if body.get("vues") not in ST.DISPOSITIONS:
+            raise HTTPException(400, f"vues doit être {', '.join(map(str, ST.DISPOSITIONS))}")
+        return ST.devis_lot(modele, res, body["vues"])
+    raise HTTPException(400, "action doit être « generer », « lot » ou « retexturer »")
 
 
 @router.get("/{job}/references")
@@ -138,6 +153,88 @@ async def texture_generer(job: str, body: dict = None):
         logger.exception(f"studio3d texture {job} : {modele} a échoué")
         raise HTTPException(502, f"{modele} : {str(e)[:300]}") from None
     return {"reference": ref, "devis": devis}
+
+
+@router.post("/{job}/generer-lot")
+async def texture_generer_lot(job: str, body: dict = None):
+    """t394 — la TEXTURE AUTO : N captures (une par vue d'une disposition) → le modèle d'image → N références qui
+    gardent leur pose, que l'écran projette sur l'atlas UV. Payant (catégorie « moteurs3d »), même ordre de refus
+    qu'une génération seule, mais UN devis (le total des N vues), UNE garde des plafonds sur ce total, puis les N
+    appels (quatre à la fois). Une vue qui échoue n'annule pas les autres : elle revient dans `erreurs` ; toutes
+    échouées → 502."""
+    from app.api import routes as _R
+    from app.services import studio3d_texture as ST
+    body = body or {}
+    modele = str(body.get("modele") or "")
+    if modele not in ST.ids_modeles():
+        raise HTTPException(400, f"modèle d'image inconnu : {modele[:40]}")
+    manque = ST.cle_manquante_image(modele)
+    if manque:
+        raise HTTPException(503, f"{manque} non configurée (Réglages › Clés d'API) pour {modele}.")
+    try:
+        lots = await asyncio.to_thread(ST.valider_lot, job, body)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    devis = ST.devis_lot(modele, lots[0]["resolution"], len(lots))
+    if body.get("confirme_cout") is not True:
+        raise HTTPException(409, {"code": "confirme_cout", "message": "Texture auto payante : confirme le devis "
+                                                                      "(toutes les vues) avant de lancer.",
+                                  "devis": devis})
+    _max_usd(body, devis["usd"])
+    await _R._plafond(ST.op_lot(modele, lots[0]["resolution"], len(lots)), "moteurs3d",
+                      ref=f"studio3d_texture:{Path(job).name}")
+    porte = asyncio.Semaphore(4)
+
+    async def une(r):
+        async with porte:
+            try:
+                return await ST.generer_reference(job, r)
+            except Exception as e:  # noqa: BLE001 — une vue ratée n'emporte pas le lot ; le fournisseur se nomme
+                logger.warning(f"studio3d texture auto {job} : vue {r['meta']['index'] + 1} : {e}")
+                return {"erreur": f"{modele} : {str(e)[:300]}", "index": r["meta"]["index"]}
+
+    rendus = await asyncio.gather(*(une(r) for r in lots))
+    refs = [x for x in rendus if "erreur" not in x]
+    erreurs = [x for x in rendus if "erreur" in x]
+    if not refs:
+        raise HTTPException(502, erreurs[0]["erreur"] if erreurs else f"{modele} n'a rendu aucune image")
+    return {"references": refs, "erreurs": erreurs, "devis": devis, "lot": lots[0]["meta"]["lot"]}
+
+
+@router.post("/{job}/projection")
+async def texture_projection(job: str, body: dict = None):
+    """t394 — l'atlas peint (PNG en data URL) devient la couleur de base d'une NOUVELLE version du modèle (GLB
+    réécrit en Python pur, `mesh_edit.ecrire_version`, operation « texture_projection », `depuis` gardé). Gratuit et
+    local. {version, atlas, disposition?, vues?}"""
+    from app.services import mesh_edit, mesh_sources, studio3d_ouvert as SO, studio3d_texture as ST
+    body = body or {}
+    nom = Path(str(job)).name
+    if not nom or nom != str(job):
+        raise HTTPException(400, f"job « {str(job)[:40]} » : nom de dossier invalide")
+    try:
+        fiche = await asyncio.to_thread(SO.fiche, nom, body.get("version"))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e)) from None
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e)) from None
+    try:
+        png, lg, ht = ST.decoder_atlas(body.get("atlas"))
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    etape = next(v for v in fiche["versions"] if v["version"] == fiche["version"])
+    data = (mesh_sources._jobs_dir() / nom / etape["file"]).read_bytes()
+    try:
+        sortie, detail = await asyncio.to_thread(ST.ecrire_texture_projetee, data, png)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    vues = body.get("vues") if isinstance(body.get("vues"), int) else None
+    fiche_v = await asyncio.to_thread(
+        mesh_edit.ecrire_version, nom, sortie, operation="texture_projection",
+        detail={"depuis": {"version": fiche["version"], "fichier": etape["file"]}, "atlas": [lg, ht],
+                "disposition": str(body.get("disposition") or "")[:40], "vues": vues, **detail})
+    return {"job": nom, "version": fiche_v.get("version"), "fichier": fiche_v.get("file"), "atlas": [lg, ht], **detail}
 
 
 @router.post("/{job}/retexturer")
