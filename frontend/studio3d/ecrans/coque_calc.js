@@ -15,6 +15,7 @@ export const ECRANS = [
   { id: "ouvrir", groupe: 1, icone: "dz-action-ouvrir" },
   { id: "importer", groupe: 1, icone: "dz-action-importer" },
   { id: "preparer", groupe: 2, icone: "dz-lab3d-optimiser" },
+  { id: "etabli", groupe: 2, icone: "dz-nav-etabli" },
   { id: "texture", groupe: 2, icone: "dz-lab3d-materiau" },
   { id: "rig", groupe: 2, icone: "dz-lab3d-rig" },
   { id: "affiner", groupe: 2, icone: "dz-outil-px-pinceau" },
@@ -31,7 +32,7 @@ export const SUIVANT = { preparer: "texture", texture: "rig", rig: "affiner", af
 /* chaque nœud du graphe Meshy d'hier renvoie à l'écran qui reprend sa fonction (tableau d'écart) */
 export const ECRAN_DU_NOEUD = {
   prompt: "ouvrir", ref: "ouvrir", preview: "ouvrir", texture: "texture", remesh: "preparer", rig: "rig",
-  animate: "animer", export: "exporter", etabli: "preparer",
+  animate: "animer", export: "exporter", etabli: "etabli",
 };
 
 /* un écran du groupe 2 sans modèle ouvert est grisé ; les autres sont toujours permis */

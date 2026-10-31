@@ -6,6 +6,7 @@ import { ESPECES, GROUPES, ONGLETS, REGLAGES_DEFAUT, presetDe, optionsPour, haut
   nomFichier, melanger } from "../ecrans/decor_calc.js";
 import * as DONNEES from "../../lib3d/eztree/presets/donnees.js";
 
+const eq = (a, b) => assert.deepEqual(a, b);
 let ok = 0;
 const t = (nom, f) => { f(); ok++; console.log("  ✓ " + nom); };
 
@@ -20,8 +21,8 @@ const PRESETS = {
 };
 
 /* ── coque ── */
-t("dix écrans en trois groupes ; seul le groupe 2 exige un modèle ouvert", () => {
-  assert.deepEqual(ECRANS.map((e) => e.id), ["ouvrir", "importer", "preparer", "texture", "rig", "affiner", "animer", "exporter", "decor", "graphe"]);
+t("onze écrans en trois groupes ; seul le groupe 2 exige un modèle ouvert", () => {
+  eq(ECRANS.map((e) => e.id), ["ouvrir", "importer", "preparer", "etabli", "texture", "rig", "affiner", "animer", "exporter", "decor", "graphe"]);
   assert.deepEqual([...new Set(ECRANS.map((e) => e.groupe))], [1, 2, 3]);
   for (const e of ECRANS) assert.equal(permis(e.id, null), e.groupe !== 2, e.id);
   for (const e of ECRANS) assert.equal(permis(e.id, { job: "j" }), true, e.id);
@@ -29,7 +30,7 @@ t("dix écrans en trois groupes ; seul le groupe 2 exige un modèle ouvert", () 
 });
 
 t("le parcours « Envoyer vers » suit l'ordre du groupe 2 et chaque nœud du graphe a son écran", () => {
-  const g2 = ECRANS.filter((e) => e.groupe === 2).map((e) => e.id);
+  const g2 = ECRANS.filter((e) => e.groupe === 2 && e.id !== "etabli").map((e) => e.id);   // l'Établi : un atelier, hors parcours
   for (let i = 0; i < g2.length - 1; i++) assert.equal(SUIVANT[g2[i]], g2[i + 1]);
   assert.equal(SUIVANT.exporter, undefined);
   for (const n of ["prompt", "ref", "preview", "texture", "remesh", "rig", "animate", "export", "etabli"])

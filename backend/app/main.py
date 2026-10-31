@@ -588,6 +588,9 @@ app.include_router(studio3d_texture_router, prefix="/api/studio3d/texture")
 # t395 (31/10/2026) : /api/studio3d/rig — écran Rig : gabarit SMPL, squelette + poids locaux (gratuit) → version
 from app.api.studio3d_rig_routes import router as studio3d_rig_router
 app.include_router(studio3d_rig_router, prefix="/api/studio3d/rig")
+# t402 (31/10/2026) : /api/studio3d/decor — Décor › Accessoire : poser au sol, hauteur réelle, rôles (local, gratuit)
+from app.api.studio3d_decor_routes import router as studio3d_decor_router
+app.include_router(studio3d_decor_router, prefix="/api/studio3d/decor")
 # t398 + t399 (31/10/2026) : /api/studio3d/animer — écran Animer : catalogue Meshy, favoris, collections, texte → mouvement
 from app.api.studio3d_animer_routes import router as studio3d_animer_router
 app.include_router(studio3d_animer_router, prefix="/api/studio3d/animer")

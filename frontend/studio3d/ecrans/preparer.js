@@ -28,7 +28,7 @@ export async function monter(section, ctx) {
       <div class="ec-label">${esc(T("preparer.versions"))}</div>
       <div class="ec-versions" id="prVersions"></div>
       <div class="ec-label">${esc(T("preparer.atelier"))}</div>
-      <a class="ec-bouton bloc" id="prEtabli" href="/etabli/">${ico("dz-lab3d-maillage")} ${esc(T("preparer.etabli"))}</a>
+      <button class="ec-bouton bloc" id="prEtabli">${ico("dz-lab3d-maillage")} ${esc(T("preparer.etabli"))}</button>
       <div class="ec-note">${esc(T("preparer.etabli_aide"))}</div>
     </aside>
     <main class="ec-centre">
@@ -85,6 +85,7 @@ export async function monter(section, ctx) {
     peindreCible();
   });
   section.querySelector("#prGo").addEventListener("click", optimiser);
+  section.querySelector("#prEtabli").addEventListener("click", () => ctx.aller("etabli"));   // t403 : un écran, plus une page
   section.querySelector("#prOriginal").addEventListener("click", () => P.fiche && ctx.ouvrir(P.fiche.job, 1, "preparer"));
   section.querySelector("#prVersions").addEventListener("click", (e) => {
     const b = e.target.closest("[data-version]");
@@ -128,7 +129,6 @@ function peindre() {
   P.s.querySelector("#prVersions").innerHTML = (f.versions || []).map((v) =>
     `<button class="ec-version ${v.version === f.version ? "on" : ""}" data-version="${v.version}">v${v.version}`
     + `<span>${esc(v.triangles != null ? T("bandeau.triangles", { n: nb(v.triangles) }) : v.libelle || "")}</span></button>`).join("");
-  P.s.querySelector("#prEtabli").href = `/etabli/?job=${encodeURIComponent(f.job)}`;
   const dl = [[T("preparer.dl_ouverte", { v: f.version }), f.url]];
   if (P.source && P.source.version !== f.version) dl.unshift([T("preparer.dl_original", { v: P.source.version }), P.source.url]);
   P.s.querySelector("#prDl").innerHTML = dl.map(([l, u]) =>

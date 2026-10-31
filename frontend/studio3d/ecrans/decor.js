@@ -12,7 +12,7 @@
    échelle réelle, variantes, masque de vent) arrivent avec t402 — en attendant, il mène à Préparer et Exporter. */
 "use strict";
 import * as THREE from "three";
-import { creerCanevas, cadrer } from "/lib3d/viewer.js";
+import { creerCanevas, cadrer, charger } from "/lib3d/viewer.js";
 import { Tree } from "/lib3d/eztree/index.js";
 import * as PRESETS_DONNEES from "/lib3d/eztree/presets/donnees.js";
 import { TreePreset } from "/lib3d/eztree/presets/index.js";
@@ -50,7 +50,7 @@ export async function monter(section, ctx) {
   D.api.scene.add(D.sol);
   section.querySelector("#dcVolets").addEventListener("click", (e) => {
     const b = e.target.closest("[data-volet]");
-    if (b) { D.volet = b.dataset.volet; peindre(); }
+    if (b) { D.volet = b.dataset.volet; peindre(); montrerAccessoire(); }
   });
   section.querySelector("#dcCadrer").addEventListener("click", () => cadrer(D.api));
   section.addEventListener("input", surSaisie);
@@ -61,7 +61,7 @@ export async function monter(section, ctx) {
   generer(true);
 }
 
-export function ouvrir() { if (D.s && D.volet === "accessoire") peindre(); }
+export function ouvrir() { if (D.s && D.volet === "accessoire") { peindre(); montrerAccessoire(); } }
 export function montre() { if (D.api) cadrer(D.api); }
 
 /* ── panneaux ─────────────────────────────────────────────────────────────── */
@@ -151,15 +151,68 @@ function peindreDroite() {
 function peindreAccessoire() {
   const { esc, ico } = D.ctx;
   const f = D.ctx.fiche();
+  const roles = D.roles || [];
   D.s.querySelector("#dcGauche").innerHTML = `<div class="ec-label">${esc(T("decor.accessoire"))}</div>
     <div class="ec-note">${esc(T("decor.accessoire_aide"))}</div>
-    ${f ? `<div class="ec-fiche-courte"><b>${esc(f.nom)}</b><span>${esc(T("bandeau.triangles", { n: nb(f.triangles) }))}</span></div>
-      <button class="ec-bouton bloc" data-aller="preparer">${ico("dz-lab3d-optimiser")} ${esc(T("decor.acc_budget"))}</button>
-      <button class="ec-bouton bloc" data-aller="exporter">${ico("dz-action-exporter")} ${esc(T("decor.acc_exporter"))}</button>`
+    ${f ? `<div class="ec-fiche-courte"><b>${esc(f.nom)}</b><span>${esc(T("bandeau.triangles", { n: nb(f.triangles) }))} · v${esc(f.version)}</span></div>`
     : `<button class="ec-bouton bloc" data-aller="ouvrir">${ico("dz-action-ouvrir")} ${esc(T("decor.acc_ouvrir"))}</button>`}
     <div class="ec-label">${esc(T("bientot.prevu"))}</div>
-    <ul class="ec-liste">${[1, 2, 3, 4].map((i) => `<li>${esc(T("prevu.decor_" + i))}</li>`).join("")}</ul>`;
-  D.s.querySelector("#dcDroite").innerHTML = "";
+    <ul class="ec-liste">${[3, 4].map((i) => `<li>${esc(T("prevu.decor_" + i))}</li>`).join("")}</ul>`;
+  /* t402 : la droite porte les gestes livrés — sol et hauteur réelle (une version de plus), rôle et budget */
+  D.s.querySelector("#dcDroite").innerHTML = f ? `<div class="ec-label">${esc(T("decor.acc_sol"))}</div>
+    <label class="ec-champ">${esc(T("decor.acc_hauteur"))}<input type="number" id="dcHauteur" min="0.01" max="500" step="0.01"
+      placeholder="${esc(T("decor.acc_hauteur_vide"))}"></label>
+    <button class="ec-principal" data-action="poser">${ico("dz-lab3d-orienter")} ${esc(T("decor.acc_poser"))}</button>
+    <div class="ec-note">${esc(T("decor.acc_poser_aide"))}</div>
+    <div class="ec-label">${esc(T("decor.acc_role"))}</div>
+    <div class="ec-especes">${roles.map((r) => `<button data-role="${esc(r.role)}" class="${D.role === r.role ? "on" : ""}">${esc(T("role." + r.role))}</button>`).join("")}</div>
+    <div class="ec-note" id="dcBudget">${esc(budgetTexte(f))}</div>
+    <button class="ec-bouton bloc" data-aller="preparer">${ico("dz-lab3d-optimiser")} ${esc(T("decor.acc_budget"))}</button>
+    <button class="ec-bouton bloc" data-aller="exporter">${ico("dz-action-exporter")} ${esc(T("decor.acc_exporter"))}</button>
+    <div class="ec-avis" id="dcAvis"></div>` : "";
+}
+
+function budgetTexte(f) {
+  const r = (D.roles || []).find((x) => x.role === D.role);
+  if (!r) return T("decor.acc_role_aide");
+  return T("decor.acc_budget_texte", { n: nb(r.triangles), m: nb(f ? f.triangles : 0) });
+}
+
+/* le volet Accessoire montre le modèle ouvert à la place de l'arbre (l'arbre reste en mémoire pour le retour) */
+async function montrerAccessoire() {
+  const f = D.ctx.fiche();
+  if (D.groupe) D.groupe.visible = D.volet !== "accessoire";
+  if (D.modele) { D.api.scene.remove(D.modele); D.modele = null; }
+  if (D.volet !== "accessoire") { D.api.racine = D.groupe; peindreFiche(); return; }
+  if (!D.roles) {
+    try { D.roles = (await D.ctx.jget("/api/studio3d/decor/roles")).roles; } catch { D.roles = []; }
+    peindreAccessoire();
+  }
+  if (!f) return;
+  try {
+    D.api.racine = null;
+    await charger(D.api, f.url);
+    D.modele = D.api.racine;
+    cadrer(D.api);
+    D.s.querySelector("#dcMesure").textContent = T("bandeau.triangles", { n: nb(f.triangles) }) + " · v" + f.version;
+  } catch (e) { echec(e); }
+}
+
+async function poser() {
+  const f = D.ctx.fiche();
+  if (!f) return;
+  const h = parseFloat(D.s.querySelector("#dcHauteur").value);
+  const corps = { job: f.job, version: f.version };
+  if (Number.isFinite(h)) corps.hauteur_m = h;
+  const avis = D.s.querySelector("#dcAvis");
+  avis.textContent = T("decor.acc_en_cours");
+  try {
+    const r = await fetch("/api/studio3d/decor/poser", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corps) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error((j && typeof j.detail === "string" && j.detail) || String(r.status));
+    await D.ctx.ouvrir(f.job, null, "decor");
+  } catch (e) { avis.textContent = T("erreur.decor", { m: e.message }); }
 }
 
 function peindreFiche() {
@@ -210,6 +263,7 @@ function surClic(e) {
     for (const b of seg.querySelectorAll("[data-valeur]")) b.classList.toggle("on", b === t);
     return generer(seg.dataset.champ === "taille");
   }
+  if (t.dataset.role) { D.role = t.dataset.role; return peindreAccessoire(); }
   const a = t.dataset.action;
   if (a === "variante") { D.r.graine = Math.floor(Math.random() * 100000); peindreGauche(); return generer(); }
   if (a === "glb") return exporterGlb().then((b) => telecharger(b, nomFichier(nomCourant()) + ".glb")).catch(echec);
@@ -218,6 +272,7 @@ function surClic(e) {
   if (a === "runtime") return fetch(new URL("./decor_runtime.js", import.meta.url)).then((r) => r.blob())
     .then((b) => telecharger(b, "deepotus-decor-vent.js")).catch(echec);
   if (a === "ranger") return ranger();
+  if (a === "poser") return poser();
 }
 
 const nomCourant = () => D.nom || recette(D.r).nom;

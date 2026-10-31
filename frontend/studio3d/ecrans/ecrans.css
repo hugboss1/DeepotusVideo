@@ -189,3 +189,9 @@ body.ec-actif:not(.ec-graphe) .studio { display: none; }
   .ec-trois { grid-template-columns: 230px minmax(0, 1fr) 250px; }
   .ec-types { grid-template-columns: 1fr; }
 }
+
+/* ── Établi (t403) : la page de l'Établi dans un cadre, sur toute la hauteur ── */
+.ec-etabli { display: flex; flex-direction: column; height: 100%; }
+.ec-etabli-barre { display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-bottom: 1px solid var(--stroke); background: var(--bg-panel-3); }
+.ec-etabli-barre .ec-note { margin-right: auto; }
+.ec-etabli-cadre { flex: 1; width: 100%; border: 0; background: var(--bg-base); }

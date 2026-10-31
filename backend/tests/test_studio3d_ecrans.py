@@ -206,6 +206,7 @@ def test_les_cles_des_ecrans_existent_en_fr_et_en():
         "auj": ["graphe_texture", "graphe_rig", "etabli_rig", "etabli_poids", "etabli_mouvement", "graphe_animer",
                 "etabli_export", "version"],
         "type": [f"{t}{s}" for t in ("gltf", "obj", "stl", "fbx", "vrm", "daz") for s in ("", "_aide")],
+        "role": ["premier_plan", "decor", "fond", "foule", "heros"],   # t402 : les rôles de studio3d_decor.ROLES
         "decor": ["echelle", "niveaux", "densite", "taillefeuille", "retombee", "ventforce", "ventvitesse",
                   "ventdirection", "frisson", "feuilles", "rameaux", "vent", "ciel", "taille_petit", "taille_moyen",
                   "taille_grand", "feuillage_reel", "feuillage_cartes", "onglet_arbres", "onglet_sol"],

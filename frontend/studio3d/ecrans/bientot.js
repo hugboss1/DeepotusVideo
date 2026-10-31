@@ -37,7 +37,7 @@ function peindre(ecran) {
   const f = ctx.fiche();
   const lien = ([cle, cible]) => {
     if (cible === "graphe") return `<button class="ec-bouton bloc" data-aller="graphe">${ico("dz-media-graphe-depart")} ${esc(T(cle))}</button>`;
-    if (cible === "etabli") return `<a class="ec-bouton bloc" href="/etabli/${f ? "?job=" + encodeURIComponent(f.job) : ""}">${ico("dz-lab3d-maillage")} ${esc(T(cle))}</a>`;
+    if (cible === "etabli") return `<button class="ec-bouton bloc" data-aller="etabli">${ico("dz-lab3d-maillage")} ${esc(T(cle))}</button>`;
     if (cible === "version" && f) return `<a class="ec-bouton bloc" href="${esc(f.url)}" download>${ico("dz-action-telecharger")} ${esc(T(cle, { v: f.version }))}</a>`;
     return "";
   };
