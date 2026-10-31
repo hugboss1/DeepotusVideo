@@ -1048,6 +1048,15 @@ def test_les_PDF_sont_plus_recents_que_leur_source_HTML():
             assert th and tf and int(tf) >= int(th), (html, pdf, th, tf)
 
 
+def test_chaque_PDF_du_guide_reste_sous_95_Mo():
+    """t405 : GitHub refuse un fichier de plus de 100 Mo — le PDF français du 3D Studio en pesait 105 (captures WebP
+    ré-encodées sans perte par Edge). Le PDF s'imprime depuis des JPEG d'impression (construire_guide.copie_impression) ;
+    95 Mo laisse la marge d'un chapitre."""
+    for pdf in ("Deepotus-Guide-FR.pdf", "Deepotus-Guide-EN.pdf", "Deepotus-Icones-FR.pdf", "Deepotus-Icones-EN.pdf"):
+        taille = (GUIDE / pdf).stat().st_size
+        assert 0 < taille < 95 * 1024 * 1024, (pdf, taille)
+
+
 # ── T091 / plan T15 : l'aide contextuelle, alignée sur le guide ─────────────────
 def test_l_aide_de_l_etabli_ne_definit_QUE_des_termes_qui_existent_dans_LE_GUIDE():
     """DEUX NIVEAUX, UNE SEULE VÉRITÉ : l'écran donne une phrase, le guide donne le chapitre. Un terme défini à
