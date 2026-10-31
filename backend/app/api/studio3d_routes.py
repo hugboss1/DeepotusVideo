@@ -50,10 +50,14 @@ async def studio3d_creer_devis(body: dict = None):
     """Le devis d'une demande de l'écran Créer — gratuit, rien n'est écrit."""
     from app.config import settings
     from app.services import studio3d_creer as SC
+    from app.api import routes as _R
     try:
         d = SC.valider(body or {}, settings.images_path)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    for m in d["moteurs"]:        # une pose refusée se voit au DEVIS, avant le dialogue de confirmation (relevé t404)
+        _R._pose_ou_400({"pose": d["pose"], "multiview": False, "subject": d["prompt"],
+                         "image_filename": d["images"][0]}, m)
     return SC.devis(d)
 
 

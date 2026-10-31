@@ -203,6 +203,7 @@ def test_la_route_refuse_dans_l_ordre_puis_lance_n_tirs():
             r503 = await c.post("/api/studio3d/creer", json=corps)
             settings.FAL_KEY = "cle-de-banc"
             rdev = await c.post("/api/studio3d/creer/devis", json=corps)
+            rpose = await c.post("/api/studio3d/creer/devis", json={**corps, "pose": "a-pose"})   # ni Tripo P2 ni Hunyuan 3.1 n'ont de pose
             r409 = await c.post("/api/studio3d/creer", json=corps)
             avant = await _depenses()
             import app.services.asset3d_service as _A
@@ -215,8 +216,9 @@ def test_la_route_refuse_dans_l_ordre_puis_lance_n_tirs():
             finally:
                 _A.generate_asset3d = vrai
                 settings.FAL_KEY = ""
-            return r400, r503, rdev, r409, avant, rok, await _depenses()
-    r400, r503, rdev, r409, avant, rok, apres = asyncio.run(go())
+            return r400, r503, rdev, r409, avant, rok, await _depenses(), rpose
+    r400, r503, rdev, r409, avant, rok, apres, rpose = asyncio.run(go())
+    assert rpose.status_code == 400                      # pose refusée DÈS le devis, avant toute confirmation
     assert (r400.status_code, r503.status_code, rdev.status_code, r409.status_code) == (400, 503, 200, 409)
     assert "fal" in r503.json()["detail"]
     assert r409.json()["detail"]["devis"]["total_usd"] == rdev.json()["total_usd"] == round(2 * 1.10 + 2 * 0.375, 4)

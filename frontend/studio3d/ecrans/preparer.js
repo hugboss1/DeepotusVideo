@@ -56,6 +56,9 @@ export async function monter(section, ctx) {
       <div class="ec-avis" id="prAvis"></div>
       <div class="ec-label">${esc(T("preparer.telecharger"))}</div>
       <div class="ec-telechargements" id="prDl"></div>
+      <div class="ec-label">${esc(T("preparer.geometrie"))}</div>
+      <button class="ec-bouton bloc" id="prApprouver">${ico("dz-etat-succes")} <span id="prApprouverTexte">${esc(T("preparer.approuver"))}</span></button>
+      <div class="ec-note">${esc(T("preparer.approuver_aide"))}</div>
       <button class="ec-bouton bloc" id="prOriginal">${ico("dz-action-reinitialiser")} ${esc(T("preparer.revenir"))}</button>
     </aside>
   </div>`;
@@ -85,6 +88,7 @@ export async function monter(section, ctx) {
     peindreCible();
   });
   section.querySelector("#prGo").addEventListener("click", optimiser);
+  section.querySelector("#prApprouver").addEventListener("click", approuver);   // la porte du rig IA et de la retexture
   section.querySelector("#prEtabli").addEventListener("click", () => ctx.aller("etabli"));   // t403 : un écran, plus une page
   section.querySelector("#prOriginal").addEventListener("click", () => P.fiche && ctx.ouvrir(P.fiche.job, 1, "preparer"));
   section.querySelector("#prVersions").addEventListener("click", (e) => {
@@ -110,6 +114,9 @@ export async function ouvrir(fiche) {
   }
   P.cible = cibleBornee(P.cible, P.source && P.source.triangles);
   peindre();
+  if (fiche) P.ctx.jget(`/api/assets/3d/${encodeURIComponent(fiche.job)}/approve`).then((j) => {
+    P.s.querySelector("#prApprouverTexte").textContent = T(j && j.approved ? "preparer.approuvee" : "preparer.approuver");
+  }).catch(() => {});
   if (!fiche) { vider(P.gauche); vider(P.droite); return; }
   await Promise.all([
     charger(P.gauche, P.source.url).then(() => appliquerRendu(P.gauche.racine, P.rendu)).catch(() => {}),
@@ -194,4 +201,14 @@ async function optimiser() {
     P.occupe = false;
     peindreCible(false);
   }
+}
+
+/* « Approuver la géométrie » : la porte humaine (POST /api/assets/3d/{job}/approve) que l'auto-rig IA et la retexture
+   exigent avant toute dépense — elle vivait dans l'ancien formulaire de l'onglet 3D, désormais replié. */
+async function approuver() {
+  const f = P.fiche;
+  if (!f) return;
+  const r = await fetch(`/api/assets/3d/${encodeURIComponent(f.job)}/approve`, { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approved: true }) });
+  P.s.querySelector("#prApprouverTexte").textContent = r.ok ? T("preparer.approuvee") : T("erreur.optimiser", { m: String(r.status) });
 }

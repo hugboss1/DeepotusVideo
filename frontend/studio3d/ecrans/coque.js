@@ -183,7 +183,8 @@ async function ouvrirModele(job, version, ecran) {
   await aller(ecran || (E.ouvert ? (permis(E.ecran, E.ouvert) && E.ecran !== "ouvrir" ? E.ecran : "preparer") : "ouvrir"));
 }
 
-function fermerModele() {
+async function fermerModele() {
+  if (E.sale && window.__dzDialogue && !(await window.__dzDialogue.confirmer(T("bandeau.fermer_sale")))) return;
   E.ouvert = null;
   E.sale = false;
   for (const m of Object.values(E.modules)) if (m.ouvrir) m.ouvrir(null);

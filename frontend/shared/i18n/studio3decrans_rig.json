@@ -26,7 +26,7 @@
   "studio3decrans.rigx.ia_file": {"fr": "En file…", "en": "Queued…", "contexte": true},
   "studio3decrans.rigx.ia_hauteur": {"fr": "Taille du personnage (m)", "en": "Character height (m)", "contexte": true},
   "studio3decrans.rigx.ia_payer": {"fr": "Payer {cr} cr", "en": "Pay {cr} cr", "contexte": true},
-  "studio3decrans.rigx.ia_refus_approuve": {"fr": "Géométrie non approuvée : valide le volume dans l'onglet 3D d'abord.", "en": "Geometry not approved: validate the volume in the 3D tab first.", "contexte": true},
+  "studio3decrans.rigx.ia_refus_approuve": {"fr": "Géométrie non approuvée : approuve-la dans Préparer (« Approuver la géométrie ») d'abord.", "en": "Geometry not approved: approve it in Prepare (“Approve the geometry”) first.", "contexte": true},
   "studio3decrans.rigx.ia_refus_devis": {"fr": "Devis indisponible pour ce modèle (job de l'onglet 3D requis).", "en": "No quote for this model (a 3D tab job is required).", "contexte": true},
   "studio3decrans.rigx.ia_refus_fal": {"fr": "Clé fal absente : le maillage passe par le stockage fal pour que Meshy le lise.", "en": "fal key missing: the mesh goes through fal storage so Meshy can read it.", "contexte": true},
   "studio3decrans.rigx.ia_refus_meshy": {"fr": "Clé Meshy absente : Réglages › Meshy.", "en": "Meshy key missing: Settings › Meshy.", "contexte": true},

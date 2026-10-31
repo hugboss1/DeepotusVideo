@@ -771,7 +771,7 @@ async function corriger(op, { apercu = false, cetOs = false } = {}) {
   if (!f || A.occupe) return;
   const params = {};
   if (apercu) params.apercu = true;
-  if (op === "confinement") params.force = A.forceConf;
+  if (op === "confinement" || op === "tout") params.force = A.forceConf;   // « Tout corriger » suit aussi le curseur
   if (op === "coutures") {
     params.anneaux = A.anneaux;
     if (A.deformees) {

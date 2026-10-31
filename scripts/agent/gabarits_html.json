@@ -396,6 +396,7 @@
    ],
    "cles": {
     "studio3decrans.preparer.cible": "champ",
+    "studio3decrans.preparer.approuver": "bouton",
     "studio3decrans.preparer.etabli": "bouton",
     "studio3decrans.preparer.fiche": "panneau",
     "studio3decrans.preparer.reoptimiser": "bouton",
