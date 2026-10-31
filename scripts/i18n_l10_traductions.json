@@ -13406,5 +13406,177 @@
  "{id} : version {version} absente": {
   "fr": "{id} : version {version} absente",
   "en": "{id}: version {version} missing"
+ },
+ "action doit être « generer » ou « retexturer »": {
+  "fr": "action doit être « generer » ou « retexturer »",
+  "en": "action must be “generer” or “retexturer”"
+ },
+ "modèle d'image inconnu : {v}": {
+  "fr": "modèle d'image inconnu : {v}",
+  "en": "unknown image model: {v}"
+ },
+ "{manque} non configurée (Réglages › Clés d'API) pour {modele}.": {
+  "fr": "{manque} non configurée (Réglages › Clés d'API) pour {modele}.",
+  "en": "{manque} not set (Settings › API keys) for {modele}."
+ },
+ "{manque} non configurée (Réglages › Clés d'API) : la retexture passe par ton compte Meshy, le maillage voyage par le stockage fal.": {
+  "fr": "{manque} non configurée (Réglages › Clés d'API) : la retexture passe par ton compte Meshy, le maillage voyage par le stockage fal.",
+  "en": "{manque} not set (Settings › API keys): the retexture goes through your Meshy account, the mesh travels through fal storage."
+ },
+ "max_usd doit être un nombre": {
+  "fr": "max_usd doit être un nombre",
+  "en": "max_usd must be a number"
+ },
+ "{modele} ne prend pas la résolution {res}": {
+  "fr": "{modele} ne prend pas la résolution {res}",
+  "en": "{modele} does not take resolution {res}"
+ },
+ "resolution doit être {v}": {
+  "fr": "resolution doit être {v}",
+  "en": "resolution must be {v}"
+ },
+ "référence inconnue : {v}": {
+  "fr": "référence inconnue : {v}",
+  "en": "unknown reference: {v}"
+ },
+ "référence inconnue : {rid}": {
+  "fr": "référence inconnue : {rid}",
+  "en": "unknown reference: {rid}"
+ },
+ "image absente": {
+  "fr": "image absente",
+  "en": "image missing"
+ },
+ "image trop lourde (> {v} Mo)": {
+  "fr": "image trop lourde (> {v} Mo)",
+  "en": "image too large (> {v} MB)"
+ },
+ "{modele} ne prend pas la résolution {resolution} (permises : {v})": {
+  "fr": "{modele} ne prend pas la résolution {resolution} (permises : {v})",
+  "en": "{modele} does not take resolution {resolution} (allowed: {v})"
+ },
+ "ratio inconnu : {v} (permis : {v2})": {
+  "fr": "ratio inconnu : {v} (permis : {v2})",
+  "en": "unknown aspect ratio: {v} (allowed: {v2})"
+ },
+ "prompt trop long ({prompt} > {PROMPT_MAX} caractères)": {
+  "fr": "prompt trop long ({prompt} > {PROMPT_MAX} caractères)",
+  "en": "prompt too long ({prompt} > {PROMPT_MAX} characters)"
+ },
+ "vue ou éclairage inconnu": {
+  "fr": "vue ou éclairage inconnu",
+  "en": "unknown view or lighting"
+ },
+ "texte de style trop long ({prompt} > 600 caractères, limite de Meshy)": {
+  "fr": "texte de style trop long ({prompt} > 600 caractères, limite de Meshy)",
+  "en": "style text too long ({prompt} > 600 characters, Meshy's limit)"
+ },
+ "une référence d'image ou un texte de style est nécessaire": {
+  "fr": "une référence d'image ou un texte de style est nécessaire",
+  "en": "an image reference or a style text is required"
+ },
+ "{modele} n'a rendu aucune image": {
+  "fr": "{modele} n'a rendu aucune image",
+  "en": "{modele} returned no image"
+ },
+ "image illisible (base64 attendu)": {
+  "fr": "image illisible (base64 attendu)",
+  "en": "unreadable image (base64 expected)"
+ },
+ "Nano Banana Pro n'a rendu aucune image : {v}": {
+  "fr": "Nano Banana Pro n'a rendu aucune image : {v}",
+  "en": "Nano Banana Pro returned no image: {v}"
+ },
+ "Clé fal absente — ajoute-la dans les Réglages (Clés d'API) : les modèles 3D choisis passent par fal.": {
+  "fr": "Clé fal absente — ajoute-la dans les Réglages (Clés d'API) : les modèles 3D choisis passent par fal.",
+  "en": "fal key missing — add it in Settings (API keys): the selected 3D models run on fal."
+ },
+ "{label} ne génère pas depuis un texte": {
+  "fr": "{label} ne génère pas depuis un texte",
+  "en": "{label} does not generate from text"
+ },
+ "moteur neuf inconnu : {moteur}": {
+  "fr": "moteur neuf inconnu : {moteur}",
+  "en": "unknown new engine: {moteur}"
+ },
+ "{moteur} : réglage inconnu {k}": {
+  "fr": "{moteur} : réglage inconnu {k}",
+  "en": "{moteur}: unknown setting {k}"
+ },
+ "une image ou un prompt est nécessaire": {
+  "fr": "une image ou un prompt est nécessaire",
+  "en": "an image or a prompt is required"
+ },
+ "{moteur}.{k} : booléen attendu": {
+  "fr": "{moteur}.{k} : booléen attendu",
+  "en": "{moteur}.{k}: boolean expected"
+ },
+ "{moteur}.{k} : {v} hors de {valeurs}": {
+  "fr": "{moteur}.{k} : {v} hors de {valeurs}",
+  "en": "{moteur}.{k}: {v} not in {valeurs}"
+ },
+ "{moteur}.{k} : entier attendu": {
+  "fr": "{moteur}.{k} : entier attendu",
+  "en": "{moteur}.{k}: integer expected"
+ },
+ "{moteur}.{k} : {v} hors de [{min}, {max}]": {
+  "fr": "{moteur}.{k} : {v} hors de [{min}, {max}]",
+  "en": "{moteur}.{k}: {v} outside [{min}, {max}]"
+ },
+ "coche au moins un modèle": {
+  "fr": "coche au moins un modèle",
+  "en": "tick at least one model"
+ },
+ "quantité : de 1 à 4": {
+  "fr": "quantité : de 1 à 4",
+  "en": "quantity: from 1 to 4"
+ },
+ "pose inconnue : {pose}": {
+  "fr": "pose inconnue : {pose}",
+  "en": "unknown pose: {pose}"
+ },
+ "{n} générations demandées : {TIRS_MAX} au plus en un clic": {
+  "fr": "{n} générations demandées : {TIRS_MAX} au plus en un clic",
+  "en": "{n} generations requested: {TIRS_MAX} at most in one click"
+ },
+ "moteur 3D inconnu : {m}": {
+  "fr": "moteur 3D inconnu : {m}",
+  "en": "unknown 3D engine: {m}"
+ },
+ "quantité : un entier de 1 à 4": {
+  "fr": "quantité : un entier de 1 à 4",
+  "en": "quantity: an integer from 1 to 4"
+ },
+ "le mode texte demande une description": {
+  "fr": "le mode texte demande une description",
+  "en": "text mode needs a description"
+ },
+ "ces modèles ne génèrent pas depuis un texte : {v}": {
+  "fr": "ces modèles ne génèrent pas depuis un texte : {v}",
+  "en": "these models do not generate from text: {v}"
+ },
+ "choisis une image source": {
+  "fr": "choisis une image source",
+  "en": "pick a source image"
+ },
+ "le mode image prend une seule image ; le mode multi-images en prend plusieurs": {
+  "fr": "le mode image prend une seule image ; le mode multi-images en prend plusieurs",
+  "en": "image mode takes a single image; multi-image mode takes several"
+ },
+ "image introuvable dans la Bibliothèque : {fn}": {
+  "fr": "image introuvable dans la Bibliothèque : {fn}",
+  "en": "image not found in the Library: {fn}"
+ },
+ "modèle plat : aucune hauteur à mesurer": {
+  "fr": "modèle plat : aucune hauteur à mesurer",
+  "en": "flat model: no height to measure"
+ },
+ "hauteur_m attend un nombre de mètres": {
+  "fr": "hauteur_m attend un nombre de mètres",
+  "en": "hauteur_m expects a number of metres"
+ },
+ "hauteur_m hors de [{HAUTEUR_MIN}, {HAUTEUR_MAX}] m": {
+  "fr": "hauteur_m hors de [{HAUTEUR_MIN}, {HAUTEUR_MAX}] m",
+  "en": "hauteur_m outside [{HAUTEUR_MIN}, {HAUTEUR_MAX}] m"
  }
 }

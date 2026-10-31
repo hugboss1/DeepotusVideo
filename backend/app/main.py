@@ -582,6 +582,9 @@ app.include_router(studio3d_router, prefix="/api/studio3d")
 # t400 (31/10/2026) : /api/studio3d/exporter — écran Exporter : GLB maillage / pose / animation, paquet three.js, FBX
 from app.api.studio3d_export_routes import router as studio3d_export_router
 app.include_router(studio3d_export_router, prefix="/api/studio3d/exporter")
+# t393 (31/10/2026) : /api/studio3d/texture — écran Texture : références d'image (capture → modèle d'image), retexture Meshy
+from app.api.studio3d_texture_routes import router as studio3d_texture_router
+app.include_router(studio3d_texture_router, prefix="/api/studio3d/texture")
 # t376 (29/10/2026) : /api/assets3d/pose — choix Aucune / T-pose / A-pose (état gratuit, classement vision payant
 # une fois par image), local seulement
 from app.api.pose3d_routes import router as pose3d_router
