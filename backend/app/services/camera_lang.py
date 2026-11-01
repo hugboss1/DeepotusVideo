@@ -39,6 +39,8 @@ FAMILLES: dict = {
     "veo_fal": _NEUTRE, "veo_google": _NEUTRE,
     # t184 (G2) : nouvelles familles, langage de caméra neutre
     "minimax": _NEUTRE, "wan": _NEUTRE, "gemini_omni": _NEUTRE, "ltx": _NEUTRE,
+    # t407 : FLUX 3 Max (Kling 4.0 garde la famille « kling »)
+    "flux3": _NEUTRE,
 }
 #: |valeur| -> qualificatif. 0 = l'axe est muet.
 _FORCE = ((3, "slightly"), (7, ""), (10, "strongly"))

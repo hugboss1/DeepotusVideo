@@ -242,6 +242,31 @@ VIDEO_MODELS: dict = {
         "resolutions": None, "end_image": False, "seed": False,
         "audio_param": None,
     },
+    # t407 (01/11/2026) — sortis sur fal le 16/10/2026, OpenAPI relue le jour
+    # même. Kling 4.0 : `start_image_url` (requis) et `end_image_url` sur le
+    # MÊME endpoint, durée ENTIÈRE 3..30 s, 720p/1080p (fal prend 1080p par
+    # défaut : la résolution part toujours), ni ratio (suit l'image), ni seed,
+    # ni négatif, ni interrupteur audio. `multi_prompt` et `middle_image_urls`
+    # (plans multiples, images intermédiaires) restent hors registre.
+    "kling-v4": {
+        "label": "Kling 4.0", "provider": "fal", "family": "kling",
+        "endpoint": "kling/v4/image-to-video", "image_arg": "start_image_url",
+        "durations": list(range(3, 31)), "ratios": None,
+        "resolutions": ["720p", "1080p"], "end_image": True, "seed": False,
+        "audio_param": None,
+    },
+    # FLUX 3 Max (Black Forest Labs) : `image_url` + `end_image_url` sur le
+    # MÊME endpoint (le keyframes-to-video séparé reste hors registre), durée
+    # entière 5..20 s, ratios 9:16/1:1/16:9 (auto, 21:9, 2:1, 4:3, 3:4 hors
+    # registre), seed, `generate_audio` (vrai par défaut chez fal : coupé
+    # comme partout), pas de négatif. `reasoning_level` laissé au défaut.
+    "flux-3-max": {
+        "label": "FLUX 3 Max", "provider": "fal", "family": "flux3",
+        "endpoint": "blackforestlabs/flux-3-max/image-to-video",
+        "durations": list(range(5, 21)), "ratios": ["9:16", "1:1", "16:9"],
+        "resolutions": ["720p", "1080p"], "end_image": True, "seed": True,
+        "audio_param": "generate_audio",
+    },
     # t406 (01/11/2026) — Gemini Omni Flash 1.1 par la CLÉ GOOGLE (AI Studio,
     # Interactions API, google_video.py) : les crédits Google au lieu du solde
     # fal. Caps du jumeau fal (3..10 s, 9:16/16:9, début + fin) ; l'API a aussi

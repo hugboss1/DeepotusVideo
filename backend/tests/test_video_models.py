@@ -78,6 +78,8 @@ EXPECTED_IDS = {
     "ltx-2.5-fast", "kling-v3-turbo-pro",
     # t406 : Gemini Omni Flash par la clé Google (Interactions API)
     "gemini-omni-flash-google",
+    # t407 : Kling 4.0 et FLUX 3 Max (fal, 16/10/2026)
+    "kling-v4", "flux-3-max",
 }
 # t406 : les Veo Google, arrêtés le 22/10/2026, restent au registre mais sortent de /video-models
 RETIRES = {"veo-3.1-google", "veo-3.1-fast-google", "veo-3.1-lite-google"}
@@ -172,6 +174,40 @@ check("kling_fin_duree_audio_negatif",
       a.get("end_image_url") == "e" and a.get("duration") == 7
       and a.get("generate_audio") is False and a.get("negative_prompt") == "n", repr(a))
 
+# t407 — Kling 4.0 (OpenAPI fal relu le 01/11/2026) : start_image_url requis,
+# end_image_url sur le MÊME endpoint, durée entière 3..30, 720p/1080p (défaut
+# 1080p côté fal : toujours envoyée), ni ratio, ni seed, ni négatif, ni
+# interrupteur audio.
+ep, a, notes = args("kling-v4", image_url="u", prompt="p", negative_prompt="n",
+                    end_image_url="e", duration=31, aspect_ratio="9:16", resolution="720p", seed=3)
+check("k4_endpoint", ep == "kling/v4/image-to-video", repr(ep))
+check("k4_debut_et_fin", a.get("start_image_url") == "u" and a.get("end_image_url") == "e"
+      and "image_url" not in a, repr(a))
+check("k4_duree_entiere_plafond_30", a.get("duration") == 30, repr(a))
+check("k4_resolution_720", a.get("resolution") == "720p", repr(a))
+check("k4_ni_ratio_ni_seed_ni_negatif_ni_audio",
+      not {"aspect_ratio", "seed", "negative_prompt", "generate_audio"} & set(a), repr(a))
+check("k4_notes_seed_negatif", any("seed" in n for n in notes) and any("negative" in n for n in notes),
+      repr(notes))
+_, a2, _ = args("kling-v4", image_url="u", prompt="p", duration=2, aspect_ratio="16:9", resolution="1080p")
+check("k4_min_3_1080p", a2.get("duration") == 3 and a2.get("resolution") == "1080p", repr(a2))
+
+# t407 — FLUX 3 Max (OpenAPI fal relu le 01/11/2026) : image_url + end_image_url
+# sur le MÊME endpoint (pas de keyframes), durée entière 5..20, ratios
+# 9:16/1:1/16:9 (+ auto, 21:9… hors registre), seed, interrupteur generate_audio
+# (défaut true côté fal : toujours coupé), pas de négatif.
+ep, a, notes = args("flux-3-max", image_url="u", prompt="p", negative_prompt="n",
+                    end_image_url="e", duration=4, aspect_ratio="1:1", resolution="1080p", seed=11)
+check("f3m_endpoint", ep == "blackforestlabs/flux-3-max/image-to-video", repr(ep))
+check("f3m_debut_et_fin", a.get("image_url") == "u" and a.get("end_image_url") == "e", repr(a))
+check("f3m_duree_min_5", a.get("duration") == 5, repr(a))
+check("f3m_ratio_resolution_seed", a.get("aspect_ratio") == "1:1" and a.get("resolution") == "1080p"
+      and a.get("seed") == 11, repr(a))
+check("f3m_audio_coupe", a.get("generate_audio") is False, repr(a))
+check("f3m_sans_negatif", "negative_prompt" not in a and any("negative" in n for n in notes), f"{a} {notes}")
+_, a2, _ = args("flux-3-max", image_url="u", prompt="p", duration=25, aspect_ratio="4:3", resolution="720p")
+check("f3m_plafond_20_ratio_hors_liste", a2.get("duration") == 20 and "aspect_ratio" not in a2, repr(a2))
+
 ep, a, _ = args("pixverse-v6", image_url="u", prompt="p", duration=6,
                 aspect_ratio="9:16", resolution="720p", seed=5)
 check("pixverse", ep == "fal-ai/pixverse/v6/image-to-video" and a.get("duration") == 8
@@ -242,6 +278,19 @@ check("prix_s25_480", pricing.video_rate("seedance-2.5", "480p", p) == 0.2205)
 check("prix_s25_720", pricing.video_rate("seedance-2.5", "720p", p) == 0.473)
 check("prix_s25_1080_colonne_max", pricing.video_rate("seedance-2.5", "1080p", p) == 0.473)
 check("prix_inconnu_none", pricing.video_rate("unknown-model", "1080p", p) is None)
+# t407 — pages fal relues le 01/11/2026. Kling 4.0 : 0,157 $/s 720p, 0,235 $/s 1080p. FLUX 3 Max : tarif PLEIN
+# (0,17 / 0,29 $/s), pas la promo -75 % affichée jusqu'au 07/11 — la garde ne suppose pas une remise.
+check("prix_k4", (pricing.video_rate("kling-v4", "720p", p), pricing.video_rate("kling-v4", "1080p", p))
+      == (0.157, 0.235))
+check("prix_f3m_plein_tarif", (pricing.video_rate("flux-3-max", "720p", p),
+                               pricing.video_rate("flux-3-max", "1080p", p)) == (0.17, 0.29))
+try:
+    l4 = pricing.estimate({"kind": "seedance", "duration_s": 5, "model": "kling-v4", "resolution": "1080p"},
+                          p)["breakdown"][0]
+except Exception as e:  # noqa: BLE001
+    l4 = {"_temoin": temoin(e)}
+check("estimation_k4", l4.get("provider") == "fal" and abs(l4.get("usd", -1) - 5 * 0.235) < 1e-6
+      and "Kling 4.0" in l4.get("label", ""), repr(l4))
 try:
     line = pricing.estimate({"kind": "seedance", "duration_s": 5, "model": "veo-3.1-lite-google",
                              "resolution": "720p"}, p)["breakdown"][0]
@@ -298,6 +347,11 @@ check("endpoint_omni_google_audio_inclus", (by_id.get("gemini-omni-flash-google"
 check("endpoint_prix_s2", ((by_id.get("seedance-2") or {}).get("usd_per_s") or {}).get("1080p") == 0.682)
 check("endpoint_prix_s25", ((by_id.get("seedance-2.5") or {}).get("usd_per_s") or {}).get("720p") == 0.473)
 check("endpoint_s25_dispo", (by_id.get("seedance-2.5") or {}).get("available") is True)
+# t407 : les deux neufs suivent la clé fal, avec leur prix et l'image de fin
+for _mid, _px in (("kling-v4", 0.235), ("flux-3-max", 0.29)):
+    _m = by_id.get(_mid) or {}
+    check(f"endpoint_{_mid}_dispo_prix_fin", _m.get("available") is True and _m.get("end_image") is True
+          and (_m.get("usd_per_s") or {}).get("1080p") == _px, repr(_m))
 settings.GEMINI_API_KEY = "test-google"
 try:
     out2 = asyncio.run(list_video_models())

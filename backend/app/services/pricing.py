@@ -133,6 +133,13 @@ DEFAULTS = {
         # LTX 2.5 Fast : audio natif inclus à toutes les résolutions
         "ltx-2.5-fast":        {"720p": 0.09, "1080p": 0.13},
         "kling-v3-turbo-pro":  {"*": 0.14},
+        # t407 — pages fal relues le 01/11/2026. Kling 4.0 : 0,157 $/s 720p,
+        # 0,235 $/s 1080p (l'i2v ; le tarif réduit « with video references »
+        # ne concerne pas l'app). FLUX 3 Max : TARIF PLEIN 0,17 / 0,29 $/s ;
+        # fal affiche -75 % (0,0425 / 0,0725) du 15/10 au 07/11 que la garde ne
+        # suppose pas.
+        "kling-v4":            {"720p": 0.157, "1080p": 0.235},
+        "flux-3-max":          {"720p": 0.17, "1080p": 0.29},
         # t406 — Gemini Omni Flash par la clé Google (page tarifs relue le
         # 01/11/2026) : sortie à 17,50 $ / 1M tokens, 5 792 tokens par seconde
         # de 720p, soit 0,1014 $/s ; arrondi à 0,11 pour les tokens d'entrée
