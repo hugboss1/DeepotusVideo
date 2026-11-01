@@ -53,6 +53,11 @@ INTERACTIONS_URL = f"{GOOGLE_API_BASE}/interactions"
 # but previews can queue; poll gently and give up cleanly after 10 min.
 _POLL_INTERVAL_S = 5.0
 _POLL_TIMEOUT_S = 600.0
+# t406 (revue) : un rendu accepté continue chez Google et se facture même si
+# l'app abandonne. Un sondage raté (réseau, 408/429/5xx) est donc retenté
+# avant d'échouer, et chaque erreur nomme l'opération pour la retrouver.
+_SONDAGE_ESSAIS = 6
+_CODES_PASSAGERS = frozenset({408, 429, 500, 502, 503, 504})
 
 # t406 : vidéos rendues INLINE par l'Interactions API, gardées en mémoire le
 # temps que download_video les écrive. L'URL rendue au pipeline reste courte
@@ -137,6 +142,30 @@ def _video_de(interaction: dict) -> dict:
                 return c
     ov = interaction.get("output_video")
     return ov if isinstance(ov, dict) and (ov.get("data") or ov.get("uri")) else {}
+
+
+async def _sonder(client: httpx.AsyncClient, url: str, quoi: str, ref: str) -> dict:
+    """GET de sondage tolérant : une erreur réseau ou un code passager est
+    retenté (attente croissante) jusqu'à _SONDAGE_ESSAIS échecs d'affilée ;
+    un autre code échoue tout de suite. `ref` (opération, interaction) figure
+    dans chaque erreur."""
+    echecs = 0
+    while True:
+        try:
+            r = await client.get(url, headers=google_headers())
+        except httpx.HTTPError as e:
+            cause = f"{type(e).__name__}: {e}"
+        else:
+            if r.status_code == 200:
+                return r.json() or {}
+            if r.status_code not in _CODES_PASSAGERS:
+                raise RuntimeError(f"google: {quoi} HTTP {r.status_code} — {_short_error(r)} ({ref})")
+            cause = f"HTTP {r.status_code} — {_short_error(r)}"
+        echecs += 1
+        if echecs >= _SONDAGE_ESSAIS:
+            raise RuntimeError(f"google: {quoi} failed {echecs} times — {cause} ({ref})")
+        logger.warning(f"google: {quoi} transient failure {echecs}/{_SONDAGE_ESSAIS} ({ref}) — {cause}")
+        await asyncio.sleep(_POLL_INTERVAL_S * echecs)
 
 
 def _erreur_interaction(interaction: dict) -> str:
@@ -225,15 +254,7 @@ class GoogleVeoClient:
             while True:
                 await asyncio.sleep(_POLL_INTERVAL_S)
                 waited += _POLL_INTERVAL_S
-                try:
-                    pr = await client.get(f"{GOOGLE_API_BASE}/{op_name}",
-                                          headers=google_headers())
-                except httpx.HTTPError as e:
-                    raise RuntimeError(f"google: poll failed — {e}") from e
-                if pr.status_code != 200:
-                    raise RuntimeError(
-                        f"google: poll HTTP {pr.status_code} — {_short_error(pr)}")
-                op = pr.json() or {}
+                op = await _sonder(client, f"{GOOGLE_API_BASE}/{op_name}", "poll", op_name)
                 if op.get("done"):
                     break
                 if waited >= _POLL_TIMEOUT_S:
@@ -296,13 +317,7 @@ class GoogleVeoClient:
                         f"google: video interaction timed out after {int(_POLL_TIMEOUT_S)}s ({iid})")
                 await asyncio.sleep(_POLL_INTERVAL_S)
                 waited += _POLL_INTERVAL_S
-                try:
-                    pr = await client.get(f"{INTERACTIONS_URL}/{iid}", headers=google_headers())
-                except httpx.HTTPError as e:
-                    raise RuntimeError(f"google: poll failed — {e}") from e
-                if pr.status_code != 200:
-                    raise RuntimeError(f"google: poll HTTP {pr.status_code} — {_short_error(pr)}")
-                inter = pr.json() or {}
+                inter = await _sonder(client, f"{INTERACTIONS_URL}/{iid}", "poll", iid)
             statut = inter.get("status")
             if statut != "completed":
                 raise RuntimeError(f"google: interaction {statut} — {_erreur_interaction(inter)} ({iid})")
@@ -311,7 +326,7 @@ class GoogleVeoClient:
                 raise RuntimeError(f"google: no video in interaction {iid} — {str(inter)[:300]}")
             usage = inter.get("usage")
             if video.get("uri"):
-                await GoogleVeoClient._attendre_fichier(client, video["uri"])
+                await GoogleVeoClient._attendre_fichier(client, video["uri"], iid)
                 url = video["uri"]
             else:
                 url = f"{_PREFIXE_INLINE}{iid}"
@@ -321,27 +336,22 @@ class GoogleVeoClient:
         return {"video": {"url": url}, "usage": usage}
 
     @staticmethod
-    async def _attendre_fichier(client: httpx.AsyncClient, uri: str) -> None:
+    async def _attendre_fichier(client: httpx.AsyncClient, uri: str, iid: str) -> None:
         """Le fichier d'une livraison par URI ne se télécharge qu'une fois
         GET files/{id} à state ACTIVE (doc omni) ; FAILED lève."""
         m = re.search(r"/files/([^/:?]+)", uri)
         if not m:
             return
+        ref = f"{iid}, {uri}"
         waited = 0.0
         while True:
-            try:
-                fr = await client.get(f"{GOOGLE_API_BASE}/files/{m.group(1)}", headers=google_headers())
-            except httpx.HTTPError as e:
-                raise RuntimeError(f"google: file poll failed — {e}") from e
-            if fr.status_code != 200:
-                raise RuntimeError(f"google: file poll HTTP {fr.status_code} — {_short_error(fr)}")
-            etat = (fr.json() or {}).get("state")
+            etat = (await _sonder(client, f"{GOOGLE_API_BASE}/files/{m.group(1)}", "file poll", ref)).get("state")
             if etat == "ACTIVE":
                 return
             if etat == "FAILED":
-                raise RuntimeError(f"google: video file {m.group(1)} FAILED")
+                raise RuntimeError(f"google: video file {m.group(1)} FAILED ({iid})")
             if waited >= _POLL_TIMEOUT_S:
-                raise RuntimeError(f"google: video file not ready after {int(_POLL_TIMEOUT_S)}s")
+                raise RuntimeError(f"google: video file not ready after {int(_POLL_TIMEOUT_S)}s ({ref})")
             await asyncio.sleep(_POLL_INTERVAL_S)
             waited += _POLL_INTERVAL_S
 

@@ -5351,14 +5351,6 @@
   "fr": "google : aucune vidéo dans la réponse — {v}",
   "en": "google: no video in response — {v}"
  },
- "google: poll HTTP {status_code} — {v}": {
-  "fr": "google : interrogation HTTP {status_code} — {v}",
-  "en": "google: poll HTTP {status_code} — {v}"
- },
- "google: poll failed — {e}": {
-  "fr": "google : échec de l'interrogation — {e}",
-  "en": "google: poll failed — {e}"
- },
  "google: video operation timed out after {POLL_TIMEOUT_S}s ({op_name})": {
   "fr": "google : l'opération vidéo a dépassé {POLL_TIMEOUT_S} s ({op_name})",
   "en": "google: video operation timed out after {POLL_TIMEOUT_S}s ({op_name})"
@@ -14123,18 +14115,6 @@
   "fr": "google : aucune vidéo dans l'interaction {iid} — {v}",
   "en": "google: no video in interaction {iid} — {v}"
  },
- "google: file poll HTTP {status_code} — {v}": {
-  "fr": "google : interrogation du fichier HTTP {status_code} — {v}",
-  "en": "google: file poll HTTP {status_code} — {v}"
- },
- "google: video file {v} FAILED": {
-  "fr": "google : le fichier vidéo {v} a échoué (FAILED)",
-  "en": "google: video file {v} FAILED"
- },
- "google: video file not ready after {POLL_TIMEOUT_S}s": {
-  "fr": "google : fichier vidéo toujours pas prêt après {POLL_TIMEOUT_S} s",
-  "en": "google: video file not ready after {POLL_TIMEOUT_S}s"
- },
  "google: inline video {video_url} unknown or already written": {
   "fr": "google : vidéo inline {video_url} inconnue ou déjà écrite",
   "en": "google: inline video {video_url} unknown or already written"
@@ -14147,8 +14127,20 @@
   "fr": "google : l'interaction vidéo a dépassé {POLL_TIMEOUT_S} s ({iid})",
   "en": "google: video interaction timed out after {POLL_TIMEOUT_S}s ({iid})"
  },
- "google: file poll failed — {e}": {
-  "fr": "google : échec de l'interrogation du fichier — {e}",
-  "en": "google: file poll failed — {e}"
+ "google: {quoi} failed {echecs} times — {cause} ({ref})": {
+  "fr": "google : {quoi} en échec {echecs} fois de suite — {cause} ({ref})",
+  "en": "google: {quoi} failed {echecs} times — {cause} ({ref})"
+ },
+ "google: {quoi} HTTP {status_code} — {v} ({ref})": {
+  "fr": "google : {quoi} HTTP {status_code} — {v} ({ref})",
+  "en": "google: {quoi} HTTP {status_code} — {v} ({ref})"
+ },
+ "google: video file {v} FAILED ({iid})": {
+  "fr": "google : le fichier vidéo {v} a échoué (FAILED) ({iid})",
+  "en": "google: video file {v} FAILED ({iid})"
+ },
+ "google: video file not ready after {POLL_TIMEOUT_S}s ({ref})": {
+  "fr": "google : fichier vidéo toujours pas prêt après {POLL_TIMEOUT_S} s ({ref})",
+  "en": "google: video file not ready after {POLL_TIMEOUT_S}s ({ref})"
  }
 }

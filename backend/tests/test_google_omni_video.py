@@ -69,6 +69,8 @@ class FauxGoogle:
         for i, (meth, frag, code, corps) in enumerate(self.reponses):
             if request.method == meth and frag in str(request.url):
                 self.reponses.pop(i)
+                if isinstance(corps, Exception):          # coupure réseau simulée
+                    raise corps
                 if isinstance(corps, (bytes, bytearray)):
                     return httpx.Response(code, content=bytes(corps))
                 return httpx.Response(code, json=corps)
@@ -246,6 +248,55 @@ _r, err = run(GV.GoogleVeoClient.generate_video(image_path=png, prompt="p", dura
                                                  resolution="720p", model="gemini-omni-1.1-flash"))
 GV._POLL_TIMEOUT_S = _ancien
 check("delai_depasse_erreur", isinstance(err, RuntimeError) and "timed out" in str(err) and "v1_t" in str(err), repr(err))
+
+# ── sondage tolérant (revue t406) : un rendu accepté se facture même abandonné ─────────────────────────────────────
+print("\n[sondage tolerant]")
+coupure = httpx.ReadTimeout("lecture expirée")
+faux = FauxGoogle([("POST", "/v1beta/interactions", 200, {"id": "v1_r", "status": "in_progress"}),
+                   ("GET", "/v1beta/interactions/v1_r", 503, {"error": {"message": "backend error"}}),
+                   ("GET", "/v1beta/interactions/v1_r", 0, coupure),
+                   ("GET", "/v1beta/interactions/v1_r", 429, {"error": {"message": "quota"}}),
+                   ("GET", "/v1beta/interactions/v1_r", 200, {**termine, "id": "v1_r"})])
+brancher(faux)
+res, err = run(GV.GoogleVeoClient.generate_video(image_path=png, prompt="p", duration=4, aspect_ratio="16:9",
+                                                  resolution="720p", model="gemini-omni-1.1-flash"))
+check("passagers_retentes_puis_video", err is None and str(GV.GoogleVeoClient.extract_video_url(res or {}))
+      .startswith("google-inline:"), repr(err))
+check("un_seul_post", [r.method for r in faux.requetes].count("POST") == 1, repr([r.method for r in faux.requetes]))
+GV._INLINE.clear()
+faux = FauxGoogle([("POST", "/v1beta/interactions", 200, {"id": "v1_p", "status": "in_progress"})]
+                  + [("GET", "/v1beta/interactions/v1_p", 503, {"error": {"message": "backend error"}})]
+                  * GV._SONDAGE_ESSAIS)
+brancher(faux)
+_r, err = run(GV.GoogleVeoClient.generate_video(image_path=png, prompt="p", duration=4, aspect_ratio="16:9",
+                                                 resolution="720p", model="gemini-omni-1.1-flash"))
+check("passagers_persistants_erreur_avec_id", isinstance(err, RuntimeError) and "poll failed" in str(err)
+      and f"{GV._SONDAGE_ESSAIS} times" in str(err) and "v1_p" in str(err), repr(err))
+check("passagers_persistants_nombre_d_essais",
+      [r.method for r in faux.requetes].count("GET") == GV._SONDAGE_ESSAIS, repr(len(faux.requetes)))
+faux = FauxGoogle([("POST", "/v1beta/interactions", 200, {"id": "v1_n", "status": "in_progress"}),
+                   ("GET", "/v1beta/interactions/v1_n", 404, {"error": {"message": "interaction not found"}})])
+brancher(faux)
+_r, err = run(GV.GoogleVeoClient.generate_video(image_path=png, prompt="p", duration=4, aspect_ratio="16:9",
+                                                 resolution="720p", model="gemini-omni-1.1-flash"))
+check("404_de_sondage_immediat_avec_id", isinstance(err, RuntimeError) and "poll HTTP 404" in str(err)
+      and "v1_n" in str(err) and len(faux.requetes) == 2, repr(err))
+faux = FauxGoogle([("POST", "/v1beta/interactions", 200, {**termine_uri, "id": "v1_fu"}),
+                   ("GET", "/v1beta/files/abc-123", 500, {"error": {"message": "internal"}}),
+                   ("GET", "/v1beta/files/abc-123", 0, httpx.ConnectError("connexion coupée")),
+                   ("GET", "/v1beta/files/abc-123", 200, {"state": "ACTIVE"})])
+brancher(faux)
+res, err = run(GV.GoogleVeoClient.generate_video(image_path=png, prompt="p", duration=4, aspect_ratio="16:9",
+                                                  resolution="720p", model="gemini-omni-1.1-flash"))
+check("fichier_passagers_retentes", err is None and GV.GoogleVeoClient.extract_video_url(res or {}) == uri, repr(err))
+faux = FauxGoogle([("POST", "/v1beta/interactions", 200, {**termine_uri, "id": "v1_ff"}),
+                   ("GET", "/v1beta/files/abc-123", 403, {"error": {"message": "denied"}})])
+brancher(faux)
+_r, err = run(GV.GoogleVeoClient.generate_video(image_path=png, prompt="p", duration=4, aspect_ratio="16:9",
+                                                 resolution="720p", model="gemini-omni-1.1-flash"))
+check("fichier_erreur_nomme_l_interaction", isinstance(err, RuntimeError) and "file poll HTTP 403" in str(err)
+      and "v1_ff" in str(err), repr(err))
+check("cle_jamais_dans_une_erreur_de_sondage", CLE not in repr(err))
 check("cle_jamais_journalisee", not any(CLE in ligne for ligne in journal), "la clé est sortie dans le journal")
 
 # ── tarif et garde de coût ──────────────────────────────────────────────────────────────────────────────────────
