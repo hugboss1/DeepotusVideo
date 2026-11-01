@@ -231,6 +231,17 @@ VIDEO_MODELS: dict = {
         "resolutions": ["720p", "1080p"], "end_image": True, "seed": False,
         "audio_param": "generate_audio",
     },
+    # t408 (01/11/2026) — LTX 2.5 Pro, la variante « qualité » du même modèle (OpenAPI relue le jour) : durées 6, 8,
+    # 10 s seulement (enum ; « auto » hors registre), mêmes ratios, résolutions et image de fin que Fast ; ni seed ni
+    # négatif ; audio natif inclus au prix, l'interrupteur est coupé comme partout. `camera_motion` et `fps` restent
+    # à leur défaut.
+    "ltx-2.5-pro": {
+        "label": "LTX 2.5 Pro", "provider": "fal", "family": "ltx",
+        "endpoint": "lightricks/ltx-2.5/image-to-video/pro",
+        "durations": [6, 8, 10], "ratios": ["9:16", "16:9"],
+        "resolutions": ["720p", "1080p"], "end_image": True, "seed": False,
+        "audio_param": "generate_audio",
+    },
     # Kling v3 Turbo Pro : `image_url` (PAS start_image_url comme Kling v3),
     # durée en CHAÎNE « 3 ».. « 15 » (`duree_suffixe` vide), ni image de fin,
     # ni ratio, ni résolution, ni négatif, ni seed, ni interrupteur audio.

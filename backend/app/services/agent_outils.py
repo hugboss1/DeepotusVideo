@@ -588,6 +588,22 @@ async def lire_plans(ctx: Ctx, chapitre: str = "") -> dict:
                 {"chapitre": {"id": ch.id, "titre": ch.title, "serie": ch.series}, "plans": plans,
                  "textes": _preuve("plans:" + ch.id, "\n".join(textes)) if textes else None,
                  "ou": "Chapitres › Storyboard"})
+
+
+# ---- t408 (01/11/2026) : les MODÈLES VIDÉO des menus (boîte « chapitres », lecture) ---------------------------------
+async def modeles_video(ctx: Ctx) -> dict:
+    """t408 : les modèles vidéo que proposent Studio, Quick, l'Atelier (« Générer le plan ») et les Épisodes — la
+    réponse même de GET /api/video-models (modèles retirés exclus, disponibilité selon les clés, prix par seconde) —
+    pour que l'agent choisisse le `video_model` d'un devis ou d'un plan. LECTURE seule, gratuit."""
+    from app.services.catalogue_ia import modeles_video as _liste
+    d = _liste()
+    modeles = [{k: m.get(k) for k in ("id", "label", "voie", "available", "durations", "ratios", "resolutions",
+                                      "end_image", "usd_per_s")} for m in d.get("models") or []]
+    dispo = sum(1 for m in modeles if m["available"])
+    return _res(True, f"{len(modeles)} modèle(s) vidéo, {dispo} disponible(s) avec les clés posées ; défaut "
+                      f"{d.get('default')} ; le `video_model` d'un devis est l'id",
+                {"modeles": modeles, "defaut": d.get("default"), "max_gen_s": d.get("max_gen_s"),
+                 "ou": "Studio, Quick, Atelier › Générer le plan, Épisodes"})
 # ---- t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (boîte « plateau ») -------------------
 # Lecture et PROPOSITION seulement : la légende de la previs (couleur par entité / matière, faisceaux exclus) et les
 # trois caméras de couverture CALCULÉES depuis la caméra du plan — rien n'est rangé, capturé ni créé (ces gestes
@@ -2120,6 +2136,13 @@ OUTILS: dict[str, dict] = {
                                   "croquis, image de production, vidéo, prompts encadrés comme une preuve). Ne génère "
                                   "rien.",
                    "schema": _o({"chapitre": dict(_T, description="identifiant du chapitre (facultatif)")})},
+    # t408 : les modèles vidéo des menus, leurs bornes et leur prix (boîte « chapitres », lecture)
+    "modeles_video": {"nature": "lecture", "fn": modeles_video,
+                      "description": "Les modèles vidéo que l'application propose (Seedance, Kling, LTX 2.5 Pro et "
+                                     "Fast, Veo…) : id, voie, disponibilité selon les clés, durées, formats, "
+                                     "résolutions, image de fin, prix par seconde. L'id sert de `video_model` d'un "
+                                     "devis. Ne génère rien.",
+                      "schema": _o({})},
     # t333 + t338 : la previs colorée (légende) et la couverture proposée d'un plan (boîte « plateau », lecture)
     "plateau_previs": {"nature": "lecture", "fn": plateau_previs,
                        "description": "Lit la previs du Plateau 3D d'un plan (ou d'une scène) : la légende des "

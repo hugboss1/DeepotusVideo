@@ -11524,43 +11524,9 @@ async def list_video_models():
     pricing.json overrides; the card badge and topbar ≈$ derive from it.
     t406 : a model its provider shut down (`retire`) is left out — the select
     would otherwise blame a missing key — and so is a retired twin."""
-    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL, est_retire
-    from app.services import pricing as _pricing, catalogue_ia as _CI
-    p = _pricing.load()
-    rates = p.get("video_usd_per_s") or {}
-    out = []
-    for mid, m in VIDEO_MODELS.items():
-        if est_retire(m):
-            continue
-        available = (settings.has_gemini if m["provider"] == "google"
-                     else bool(settings.FAL_KEY))
-        out.append({
-            "id": mid,
-            "label": m["label"],
-            "provider": m["provider"],
-            "available": available,
-            "durations": m["durations"],
-            "ratios": m["ratios"],
-            "resolutions": m["resolutions"],
-            "end_image": m["end_image"],
-            "seed": m["seed"],
-            "audio_included": (m["provider"] == "google"),
-            "usd_per_s": rates.get(mid) or {},
-            # t184 (G2) : la voie et sa clé (catalogue_ia), le jumeau Veo de
-            # l'autre voie, et `fl` = ALIAS de `end_image` (accepte une image
-            # de fin, par l'endpoint i2v ou par un endpoint first-last séparé).
-            "voie": _CI.voie_de(m),
-            "cle": _CI.cle_de(m),
-            "jumeau": _CI.jumeau_actif(mid),
-            "fl": _CI.accepte_fin(m),
-        })
-    # P1 #9 (28/09/2026) : le plafond EFFECTIF des secondes générées (0 = aucun)
-    # — la vignette de prix du Studio borne la durée comme la garde.
-    return {"models": out, "default": DEFAULT_VIDEO_MODEL,
-            "max_gen_s": _pricing._reglage_fini(p, "video_max_gen_s"),
-            # repli du serveur quand un modèle n'a pas de tarif (table surchargée) :
-            # le forfait historique `seedance_usd_per_s` (pricing.estimate)
-            "legacy_usd_per_s": p.get("seedance_usd_per_s")}
+    # t408 : le calcul vit dans catalogue_ia.modeles_video (partagé avec l'outil d'agent `modeles_video`)
+    from app.services import catalogue_ia as _CI
+    return _CI.modeles_video()
 
 
 @router.get("/image-models")

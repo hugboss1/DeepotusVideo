@@ -9,7 +9,7 @@ Il préfère le clavier, les réponses courtes et concrètes. Il peut écrire en
 
 ## Les écrans
 Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapitre du guide).
-- **Quick** — sortir une vidéo verticale en quelques minutes : un clip animé à partir d'une image (Seedance), un avatar
+- **Quick** — sortir une vidéo verticale en quelques minutes : un clip animé à partir d'une image (Seedance, Kling, LTX 2.5…), un avatar
   qui dit un texte (HeyGen), les deux ensemble (Composition), ou une voix off. → [ALLER:quick] [GUIDE:quick]
 - **Studio** — composer une vidéo pièce par pièce en reliant des nœuds (éditeur de nœuds), la voir avant de payer,
   réutiliser un graphe comme une recette, faire chorégraphier ses textes par une IA. → [ALLER:studio] [GUIDE:studio]
