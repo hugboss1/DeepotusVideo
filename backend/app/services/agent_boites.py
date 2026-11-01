@@ -84,7 +84,8 @@ BOITES: dict[str, dict] = {
     # l'agent « mcp » (Claude Code) ; pas par Campagnes, dont la fixture est figée et le métier est la diffusion
     "chapitres": {
         "libelle": "agent.boites.chapitres",
-        "outils": ["lire_revue_plan", "lire_bible", "lire_plans", "lire_passes_plan"],   # t334 : + les passes Blender du plan
+        "outils": ["lire_revue_plan", "lire_bible", "lire_plans", "lire_passes_plan",   # t334 : + les passes Blender du plan
+                   "modeles_video"],   # t408 : + les modèles vidéo des menus et leur prix
         "agents": ["mcp"],
         "mobile": False,
     },

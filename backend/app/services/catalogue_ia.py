@@ -116,6 +116,48 @@ def cle_de(m: dict) -> str:
     return CLES[voie_de(m)]
 
 
+def modeles_video() -> dict:
+    """t408 : la réponse de GET /api/video-models, partagée par la route et l'outil d'agent `modeles_video` (qui
+    n'importe pas les routes). Chaque entrée du registre avec `available` (fal : FAL_KEY ; Google : GEMINI_API_KEY),
+    hors modèles retirés et jumeaux retirés (t406) ; `usd_per_s` suit les surcharges de pricing.json."""
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
+    p = P.load()
+    rates = p.get("video_usd_per_s") or {}
+    out = []
+    for mid, m in VIDEO_MODELS.items():
+        if est_retire(m):
+            continue
+        available = (settings.has_gemini if m["provider"] == "google"
+                     else bool(settings.FAL_KEY))
+        out.append({
+            "id": mid,
+            "label": m["label"],
+            "provider": m["provider"],
+            "available": available,
+            "durations": m["durations"],
+            "ratios": m["ratios"],
+            "resolutions": m["resolutions"],
+            "end_image": m["end_image"],
+            "seed": m["seed"],
+            "audio_included": (m["provider"] == "google"),
+            "usd_per_s": rates.get(mid) or {},
+            # t184 (G2) : la voie et sa clé, le jumeau Veo de l'autre voie, et
+            # `fl` = ALIAS de `end_image` (accepte une image de fin, par
+            # l'endpoint i2v ou par un endpoint first-last séparé).
+            "voie": voie_de(m),
+            "cle": cle_de(m),
+            "jumeau": jumeau_actif(mid),
+            "fl": accepte_fin(m),
+        })
+    # P1 #9 (28/09/2026) : le plafond EFFECTIF des secondes générées (0 = aucun)
+    # — la vignette de prix du Studio borne la durée comme la garde.
+    return {"models": out, "default": DEFAULT_VIDEO_MODEL,
+            "max_gen_s": P._reglage_fini(p, "video_max_gen_s"),
+            # repli du serveur quand un modèle n'a pas de tarif (table surchargée) :
+            # le forfait historique `seedance_usd_per_s` (pricing.estimate)
+            "legacy_usd_per_s": p.get("seedance_usd_per_s")}
+
+
 def _videos(seulement_fin: bool) -> list[dict]:
     """Une entrée par id de fal_service.VIDEO_MODELS ; `usd` = tarif 720p
     ($/s, pricing.video_rate : colonne « * » ou la plus chère à défaut)."""

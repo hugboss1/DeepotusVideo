@@ -402,7 +402,8 @@ print("\n[A] l'outil d'agent")
 check("A1 la boîte « chapitres » porte lire_revue_plan (lecture), déclarée par le seul agent « mcp » (t345 : + bible, plans ; t334 : + passes Blender) "
       "; registre sain",
       B.BOITES.get("chapitres") == {"libelle": "agent.boites.chapitres",
-                                    "outils": ["lire_revue_plan", "lire_bible", "lire_plans", "lire_passes_plan"],
+                                    "outils": ["lire_revue_plan", "lire_bible", "lire_plans", "lire_passes_plan",
+                                               "modeles_video"],   # t408
                                     "agents": ["mcp"], "mobile": False}
       and ao.OUTILS["lire_revue_plan"]["nature"] == "lecture" and B.verifier() == [], B.verifier())
 ctx = ao.Ctx(cid="c1")

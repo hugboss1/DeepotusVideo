@@ -132,6 +132,8 @@ DEFAULTS = {
         "gemini-omni-flash":   {"720p": 0.10, "1080p": 0.15},
         # LTX 2.5 Fast : audio natif inclus à toutes les résolutions
         "ltx-2.5-fast":        {"720p": 0.09, "1080p": 0.13},
+        # t408 : LTX 2.5 Pro (page fal relue le 01/11), audio natif inclus
+        "ltx-2.5-pro":         {"720p": 0.12, "1080p": 0.17},
         "kling-v3-turbo-pro":  {"*": 0.14},
         # t407 — pages fal relues le 01/11/2026. Kling 4.0 : 0,157 $/s 720p,
         # 0,235 $/s 1080p (l'i2v ; le tarif réduit « with video references »

@@ -80,6 +80,8 @@ EXPECTED_IDS = {
     "gemini-omni-flash-google",
     # t407 : Kling 4.0 et FLUX 3 Max (fal, 16/10/2026)
     "kling-v4", "flux-3-max",
+    # t408 : LTX 2.5 Pro (variante qualité de LTX 2.5)
+    "ltx-2.5-pro",
 }
 # t406 : les Veo Google, arrêtés le 22/10/2026, restent au registre mais sortent de /video-models
 RETIRES = {"veo-3.1-google", "veo-3.1-fast-google", "veo-3.1-lite-google"}
@@ -208,6 +210,22 @@ check("f3m_sans_negatif", "negative_prompt" not in a and any("negative" in n for
 _, a2, _ = args("flux-3-max", image_url="u", prompt="p", duration=25, aspect_ratio="4:3", resolution="720p")
 check("f3m_plafond_20_ratio_hors_liste", a2.get("duration") == 20 and "aspect_ratio" not in a2, repr(a2))
 
+# t408 — LTX 2.5 Pro (OpenAPI fal relu le 01/11/2026) : image_url + end_image_url sur le MÊME endpoint, durées 6/8/10
+# (enum), 9:16/16:9, 720p/1080p, interrupteur generate_audio (audio natif : coupé, le pipeline possède le son), ni
+# seed ni négatif.
+ep, a, notes = args("ltx-2.5-pro", image_url="u", prompt="p", negative_prompt="n", end_image_url="e",
+                    duration=7, aspect_ratio="9:16", resolution="1080p", seed=4)
+check("ltxp_endpoint", ep == "lightricks/ltx-2.5/image-to-video/pro", repr(ep))
+check("ltxp_debut_fin_7_vers_8", a.get("image_url") == "u" and a.get("end_image_url") == "e"
+      and a.get("duration") == 8, repr(a))
+check("ltxp_ratio_resolution_audio_coupe", a.get("aspect_ratio") == "9:16" and a.get("resolution") == "1080p"
+      and a.get("generate_audio") is False, repr(a))
+check("ltxp_ni_seed_ni_negatif", not {"seed", "negative_prompt"} & set(a)
+      and any("seed" in n for n in notes) and any("negative" in n for n in notes), f"{a} {notes}")
+_, a2, _ = args("ltx-2.5-pro", image_url="u", prompt="p", duration=15, aspect_ratio="1:1", resolution="720p")
+check("ltxp_plafond_10_ratio_hors_liste", a2.get("duration") == 10 and "aspect_ratio" not in a2
+      and a2.get("resolution") == "720p", repr(a2))
+
 ep, a, _ = args("pixverse-v6", image_url="u", prompt="p", duration=6,
                 aspect_ratio="9:16", resolution="720p", seed=5)
 check("pixverse", ep == "fal-ai/pixverse/v6/image-to-video" and a.get("duration") == 8
@@ -291,6 +309,16 @@ except Exception as e:  # noqa: BLE001
     l4 = {"_temoin": temoin(e)}
 check("estimation_k4", l4.get("provider") == "fal" and abs(l4.get("usd", -1) - 5 * 0.235) < 1e-6
       and "Kling 4.0" in l4.get("label", ""), repr(l4))
+# t408 — LTX 2.5 Pro (page fal relue le 01/11/2026) : 0,12 $/s 720p, 0,17 $/s 1080p, audio inclus
+check("prix_ltxp", (pricing.video_rate("ltx-2.5-pro", "720p", p), pricing.video_rate("ltx-2.5-pro", "1080p", p))
+      == (0.12, 0.17))
+try:
+    lp = pricing.estimate({"kind": "seedance", "duration_s": 8, "model": "ltx-2.5-pro", "resolution": "720p"},
+                          p)["breakdown"][0]
+except Exception as e:  # noqa: BLE001
+    lp = {"_temoin": temoin(e)}
+check("estimation_ltxp", lp.get("provider") == "fal" and abs(lp.get("usd", -1) - 8 * 0.12) < 1e-6
+      and "LTX 2.5 Pro" in lp.get("label", ""), repr(lp))
 try:
     line = pricing.estimate({"kind": "seedance", "duration_s": 5, "model": "veo-3.1-lite-google",
                              "resolution": "720p"}, p)["breakdown"][0]
@@ -348,7 +376,7 @@ check("endpoint_prix_s2", ((by_id.get("seedance-2") or {}).get("usd_per_s") or {
 check("endpoint_prix_s25", ((by_id.get("seedance-2.5") or {}).get("usd_per_s") or {}).get("720p") == 0.473)
 check("endpoint_s25_dispo", (by_id.get("seedance-2.5") or {}).get("available") is True)
 # t407 : les deux neufs suivent la clé fal, avec leur prix et l'image de fin
-for _mid, _px in (("kling-v4", 0.235), ("flux-3-max", 0.29)):
+for _mid, _px in (("kling-v4", 0.235), ("flux-3-max", 0.29), ("ltx-2.5-pro", 0.17)):   # t408 : + LTX 2.5 Pro
     _m = by_id.get(_mid) or {}
     check(f"endpoint_{_mid}_dispo_prix_fin", _m.get("available") is True and _m.get("end_image") is True
           and (_m.get("usd_per_s") or {}).get("1080p") == _px, repr(_m))

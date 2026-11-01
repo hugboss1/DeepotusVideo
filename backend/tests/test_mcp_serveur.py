@@ -217,7 +217,8 @@ outils = c.get("/api/mcp/outils").json()["outils"]
 noms = {o["name"] for o in outils}
 ATTENDUS = {"chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur", "lire_recette", "lire_revue_plan",
             "lire_bible", "lire_plans", "pieces_analyser", "budgets_triangles", "lire_texte_image", "lire_piste_clics",
-            "veille_lire", "deviser_generation", "lister_espaces", "lancer", "suivre_lancement"}
+            "veille_lire", "deviser_generation", "lister_espaces", "lancer", "suivre_lancement",
+            "modeles_video"}   # t408
 INTERDITS = {"ecrire_dossier", "creer_brouillons", "proposer_porte", "pointer", "lire_document", "veille_collecter",
              "prospects_chercher", "prospects_qualifier", "sequence_planifier", "rediger_reponse", "lire_conversation",
              "deviser_contenu_neuf", "calques_illustration", "proposer_decoupe", "concurrents_pages", "veille_apify"}
@@ -265,6 +266,13 @@ r = appel("lire_plans", {"chapitre": "ch1"}).json()
 check("2.18 lire_plans du chapitre : le plan, ses textes encadrés",
       r["ok"] and r["donnees"]["plans"][0]["cadrage"] == "wide" and "Ana court" in r["donnees"]["textes"], r)
 check("2.19 lire_plans : un id avec un dossier est refusé", appel("lire_plans", {"chapitre": "../x"}).json()["ok"] is False)
+# t408 : les modèles vidéo des menus (même liste que /api/video-models), avec LTX 2.5 Pro et Fast et leur prix
+r = appel("modeles_video").json()
+_mv = {m["id"]: m for m in ((r.get("donnees") or {}).get("modeles") or [])}
+check("2.20 modeles_video : la liste des menus, LTX 2.5 Pro et Fast avec leurs prix, aucun modèle retiré",
+      r["ok"] and (_mv.get("ltx-2.5-pro") or {}).get("usd_per_s") == {"720p": 0.12, "1080p": 0.17}
+      and (_mv.get("ltx-2.5-pro") or {}).get("durations") == [6, 8, 10] and "ltx-2.5-fast" in _mv
+      and "veo-3.1-google" not in _mv and r["donnees"]["defaut"] == "seedance-2.5", r)
 
 # ── 3. aucune dépense sans l'utilisateur ───────────────────────────────────────────────────────────────────────────
 print("\n[3] aucune dépense sans l'utilisateur")
