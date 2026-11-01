@@ -44,8 +44,17 @@ SEEDANCE_LITE_I2V = "fal-ai/bytedance/seedance/v1/lite/image-to-video"
 # ListModels (plan docs/superpowers/plans/2026-07-22-modeles-generation-onthefly.md).
 # "gemini-omni-flash-preview" was probed the same day and cannot generate
 # video through generateContent ("This model only supports Interactions
-# API") — the Google-native video path is Veo 3.1 via predictLongRunning
-# (submit/poll/download proven live, see google_video.py).
+# API") — the Google-native video path was then Veo 3.1 via
+# predictLongRunning. t406 (01/11/2026) : Google a ARRÊTÉ les trois Veo 3.1
+# preview le 22/10/2026 (doc vidéo ; 404 « no longer available » relevés le
+# 01/11) ; la voie Google directe est désormais Gemini Omni Flash
+# (`gemini-omni-1.1-flash`) par l'Interactions API (google_video.py).
+# t406 — clés facultatives du retrait :
+#   retire       date ISO de l'arrêt par le fournisseur : l'entrée reste
+#                RÉSOLUBLE (anciennes recettes, graphes) mais sort des listes
+#                (/video-models, catalogue) et tout tir est refusé (410) avant
+#                la clé et la dépense — refus_retire()
+#   remplacant   id du modèle proposé à la place dans le refus
 #
 # Caps come from each endpoint's OpenAPI schema (fal) / API probe (Google):
 #   durations    native seconds the model accepts (longer targets are ffmpeg-
@@ -201,8 +210,8 @@ VIDEO_MODELS: dict = {
         "resolutions": ["480p", "720p", "1080p"], "end_image": True, "seed": True,
         "audio_param": "audio",
     },
-    # Gemini Omni Flash v1.1 servi PAR FAL (voie fal ; l'API Google directe ne
-    # le sert pas en vidéo, voir l'en-tête W-a) : durée entière 3..10 s, ni
+    # Gemini Omni Flash v1.1 servi PAR FAL (voie fal ; jumeau de
+    # gemini-omni-flash-google, t406) : durée entière 3..10 s, ni
     # seed ni interrupteur audio ; 360p et 4k existent mais restent hors
     # registre (720p/1080p seulement, comme les autres).
     "gemini-omni-flash": {
@@ -233,28 +242,60 @@ VIDEO_MODELS: dict = {
         "resolutions": None, "end_image": False, "seed": False,
         "audio_param": None,
     },
+    # t406 (01/11/2026) — Gemini Omni Flash 1.1 par la CLÉ GOOGLE (AI Studio,
+    # Interactions API, google_video.py) : les crédits Google au lieu du solde
+    # fal. Caps du jumeau fal (3..10 s, 9:16/16:9, début + fin) ; l'API a aussi
+    # 360p et 4k (hors registre, comme le jumeau). Ni seed ni négatif.
+    "gemini-omni-flash-google": {
+        "label": "Gemini Omni Flash (Google)", "provider": "google", "family": "gemini_omni",
+        "endpoint": "gemini-omni-1.1-flash",
+        "durations": list(range(3, 11)), "ratios": ["9:16", "16:9"],
+        "resolutions": ["720p", "1080p"], "end_image": True, "seed": False,
+        "audio_param": None,
+    },
+    # Veo 3.1 preview par la clé Google : ARRÊTÉS par Google le 22/10/2026
+    # (t406, voir l'en-tête) — résolubles, hors des listes, refusés au tir.
     "veo-3.1-google": {
         "label": "Veo 3.1 (Google)", "provider": "google", "family": "veo_google",
         "endpoint": "veo-3.1-generate-preview",
         "durations": [4, 6, 8], "ratios": ["9:16", "16:9"],
         "resolutions": ["720p", "1080p"], "end_image": False, "seed": False,
-        "audio_param": None,
+        "audio_param": None, "retire": "2026-10-22", "remplacant": "gemini-omni-flash-google",
     },
     "veo-3.1-fast-google": {
         "label": "Veo 3.1 Fast (Google)", "provider": "google", "family": "veo_google",
         "endpoint": "veo-3.1-fast-generate-preview",
         "durations": [4, 6, 8], "ratios": ["9:16", "16:9"],
         "resolutions": ["720p", "1080p"], "end_image": False, "seed": False,
-        "audio_param": None,
+        "audio_param": None, "retire": "2026-10-22", "remplacant": "gemini-omni-flash-google",
     },
     "veo-3.1-lite-google": {
         "label": "Veo 3.1 Lite (Google)", "provider": "google", "family": "veo_google",
         "endpoint": "veo-3.1-lite-generate-preview",
         "durations": [4, 6, 8], "ratios": ["9:16", "16:9"],
         "resolutions": ["720p", "1080p"], "end_image": False, "seed": False,
-        "audio_param": None,
+        "audio_param": None, "retire": "2026-10-22", "remplacant": "gemini-omni-flash-google",
     },
 }
+
+
+def est_retire(m: dict) -> bool:
+    """t406 — le fournisseur a arrêté ce modèle (`retire`) : hors des listes,
+    refusé au tir."""
+    return bool((m or {}).get("retire"))
+
+
+def refus_retire(m: dict, lang: "Optional[str]" = None) -> str:
+    """t406 — le texte du refus d'un modèle retiré (messages.json :
+    ia.video.retire), qui date l'arrêt et nomme le remplaçant."""
+    from app import i18n as _i18n
+    lang = lang or _i18n.langue_ui()
+    iso = str(m.get("retire") or "")
+    morceaux = iso.split("-")
+    date = "/".join(reversed(morceaux)) if lang == "fr" and len(morceaux) == 3 else iso
+    rempl = VIDEO_MODELS.get(m.get("remplacant") or "") or {}
+    return _i18n.msg("ia.video.retire", lang, model=m.get("label", m.get("id", "?")), date=date,
+                     remplacant=rempl.get("label", m.get("remplacant") or "?"))
 
 
 def accepte_fin(m: dict) -> bool:
@@ -268,7 +309,7 @@ def refus_fin(label: str, lang: "Optional[str]" = None) -> str:
     """Le texte du refus « pas d'image de fin » (messages.json :
     ia.video.pas_de_fin), avec la liste des modèles qui en acceptent une."""
     from app import i18n as _i18n
-    modeles = ", ".join(m["label"] for m in VIDEO_MODELS.values() if accepte_fin(m))
+    modeles = ", ".join(m["label"] for m in VIDEO_MODELS.values() if accepte_fin(m) and not est_retire(m))
     return _i18n.msg("ia.video.pas_de_fin", lang or _i18n.langue_ui(), model=label, modeles=modeles)
 
 

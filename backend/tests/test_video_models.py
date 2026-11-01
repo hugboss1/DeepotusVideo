@@ -76,7 +76,11 @@ EXPECTED_IDS = {
     # H3 Max, Wan 3.0, Gemini Omni Flash (fal), LTX 2.5 Fast, Kling v3 Turbo Pro
     "veo-3.1-fal", "veo-3.1-lite-fal", "h3-max", "wan-3.0", "gemini-omni-flash",
     "ltx-2.5-fast", "kling-v3-turbo-pro",
+    # t406 : Gemini Omni Flash par la clé Google (Interactions API)
+    "gemini-omni-flash-google",
 }
+# t406 : les Veo Google, arrêtés le 22/10/2026, restent au registre mais sortent de /video-models
+RETIRES = {"veo-3.1-google", "veo-3.1-fast-google", "veo-3.1-lite-google"}
 
 # ── registre ────────────────────────────────────────────────────────────────
 print("\n[registre]")
@@ -287,10 +291,10 @@ except Exception as e:  # noqa: BLE001
     out = {"_temoin": temoin(e)}
 check("endpoint_defaut_25", out.get("default") == "seedance-2.5", repr(out.get("default")))
 by_id = {m["id"]: m for m in out.get("models") or []}
-check("endpoint_ids", set(by_id) == EXPECTED_IDS, repr(set(by_id) ^ EXPECTED_IDS))
+check("endpoint_ids", set(by_id) == EXPECTED_IDS - RETIRES, repr(set(by_id) ^ (EXPECTED_IDS - RETIRES)))
 check("endpoint_v1_dispo_avec_fal", (by_id.get("seedance-v1-pro") or {}).get("available") is True)
-check("endpoint_veo_google_indispo", (by_id.get("veo-3.1-google") or {}).get("available") is False)
-check("endpoint_veo_google_audio_inclus", (by_id.get("veo-3.1-google") or {}).get("audio_included") is True)
+check("endpoint_omni_google_indispo", (by_id.get("gemini-omni-flash-google") or {}).get("available") is False)
+check("endpoint_omni_google_audio_inclus", (by_id.get("gemini-omni-flash-google") or {}).get("audio_included") is True)
 check("endpoint_prix_s2", ((by_id.get("seedance-2") or {}).get("usd_per_s") or {}).get("1080p") == 0.682)
 check("endpoint_prix_s25", ((by_id.get("seedance-2.5") or {}).get("usd_per_s") or {}).get("720p") == 0.473)
 check("endpoint_s25_dispo", (by_id.get("seedance-2.5") or {}).get("available") is True)
@@ -300,7 +304,7 @@ try:
 except Exception as e:  # noqa: BLE001
     out2 = {"_temoin": temoin(e)}
 check("endpoint_cle_google_bascule",
-      {m["id"]: m for m in out2.get("models") or []}.get("veo-3.1-google", {}).get("available") is True)
+      {m["id"]: m for m in out2.get("models") or []}.get("gemini-omni-flash-google", {}).get("available") is True)
 settings.GEMINI_API_KEY = ""
 
 check("aucun_appel_n_a_plante", _plantages == 0, f"{_plantages} appel(s) ont levé")

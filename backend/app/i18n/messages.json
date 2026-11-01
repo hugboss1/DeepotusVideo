@@ -2,6 +2,7 @@
   "i18n.langue.inconnue": {"fr": "Langue inconnue : {lang_demandee} (fr ou en).", "en": "Unknown language: {lang_demandee} (fr or en)."},
   "i18n.langue.ecriture": {"fr": "Impossible d'enregistrer la langue dans le fichier .env : {erreur}", "en": "Could not save the language to the .env file: {erreur}"},
   "ia.video.pas_de_fin": {"fr": "{model} n'accepte pas d'image de fin : choisissez un modèle « début et fin » ({modeles}) — rien n'a été lancé.", "en": "{model} has no last-frame input: pick a \"first and last frame\" model ({modeles}) — nothing was started."},
+  "ia.video.retire": {"fr": "{model} a été arrêté par son fournisseur le {date} : choisissez {remplacant} — rien n'a été lancé.", "en": "{model} was shut down by its provider on {date}: pick {remplacant} — nothing was started."},
   "ia.cle.absente_tir": {"fr": "{nom_cle} non configurée (Réglages) pour {modele} — rien n'a été lancé.", "en": "{nom_cle} is not configured (Settings) for {modele} — nothing was started."},
   "photolab.ia.aucun_document": {"fr": "Aucun document ouvert dans le Photolab — rien n'a été lancé.", "en": "No document is open in the Photolab — nothing was started."},
   "photolab.ia.calque_illisible": {"fr": "Calque illisible : {calque} — rien n'a été lancé.", "en": "Unreadable layer: {calque} — nothing was started."},

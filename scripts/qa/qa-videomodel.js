@@ -44,7 +44,9 @@ const FAL = lire('backend/app/services/fal_service.py');
 const DEFAULT_VIDEO_MODEL = (FAL.match(/^DEFAULT_VIDEO_MODEL = "([^"]+)"/m) || [])[1] || '?';
 const I_VM = FAL.indexOf('VIDEO_MODELS: dict = {');
 const BLOC_VM = I_VM >= 0 ? FAL.slice(I_VM, FAL.indexOf('\n}\n', I_VM)) : '';
-const IDS_REPO = [...BLOC_VM.matchAll(/^    "([^"]+)": \{/gm)].map(m => m[1]);
+/* t406 : une entrée `retire` (arrêtée par son fournisseur) reste au registre mais sort de /api/video-models */
+const IDS_RETIRES = new Set([...BLOC_VM.matchAll(/^    "([^"]+)": \{[^}]*?"retire":/gm)].map(m => m[1]));
+const IDS_REPO = [...BLOC_VM.matchAll(/^    "([^"]+)": \{/gm)].map(m => m[1]).filter(id => !IDS_RETIRES.has(id));
 /* SMOKE : le VRAI catalogue du backend visé, tout rendu disponible (le backend de preuve n'a pas de clé) */
 let MOCK_MODELS = null;
 
@@ -332,7 +334,7 @@ let MOCK_MODELS = null;
     T('E1 /api/video-models réel : ' + IDS_REPO.length + ' modèles (fal_service.py), défaut ' + DEFAULT_VIDEO_MODEL,
       JSON.stringify(ids) === JSON.stringify(IDS_REPO) && vm.default === DEFAULT_VIDEO_MODEL, JSON.stringify(ids));
     T('E2 clés : fal ET google available',
-      av['seedance-2'] === true && av['veo-3.1-lite-google'] === true, JSON.stringify(av));
+      av['seedance-2'] === true && av['gemini-omni-flash-google'] === true, JSON.stringify(av));
   }
 
   /* W8 — console propre */

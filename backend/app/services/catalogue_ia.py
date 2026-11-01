@@ -88,12 +88,22 @@ def _images() -> list[dict]:
 
 # t184 (G2) : Veo 3.1 a deux voies — fal (FAL_KEY) et l'API Google directe
 # (GEMINI_API_KEY). Chaque id fal a pour jumeau l'id Google, et inversement.
+# t406 : Gemini Omni Flash a aussi ses deux voies ; les Veo Google, arrêtés le
+# 22/10/2026, restent nommés ici mais jumeau_actif ne les propose plus.
 JUMEAUX_VIDEO = {"veo-3.1-fast-fal": "veo-3.1-fast-google", "veo-3.1-fal": "veo-3.1-google",
-                 "veo-3.1-lite-fal": "veo-3.1-lite-google"}
+                 "veo-3.1-lite-fal": "veo-3.1-lite-google", "gemini-omni-flash": "gemini-omni-flash-google"}
 JUMEAUX_VIDEO.update({v: k for k, v in list(JUMEAUX_VIDEO.items())})
 
 
-from app.services.fal_service import accepte_fin  # noqa: E402,F401  (source unique, réexportée)
+from app.services.fal_service import accepte_fin, est_retire  # noqa: E402,F401  (source unique, réexportée)
+
+
+def jumeau_actif(mid: str):
+    """Le jumeau de l'autre voie, ou None quand il n'y en a pas ou que son
+    fournisseur l'a arrêté (t406)."""
+    from app.services.fal_service import VIDEO_MODELS
+    j = JUMEAUX_VIDEO.get(mid)
+    return None if (j is None or est_retire(VIDEO_MODELS.get(j))) else j
 
 
 def voie_de(m: dict) -> str:
@@ -113,10 +123,10 @@ def _videos(seulement_fin: bool) -> list[dict]:
     p = P.load()
     out = []
     for mid, m in VIDEO_MODELS.items():
-        if seulement_fin and not accepte_fin(m):
+        if est_retire(m) or (seulement_fin and not accepte_fin(m)):
             continue
         usd = P.video_rate(mid, "720p", p) or 0.0
-        jumeau = JUMEAUX_VIDEO.get(mid)
+        jumeau = jumeau_actif(mid)
         if seulement_fin and jumeau and not accepte_fin(VIDEO_MODELS.get(jumeau) or {}):
             jumeau = None   # le jumeau doit lui-même accepter une fin (Veo Google : non)
         out.append({"id": mid, "label": m["label"],
