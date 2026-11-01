@@ -174,14 +174,18 @@ check("h3, wan, omni, ltx dans FL", {"h3-max", "wan-3.0", "gemini-omni-flash", "
 check("kling turbo, pixverse, Veo Google exclus de FL",
       not ({"kling-v3-turbo-pro", "pixverse-v6", "veo-3.1-google"} & fl), fl)
 i2v = {e["id"]: e for e in CI.lister("video_i2v")}
-check("video_i2v = tout le registre", set(i2v) == set(F.VIDEO_MODELS), set(i2v) ^ set(F.VIDEO_MODELS))
-for f_, g_ in (("veo-3.1-fast-fal", "veo-3.1-fast-google"), ("veo-3.1-fal", "veo-3.1-google"),
-               ("veo-3.1-lite-fal", "veo-3.1-lite-google")):
-    check(f"jumeau {f_} <-> {g_}", i2v[f_]["jumeau"] == g_ and i2v[g_]["jumeau"] == f_,
-          (i2v[f_].get("jumeau"), i2v[g_].get("jumeau")))
-check("veo google voie gemini, clé GEMINI_API_KEY, indispo sans clé",
-      i2v["veo-3.1-fast-google"]["voie"] == "gemini" and i2v["veo-3.1-fast-google"]["cle"] == "GEMINI_API_KEY"
-      and i2v["veo-3.1-fast-google"]["dispo"] is False, i2v["veo-3.1-fast-google"])
+# t406 : les Veo Google, arrêtés par Google le 22/10/2026, sortent du catalogue
+_actifs = {k for k, m in F.VIDEO_MODELS.items() if not F.est_retire(m)}
+check("video_i2v = tout le registre sauf les retirés", set(i2v) == _actifs, set(i2v) ^ _actifs)
+for f_ in ("veo-3.1-fast-fal", "veo-3.1-fal", "veo-3.1-lite-fal"):
+    check(f"{f_} : plus de jumeau Google (retiré)", i2v[f_]["jumeau"] is None, i2v[f_].get("jumeau"))
+check("jumeau gemini-omni-flash <-> gemini-omni-flash-google",
+      i2v["gemini-omni-flash"]["jumeau"] == "gemini-omni-flash-google"
+      and i2v["gemini-omni-flash-google"]["jumeau"] == "gemini-omni-flash",
+      (i2v["gemini-omni-flash"].get("jumeau"), i2v["gemini-omni-flash-google"].get("jumeau")))
+check("omni google voie gemini, clé GEMINI_API_KEY, indispo sans clé",
+      i2v["gemini-omni-flash-google"]["voie"] == "gemini" and i2v["gemini-omni-flash-google"]["cle"] == "GEMINI_API_KEY"
+      and i2v["gemini-omni-flash-google"]["dispo"] is False, i2v["gemini-omni-flash-google"])
 check("nouveaux : voie fal, FAL_KEY, unité s, prix 720p > 0, note vide",
       all(i2v[m]["voie"] == "fal" and i2v[m]["cle"] == "FAL_KEY" and i2v[m]["unite"] == "s"
           and i2v[m]["usd"] > 0 and i2v[m]["note"] == "" for m in NOUVEAUX),
@@ -280,13 +284,15 @@ check("omni : 12 s -> 10, pas de seed ni d'audio", a.get("duration") == 10 and "
 print("[5] /video-models : voie, clé, jumeau, fl")
 out = asyncio.run(R.list_video_models())
 by = {m["id"]: m for m in out.get("models") or []}
-check("ids = registre, défaut inchangé", set(by) == set(V) and out.get("default") == "seedance-2.5")
+check("ids = registre sauf les retirés (t406), défaut inchangé",
+      set(by) == {k for k, m in V.items() if not F.est_retire(m)} and out.get("default") == "seedance-2.5")
 check("veo fast fal : fl ET end_image vrais (Quick l'accepte)", by["veo-3.1-fast-fal"].get("fl") is True
       and by["veo-3.1-fast-fal"].get("end_image") is True, by["veo-3.1-fast-fal"])
 check("kling turbo : fl faux", by["kling-v3-turbo-pro"].get("fl") is False and by["kling-v3-turbo-pro"].get("end_image") is False)
-check("veo google : voie gemini, cle GEMINI_API_KEY, jumeau fal",
-      by["veo-3.1-google"].get("voie") == "gemini" and by["veo-3.1-google"].get("cle") == "GEMINI_API_KEY"
-      and by["veo-3.1-google"].get("jumeau") == "veo-3.1-fal", by["veo-3.1-google"])
+check("omni google : voie gemini, cle GEMINI_API_KEY, jumeau fal, fl",
+      by["gemini-omni-flash-google"].get("voie") == "gemini" and by["gemini-omni-flash-google"].get("cle") == "GEMINI_API_KEY"
+      and by["gemini-omni-flash-google"].get("jumeau") == "gemini-omni-flash"
+      and by["gemini-omni-flash-google"].get("fl") is True, by["gemini-omni-flash-google"])
 check("fl == end_image pour chaque modèle (le bascule de Quick lit end_image)",
       all(m.get("fl") == m.get("end_image") for m in by.values()),
       [i for i, m in by.items() if m.get("fl") != m.get("end_image")])
@@ -353,8 +359,31 @@ st, js = call("/generate", corps("veo-3.1-fast-fal"))
 check("TÉMOIN : avec FAL_KEY, Veo fast + image de fin atteint _plafond (402 de l'espion)",
       st == 402 and len(PLAF) == 1, f"{st} {js} {PLAF}")
 
+# ── [6a] t406 : un Veo Google (arrêté le 22/10/2026) est refusé en 410 AVANT la clé et _plafond
+print("[6a] Veo Google retirés : 410 qui nomme Gemini Omni Flash (Google), avant la clé et _plafond")
+settings.GEMINI_API_KEY = ""
+for mid in ("veo-3.1-google", "veo-3.1-fast-google", "veo-3.1-lite-google"):
+    PLAF.clear()
+    r0, d0 = RESEAU["n"], n_depenses()
+    b = dict(corps(mid), image_filename_end=None)
+    st, js = call("/generate", b)
+    check(f"{mid} -> 410 (même sans clé) qui nomme le remplaçant",
+          st == 410 and "Gemini Omni Flash (Google)" in str(js), f"{st} {js}")
+    check(f"{mid} : _plafond jamais appelé, zéro dépense, aucun réseau",
+          PLAF == [] and n_depenses() == d0 and RESEAU["n"] == r0, f"{PLAF} {d0} {RESEAU}")
+PLAF.clear()
+st, js = call("/generate", corps("gemini-omni-flash-google"))
+check("TÉMOIN : Omni Google sans GEMINI_API_KEY -> 503 nomme la clé, avant _plafond",
+      st == 503 and "GEMINI_API_KEY" in str(js) and PLAF == [], f"{st} {js} {PLAF}")
+settings.GEMINI_API_KEY = "test-google"
+PLAF.clear()
+st, js = call("/generate", corps("gemini-omni-flash-google"))
+check("TÉMOIN : Omni Google + image de fin avec la clé atteint _plafond (402 de l'espion)",
+      st == 402 and len(PLAF) == 1, f"{st} {js} {PLAF}")
+settings.GEMINI_API_KEY = ""
+
 # ── [6b] image de fin sur un modèle qui n'en accepte pas : 400 avant _plafond
-print("[6b] image de fin refusée en 400 AVANT _plafond (Kling turbo, Veo Google)")
+print("[6b] image de fin refusée en 400 AVANT _plafond (Kling turbo, PixVerse ; t406 : les Veo Google sont retirés)")
 settings.GEMINI_API_KEY = "test-google"
 
 
@@ -366,7 +395,7 @@ def routes_fin(model):
                                        "layout": "sequential"}))
 
 
-for mid in ("kling-v3-turbo-pro", "veo-3.1-fast-google"):
+for mid in ("kling-v3-turbo-pro", "pixverse-v6"):
     for chemin, b in routes_fin(mid):
         PLAF.clear()
         r0, d0 = RESEAU["n"], n_depenses()
@@ -396,7 +425,7 @@ def gabarit(model):
             {"template_id": TID, "slot_values": {"a": {"source_kind": "seedance", "seedance": corps(model)}}})
 
 
-for mid in ("kling-v3-turbo-pro", "veo-3.1-fast-google"):
+for mid in ("kling-v3-turbo-pro", "pixverse-v6"):
     chemin, b = gabarit(mid)
     PLAF.clear()
     r0, d0 = RESEAU["n"], n_depenses()

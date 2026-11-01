@@ -14110,5 +14110,45 @@
  "modèle 3D inconnu : {nom}": {
   "fr": "modèle 3D inconnu : {nom}",
   "en": "unknown 3D model: {nom}"
+ },
+ "google: {model} has no last-frame input": {
+  "fr": "google : {model} n'accepte pas d'image de fin",
+  "en": "google: {model} has no last-frame input"
+ },
+ "google: interaction {statut} — {v} ({iid})": {
+  "fr": "google : interaction {statut} — {v} ({iid})",
+  "en": "google: interaction {statut} — {v} ({iid})"
+ },
+ "google: no video in interaction {iid} — {v}": {
+  "fr": "google : aucune vidéo dans l'interaction {iid} — {v}",
+  "en": "google: no video in interaction {iid} — {v}"
+ },
+ "google: file poll HTTP {status_code} — {v}": {
+  "fr": "google : interrogation du fichier HTTP {status_code} — {v}",
+  "en": "google: file poll HTTP {status_code} — {v}"
+ },
+ "google: video file {v} FAILED": {
+  "fr": "google : le fichier vidéo {v} a échoué (FAILED)",
+  "en": "google: video file {v} FAILED"
+ },
+ "google: video file not ready after {POLL_TIMEOUT_S}s": {
+  "fr": "google : fichier vidéo toujours pas prêt après {POLL_TIMEOUT_S} s",
+  "en": "google: video file not ready after {POLL_TIMEOUT_S}s"
+ },
+ "google: inline video {video_url} unknown or already written": {
+  "fr": "google : vidéo inline {video_url} inconnue ou déjà écrite",
+  "en": "google: inline video {video_url} unknown or already written"
+ },
+ "google: no interaction id in {v}": {
+  "fr": "google : aucun identifiant d'interaction dans {v}",
+  "en": "google: no interaction id in {v}"
+ },
+ "google: video interaction timed out after {POLL_TIMEOUT_S}s ({iid})": {
+  "fr": "google : l'interaction vidéo a dépassé {POLL_TIMEOUT_S} s ({iid})",
+  "en": "google: video interaction timed out after {POLL_TIMEOUT_S}s ({iid})"
+ },
+ "google: file poll failed — {e}": {
+  "fr": "google : échec de l'interrogation du fichier — {e}",
+  "en": "google: file poll failed — {e}"
  }
 }

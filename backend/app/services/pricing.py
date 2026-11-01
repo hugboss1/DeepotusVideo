@@ -133,6 +133,15 @@ DEFAULTS = {
         # LTX 2.5 Fast : audio natif inclus à toutes les résolutions
         "ltx-2.5-fast":        {"720p": 0.09, "1080p": 0.13},
         "kling-v3-turbo-pro":  {"*": 0.14},
+        # t406 — Gemini Omni Flash par la clé Google (page tarifs relue le
+        # 01/11/2026) : sortie à 17,50 $ / 1M tokens, 5 792 tokens par seconde
+        # de 720p, soit 0,1014 $/s ; arrondi à 0,11 pour les tokens d'entrée
+        # (image à 1,50 $ / 1M) et de réflexion (9 $ / 1M), non chiffrés à
+        # l'avance. 1080p (suréchantillonné) non chiffré par Google : HYPOTHÈSE
+        # PRUDENTE, le tarif 1080p du jumeau fal.
+        "gemini-omni-flash-google": {"720p": 0.11, "1080p": 0.15},
+        # Veo 3.1 preview Google : arrêtés le 22/10/2026 (t406), tarifs gardés
+        # pour l'historique des jobs
         "veo-3.1-google":      {"*": 0.40},
         "veo-3.1-fast-google": {"*": 0.15},
         "veo-3.1-lite-google": {"*": 0.10},

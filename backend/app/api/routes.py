@@ -6650,9 +6650,15 @@ def _cle_video_ou_503(video_model, http=None) -> None:
     modèle sans sa clé reste CHOISISSABLE dans tous les sélecteurs ; c'est ici
     que le tir est refusé, en 503 qui nomme la clé et les Réglages, AVANT
     toute garde de dépense (_garde_cout, _plafond) : aucune ligne `depenses`.
-    t189 (relecture) : la clé manquante vient de _cle_video_manquante (strip)."""
-    from app.services.fal_service import DEFAULT_VIDEO_MODEL
+    t189 (relecture) : la clé manquante vient de _cle_video_manquante (strip).
+    t406 : un modèle ARRÊTÉ par son fournisseur (`retire`) est refusé ici
+    d'abord, en 410 qui nomme le remplaçant — avant la clé et toute dépense."""
+    from app.services.fal_service import DEFAULT_VIDEO_MODEL, VIDEO_MODELS, est_retire, refus_retire
     mid = video_model or DEFAULT_VIDEO_MODEL
+    if est_retire(VIDEO_MODELS.get(mid)):
+        from app import i18n as _i18n
+        lang = _i18n.langue_requete(http) if http is not None else _i18n.langue_ui()
+        raise HTTPException(410, refus_retire({**VIDEO_MODELS[mid], "id": mid}, lang))
     cle = _cle_video_manquante(mid)
     if cle:
         raise _refus_cle(cle, mid, http)
@@ -11515,13 +11521,17 @@ async def list_video_models():
     Every registry entry is returned with an `available` flag (fal entries
     need FAL_KEY, Google-native ones need GEMINI_API_KEY) so the select can
     show-but-disable what a missing key would unlock. `usd_per_s` reflects
-    pricing.json overrides; the card badge and topbar ≈$ derive from it."""
-    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
+    pricing.json overrides; the card badge and topbar ≈$ derive from it.
+    t406 : a model its provider shut down (`retire`) is left out — the select
+    would otherwise blame a missing key — and so is a retired twin."""
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL, est_retire
     from app.services import pricing as _pricing, catalogue_ia as _CI
     p = _pricing.load()
     rates = p.get("video_usd_per_s") or {}
     out = []
     for mid, m in VIDEO_MODELS.items():
+        if est_retire(m):
+            continue
         available = (settings.has_gemini if m["provider"] == "google"
                      else bool(settings.FAL_KEY))
         out.append({
@@ -11541,7 +11551,7 @@ async def list_video_models():
             # de fin, par l'endpoint i2v ou par un endpoint first-last séparé).
             "voie": _CI.voie_de(m),
             "cle": _CI.cle_de(m),
-            "jumeau": _CI.JUMEAUX_VIDEO.get(mid),
+            "jumeau": _CI.jumeau_actif(mid),
             "fl": _CI.accepte_fin(m),
         })
     # P1 #9 (28/09/2026) : le plafond EFFECTIF des secondes générées (0 = aucun)
@@ -13290,6 +13300,12 @@ def _video_plan(s, body: dict | None, http=None) -> dict:
     m = VIDEO_MODELS.get(mid)
     if m is None:
         _refus(400, f"Modèle vidéo inconnu : {mid[:48]} (ids : {', '.join(VIDEO_MODELS)}).", "modele")
+        return out
+    from app.services.fal_service import est_retire, refus_retire
+    if est_retire(m):                                   # t406 : le même 410 que _cle_video_ou_503
+        from app import i18n as _i18n
+        _refus(410, refus_retire({**m, "id": mid}, _i18n.langue_requete(http) if http is not None
+                                 else _i18n.langue_ui()), "modele")
         return out
     out["cle_absente"] = _cle_video_manquante(mid)     # la MÊME source que le 503 de la route payante
     out["fl"] = bool(fin) and accepte_fin(m)

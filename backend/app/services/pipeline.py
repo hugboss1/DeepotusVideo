@@ -374,6 +374,9 @@ class Pipeline:
                 # fal uploads to fal storage; Google takes inline bytes (no
                 # third-party upload). Guards fail the job with a clean error.
                 model = resolve_video_model(getattr(request, "video_model", None))
+                from app.services.fal_service import est_retire, refus_retire
+                if est_retire(model):   # t406 : arrêté par son fournisseur — rien n'est appelé
+                    raise RuntimeError(refus_retire(model))
                 if model["provider"] == "google" and not settings.has_gemini:
                     raise RuntimeError(
                         "google: GEMINI_API_KEY not configured "
@@ -434,6 +437,7 @@ class Pipeline:
                     video_client = self.google
                     result = await self.google.generate_video(
                         image_path=image_path,
+                        end_image_path=end_image_path,   # t406 : Gemini Omni prend une fin
                         prompt=prompt,
                         negative_prompt=negative,
                         duration=gen_dur,
@@ -1095,6 +1099,9 @@ class Pipeline:
         if image_path is None or not Path(image_path).is_file():
             raise RuntimeError(f"illustration introuvable : {image_path}")
         model = resolve_video_model(clip["model"])
+        from app.services.fal_service import est_retire, refus_retire
+        if est_retire(model):   # t406 : la scène se replie en Ken Burns, sans appel
+            raise RuntimeError(refus_retire(model))
         if model["provider"] == "google":
             client = self.google
             result = await self.google.generate_video(
