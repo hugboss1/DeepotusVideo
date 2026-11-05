@@ -1,4 +1,12 @@
 {
+ "Les sources du Montage ne se lisent pas depuis un autre site.": {
+  "fr": "Les sources du Montage ne se lisent pas depuis un autre site.",
+  "en": "Montage sources cannot be read from another site."
+ },
+ "« {name} » n'est pas un média lisible par le Montage.": {
+  "fr": "« {name} » n'est pas un média lisible par le Montage.",
+  "en": "\"{name}\" is not a media file the Montage can read."
+ },
  "100 éléments maximum par import.": {
   "fr": "100 éléments maximum par import.",
   "en": "100 items maximum per import."

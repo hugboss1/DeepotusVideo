@@ -432,4 +432,10 @@ ENTREES = [
     S(65760, '    selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):',
       '    selGen==="vfxia"?r.jsx(SvmVfxIa,{onNote:fireNote,go:props.go}):selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):',
       {}),
+    # t409 (05/11/2026) — changement FONCTIONNEL posé APRÈS L4 : `src.file_path` au moniteur, sur les pistes, et la
+    # source illisible dite à l'écran (aides en fin de couche : entrée t188 de montage_d.py), à LONGUEUR ÉGALE.
+    # Mêmes retouches dans RETOUCHES de scripts/icones/g1_generer.py.
+    S(73708, 'c.tr==="v1"&&c.src&&(c.src.job_id||c.src.image)&&c.start<=t', 'c.tr==="v1"&&c.src&&svI(c.src)/*t409         */&&c.start<=t', {}),
+    S(74143, 'if(c.tr==="a2"&&c.src&&(c.src.audio||c.src.job_id))return c.id}', 'if(c.tr==="a2"&&c.src&&svA(c.src)/*t409         */)return c.id}', {}),
+    S(77935, 'var SVM_TRACK_BUS={a1:"dialogue",a2:"musique",a3:"sfx"}; /* bus de mixage backend */\r\nfunction svmSrcKey(s){return s?(s.job_id?"j:"+s.job_id:s.audio?"a:"+s.audio:s.image?"i:"+s.image:""):""}\r\nfunction svmSrcUrl(s){return s.job_id?"/api/jobs/"+s.job_id+"/video"\r\n  :s.audio?"/api/audio/"+encodeURIComponent(s.audio)\r\n  :s.image?"/api/images/"+encodeURIComponent(s.image):""}', 'var SVM_TRACK_BUS={a1:"dialogue",a2:"musique",a3:"sfx"};\r\nfunction svmSrcKey(s){return s?s.job_id?"j:"+s.job_id:s.audio?"a:"+s.audio:s.image?"i:"+s.image:s.file_path?"f:"+s.file_path:"":""}\r\nfunction svmSrcUrl(s){return s.job_id?"/api/jobs/"+s.job_id+"/video"\r\n :s.audio?"/api/audio/"+encodeURIComponent(s.audio)\r\n:s.image?"/api/images/"+encodeURIComponent(s.image):svO(s)}', {}),
 ]

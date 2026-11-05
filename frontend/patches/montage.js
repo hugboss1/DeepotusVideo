@@ -8398,7 +8398,7 @@ var DZM_SC_CLE="dz_montage_scopes",DZM_SC_MS=300,DZM_LB_W=240,DZM_LB_MAX=3;
 function dzmScopesAt(clips,head){
   var t=dzmRfNum(head),best=null,bs=0;
   if(!Array.isArray(clips)||t===null)return null;
-  clips.forEach(function(k){if(!k||typeof k!=="object"||k.tr!=="v1"||!k.src||!(k.src.job_id||k.src.image))return;
+  clips.forEach(function(k){if(!k||k.tr!=="v1"||!k.src||!(k.src.job_id||k.src.image||k.src.file_path))return;/**/
     var s=dzmRfNum(k.start),e=dzmRfNum(k.end);
     if(s!==null&&e!==null&&t>=s&&t<e&&(!best||s>=bs)){best=k;bs=s}});
   return best}

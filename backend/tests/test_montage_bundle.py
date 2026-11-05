@@ -2985,7 +2985,7 @@ check("P11_la_route_de_duree_existe_des_deux_cotes",
 # P9 pour `/media-rules`, applique ici.
 check("P11_la_route_reutilise_la_resolution_et_la_sonde",
       # TROIS depuis P12 : /duration, /has-audio et le premier appelant.
-      SVC.count("p = await _media_source(request, src, video=False)") == 3
+      SVC.count("p = await _media_source(request, src, video=False)") == 4
       # D-41 (T5, 9c55f40, 24/09/2026) : 1 -> 3, /autoclips et /autoclips/create (sdur = ...) reutilisent la meme mesure ;
       # realigne par T4 (le banc rougissait sur la branche depuis 9c55f40, ecart date)
       # L6 D-25 (T2, 9ea55da, 25/09/2026) : 3 -> 4, la route noise-profile mesure la duree de source par la meme sonde

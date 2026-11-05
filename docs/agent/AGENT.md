@@ -91,6 +91,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Monter et livrer** : ouvrir le Montage, vérifier avec Preview (480p, gratuit), puis Rendre (master 1080) et
   Publier. → [POINT:montage.preview] [POINT:montage.rendre] [GUIDE:montage-livrer]
 - **Ajouter des vidéos ou des sons au montage** : tiroir Médias (vos rendus) ou tiroir Sons. → [POINT:montage.medias] [POINT:montage.sons] [GUIDE:montage]
+- **Le lecteur dit que le navigateur ne lit pas un format (ProRes, par exemple)** : le Montage fabrique seul un aperçu 480p de ce plan et l'affiche ; le rendu final lit toujours l'original. → [POINT:montage.preview] [GUIDE:montage]
 - **Séparer une musique en instruments** : Son & VFX › Musique › Importer et séparer, choisir la piste, puis
   Séparer les instruments (payant, prix au premier clic). → [POINT:sonvfx.pistes] [GUIDE:son-vfx]
 - **Retravailler un son** (égaliseur, réverbe, ducking, nœuds IA) : Son & VFX › Musique › Atelier, partir d'un

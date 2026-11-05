@@ -3429,6 +3429,12 @@
     "groupe": "montage_h"
    },
    {
+    "pos": 529514,
+    "avant": "clips.forEach(function(k){if(!k||typeof k!==\"object\"||k.tr!==\"v1\"||!k.src||!(k.src.job_id||k.src.image))return;",
+    "apres": "clips.forEach(function(k){if(!k||k.tr!==\"v1\"||!k.src||!(k.src.job_id||k.src.image||k.src.file_path))return;/**/",
+    "groupe": "montage_h"
+   },
+   {
     "pos": 530885,
     "avant": "n+\" effet\"+(n>1?\"s\":\"\")",
     "apres": "dzT(n>1?\"montage.etalonnage.effets_plusieurs\":\"montage.etalonnage.effets_un\",{n:n})",

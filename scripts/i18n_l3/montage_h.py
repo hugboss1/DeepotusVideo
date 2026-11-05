@@ -288,4 +288,7 @@ ENTREES = [
     L(568360, 'montage.micro.aucun', 'aucun micro détecté', 'no microphone detected'),
     L(568442, 'montage.micro.occupe', 'micro occupé par une autre application', 'microphone in use by another application'),
     L(568584, 'montage.mots.erreur_inconnue', 'erreur inconnue', 'unknown error', contexte=True),
+    # t409 (05/11/2026) — changement FONCTIONNEL posé APRÈS L3 : les scopes suivent la règle du lecteur (svmActiveV1), `src.file_path` compris ;
+    # longueur gardée (le test `typeof` est inutile : un non-objet n'a pas de .tr). Même retouche dans RETOUCHES de scripts/icones/g1_generer.py.
+    S(529514, 'clips.forEach(function(k){if(!k||typeof k!=="object"||k.tr!=="v1"||!k.src||!(k.src.job_id||k.src.image))return;', 'clips.forEach(function(k){if(!k||k.tr!=="v1"||!k.src||!(k.src.job_id||k.src.image||k.src.file_path))return;/**/', {}),
 ]
