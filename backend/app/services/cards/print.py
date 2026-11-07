@@ -101,6 +101,7 @@ from .contract import (
 from . import contract                       # tâche #83 : les gabarits d'imprimeur
 from . import print_gabarits as PG
 from . import hexa                           # t421 : refus des sorties hors hexagone
+from . import print_hex as PHX               # t421 : la planche en nid d'abeilles
 
 router = APIRouter()
 
@@ -4845,3 +4846,91 @@ async def post_audit(did: str, body: dict | None = None):
     except Exception as e:
         logger.exception("cards/print: audit impossible")
         raise HTTPException(500, f"Audit impossible: {e}")
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# t421 (08/11/2026, tâche 7) : la planche en NID D'ABEILLES, sous /hex. Tout
+# le calcul vit dans `print_hex` ; ici, les trois routes, qui refusent un jeu
+# rectangulaire (400) : le chemin rectangulaire ne change de rien.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _plan_hex_de(doc: dict, body: dict, n: int | None = None):
+    """Le plan hexagonal du deck, ou le 400 qui dit pourquoi."""
+    from .core import geom_of as geom_deck
+    g = geom_deck(doc)
+    if g.forme != "hex":
+        raise HTTPException(400, "La planche en nid d'abeilles ne sert que les "
+                                 "cartes hexagonales : ce jeu est rectangulaire, "
+                                 "utiliser l'export PDF habituel.")
+    body = body if isinstance(body, dict) else {}
+    try:
+        return PHX.plan_hex(
+            g, body.get("sheet") or "a4", body.get("marge_mm"),
+            body.get("gouttiere_mm"),
+            n if n is not None else (body.get("n_cards") or 1),
+            _flag(body, "trait"), _flag(body, "duplex"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/hex/plan")
+async def post_hex_plan(did: str, body: dict | None = None):
+    """Le plan en nid d'abeilles : `{sheet, marge_mm, gouttiere_mm, n_cards,
+    trait, duplex}` -> cases, pages, repères."""
+    return PHX.plan_hex_dict(_plan_hex_de(_deck(did), body or {}))
+
+
+@router.post("/hex/coupe")
+async def post_hex_coupe(did: str, body: dict | None = None):
+    """Les fichiers de coupe (SVG + DXF par page recto), dans un ZIP."""
+    p = _plan_hex_de(_deck(did), body or {})
+    out = await asyncio.to_thread(PHX.coupe_zip, p)
+    return Response(content=out, media_type="application/zip", headers={
+        "Content-Disposition": 'attachment; filename="coupe.zip"',
+        "X-CF-Pages": str(p.pages),
+        "X-CF-Par-Page": str(p.par_page),
+    })
+
+
+@router.post("/hex/pdf")
+async def post_hex_pdf(did: str, spec: str = Form("{}"),
+                       fronts: list[UploadFile] = File(default=[]),
+                       backs: list[UploadFile] = File(default=[])):
+    """Le PDF de la planche en nid d'abeilles : comme `/pdf`, le navigateur
+    rend chaque face à la taille de la toile et la téléverse ; recto puis
+    verso par page. Un verso vide (fichier de 0 octet) ou absent laisse son
+    emplacement blanc."""
+    doc = _deck(did)
+    body = _json_form(spec)
+    n = len(fronts or [])
+    p = _plan_hex_de(doc, body, max(1, n))
+    if n < 1:
+        raise HTTPException(400, "Aucune carte reçue : le navigateur doit "
+                                 "rendre les cartes avant l'imposition")
+    rec = [await f.read() for f in fronts]
+    ver = [await f.read() for f in (backs or [])] if p.duplex else []
+    if p.duplex and not any(ver):
+        raise HTTPException(409, "Recto-verso demandé sans aucun verso reçu")
+
+    def ouvre(blobs: list, label: str) -> list:
+        try:
+            return [open_card(b, p, i) if b else None
+                    for i, b in enumerate(blobs)]
+        except ValueError as e:
+            raise ValueError(f"{label}: {e}")
+
+    def work():
+        return PHX.pdf_planche(p, ouvre(rec, "recto"), ouvre(ver, "verso"))
+    try:
+        out = await asyncio.to_thread(work)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        logger.exception("cards/print: planche hexagonale impossible")
+        raise HTTPException(500, f"PDF impossible: {e}")
+    return Response(content=out, media_type="application/pdf", headers={
+        "Content-Disposition": 'attachment; filename="planches_hex.pdf"',
+        "X-CF-Pages": str(p.pages * (2 if p.duplex else 1)),
+        "X-CF-Par-Page": str(p.par_page),
+        "X-CF-Pixels": f"{p.sheet_px[0]}x{p.sheet_px[1]}",
+    })
