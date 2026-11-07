@@ -4214,7 +4214,6 @@ async def post_preflight(did: str, body: dict | None = None):
     """Contrôle avant vol : texte hors zone sûre, illustration sous 300 DPI.
     Chaque ligne porte le nom de la carte ET le chiffre."""
     doc = _deck(did)
-    _refuser_si_hex(doc, "Le contrôle avant vol")
     body = body if isinstance(body, dict) else {}
     try:
         out = await asyncio.to_thread(preflight, _spec_of(doc, body),

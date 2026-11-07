@@ -2190,6 +2190,9 @@
     ["art34", dzT("cartes.face.win_art34")],
   ];
   function frameWindow(g) {
+    /* t421 : sur un hexagone le Cadre dort ; sa fenetre (gardee dans doc.frame
+       pour le retour en rectangle) ne pose plus l'illustration */
+    if (g.forme === "hex") return null;
     const w = CF.get("frame.art_window", null) || CF.get("frame.window", null);
     if (Array.isArray(w) && w.length === 4 && w.every((v) => typeof v === "number" && isFinite(v))) {
       return [g.bleed_off_px[0] + g.mm2px(w[0]), g.bleed_off_px[1] + g.mm2px(w[1]),

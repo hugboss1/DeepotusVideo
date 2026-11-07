@@ -1,4 +1,4 @@
-"""t421 (cartes hexagonales, 07/11/2026, tâche 3) — l'APERÇU hexagonal, le verso sans cadre et les pièces hors
+"""t421 (cartes hexagonales, 07/11/2026, tâche 3) — l'APERÇU hexagonal et les pièces hors
 périmètre, posés APRÈS L7 (comme t421.py pour la tâche 2).
 
 core.js :
@@ -10,17 +10,19 @@ core.js :
   entrée de rail et pose dans leur panneau la phrase cartes.hexa.non_gere (appelée par syncFormatWidget : chargement
   et chaque changement de format).
 mod-frame.js :
-- `paintBack` : sans cadre (famille « none », ou carte hexagonale dont le cadre dort), le verso est l'image de la
-  carte (`card.back`, colonne « dos »), sinon rien ; la branche du deck à cadre reste intacte ;
-- le painter du Cadre, sur un hexagone, ne peint ni ne publie rien (le document n'est pas touché : le cadre revient
-  tel quel si le deck repasse en rectangle) ; seul le verso image passe.
-Un rectangle ne change d'aucun pixel : chaque branche neuve est gardée par `forme === "hex"` ou par la famille
-« none » (qui ne peignait rien). Les sauts de ligne des insertions sont CRLF, comme la source.
+- le painter du Cadre, sur un hexagone, ne peint ni ne publie rien, recto comme verso (le document n'est pas touché :
+  le cadre revient tel quel si le deck repasse en rectangle). Le verso d'une carte (`card.back`) reste peint par la
+  pièce 01 (resolveArtId), comme pour tout deck sans cadre (revue T3, décision du contrôleur).
+mod-face.js :
+- `frameWindow` rend null sur un hexagone : la fenêtre du cadre endormi ne pose plus l'illustration (win: auto ->
+  toute la toile) ; en rectangle elle revient.
+Un rectangle ne change d'aucun pixel : chaque branche neuve est gardée par `forme === "hex"`. Les sauts de ligne des insertions sont CRLF, comme la source.
 """
 from outils import S
 
 C = "js/core.js"
 F = "js/mod-frame.js"
+FA = "js/mod-face.js"
 
 
 def _crlf(t):
@@ -139,37 +141,6 @@ _THUMB_HEX = r"""    /* t421 : la vignette d'un hexagone en a la silhouette (dec
     if (hexV) { hexChemin(c, hexV, 0, k); c.stroke(); }
     else c.strokeRect(0.5, 0.5, W - 1, H - 1);"""
 
-_VERSO = r"""
-  /* t421 : LE VERSO D'UNE CARTE SANS CADRE — famille « none », ou carte
-     hexagonale dont le cadre dort — est l'image de la carte (`card.back`, la
-     colonne « dos » des Donnees), lue dans le magasin d'images de
-     l'application, comme son recto (`card.art`, piece 01). Un id de motif du
-     catalogue n'est pas une image : il n'a de sens qu'avec un cadre. */
-  function versoImage(card) {
-    const v = card && typeof card.back === "string" ? card.back : "";
-    if (!v || byId(BACKS, v)) return "";
-    return v.indexOf("img:") === 0 ? v.slice(4) : v;
-  }
-  function sansCadre(g, f) { return f.family === "none" || g.forme === "hex"; }
-  /* le verso image de la carte COURANTE : l'arrivee tardive le redemande */
-  function versoCourant() {
-    try { const v = versoImage(CF.card(CF.current())); return v ? [v] : []; }
-    catch (e) { return []; }
-  }
-  /* couvre la TOILE (fond perdu compris), comme le verso personnalise ;
-     sans image, rien n'est peint : la face reste blanche */
-  function paintVersoImage(ctx, g, card) {
-    const file = versoImage(card);
-    if (!file) return;
-    const W = g.canvas_px[0], H = g.canvas_px[1];
-    const rec = frameImgRec(file, "app");
-    if (rec && rec.ok && rec.img) {
-      const c = backCover(rec.img.naturalWidth || rec.img.width, rec.img.naturalHeight || rec.img.height, W, H);
-      ctx.drawImage(rec.img, c[0], c[1], c[2], c[3]);
-    } else {
-      backDamier(ctx, 0, 0, W, H, file, "image du dos manquante");
-    }
-  }"""
 
 ENTREES = [
     # ── core.js ──
@@ -192,32 +163,20 @@ ENTREES = [
     S(C, 2605, "cards: cards, card: card,",
       "cards: cards, card: card,\r\n    /* t421 : les pieces qui ne gerent pas encore l'hexagone */\r\n    horsHex: horsHex,", {}),
     # ── mod-frame.js ──
-    S(F, 3267, "return mag === \"app\" ? decorFiles(f0) : backFiles(f0);",
-      "return mag === \"app\" ? decorFiles(f0).concat(versoCourant()) : backFiles(f0);   /* t421 : + le verso image */", {}),
-    S(F, 3317, "function backImgRec(file) { return frameImgRec(file, \"deck\"); }",
-      "function backImgRec(file) { return frameImgRec(file, \"deck\"); }" + _crlf(_VERSO), {}),
-    S(F, 3521, "function paintBack(ctx, g, f, card, d) {\r\n    if (f.family === \"none\") return;",
-      "function paintBack(ctx, g, f, card, d) {\r\n"
-      "    /* t421 : sans cadre, le verso est l'image de la carte (ou rien) ; le deck a cadre ne passe pas ici */\r\n"
-      "    if (sansCadre(g, f)) { paintVersoImage(ctx, g, card); return; }", {}),
     S(F, 3747, "const f = st(doc);\r\n          publishWindow(geom, f);",
       "const f = st(doc);\r\n"
-      "          /* t421 : le Cadre ne gere pas l'hexagone. Il DORT : ni peinture, ni\r\n"
-      "             publication (le document n'est pas touche, le cadre revient tel\r\n"
-      "             quel en rectangle) ; seul le verso image d'une carte passe. */\r\n"
-      "          if (geom.forme === \"hex\") {\r\n"
-      "            if (side !== \"back\") return;\r\n"
-      "            const vh = versoImage(card);\r\n"
-      "            if (vh) await ensureFrameImgs([vh], \"app\");\r\n"
-      "            paintBack(ctx, geom, f, card, doc);\r\n"
-      "            return;\r\n"
-      "          }\r\n"
+      "          /* t421 : le Cadre ne gere pas l'hexagone. Il DORT, recto comme verso : ni\r\n"
+      "             peinture, ni publication (le document n'est pas touche, le cadre\r\n"
+      "             revient tel quel en rectangle). Le verso de la carte (card.back)\r\n"
+      "             reste peint par la piece 01, comme pour tout deck sans cadre. */\r\n"
+      "          if (geom.forme === \"hex\") return;\r\n"
       "          publishWindow(geom, f);", {}),
-    S(F, 3770, "if (backOf(f, card) === \"custom\") {",
-      "/* t421 : le verso image d'une carte sans cadre, attendu de meme */\r\n"
-      "          const vi = sansCadre(geom, f) ? versoImage(card) : \"\";\r\n"
-      "          if (vi) await ensureFrameImgs([vi], \"app\");\r\n"
-      "          if (backOf(f, card) === \"custom\") {", {}),
     S(F, 3779, "paintTop(ctx, geom, st(doc), card, side);",
       "if (geom.forme !== \"hex\") paintTop(ctx, geom, st(doc), card, side);   /* t421 : le Cadre dort */", {}),
+    # ── mod-face.js ──
+    S(FA, 2191, "const w = CF.get(\"frame.art_window\", null) || CF.get(\"frame.window\", null);",
+      "/* t421 : sur un hexagone le Cadre dort ; sa fenetre (gardee dans doc.frame\r\n"
+      "       pour le retour en rectangle) ne pose plus l'illustration */\r\n"
+      "    if (g.forme === \"hex\") return null;\r\n"
+      "    const w = CF.get(\"frame.art_window\", null) || CF.get(\"frame.window\", null);", {}),
 ]

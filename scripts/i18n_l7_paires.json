@@ -4445,6 +4445,12 @@
     "groupe": "face"
    },
    {
+    "pos": 101818,
+    "avant": "const w = CF.get(\"frame.art_window\", null) || CF.get(\"frame.window\", null);",
+    "apres": "/* t421 : sur un hexagone le Cadre dort ; sa fenetre (gardee dans doc.frame\r\n       pour le retour en rectangle) ne pose plus l'illustration */\r\n    if (g.forme === \"hex\") return null;\r\n    const w = CF.get(\"frame.art_window\", null) || CF.get(\"frame.window\", null);",
+    "groupe": "t421_apercu"
+   },
+   {
     "pos": 108940,
     "avant": "ppm + ' px/m (unité mètre) = <b>' + ppmToDpi(ppm).toFixed(4)\r\n      + ' DPI</b> — pHYs ne stocke que des entiers de pixels par mètre, et '\r\n      + dpi + ' DPI en vaut ' + (dpi / PHYS_METRE).toFixed(3) + '.'",
     "apres": "dzT(\"cartes.face.phys_ligne\", { ppm: ppm, dpif: ppmToDpi(ppm).toFixed(4), dpi: dpi, exact: (dpi / PHYS_METRE).toFixed(3) })",
@@ -7107,24 +7113,6 @@
     "groupe": "frame1"
    },
    {
-    "pos": 178968,
-    "avant": "return mag === \"app\" ? decorFiles(f0) : backFiles(f0);",
-    "apres": "return mag === \"app\" ? decorFiles(f0).concat(versoCourant()) : backFiles(f0);   /* t421 : + le verso image */",
-    "groupe": "t421_apercu"
-   },
-   {
-    "pos": 181153,
-    "avant": "function backImgRec(file) { return frameImgRec(file, \"deck\"); }",
-    "apres": "function backImgRec(file) { return frameImgRec(file, \"deck\"); }\r\n  /* t421 : LE VERSO D'UNE CARTE SANS CADRE — famille « none », ou carte\r\n     hexagonale dont le cadre dort — est l'image de la carte (`card.back`, la\r\n     colonne « dos » des Donnees), lue dans le magasin d'images de\r\n     l'application, comme son recto (`card.art`, piece 01). Un id de motif du\r\n     catalogue n'est pas une image : il n'a de sens qu'avec un cadre. */\r\n  function versoImage(card) {\r\n    const v = card && typeof card.back === \"string\" ? card.back : \"\";\r\n    if (!v || byId(BACKS, v)) return \"\";\r\n    return v.indexOf(\"img:\") === 0 ? v.slice(4) : v;\r\n  }\r\n  function sansCadre(g, f) { return f.family === \"none\" || g.forme === \"hex\"; }\r\n  /* le verso image de la carte COURANTE : l'arrivee tardive le redemande */\r\n  function versoCourant() {\r\n    try { const v = versoImage(CF.card(CF.current())); return v ? [v] : []; }\r\n    catch (e) { return []; }\r\n  }\r\n  /* couvre la TOILE (fond perdu compris), comme le verso personnalise ;\r\n     sans image, rien n'est peint : la face reste blanche */\r\n  function paintVersoImage(ctx, g, card) {\r\n    const file = versoImage(card);\r\n    if (!file) return;\r\n    const W = g.canvas_px[0], H = g.canvas_px[1];\r\n    const rec = frameImgRec(file, \"app\");\r\n    if (rec && rec.ok && rec.img) {\r\n      const c = backCover(rec.img.naturalWidth || rec.img.width, rec.img.naturalHeight || rec.img.height, W, H);\r\n      ctx.drawImage(rec.img, c[0], c[1], c[2], c[3]);\r\n    } else {\r\n      backDamier(ctx, 0, 0, W, H, file, \"image du dos manquante\");\r\n    }\r\n  }",
-    "groupe": "t421_apercu"
-   },
-   {
-    "pos": 192181,
-    "avant": "function paintBack(ctx, g, f, card, d) {\r\n    if (f.family === \"none\") return;",
-    "apres": "function paintBack(ctx, g, f, card, d) {\r\n    /* t421 : sans cadre, le verso est l'image de la carte (ou rien) ; le deck a cadre ne passe pas ici */\r\n    if (sansCadre(g, f)) { paintVersoImage(ctx, g, card); return; }",
-    "groupe": "t421_apercu"
-   },
-   {
     "pos": 202525,
     "avant": "\"Cadre\"",
     "apres": "dzT(\"cartes.frame1.titre\")",
@@ -7133,13 +7121,7 @@
    {
     "pos": 202673,
     "avant": "const f = st(doc);\r\n          publishWindow(geom, f);",
-    "apres": "const f = st(doc);\r\n          /* t421 : le Cadre ne gere pas l'hexagone. Il DORT : ni peinture, ni\r\n             publication (le document n'est pas touche, le cadre revient tel\r\n             quel en rectangle) ; seul le verso image d'une carte passe. */\r\n          if (geom.forme === \"hex\") {\r\n            if (side !== \"back\") return;\r\n            const vh = versoImage(card);\r\n            if (vh) await ensureFrameImgs([vh], \"app\");\r\n            paintBack(ctx, geom, f, card, doc);\r\n            return;\r\n          }\r\n          publishWindow(geom, f);",
-    "groupe": "t421_apercu"
-   },
-   {
-    "pos": 204050,
-    "avant": "if (backOf(f, card) === \"custom\") {",
-    "apres": "/* t421 : le verso image d'une carte sans cadre, attendu de meme */\r\n          const vi = sansCadre(geom, f) ? versoImage(card) : \"\";\r\n          if (vi) await ensureFrameImgs([vi], \"app\");\r\n          if (backOf(f, card) === \"custom\") {",
+    "apres": "const f = st(doc);\r\n          /* t421 : le Cadre ne gere pas l'hexagone. Il DORT, recto comme verso : ni\r\n             peinture, ni publication (le document n'est pas touche, le cadre\r\n             revient tel quel en rectangle). Le verso de la carte (card.back)\r\n             reste peint par la piece 01, comme pour tout deck sans cadre. */\r\n          if (geom.forme === \"hex\") return;\r\n          publishWindow(geom, f);",
     "groupe": "t421_apercu"
    },
    {

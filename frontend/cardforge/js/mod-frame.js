@@ -3263,7 +3263,7 @@
      l'arrivee tardive, qui doit connaitre les deux. */
   function imgWanted(mag) {
     const f0 = f();
-    return mag === "app" ? decorFiles(f0).concat(versoCourant()) : backFiles(f0);   /* t421 : + le verso image */
+    return mag === "app" ? decorFiles(f0) : backFiles(f0);
   }
   function frameImgRec(file, mag) {
     const v = BIMGS.get(imgKey(mag, file));
@@ -3314,36 +3314,6 @@
      son image vient, et le peintre n'a pas a le savoir. Le jumeau du decor
      (`decorRec`) vit avec son peintre, section 5bis. */
   function backImgRec(file) { return frameImgRec(file, "deck"); }
-  /* t421 : LE VERSO D'UNE CARTE SANS CADRE — famille « none », ou carte
-     hexagonale dont le cadre dort — est l'image de la carte (`card.back`, la
-     colonne « dos » des Donnees), lue dans le magasin d'images de
-     l'application, comme son recto (`card.art`, piece 01). Un id de motif du
-     catalogue n'est pas une image : il n'a de sens qu'avec un cadre. */
-  function versoImage(card) {
-    const v = card && typeof card.back === "string" ? card.back : "";
-    if (!v || byId(BACKS, v)) return "";
-    return v.indexOf("img:") === 0 ? v.slice(4) : v;
-  }
-  function sansCadre(g, f) { return f.family === "none" || g.forme === "hex"; }
-  /* le verso image de la carte COURANTE : l'arrivee tardive le redemande */
-  function versoCourant() {
-    try { const v = versoImage(CF.card(CF.current())); return v ? [v] : []; }
-    catch (e) { return []; }
-  }
-  /* couvre la TOILE (fond perdu compris), comme le verso personnalise ;
-     sans image, rien n'est peint : la face reste blanche */
-  function paintVersoImage(ctx, g, card) {
-    const file = versoImage(card);
-    if (!file) return;
-    const W = g.canvas_px[0], H = g.canvas_px[1];
-    const rec = frameImgRec(file, "app");
-    if (rec && rec.ok && rec.img) {
-      const c = backCover(rec.img.naturalWidth || rec.img.width, rec.img.naturalHeight || rec.img.height, W, H);
-      ctx.drawImage(rec.img, c[0], c[1], c[2], c[3]);
-    } else {
-      backDamier(ctx, 0, 0, W, H, file, "image du dos manquante");
-    }
-  }
 
   /* LE CADRAGE « COVER », DEPUIS LE BORD DE TOILE et non depuis la coupe.
      La decoupe vient APRES l'impression : une image calee sur la seule rogne
@@ -3548,8 +3518,7 @@
     }
   }
   function paintBack(ctx, g, f, card, d) {
-    /* t421 : sans cadre, le verso est l'image de la carte (ou rien) ; le deck a cadre ne passe pas ici */
-    if (sansCadre(g, f)) { paintVersoImage(ctx, g, card); return; }
+    if (f.family === "none") return;
     const m = model(g, f), p = pal(f), u = m.u;
     const kind = backOf(f, card);
     ctx.save();
@@ -3775,16 +3744,11 @@
       {
         z: 40, async fn(ctx, geom, doc, card, side) {
           const f = st(doc);
-          /* t421 : le Cadre ne gere pas l'hexagone. Il DORT : ni peinture, ni
-             publication (le document n'est pas touche, le cadre revient tel
-             quel en rectangle) ; seul le verso image d'une carte passe. */
-          if (geom.forme === "hex") {
-            if (side !== "back") return;
-            const vh = versoImage(card);
-            if (vh) await ensureFrameImgs([vh], "app");
-            paintBack(ctx, geom, f, card, doc);
-            return;
-          }
+          /* t421 : le Cadre ne gere pas l'hexagone. Il DORT, recto comme verso : ni
+             peinture, ni publication (le document n'est pas touche, le cadre
+             revient tel quel en rectangle). Le verso de la carte (card.back)
+             reste peint par la piece 01, comme pour tout deck sans cadre. */
+          if (geom.forme === "hex") return;
           publishWindow(geom, f);
           publishDecor(geom, f);
           if (side !== "back") {
@@ -3807,9 +3771,6 @@
              peint un damier a la place d'une image qui existe, et cette
              premiere frame EST le fichier livre quand l'export part tout de
              suite. L'attente est BORNEE (le CORE laisse 4 s a un painter). */
-          /* t421 : le verso image d'une carte sans cadre, attendu de meme */
-          const vi = sansCadre(geom, f) ? versoImage(card) : "";
-          if (vi) await ensureFrameImgs([vi], "app");
           if (backOf(f, card) === "custom") {
             const files = backFiles(f);
             if (files.length) await ensureFrameImgs(files, "deck");

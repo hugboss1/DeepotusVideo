@@ -4,7 +4,8 @@ savent pas encore dessiner un hexagone le disent, en 409 avec une phrase, au lie
 de livrer un rectangle.
 
 Pièces hors périmètre (spec « Aperçu ») : Volume, Forge 3D, Export 3D, Édition, et
-dans l'Impression le paquet imprimeur, le contrôle avant vol et le masque de foil.
+dans l'Impression le paquet imprimeur et le masque de foil. Le contrôle avant vol reste OUVERT (revue T3,
+décision du contrôleur : le panneau Impression l'appelle au chargement et reste actif pour l'hexagone).
 Le refus vit dans `hexa.refuser_si_hex` (décision du contrôleur) ; la phrase est
 française en dur, comme toutes les HTTPException de cards/.
 
@@ -116,7 +117,6 @@ def _appel(nom: str, did: str, fmt: str):
 
 # route -> ce que le rectangle obtient : 200, ou le code de la route elle-même
 ROUTES = {
-    "print/preflight": 200,
     "print/pack": 200,
     "print/foil-mask": 200,
     "gltf/atlas": None,          # un atlas factice : la route le juge (pas la garde)
@@ -168,6 +168,8 @@ def test_les_lectures_de_chargement_restent_ouvertes_a_l_hexagone():
     for chemin in ("solid/info", "gltf/info", "forge3d/info", "edition/cibles", "print/sheets"):
         r = _api("GET", f"/api/cards/{did}/{chemin}")
         assert r.status_code == 200, (chemin, r.status_code, r.text[:200])
+    r = _appel("print/preflight", did, "hex_p50")
+    assert r.status_code == 200, r.text[:300]
 
 
 if __name__ == "__main__":

@@ -38,7 +38,7 @@ def _temoin(nom: str) -> str:
 HARNAIS = r"""
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
-const [coreP, frameP, quoiP] = process.argv.slice(2);
+const [coreP, frameP, quoiP, faceP] = process.argv.slice(2);
 const QUOI = JSON.parse(readFileSync(quoiP, "utf8"));
 
 /* ── la toile qui journalise ───────────────────────────────────────────── */
@@ -178,6 +178,9 @@ if (frameP !== "-") {
   vm.runInContext("(function (window) {" + readFileSync(frameP, "utf8") + "\n})", ctx, { filename: "mod-frame.js" })(fenetre);
   document.currentScript = null;
 }
+/* la piece 01 : ses fonctions de pose extraites TELLES QUELLES, evaluees dans le contexte avec le vrai CF */
+const FACE = faceP && faceP !== "-" ? vm.runInContext("(function (CF) {" + readFileSync(faceP, "utf8")
+  + "\nreturn { artWindow: artWindow, frameWindow: frameWindow, resolveArtId: resolveArtId }; })", ctx)(CF) : null;
 const dort = (ms) => new Promise((r) => setTimeout(r, ms));
 async function rendu(face) {
   LOG = [];
@@ -205,6 +208,8 @@ const R = {};
         panneaux: PANNEAUX.map((p) => { const n = p.children.find((c) => c.className === "cf-hors-hex"); return [p.dataset.mod, n ? (n.hidden ? "" : n.textContent) : null]; }),
         hors: RAIL.map((b) => b.dataset.mod).filter((id) => typeof CF.horsHex === "function" && CF.horsHex(id)) };
       if (q.geom) R[q.nom] = CF.geom();
+      if (q.fenetre) R[q.nom] = FACE.artWindow(CF.geom());
+      if (q.art) R[q.nom] = [FACE.resolveArtId(CF.doc(), CF.card(0), "front"), FACE.resolveArtId(CF.doc(), CF.card(0), "back")];
     }
   } catch (e) { R.erreur = String(e && e.stack || e); }
   process.stdout.write(JSON.stringify(R));
@@ -213,7 +218,12 @@ const R = {};
 """
 
 
-def _node(tmp: pathlib.Path, core: str, frame: str | None, quoi: list) -> dict:
+def _piece_01(face: str) -> str:
+    """frameWindow, artWindow et resolveArtId de mod-face.js, tels quels."""
+    return "\n".join(_fonction(face, n) for n in ("frameWindow", "artWindow", "resolveArtId"))
+
+
+def _node(tmp: pathlib.Path, core: str, frame: str | None, quoi: list, face: str | None = None) -> dict:
     node = shutil.which("node")
     if not node:
         pytest.skip("node absent : le banc de l'aperçu ne peut pas tourner")
@@ -224,7 +234,11 @@ def _node(tmp: pathlib.Path, core: str, frame: str | None, quoi: list) -> dict:
         (tmp / "mod-frame.js").write_text(frame, encoding="utf-8")
         fp = str(tmp / "mod-frame.js")
     (tmp / "quoi.json").write_text(json.dumps(quoi), encoding="utf-8")
-    r = subprocess.run([node, str(tmp / "harnais.mjs"), str(tmp / "core.js"), fp, str(tmp / "quoi.json")],
+    fa = "-"
+    if face is not None:
+        (tmp / "face.js").write_text(_piece_01(face), encoding="utf-8")
+        fa = str(tmp / "face.js")
+    r = subprocess.run([node, str(tmp / "harnais.mjs"), str(tmp / "core.js"), fp, str(tmp / "quoi.json"), fa],
                        capture_output=True, text=True, encoding="utf-8", timeout=600)
     assert r.returncode == 0, r.stderr[-3000:]
     out = json.loads(r.stdout)
@@ -270,13 +284,14 @@ def test_un_rectangle_rend_la_meme_empreinte_qu_avant(tmp_path, neuf, avant):
         {"fmt": "poker_us", "cartes": CARTE_NUE, "attente": 300, "rendu": "front", "nom": "recto"},
         {"rendu": "back", "nom": "verso"},
         {"cadre": SANS_CADRE, "attente": 300, "rendu": "front", "nom": "nu_recto"},
+        {"cartes": CARTE_VERSO, "rendu": "back", "nom": "nu_verso"},
         {"cartes": CARTE_VERSO, "cadre": {"family": "deco"}, "attente": 300, "rendu": "back", "nom": "verso_motif"},
     ]
     (tmp_path / "n").mkdir()
     (tmp_path / "a").mkdir()
     N = _node(tmp_path / "n", *neuf, quoi)
     A = _node(tmp_path / "a", *avant, quoi)
-    for k in ("recto", "verso", "nu_recto", "verso_motif"):
+    for k in ("recto", "verso", "nu_recto", "nu_verso", "verso_motif"):
         assert N[k]["erreurs"] == [] and A[k]["erreurs"] == [], (k, N[k]["erreurs"], A[k]["erreurs"])
         assert N[k]["clip"] == A[k]["clip"], (k, N[k]["clip"], A[k]["clip"])
         assert N[k]["log"] == A[k]["log"], k
@@ -284,31 +299,62 @@ def test_un_rectangle_rend_la_meme_empreinte_qu_avant(tmp_path, neuf, avant):
     assert N["recto"]["clip"] > 0 and len(N["recto"]["log"]) > 200          # le cadre a bien peint
 
 
-# ═══ 2. le verso d'une carte sans cadre ════════════════════════════════════
+# ═══ 2. le verso d'une carte sans cadre : la pièce 01, pas le Cadre ═══════
+# Revue T3 (décision du contrôleur) : `card.back` a DEUX lecteurs (mod-data.js) et c'est mod-face (z20) qui le
+# peint comme illustration du verso. Le Cadre, lui, ne peint RIEN au dos d'un deck sans cadre — rectangle ou
+# hexagone — sans quoi il recouvrirait la pièce 06 (z30) et ignorerait la pose de la pièce 01.
 
-def test_sans_cadre_le_verso_est_l_image_de_la_carte(tmp_path, neuf):
+def test_sans_cadre_le_cadre_ne_peint_rien_au_dos(tmp_path, neuf):
     R = _node(tmp_path, *neuf, [
-        {"fmt": "poker_us", "cartes": CARTE_VERSO, "cadre": SANS_CADRE, "rendu": "back", "nom": "avec"},
-        {"cartes": CARTE_NUE, "rendu": "back", "nom": "sans"},
+        {"fmt": "poker_us", "cartes": CARTE_VERSO, "cadre": SANS_CADRE, "rendu": "back", "nom": "rect"},
+        {"cartes": CARTE_NUE, "rendu": "back", "nom": "rect_nu"},
         {"fmt": "hex_p635", "cartes": CARTE_VERSO, "rendu": "back", "nom": "hex"},
+        {"cartes": CARTE_NUE, "rendu": "back", "nom": "hex_nu"},
     ])
-    w, h = R["avec"]["w"], R["avec"]["h"]
-    # l'image (400 x 600) couvre la TOILE : 413 x 563 à 150 DPI -> échelle 1,0325
-    assert len(R["avec"]["draw"]) == 1, R["avec"]["draw"]
-    d = R["avec"]["draw"][0][len("drawImage("):-1].split(",")
-    assert d[0] == "img" and float(d[3]) >= w - 0.01 and float(d[4]) >= h - 0.01, d
-    # sans image de dos : rien n'est peint, la face reste blanche (le papier seul)
-    assert R["sans"]["draw"] == [] and R["sans"]["opaques"] == R["sans"]["w"] * R["sans"]["h"]
-    assert not [s for s in R["sans"]["log"] if s.startswith(("fill(", "stroke("))], R["sans"]["log"]
-    # un hexagone : le verso image, puis la découpe
-    assert len(R["hex"]["draw"]) == 1 and R["hex"]["coin"] == [0, 0, 0, 0] and R["hex"]["centre"] == 255
+    for k in ("rect", "hex"):
+        # le Cadre : aucun dessin, avec ou sans card.back (seule la découpe de l'hexagone touche la toile)
+        assert R[k]["draw"] == [], (k, R[k]["draw"])
+        assert not [x for x in R[k]["log"] if x.startswith(("stroke(", "drawImage("))], k
+        assert [x for x in R[k]["log"] if x.startswith("fill(")] == ([] if k == "rect" else ["fill()"]), k
+        assert R[k]["log"] == R[k + "_nu"]["log"], k
+    assert R["rect"]["opaques"] == R["rect"]["w"] * R["rect"]["h"]          # face blanche : le papier seul
+    assert R["hex"]["coin"] == [0, 0, 0, 0] and R["hex"]["centre"] == 255
 
 
-def test_un_motif_du_catalogue_n_est_pas_une_image_sans_cadre(tmp_path, neuf):
+def test_la_piece_01_resout_card_back_comme_illustration_du_verso(tmp_path, neuf):
+    R = _node(tmp_path, *neuf, [
+        {"fmt": "poker_us", "cartes": CARTE_VERSO, "cadre": SANS_CADRE, "art": True, "nom": "rect"},
+        {"fmt": "hex_p50", "art": True, "nom": "hex"},
+    ], face=_source(JS / "mod-face.js"))
+    assert R["rect"] == ["recto.png", "verso.png"] and R["hex"] == ["recto.png", "verso.png"]
+
+
+def test_un_motif_du_catalogue_au_dos_ne_peint_rien_sans_cadre(tmp_path, neuf):
     R = _node(tmp_path, *neuf, [
         {"fmt": "poker_us", "cartes": [{"back": "lattice"}], "cadre": SANS_CADRE, "rendu": "back", "nom": "m"},
     ])
     assert R["m"]["draw"] == []
+
+
+# ═══ 2bis. la fenêtre d'un cadre endormi ne pose plus l'illustration ══════
+
+def test_la_fenetre_du_cadre_endormi_cede_la_toile_et_revient_en_rectangle(tmp_path, neuf):
+    R = _node(tmp_path, *neuf, [
+        {"fmt": "poker_us", "cartes": CARTE_NUE, "cadre": {"family": "deco"}, "rendu": "front", "nom": "r"},
+        {"attente": 400, "fenetre": True, "nom": "rect0"},
+        {"geom": True, "nom": "g_rect"},
+        {"doc": True, "nom": "doc0"},
+        {"fmt": "hex_p50", "fenetre": True, "nom": "hex"},
+        {"geom": True, "nom": "g_hex"},
+        {"fmt": "poker_us", "fenetre": True, "nom": "rect1"},
+    ], face=_source(JS / "mod-face.js"))
+    aw = R["doc0"]["frame"]["art_window"]
+    g = R["g_rect"]
+    k = g["dpi"] / 25.4
+    attendu = [g["bleed_off_px"][0] + aw[0] * k, g["bleed_off_px"][1] + aw[1] * k, aw[2] * k, aw[3] * k]
+    assert all(abs(a - b) < 1e-6 for a, b in zip(R["rect0"], attendu)), (R["rect0"], attendu)
+    assert R["hex"] == [0, 0] + list(R["g_hex"]["canvas_px"])              # win: auto -> toute la toile
+    assert R["rect1"] == R["rect0"]                                          # la fenêtre du cadre revient
 
 
 # ═══ 3. le Cadre dort sur un hexagone, et revient tel quel ═════════════════
