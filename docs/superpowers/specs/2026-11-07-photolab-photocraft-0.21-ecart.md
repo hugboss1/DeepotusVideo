@@ -57,7 +57,7 @@ Aucune de ces fonctions n'est ouverte par la montée.
 | N7 Cadres | **Fait (t417)** : sous-menu Calque › Cadre (Propriétés, Remplacer le contenu, Ajuster le contenu au cadre, Ajuster le cadre au contenu, Convertir en cadre) ; un cadre vide est signalé avant le moteur | `layer.frame.*` | M |
 | N8 Formats et exports | **Fait (t418)** : ouverture de XCF, DICOM, IFF, FITS, HDR, Cineon, QOI, PCX, XPM, ICO, Netpbm ; export JPEG XL sans perte, DDS, OpenEXR, DPX, Cineon, HDR, BMP, GIF, QOI ; compression TIFF et DDS. Le PDF porte déjà ses polices (`/Font`, `/ToUnicode`). JPEG XL et HEIC restent fermés à l'ouverture (moteur, brevets) | `doc.save` et ses options | M |
 | N9 Longues opérations | **Fait (t419)** : filtres, Remplissage et Mise à l'échelle d'après le contenu en tâche de fond ; barre après 400 ms, Annuler ou Échap, image intacte en cas d'annulation ou d'échec. Le délai de 60 s du pont ne coupe plus un filtre long | `wait:false`, `jobs.list`, `jobs.cancel` | M |
-| N10 Rendu GPU | Option `--gpu` du moteur, désactivée par défaut | `serve --gpu` ; à mesurer (mêmes pixels, gain réel) | S |
+| N10 Rendu GPU | **Écarté (t420) après mesure** : 6 pixels sur 1,92 million diffèrent de ±1 sous `--gpu` (document de 10 calques), export compris, donc plus d'identité à l'octet ; gain de 20 à 25 ms par rendu jusqu'à 2048 px, nul au-delà (aperçu réduit, composé par le CPU) ; premier rendu plus lent d'environ 1 s (RTX 2080 Ti) | `serve --gpu` | S |
 
 Hors lots : `file.approveMemory` (sans objet en `serve` : `approveHighMemory` à l'ouverture suffit, à sonder sur un gros
 PSD), `help.checkForUpdates` / `updates.status` (le moteur est épinglé, jamais mis à jour seul ; le mode headless répond
