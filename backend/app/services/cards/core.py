@@ -57,7 +57,8 @@ from .contract import (
     BLEED_IMPERIAL_MM, BLEED_METRIC_MM, BLEED_MM_MAX, CORNER_MM_MAX,
     CardGeom, DEFAULT_CORNER_MM, DEFAULT_DPI, DEFAULT_FMT, DPI_CHOICES,
     DPI_MAX, DPI_MIN, FORMATS, MODULE_IDS, RULE_TEXT, SAFE_MM_MAX, SHEETS,
-    deck_dir, decks_root, format_table, geom, is_valid_did, native_bleed_mm,
+    deck_dir, decks_root, format_table, geom, is_hex, is_valid_did,
+    native_bleed_mm,
     sheet_px,
 )
 
@@ -121,9 +122,19 @@ def normalize_format(raw, base: dict | None = None) -> dict:
                 out[k] = base[k]
     fmt = str(raw.get("fmt") or "").strip().lower()
     if fmt in FORMATS and fmt != out["fmt"]:
+        old_fmt = out["fmt"]
         out["fmt"] = fmt
         out["bleed_mm"] = native_bleed_mm(fmt)
         out["safe_mm"] = native_bleed_mm(fmt)
+        # t421 : un hexagone naît à coin 0 (ses sommets ne s'arrondissent que
+        # sur demande) ; en le quittant pour un rectangle, le coin 0 hérité
+        # redevient le coin par défaut. Un `corner_mm` du corps, lu plus bas,
+        # l'emporte toujours. Rectangle -> rectangle : rien ne change.
+        if is_hex(fmt):
+            if not is_hex(old_fmt):
+                out["corner_mm"] = 0.0
+        elif is_hex(old_fmt):
+            out["corner_mm"] = DEFAULT_CORNER_MM
     elif fmt in FORMATS:
         out["fmt"] = fmt
     if "dpi" in raw:

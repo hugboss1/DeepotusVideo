@@ -545,7 +545,12 @@ def test_latlas_ne_fabrique_jamais_de_resolution():
 
     # l'invariant, sur toute la table : jamais plus de 2 px au-dessus de la
     # source (l'arrondi), et le plafond respecté.
-    for fmt in CT.FORMATS:
+    # t421 (07/11/2026) : les DOUZE rectangles. Le Volume est hors périmètre des
+    # hexagones (leurs routes le refusent) ; un hexagone « côté plat en haut »
+    # est un paysage 1,155 : à 1200 DPI et plafond 2048 l'atlas atteint
+    # ATLAS_MAX (4096) et l'îlot du recto s'écrase de 11 %, ce que cet
+    # invariant n'admet pas.
+    for fmt in (f for f in CT.FORMATS if not CT.is_hex(f)):
         for dpi in (72, 150, 300, 600, 1200):
             g = CT.geom(fmt, dpi)
             for cap in SD.ATLAS_CAPS:

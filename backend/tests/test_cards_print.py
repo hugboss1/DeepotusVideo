@@ -1462,7 +1462,10 @@ def test_la_grille_de_coupe_est_annoncee_en_millimetres():
 def test_les_douze_formats_tiennent_dans_le_panneau():
     """« La table annonce LES 12 formats et n'en montre que 9. » Le titre est
     maintenant COMPTÉ, et la boîte est assez haute pour douze lignes."""
-    assert len(CT.FORMATS) == 12
+    # t421 (07/11/2026) : 20 formats (12 rectangles + 8 hexagones). Le titre
+    # reste compté ; la hauteur garantit toujours les douze lignes d'origine,
+    # les huit hexagones suivants défilent dans la même boîte.
+    assert len(CT.FORMATS) == 20
     racine = pathlib.Path(__file__).resolve().parents[2]
     src = (racine / "frontend/cardforge/js/mod-print.js").read_text(encoding="utf-8")
     assert "CF.FORMATS.length" in src, "le compte doit être calculé, pas écrit"

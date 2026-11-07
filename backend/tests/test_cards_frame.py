@@ -995,8 +995,12 @@ def test_le_600_dpi_n_est_pas_un_x2_sur_quatre_formats():
         if [b.canvas_px[0], b.canvas_px[1]] != [2 * a.canvas_px[0],
                                                 2 * a.canvas_px[1]]:
             faux.append((fmt, tuple(a.canvas_px), tuple(b.canvas_px)))
-    assert [f[0] for f in faux] == ["bridge_eu", "tarot_eu", "mini",
-                                    "square_eu"], faux
+    # t421 (07/11/2026) : FORMATS compte 20 entrées. Les 4 rectangles fautifs
+    # d'origine, puis 6 hexagones (hex_p635 et hex_f635 doublent juste, les
+    # six autres non : même cause, l'arrondi au pixel de la toile).
+    assert [f[0] for f in faux] == [
+        "bridge_eu", "tarot_eu", "mini", "square_eu",
+        "hex_p50", "hex_p75", "hex_p90", "hex_f50", "hex_f75", "hex_f90"], faux
     # le cas le plus parlant : tarot_eu, 898x1488 -> 1795x2976, pas 1796.
     assert ("tarot_eu", (898, 1488), (1795, 2976)) in faux
     src = _js()
@@ -2412,12 +2416,16 @@ def test_la_bande_ne_s_inverse_sur_aucun_des_douze_formats(tmp_path):
     Le test ne recalcule rien : il fait tourner le VRAI `model()` du painter
     sur les géométries du VRAI `contract.geom()`."""
     cas = []
-    for fmt in sorted(CT.FORMATS):
+    # t421 (07/11/2026) : les DOUZE rectangles. Le Cadre est hors périmètre des
+    # hexagones (spec « Aperçu » : le cadre n'est pas dessiné, ses routes
+    # refusent) ; à curseurs poussés à fond, hex_f50 (50 mm de haut) rend
+    # d'ailleurs une plaque de -1,96 mm, ce que ce banc ne tolère pas.
+    for fmt in sorted(f for f in CT.FORMATS if not CT.is_hex(f)):
         for corner in (0, 8):
             cas.append({"nom": f"{fmt}/r{corner}",
                         "g": _geom_js(fmt, corner), "f": dict(CURSEURS_MAX)})
     res = _banc_model(tmp_path, cas)
-    assert len(res) == len(cas)
+    assert len(res) == len(cas) == 24
     for r in res:
         assert r["ok"], f"{r['nom']} : {r.get('err')}"
         for quoi in ("bande", "anneau", "plaque"):

@@ -115,7 +115,7 @@ ENTREES = [
     S(C, 1234, '"carte " + (CUR + 1) + " / " + cards().length', 'dzT("cartes.core.carte_n", { n: CUR + 1, total: cards().length })',
       {"cartes.core.carte_n": ("carte {n} / {total}", "card {n} / {total}")}),
     S(C, 1250, "esc(f.label)",
-      'esc(f.id === "square_eu" ? dzT("cartes.core.fmt_carre") : f.id === "business" ? dzT("cartes.core.fmt_visite") : f.label)',
+      'esc(f.id === "square_eu" ? dzT("cartes.core.fmt_carre") : f.id === "business" ? dzT("cartes.core.fmt_visite") : f.forme === "hex" ? hexLabel(f.id) : f.label)',
       {"cartes.core.fmt_carre": ("Carré 70 x 70 mm", "Square 70 x 70 mm"),
        "cartes.core.fmt_visite": ("Carte de visite 2 x 3,5 in", "Business card 2 x 3,5 in")}),
     S(C, 1287, "px</b><i>toile</i>'", "px</b><i>' + dzT(\"cartes.core.toile\") + '</i>'", {"cartes.core.toile": ("toile", "canvas")}),

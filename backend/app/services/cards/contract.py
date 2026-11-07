@@ -64,6 +64,7 @@ __all__ = [
     "BLEED_MM_MAX", "SAFE_MM_MAX", "CORNER_MM_MAX",
     "BLEED_METRIC_MM", "BLEED_IMPERIAL_MM",
     "FORMATS", "SHEETS", "DEFAULT_FMT", "DEFAULT_DPI", "DEFAULT_CORNER_MM",
+    "is_hex",
     "THICKNESS_MM_MIN", "THICKNESS_MM_MAX", "THICKNESS_MM_DEFAULT",
     "R", "px", "rnd", "RULE_TEXT", "CardGeom", "geom", "sheet_px",
     "format_row", "format_table", "native_bleed_mm", "UV_ISLANDS",
@@ -141,7 +142,34 @@ FORMATS: dict[str, dict] = {
                   "trim_mm": (88.9, 139.7)},
     "micro":     {"label": "Micro 1,25 x 1,75 in",    "unit": "in",
                   "trim_mm": (31.75, 44.45)},
+    # ── HEXAGONES (t421, 07/11/2026) ─────────────────────────────────────
+    # Un hexagone régulier vit dans le rectangle qui l'englobe : `trim_mm` EST
+    # ce rectangle (p × 2/√3 arrondi à 3 décimales, p = côté plat à côté plat),
+    # donc toile, fond perdu et pixels gardent la règle ci-dessus. `forme` et
+    # `orientation` sont absentes des douze rectangles : l'absence vaut « rect ».
+    # Unité mm : fond perdu natif 3 mm.
+    "hex_p50":  {"label": "Hexagone 50 mm, pointe en haut",      "unit": "mm",
+                 "trim_mm": (50.0, 57.735),  "forme": "hex", "orientation": "pointe"},
+    "hex_p635": {"label": "Hexagone 63,5 mm, pointe en haut",    "unit": "mm",
+                 "trim_mm": (63.5, 73.323),  "forme": "hex", "orientation": "pointe"},
+    "hex_p75":  {"label": "Hexagone 75 mm, pointe en haut",      "unit": "mm",
+                 "trim_mm": (75.0, 86.603),  "forme": "hex", "orientation": "pointe"},
+    "hex_p90":  {"label": "Hexagone 90 mm, pointe en haut",      "unit": "mm",
+                 "trim_mm": (90.0, 103.923), "forme": "hex", "orientation": "pointe"},
+    "hex_f50":  {"label": "Hexagone 50 mm, côté plat en haut",   "unit": "mm",
+                 "trim_mm": (57.735, 50.0),  "forme": "hex", "orientation": "plat"},
+    "hex_f635": {"label": "Hexagone 63,5 mm, côté plat en haut", "unit": "mm",
+                 "trim_mm": (73.323, 63.5),  "forme": "hex", "orientation": "plat"},
+    "hex_f75":  {"label": "Hexagone 75 mm, côté plat en haut",   "unit": "mm",
+                 "trim_mm": (86.603, 75.0),  "forme": "hex", "orientation": "plat"},
+    "hex_f90":  {"label": "Hexagone 90 mm, côté plat en haut",   "unit": "mm",
+                 "trim_mm": (103.923, 90.0), "forme": "hex", "orientation": "plat"},
 }
+
+
+def is_hex(fmt: str) -> bool:
+    """Vrai pour l'un des huit formats hexagonaux (t421)."""
+    return FORMATS.get(fmt, {}).get("forme") == "hex"
 
 # Planches d'imposition (P7). Même règle d'arrondi, aucune exception.
 SHEETS: dict[str, dict] = {
@@ -183,7 +211,8 @@ PRINTER_PROFILES: dict[str, dict] = {
         "pdfx": "PDF/X-3:2003",
         "color": "rgb",
         "sheet": "a4",
-        "fmts": tuple(FORMATS),
+        # t421 : un hexagone n'a aucun gabarit d'imprimeur de cartes à jouer.
+        "fmts": tuple(f for f in FORMATS if not is_hex(f)),
         "verifie": "",
         "note": "Le comportement historique : aucune contrainte de tiers, "
                 "traits de coupe, cartouche, planches imposées.",
@@ -373,6 +402,32 @@ class CardGeom:
         return rnd(self.corner_mm / MM_PER_INCH * self.dpi, 1)
 
     @property
+    def forme(self) -> str:
+        """« rect » ou « hex » (t421). Une propriété : la dataclasse est gelée."""
+        return FORMATS[self.fmt].get("forme", "rect")
+
+    @property
+    def orientation(self) -> str | None:
+        """« pointe » ou « plat » pour un hexagone, None pour un rectangle."""
+        return FORMATS[self.fmt].get("orientation")
+
+    @property
+    def contour_mm(self) -> list[tuple[float, float]]:
+        """Contour de coupe, repère coin haut-gauche du rectangle de coupe,
+        sens horaire (y vers le bas) depuis le sommet haut (t421). Hexagone
+        « pointe » : le sommet haut, puis six sommets. Hexagone « plat » : pas
+        de sommet haut, le premier est l'extrémité gauche du côté plat du haut.
+        Un rectangle rend ses quatre coins depuis le haut à gauche."""
+        w, h = self.trim_mm
+        if self.orientation == "pointe":
+            return [(w / 2, 0.0), (w, h / 4), (w, 3 * h / 4),
+                    (w / 2, h), (0.0, 3 * h / 4), (0.0, h / 4)]
+        if self.orientation == "plat":
+            return [(w / 4, 0.0), (3 * w / 4, 0.0), (w, h / 2),
+                    (3 * w / 4, h), (w / 4, h), (0.0, h / 2)]
+        return [(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)]
+
+    @property
     def trim_in(self) -> tuple[float, float]:
         return (rnd(self.trim_mm[0] / MM_PER_INCH, 4),
                 rnd(self.trim_mm[1] / MM_PER_INCH, 4))
@@ -384,7 +439,7 @@ class CardGeom:
         `rnd`, le demi-haut de `core.js`, JAMAIS par `round()` : voir `rnd`.
         Les PIXELS, eux, sortent tels quels — ce sont eux qui font le
         fichier."""
-        return {
+        d = {
             "fmt": self.fmt,
             "label": self.label,
             "unit": self.unit,
@@ -401,6 +456,14 @@ class CardGeom:
             "safe_off_px": list(self.safe_off_px),
             "corner_px": self.corner_px,
         }
+        if self.forme == "hex":
+            # t421 : seuls les hexagones gagnent ces clés ; un rectangle sort
+            # EXACTEMENT comme avant.
+            d["forme"] = self.forme
+            d["orientation"] = self.orientation
+            d["contour_mm"] = [[rnd(x, 3), rnd(y, 3)]
+                               for x, y in self.contour_mm]
+        return d
 
 
 def native_bleed_mm(fmt: str) -> float:
