@@ -100,6 +100,7 @@ from .contract import (
 )
 from . import contract                       # tâche #83 : les gabarits d'imprimeur
 from . import print_gabarits as PG
+from . import hexa                           # t421 : refus des sorties hors hexagone
 
 router = APIRouter()
 
@@ -3860,6 +3861,13 @@ def _deck(did: str) -> dict:
     return doc
 
 
+def _refuser_si_hex(doc: dict, sortie: str) -> None:
+    """t421 (07/11/2026) : une sortie qui ne sait pas encore l'hexagone le dit
+    (409) au lieu de livrer un rectangle. Import PARESSEUX du magasin."""
+    from .core import geom_of as geom_deck
+    hexa.refuser_si_hex(geom_deck(doc), sortie)
+
+
 ICC_FILE = "print_output.icc"
 
 
@@ -4206,6 +4214,7 @@ async def post_preflight(did: str, body: dict | None = None):
     """Contrôle avant vol : texte hors zone sûre, illustration sous 300 DPI.
     Chaque ligne porte le nom de la carte ET le chiffre."""
     doc = _deck(did)
+    _refuser_si_hex(doc, "Le contrôle avant vol")
     body = body if isinstance(body, dict) else {}
     try:
         out = await asyncio.to_thread(preflight, _spec_of(doc, body),
@@ -4436,6 +4445,7 @@ async def post_pack(did: str, spec: str = Form("{}"),
     GABARIT, et `open_card` la fait respecter — un bitmap rendu pour la maison
     n'entre pas dans un paquet MPC, et le message donne les deux chiffres."""
     doc = _deck(did)
+    _refuser_si_hex(doc, "Le paquet imprimeur")
     body = _json_form(spec)
     pid, sp = _profile_spec(doc, body)
     if contract.printer_profile(pid)["delivery"] != "png_zip":
@@ -4747,6 +4757,7 @@ async def get_foil_mask(did: str, dpi: int = 600):
     600 ou 1200 dpi (§6.2bis-b), et la géométrie est reconstruite à cette
     définition-là — jamais un PNG de 300 dpi agrandi."""
     doc = _deck(did)
+    _refuser_si_hex(doc, "Le masque de foil")
     if dpi not in FOIL_MASK_DPI:
         raise HTTPException(400, "Définition de masque inconnue : %d. Un "
                                  "masque d'appoint se livre à %s dpi."

@@ -16,15 +16,17 @@ de `bleed_off_px` (arrondi au pixel par la règle du contrat), pas de
 Le miroir exact de ce fichier est le bloc CF-HEX de frontend/cardforge/js/
 core.js ; `test_cards_hexa.py` les confronte à 0,001 mm près.
 
-Sans dépendance hors `contract`. Aucun import de framework web : les refus
-HTTP vivent chez les routes.
+Sans dépendance hors `contract`. Aucun import de framework web au niveau du
+module : la géométrie s'importe sans FastAPI. La seule exception est
+`refuser_si_hex` (t421, 07/11/2026), le refus 409 commun aux sorties qui ne
+gèrent pas encore l'hexagone : il importe `HTTPException` À L'APPEL.
 """
 from __future__ import annotations
 
 from .contract import CardGeom, MM_PER_INCH
 
 __all__ = ["decale", "contour_coupe_toile_mm", "contour_toile_mm",
-           "contour_sur_mm", "milieux_cotes_mm"]
+           "contour_sur_mm", "milieux_cotes_mm", "refuser_si_hex", "NON_GERE"]
 
 Point = tuple[float, float]
 
@@ -162,3 +164,21 @@ def milieux_cotes_mm(g: CardGeom) -> list[Point]:
     pts = contour_coupe_toile_mm(g)
     return [((pts[i][0] + pts[(i + 1) % 6][0]) / 2,
              (pts[i][1] + pts[(i + 1) % 6][1]) / 2) for i in range(6)]
+
+
+# t421 (07/11/2026) : la phrase du refus. Française en dur, comme toutes les
+# HTTPException de cards/ ; l'écran dit la sienne (clé cartes.hexa.non_gere).
+NON_GERE = "ne gère pas encore les cartes hexagonales"
+
+
+def refuser_si_hex(g: CardGeom, sortie: str) -> None:
+    """Refus 409 d'une SORTIE qui ne sait pas encore dessiner un hexagone
+    (Cadre, Volume, Matières, Forge 3D, Édition, foil et paquet de
+    l'Impression) : mieux vaut une phrase claire qu'un fichier rectangulaire.
+    `sortie` nomme la pièce en tête de phrase (« Le paquet imprimeur »). Un
+    rectangle passe sans rien changer."""
+    if g.forme != "hex":
+        return
+    from fastapi import HTTPException          # à l'appel : voir l'en-tête
+    raise HTTPException(409, f"{sortie} {NON_GERE} : repassez le jeu à un "
+                             "format rectangulaire pour l'utiliser.")

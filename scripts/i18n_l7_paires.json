@@ -63,6 +63,18 @@
     "groupe": "coque"
    },
    {
+    "pos": 31626,
+    "avant": "function guidesPainter(ctx, g) {",
+    "apres": "/* ═══ t421 : L'APERCU HEXAGONAL ═══════════════════════════════════════════\r\n     Le rendu reste rectangulaire (la toile du contrat) ; un hexagone est\r\n     ensuite DECOUPE : hors du polygone du fond perdu, la toile est\r\n     transparente. Les polygones viennent de hexContours (repere toile, mm). */\r\n  /* le chemin d'un polygone en mm (k = px par mm), sommets arrondis de r mm ;\r\n     le rayon est borne pour que deux arrondis ne se croisent pas sur un cote */\r\n  function hexChemin(ctx, pts, r, k) {\r\n    ctx.beginPath();\r\n    const n = pts.length;\r\n    if (n < 3) return;\r\n    const P = pts.map((p) => [p[0] * k, p[1] * k]);\r\n    const R = (r > 0) ? r * k : 0;\r\n    if (!R) {\r\n      ctx.moveTo(P[0][0], P[0][1]);\r\n      for (let i = 1; i < n; i++) ctx.lineTo(P[i][0], P[i][1]);\r\n      ctx.closePath();\r\n      return;\r\n    }\r\n    ctx.moveTo((P[n - 1][0] + P[0][0]) / 2, (P[n - 1][1] + P[0][1]) / 2);\r\n    for (let i = 0; i < n; i++) {\r\n      const a = P[i], b = P[(i + 1) % n], z = P[(i + n - 1) % n];\r\n      const la = Math.hypot(a[0] - z[0], a[1] - z[1]), lb = Math.hypot(b[0] - a[0], b[1] - a[1]);\r\n      if (la < 1e-9 || lb < 1e-9) { ctx.lineTo(a[0], a[1]); continue; }\r\n      const cos = ((z[0] - a[0]) * (b[0] - a[0]) + (z[1] - a[1]) * (b[1] - a[1])) / (la * lb);\r\n      const t = Math.tan(Math.acos(Math.max(-1, Math.min(1, cos))) / 2);\r\n      ctx.arcTo(a[0], a[1], b[0], b[1], Math.min(R, Math.min(la, lb) / 2 * t));\r\n    }\r\n    ctx.closePath();\r\n  }\r\n  /* rayons : la coupe suit corner_mm du DOCUMENT ; son decale de d garde les\r\n     memes tangentes avec un rayon r + d (0 reste 0 : un hexagone vif) */\r\n  function hexRayon(g, d) {\r\n    const r = Math.max(0, Number(g.corner_mm) || 0);\r\n    return r > 0 ? Math.max(0, r + d) : 0;\r\n  }\r\n  /* en fin de rendu : la toile est decoupee au polygone du fond perdu */\r\n  function hexMasque(ctx, g) {\r\n    const c = hexContours(g);\r\n    ctx.save();\r\n    ctx.setTransform(1, 0, 0, 1, 0, 0);\r\n    ctx.globalCompositeOperation = \"destination-in\";\r\n    ctx.globalAlpha = 1;\r\n    ctx.fillStyle = \"#000000\";\r\n    hexChemin(ctx, c.fond, hexRayon(g, g.bleed_mm), g.dpi / 25.4);\r\n    ctx.fill();\r\n    ctx.restore();\r\n  }\r\n  /* les reperes d'un hexagone : memes couleurs et memes traits que les\r\n     rectangles de guidesPainter */\r\n  function guidesHex(ctx, g, u) {\r\n    const c = hexContours(g), k = g.dpi / 25.4;\r\n    ctx.save();\r\n    ctx.lineWidth = u;\r\n    ctx.strokeStyle = \"#00b7ff\";                   /* fond perdu */\r\n    ctx.setLineDash([6 * u, 5 * u]);\r\n    hexChemin(ctx, c.fond, hexRayon(g, g.bleed_mm), k); ctx.stroke();\r\n    ctx.setLineDash([]);\r\n    ctx.strokeStyle = \"#ff2d92\";                   /* coupe */\r\n    hexChemin(ctx, c.coupe, hexRayon(g, 0), k); ctx.stroke();\r\n    if (c.sur.length) {\r\n      ctx.setLineDash([9 * u, 6 * u]);\r\n      ctx.strokeStyle = \"#33d18b\";                 /* zone sure */\r\n      hexChemin(ctx, c.sur, hexRayon(g, -g.safe_mm), k); ctx.stroke();\r\n    }\r\n    ctx.restore();\r\n  }\r\n  /* les pieces qui ne gerent PAS ENCORE l'hexagone : elles restent au rail et\r\n     le disent (leurs routes de production refusent un deck hexagonal en 409) */\r\n  const HORS_HEX = Object.freeze([\"frame\", \"solid\", \"texture\", \"gltf\", \"forge3d\", \"edition\", \"capture\"]);\r\n  function horsHex(id) { return HORS_HEX.indexOf(id) >= 0; }\r\n  function syncHorsHex() {\r\n    if (!hasDOM) return;\r\n    const hex = geom().forme === \"hex\";\r\n    Array.prototype.forEach.call(document.querySelectorAll(\".rail-item\"), (b) => {\r\n      const id = b.dataset.mod, on = hex && horsHex(id), m = REG[id];\r\n      const nom = m ? m.title : dzT(\"cartes.core.module_absent\", { id: id });\r\n      b.classList.toggle(\"hors-hex\", on);\r\n      b.title = on ? nom + \" — \" + dzT(\"cartes.hexa.non_gere\") : nom;\r\n    });\r\n    Array.prototype.forEach.call(document.querySelectorAll(\".cf-panel\"), (s) => {\r\n      const on = hex && horsHex(s.dataset.mod);\r\n      let n = s.querySelector(\".cf-hors-hex\");\r\n      if (on && !n) {\r\n        n = document.createElement(\"p\");\r\n        n.className = \"cf-hors-hex\";\r\n        n.setAttribute(\"role\", \"status\");\r\n        const h = s.querySelector(\".panel-head\");\r\n        s.insertBefore(n, h ? h.nextSibling : s.firstChild);\r\n      }\r\n      if (n) { n.textContent = on ? dzT(\"cartes.hexa.non_gere\") : \"\"; n.hidden = !on; }\r\n    });\r\n  }\r\n  /* ═══ fin t421 ═══ */\r\n\r\n  function guidesPainter(ctx, g) {",
+    "groupe": "t421_apercu"
+   },
+   {
+    "pos": 32135,
+    "avant": "const u = Math.max(1, g.dpi / 300);           /* epaisseur constante a l'oeil */",
+    "apres": "const u = Math.max(1, g.dpi / 300);           /* epaisseur constante a l'oeil */\r\n    if (g.forme === \"hex\") { guidesHex(ctx, g, u); return; }    /* t421 */",
+    "groupe": "t421_apercu"
+   },
+   {
     "pos": 33214,
     "avant": "new Error(\"cardforge: \" + what + \" n'a jamais rendu la main (\" + ms + \" ms) — image ou police qui ne charge pas ?\")",
     "apres": "new Error(dzT(\"cartes.core.painter_bloque\", { what: what, ms: ms }))",
@@ -79,6 +91,12 @@
     "avant": "\"a redimensionne la toile (la toile appartient au CORE)\"",
     "apres": "dzT(\"cartes.core.toile_redim\")",
     "groupe": "coque"
+   },
+   {
+    "pos": 36668,
+    "avant": "if (guides) {",
+    "apres": "/* t421 : la carte hexagonale est decoupee au fond perdu, AVANT les reperes */\r\n    if (g.forme === \"hex\") hexMasque(ctx, g);\r\n    if (guides) {",
+    "groupe": "t421_apercu"
    },
    {
     "pos": 38896,
@@ -147,6 +165,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 60519,
+    "avant": "c2.drawImage(FULL, 0, 0, out.width, out.height);",
+    "apres": "c2.drawImage(FULL, 0, 0, out.width, out.height);\r\n      out.classList.toggle(\"hex\", g.forme === \"hex\");     /* t421 : ombre qui suit l'alpha */",
+    "groupe": "t421_apercu"
+   },
+   {
     "pos": 60877,
     "avant": "'<span>toile @ ' + g.dpi + ' DPI</span>'",
     "apres": "'<span>' + dzT(\"cartes.core.toile_dpi\", { dpi: g.dpi }) + '</span>'",
@@ -169,6 +193,12 @@
     "avant": "esc(f.label)",
     "apres": "esc(f.id === \"square_eu\" ? dzT(\"cartes.core.fmt_carre\") : f.id === \"business\" ? dzT(\"cartes.core.fmt_visite\") : f.forme === \"hex\" ? hexLabel(f.id) : f.label)",
     "groupe": "coque"
+   },
+   {
+    "pos": 63422,
+    "avant": "if (!hasDOM) return;\r\n    const g = geom(), f = DOC.format;",
+    "apres": "if (!hasDOM) return;\r\n    syncHorsHex();                     /* t421 */\r\n    const g = geom(), f = DOC.format;",
+    "groupe": "t421_apercu"
    },
    {
     "pos": 64173,
@@ -253,6 +283,12 @@
     "avant": "\"La géométrie de l'écran ne correspond pas à celle de \"\r\n          + \"/api/cards/\" + DOC.id + \"/geom : \" + bad.join(\" · \")\r\n          + \". Le fichier exporté et la planche imprimée divergeraient — corriger AVANT de composer.\"",
     "apres": "dzT(\"cartes.core.geom_divergente_long\", { id: DOC.id, detail: bad.join(\" · \") })",
     "groupe": "coque"
+   },
+   {
+    "pos": 99390,
+    "avant": "c.globalAlpha = 0.5;\r\n    c.strokeStyle = galColor(pal.ink, \"#000000\");\r\n    c.lineWidth = 1;\r\n    c.strokeRect(0.5, 0.5, W - 1, H - 1);",
+    "apres": "/* t421 : la vignette d'un hexagone en a la silhouette (decoupe, puis trait) */\r\n    const hexV = fmt.forme === \"hex\" ? hexSommets(fmt.trim_mm, fmt.orientation) : null;\r\n    if (hexV) {\r\n      c.globalCompositeOperation = \"destination-in\";\r\n      hexChemin(c, hexV, 0, k); c.fill();\r\n      c.globalCompositeOperation = \"source-over\";\r\n    }\r\n    c.globalAlpha = 0.5;\r\n    c.strokeStyle = galColor(pal.ink, \"#000000\");\r\n    c.lineWidth = 1;\r\n    if (hexV) { hexChemin(c, hexV, 0, k); c.stroke(); }\r\n    else c.strokeRect(0.5, 0.5, W - 1, H - 1);",
+    "groupe": "t421_apercu"
    },
    {
     "pos": 100117,
@@ -661,6 +697,12 @@
     "avant": "geom: geom, geomOf: geomOf, nativeBleed: nativeBleed,",
     "apres": "geom: geom, geomOf: geomOf, nativeBleed: nativeBleed, hexContours: hexContours,",
     "groupe": "t421"
+   },
+   {
+    "pos": 132198,
+    "avant": "cards: cards, card: card,",
+    "apres": "cards: cards, card: card,\r\n    /* t421 : les pieces qui ne gerent pas encore l'hexagone */\r\n    horsHex: horsHex,",
+    "groupe": "t421_apercu"
    }
   ],
   "js/mod-capture.js": [
@@ -7065,10 +7107,46 @@
     "groupe": "frame1"
    },
    {
+    "pos": 178968,
+    "avant": "return mag === \"app\" ? decorFiles(f0) : backFiles(f0);",
+    "apres": "return mag === \"app\" ? decorFiles(f0).concat(versoCourant()) : backFiles(f0);   /* t421 : + le verso image */",
+    "groupe": "t421_apercu"
+   },
+   {
+    "pos": 181153,
+    "avant": "function backImgRec(file) { return frameImgRec(file, \"deck\"); }",
+    "apres": "function backImgRec(file) { return frameImgRec(file, \"deck\"); }\r\n  /* t421 : LE VERSO D'UNE CARTE SANS CADRE — famille « none », ou carte\r\n     hexagonale dont le cadre dort — est l'image de la carte (`card.back`, la\r\n     colonne « dos » des Donnees), lue dans le magasin d'images de\r\n     l'application, comme son recto (`card.art`, piece 01). Un id de motif du\r\n     catalogue n'est pas une image : il n'a de sens qu'avec un cadre. */\r\n  function versoImage(card) {\r\n    const v = card && typeof card.back === \"string\" ? card.back : \"\";\r\n    if (!v || byId(BACKS, v)) return \"\";\r\n    return v.indexOf(\"img:\") === 0 ? v.slice(4) : v;\r\n  }\r\n  function sansCadre(g, f) { return f.family === \"none\" || g.forme === \"hex\"; }\r\n  /* le verso image de la carte COURANTE : l'arrivee tardive le redemande */\r\n  function versoCourant() {\r\n    try { const v = versoImage(CF.card(CF.current())); return v ? [v] : []; }\r\n    catch (e) { return []; }\r\n  }\r\n  /* couvre la TOILE (fond perdu compris), comme le verso personnalise ;\r\n     sans image, rien n'est peint : la face reste blanche */\r\n  function paintVersoImage(ctx, g, card) {\r\n    const file = versoImage(card);\r\n    if (!file) return;\r\n    const W = g.canvas_px[0], H = g.canvas_px[1];\r\n    const rec = frameImgRec(file, \"app\");\r\n    if (rec && rec.ok && rec.img) {\r\n      const c = backCover(rec.img.naturalWidth || rec.img.width, rec.img.naturalHeight || rec.img.height, W, H);\r\n      ctx.drawImage(rec.img, c[0], c[1], c[2], c[3]);\r\n    } else {\r\n      backDamier(ctx, 0, 0, W, H, file, \"image du dos manquante\");\r\n    }\r\n  }",
+    "groupe": "t421_apercu"
+   },
+   {
+    "pos": 192181,
+    "avant": "function paintBack(ctx, g, f, card, d) {\r\n    if (f.family === \"none\") return;",
+    "apres": "function paintBack(ctx, g, f, card, d) {\r\n    /* t421 : sans cadre, le verso est l'image de la carte (ou rien) ; le deck a cadre ne passe pas ici */\r\n    if (sansCadre(g, f)) { paintVersoImage(ctx, g, card); return; }",
+    "groupe": "t421_apercu"
+   },
+   {
     "pos": 202525,
     "avant": "\"Cadre\"",
     "apres": "dzT(\"cartes.frame1.titre\")",
     "groupe": "frame1"
+   },
+   {
+    "pos": 202673,
+    "avant": "const f = st(doc);\r\n          publishWindow(geom, f);",
+    "apres": "const f = st(doc);\r\n          /* t421 : le Cadre ne gere pas l'hexagone. Il DORT : ni peinture, ni\r\n             publication (le document n'est pas touche, le cadre revient tel\r\n             quel en rectangle) ; seul le verso image d'une carte passe. */\r\n          if (geom.forme === \"hex\") {\r\n            if (side !== \"back\") return;\r\n            const vh = versoImage(card);\r\n            if (vh) await ensureFrameImgs([vh], \"app\");\r\n            paintBack(ctx, geom, f, card, doc);\r\n            return;\r\n          }\r\n          publishWindow(geom, f);",
+    "groupe": "t421_apercu"
+   },
+   {
+    "pos": 204050,
+    "avant": "if (backOf(f, card) === \"custom\") {",
+    "apres": "/* t421 : le verso image d'une carte sans cadre, attendu de meme */\r\n          const vi = sansCadre(geom, f) ? versoImage(card) : \"\";\r\n          if (vi) await ensureFrameImgs([vi], \"app\");\r\n          if (backOf(f, card) === \"custom\") {",
+    "groupe": "t421_apercu"
+   },
+   {
+    "pos": 204347,
+    "avant": "paintTop(ctx, geom, st(doc), card, side);",
+    "apres": "if (geom.forme !== \"hex\") paintTop(ctx, geom, st(doc), card, side);   /* t421 : le Cadre dort */",
+    "groupe": "t421_apercu"
    },
    {
     "pos": 206747,

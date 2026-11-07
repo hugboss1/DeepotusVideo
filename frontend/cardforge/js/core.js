@@ -722,6 +722,100 @@
     ctx.restore();
   }
 
+  /* ═══ t421 : L'APERCU HEXAGONAL ═══════════════════════════════════════════
+     Le rendu reste rectangulaire (la toile du contrat) ; un hexagone est
+     ensuite DECOUPE : hors du polygone du fond perdu, la toile est
+     transparente. Les polygones viennent de hexContours (repere toile, mm). */
+  /* le chemin d'un polygone en mm (k = px par mm), sommets arrondis de r mm ;
+     le rayon est borne pour que deux arrondis ne se croisent pas sur un cote */
+  function hexChemin(ctx, pts, r, k) {
+    ctx.beginPath();
+    const n = pts.length;
+    if (n < 3) return;
+    const P = pts.map((p) => [p[0] * k, p[1] * k]);
+    const R = (r > 0) ? r * k : 0;
+    if (!R) {
+      ctx.moveTo(P[0][0], P[0][1]);
+      for (let i = 1; i < n; i++) ctx.lineTo(P[i][0], P[i][1]);
+      ctx.closePath();
+      return;
+    }
+    ctx.moveTo((P[n - 1][0] + P[0][0]) / 2, (P[n - 1][1] + P[0][1]) / 2);
+    for (let i = 0; i < n; i++) {
+      const a = P[i], b = P[(i + 1) % n], z = P[(i + n - 1) % n];
+      const la = Math.hypot(a[0] - z[0], a[1] - z[1]), lb = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (la < 1e-9 || lb < 1e-9) { ctx.lineTo(a[0], a[1]); continue; }
+      const cos = ((z[0] - a[0]) * (b[0] - a[0]) + (z[1] - a[1]) * (b[1] - a[1])) / (la * lb);
+      const t = Math.tan(Math.acos(Math.max(-1, Math.min(1, cos))) / 2);
+      ctx.arcTo(a[0], a[1], b[0], b[1], Math.min(R, Math.min(la, lb) / 2 * t));
+    }
+    ctx.closePath();
+  }
+  /* rayons : la coupe suit corner_mm du DOCUMENT ; son decale de d garde les
+     memes tangentes avec un rayon r + d (0 reste 0 : un hexagone vif) */
+  function hexRayon(g, d) {
+    const r = Math.max(0, Number(g.corner_mm) || 0);
+    return r > 0 ? Math.max(0, r + d) : 0;
+  }
+  /* en fin de rendu : la toile est decoupee au polygone du fond perdu */
+  function hexMasque(ctx, g) {
+    const c = hexContours(g);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#000000";
+    hexChemin(ctx, c.fond, hexRayon(g, g.bleed_mm), g.dpi / 25.4);
+    ctx.fill();
+    ctx.restore();
+  }
+  /* les reperes d'un hexagone : memes couleurs et memes traits que les
+     rectangles de guidesPainter */
+  function guidesHex(ctx, g, u) {
+    const c = hexContours(g), k = g.dpi / 25.4;
+    ctx.save();
+    ctx.lineWidth = u;
+    ctx.strokeStyle = "#00b7ff";                   /* fond perdu */
+    ctx.setLineDash([6 * u, 5 * u]);
+    hexChemin(ctx, c.fond, hexRayon(g, g.bleed_mm), k); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "#ff2d92";                   /* coupe */
+    hexChemin(ctx, c.coupe, hexRayon(g, 0), k); ctx.stroke();
+    if (c.sur.length) {
+      ctx.setLineDash([9 * u, 6 * u]);
+      ctx.strokeStyle = "#33d18b";                 /* zone sure */
+      hexChemin(ctx, c.sur, hexRayon(g, -g.safe_mm), k); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  /* les pieces qui ne gerent PAS ENCORE l'hexagone : elles restent au rail et
+     le disent (leurs routes de production refusent un deck hexagonal en 409) */
+  const HORS_HEX = Object.freeze(["frame", "solid", "texture", "gltf", "forge3d", "edition", "capture"]);
+  function horsHex(id) { return HORS_HEX.indexOf(id) >= 0; }
+  function syncHorsHex() {
+    if (!hasDOM) return;
+    const hex = geom().forme === "hex";
+    Array.prototype.forEach.call(document.querySelectorAll(".rail-item"), (b) => {
+      const id = b.dataset.mod, on = hex && horsHex(id), m = REG[id];
+      const nom = m ? m.title : dzT("cartes.core.module_absent", { id: id });
+      b.classList.toggle("hors-hex", on);
+      b.title = on ? nom + " — " + dzT("cartes.hexa.non_gere") : nom;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".cf-panel"), (s) => {
+      const on = hex && horsHex(s.dataset.mod);
+      let n = s.querySelector(".cf-hors-hex");
+      if (on && !n) {
+        n = document.createElement("p");
+        n.className = "cf-hors-hex";
+        n.setAttribute("role", "status");
+        const h = s.querySelector(".panel-head");
+        s.insertBefore(n, h ? h.nextSibling : s.firstChild);
+      }
+      if (n) { n.textContent = on ? dzT("cartes.hexa.non_gere") : ""; n.hidden = !on; }
+    });
+  }
+  /* ═══ fin t421 ═══ */
+
   function guidesPainter(ctx, g) {
     /* Reperes prepresse : fond perdu (bord de toile), coupe (trim), zone sure.
        Couleurs FIXES et non tokenisees : cette couche se pose sur une
@@ -730,6 +824,7 @@
        seul l'apercu du CORE appelle `renderRaw` avec. */
     const b = g.bleed_off_px, s = g.safe_off_px, t = g.trim_px, sp = g.safe_px, c = g.canvas_px;
     const u = Math.max(1, g.dpi / 300);           /* epaisseur constante a l'oeil */
+    if (g.forme === "hex") { guidesHex(ctx, g, u); return; }    /* t421 */
     ctx.save();
     ctx.setLineDash([]);
     ctx.lineWidth = u;
@@ -822,6 +917,8 @@
       }
       ctx.restore();
     }
+    /* t421 : la carte hexagonale est decoupee au fond perdu, AVANT les reperes */
+    if (g.forme === "hex") hexMasque(ctx, g);
     if (guides) {
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1326,6 +1423,7 @@
       try { c2.imageSmoothingQuality = "high"; } catch (e) { /* moteurs anciens */ }
       c2.clearRect(0, 0, out.width, out.height);
       c2.drawImage(FULL, 0, 0, out.width, out.height);
+      out.classList.toggle("hex", g.forme === "hex");     /* t421 : ombre qui suit l'alpha */
       const rd = el("#stageRead");
       if (rd) {
         /* les MESURES seulement — les mm restent les mm : rien ici ne lit le
@@ -1385,6 +1483,7 @@
   }
   function syncFormatWidget() {
     if (!hasDOM) return;
+    syncHorsHex();                     /* t421 */
     const g = geom(), f = DOC.format;
     const sel = el("#fmtSel"); if (sel) sel.value = f.fmt;
     Array.prototype.forEach.call(document.querySelectorAll("#dpiSeg .seg-b"), (b) => {
@@ -2064,10 +2163,18 @@
       c.fill();
       c.globalAlpha = 1;
     });
+    /* t421 : la vignette d'un hexagone en a la silhouette (decoupe, puis trait) */
+    const hexV = fmt.forme === "hex" ? hexSommets(fmt.trim_mm, fmt.orientation) : null;
+    if (hexV) {
+      c.globalCompositeOperation = "destination-in";
+      hexChemin(c, hexV, 0, k); c.fill();
+      c.globalCompositeOperation = "source-over";
+    }
     c.globalAlpha = 0.5;
     c.strokeStyle = galColor(pal.ink, "#000000");
     c.lineWidth = 1;
-    c.strokeRect(0.5, 0.5, W - 1, H - 1);
+    if (hexV) { hexChemin(c, hexV, 0, k); c.stroke(); }
+    else c.strokeRect(0.5, 0.5, W - 1, H - 1);
     c.globalAlpha = 1;
   }
 
@@ -2716,6 +2823,8 @@
     doc: doc, get: get,
     geom: geom, geomOf: geomOf, nativeBleed: nativeBleed, hexContours: hexContours,
     cards: cards, card: card,
+    /* t421 : les pieces qui ne gerent pas encore l'hexagone */
+    horsHex: horsHex,
     current: () => CUR,
     side: () => SIDE,
     renderCard: renderCard, cardBlob: cardBlob,

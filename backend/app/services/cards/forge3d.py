@@ -30,6 +30,7 @@ from fastapi.responses import FileResponse, Response
 from loguru import logger
 
 from .contract import deck_dir
+from . import hexa                          # t421 : refus des sorties hors hexagone
 # Couture intra-pièce (legs 6, revue finale 2a) : la géométrie pure vit dans
 # forge3d_scene.py (zéro FastAPI) — RÉEXPORTÉE ici pour que tests et route
 # n'aient pas à changer d'orthographe. Ce fichier garde le contrat HTTP
@@ -1206,6 +1207,7 @@ async def post_layers(did: str,
     doc = read_deck(did)
     if doc is None:
         raise HTTPException(404, "Deck introuvable")
+    hexa.refuser_si_hex(geom_of(doc), "La Forge 3D")
     g = geom_of(doc)
     w, h = g.canvas_px
     face = "back" if str(side).strip().lower() == "back" else "front"
@@ -2433,6 +2435,7 @@ async def post_build3d(did: str, body: dict | None = None):
     doc = read_deck(did)
     if doc is None:
         raise HTTPException(404, "Deck introuvable")
+    hexa.refuser_si_hex(geom_of(doc), "La Forge 3D")
     body = body if isinstance(body, dict) else {}
     idx = _card_idx(body.get("card"))
     card_label = f"c{idx + 1:02d}"
@@ -3068,6 +3071,7 @@ async def post_mesh3d(did: str, nid: str, background_tasks: BackgroundTasks,
         raise HTTPException(400, "Identifiant de deck invalide")
     if read_deck(did) is None:
         raise HTTPException(404, "Deck introuvable")
+    hexa.refuser_si_hex(_geom_jeu(did), "La Forge 3D")
     if not _NID_RE.match(nid or ""):
         raise HTTPException(400, "Identifiant de noeud invalide")
     body = body if isinstance(body, dict) else {}
@@ -3531,6 +3535,7 @@ async def post_node_preview(did: str, body: dict | None = None):
     doc = read_deck(did)
     if doc is None:
         raise HTTPException(404, "Deck introuvable")
+    hexa.refuser_si_hex(geom_of(doc), "La Forge 3D")
     body = body if isinstance(body, dict) else {}
     card_label = f"c{_card_idx(body.get('card')) + 1:02d}"
     graph = clean_graph(body.get("graph"))
@@ -4243,6 +4248,12 @@ async def get_file(did: str, name: str):
 # `forge3d_jeu` ; ici, la lecture du deck, l'écriture par `print3d` (dans le dossier que l'écran Imprimante liste) et
 # le PDF du patron.
 
+def _geom_jeu(did: str):
+    """t421 (07/11/2026) : la géométrie d'un deck déjà vérifié par l'appelant (refus hors hexagone)."""
+    from .core import read_deck, geom_of
+    return geom_of(read_deck(did) or {})
+
+
 def _jeu_deck(did: str) -> dict:
     from .core import read_deck
     from .contract import is_valid_did
@@ -4271,6 +4282,7 @@ async def post_jeu(did: str, objet: str = Form(...), params: str = Form("{}"), n
     """Un objet du jeu — jeton, jeton en relief de la carte, pion, présentoir — écrit en STL + 3MF par `print3d`,
     dans le dossier de l'écran Imprimante. La garde de plateau (256 mm) avertit, elle n'interdit pas."""
     doc = _jeu_deck(did)
+    hexa.refuser_si_hex(_geom_jeu(did), "La Forge 3D")
     from app.config import settings
     from app.services import print3d as P3
     from . import forge3d_jeu as JEU
@@ -4323,6 +4335,7 @@ async def post_boite(did: str, body: dict | None = None):
     """Le patron de la TUCK BOX en PDF vectoriel, aux dimensions du deck plus le jeu : trait plein = couper,
     pointillé = plier, légende et cotes sur la feuille. L'épaisseur vient de la pièce 05."""
     doc = _jeu_deck(did)
+    hexa.refuser_si_hex(_geom_jeu(did), "La Forge 3D")
     b = body if isinstance(body, dict) else {}
     from pypdf import PdfWriter
     from pypdf.generic import DecodedStreamObject, NameObject

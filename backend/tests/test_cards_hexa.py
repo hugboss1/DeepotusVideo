@@ -280,8 +280,14 @@ def test_les_profils_d_imprimeur_n_admettent_aucun_hexagone():
 
 
 def test_hexa_sans_fastapi():
+    """La géométrie s'importe sans FastAPI. t421 (07/11/2026, T3) : seul
+    `refuser_si_hex` l'importe, À L'APPEL — décision du contrôleur (le refus
+    409 commun vit ici, pas dans contract.py qui n'a pas de code métier)."""
     src = pathlib.Path(HX.__file__).read_text(encoding="utf-8")
-    assert "fastapi" not in src.lower() and "HTTPException" not in src
+    k = src.index("def refuser_si_hex(")
+    # aucune exception HTTP levée avant le refus, et le refus est la dernière fonction
+    assert "HTTPException(" not in src[:k] and chr(10) + "def " not in src[k + 4:]
+    assert not [ln for ln in src.splitlines() if ln.startswith(("import", "from")) and "fastapi" in ln]
 
 
 # ═══════════════════════ 7. libellés traduits ══════════════════════════════

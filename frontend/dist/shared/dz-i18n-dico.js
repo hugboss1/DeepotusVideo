@@ -3808,6 +3808,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "cartes.gltf.why_tangent": {"fr": "TANGENT est écrit : votre moteur n'a pas à recalculer les tangentes, la normale rendra pareil partout", "en": "TANGENT is written: your engine does not have to recompute tangents, the normal map renders the same everywhere"},
   "cartes.gltf.zip_des_maps": {"fr": "ZIP des maps", "en": "Maps ZIP"},
   "cartes.gltf.zip_obj_une": {"fr": "Ces deux cases ne produisent qu'<b>une</b> archive : le <b>ZIP des maps</b> embarque déjà l'OBJ, le MTL et les mêmes PNG, l'archive OBJ n'en serait qu'une seconde copie. Elle n'est pas écrite.", "en": "These two boxes produce only <b>one</b> archive: the <b>Maps ZIP</b> already carries the OBJ, the MTL and the same PNGs, so the OBJ archive would just be a second copy. It is not written."},
+  "cartes.hexa.non_gere": {"fr": "Cette pièce ne gère pas encore les cartes hexagonales.", "en": "This part does not handle hexagonal cards yet."},
   "cartes.page.adapter": {"fr": "Adapter", "en": "Fit"},
   "cartes.page.adapter_t": {"fr": "Adapter la carte à la colonne", "en": "Fit the card to the column"},
   "cartes.page.agrandir": {"fr": "Agrandir l'aperçu", "en": "Zoom in"},

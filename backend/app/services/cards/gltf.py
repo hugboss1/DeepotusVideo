@@ -69,6 +69,7 @@ from .contract import (
     MM_PER_INCH, THICKNESS_MM_DEFAULT, THICKNESS_MM_MAX, THICKNESS_MM_MIN,
     UV_ISLANDS, CardGeom, card_mesh, deck_dir, geom, rnd,
 )
+from . import hexa                       # t421 : refus des sorties hors hexagone
 
 router = APIRouter()
 
@@ -3924,6 +3925,7 @@ async def post_atlas(did: str, request: Request, i: str | None = None):
     redessine RIEN — c'est le risque n°2 de la spec (deux renderers = l'écran
     et le fichier divergent)."""
     doc = _deck(did)
+    hexa.refuser_si_hex(_geom(doc), "L'export 3D")
     try:
         idx = int(float(i)) if i is not None else 0
     except (TypeError, ValueError):
@@ -4001,6 +4003,7 @@ async def post_build(did: str, body: dict | None = None):
     l'état de la matière — tout ce que l'écran affiche est relu ici, sur les
     octets produits."""
     doc = _deck(did)
+    hexa.refuser_si_hex(_geom(doc), "L'export 3D")
     opt = clean_options(body)
     try:
         return {"build": await asyncio.to_thread(build, doc, opt)}
