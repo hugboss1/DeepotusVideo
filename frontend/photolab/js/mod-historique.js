@@ -78,6 +78,12 @@ export const ETATS_MOTEUR = {
   "Move": "photolab.outil.move",
   "Free Transform": "photolab.histo.free_transform",
   "Crop": "photolab.outil.crop",
+  "Art History Brush": "photolab.outil.art_history_brush",   // t414
+  "Add Shape": "photolab.formes.ajouter_forme", "Path Operation": "photolab.histo.operation_trace", "Merge Shape Components": "photolab.traces.fusionner_composants",   // t413
+  "Area Type": "photolab.commande.type.fill_path", "Change OpenType Numerals": "photolab.historique.opentype_chiffres",   // t412
+  "Change OpenType Feature": "photolab.historique.opentype_trait",
+  "Replace Contents": "photolab.objets.etat_remplacer",            // t411
+  "Content-aware Crop": "photolab.historique.recadrage_contenu",   // 0.21 : recadrage qui agrandit, rempli d'après le contenu
   "Invert": "photolab.histo.invert",
   "Fill": "photolab.histo.fill",
   "Clear": "photolab.histo.clear",
@@ -149,7 +155,13 @@ export const ETATS_MOTEUR = {
 // document). Les noms sont des données de l'utilisateur. Choisir un instantané fait UN état portant son nom.
 export function instantanesDe(doc) {
   const s = doc && Array.isArray(doc.snapshots) ? doc.snapshots : [];
-  return s.filter((x) => x && Number.isInteger(x.id) && typeof x.name === "string").map((x) => ({ id: x.id, nom: x.name }));
+  return s.filter((x) => x && Number.isInteger(x.id) && typeof x.name === "string").map((x) => ({ id: x.id, nom: nomInstantane(x.name, doc) }));
+}
+// 0.21 : le premier instantané porte le nom du document, soit celui de sa copie de travail (« c4532058-fond.png ») : montré
+// sans l'empreinte ni l'extension. Tout autre nom vient de l'utilisateur et reste tel quel.
+export function nomInstantane(nom, doc) {
+  if (!doc || nom !== doc.name) return nom;
+  return String(nom).replace(/^[0-9a-f]{8}-/, "").replace(/\.[A-Za-z0-9]{1,5}$/, "") || nom;
 }
 // Un état dont le nom n'a pas de traduction (le nom d'un instantané choisi, un nom inconnu) est montré tel quel : la
 // surcouche de traduction ne doit pas y toucher.
@@ -157,7 +169,8 @@ export const etatBrut = (nom, affiche) => affiche === nom;
 
 // Ordre : carte ci-dessus (fr et en, par le dictionnaire) -> libellé du catalogue des menus (fr) -> nom du moteur.
 // t257 : états dont le nom porte une valeur (Image › Appliquer un jeu de données : « Apply Data Set "Été" »).
-export const ETATS_MOTIFS = [[/^Apply Data Set "(.*)"$/, "photolab.historique.appliquer_jeu"]];
+export const ETATS_MOTIFS = [[/^Apply Data Set "(.*)"$/, "photolab.historique.appliquer_jeu"],
+  [/^Action: (.*)$/, "photolab.historique.action_jouee"]];   // 0.21 : une lecture d'action = UN état
 
 export function traduireEtat(nom, table, t = null) {
   const cle = ETATS_MOTEUR[nom];
@@ -168,6 +181,23 @@ export function traduireEtat(nom, table, t = null) {
   }
   return (table && table.get(nom)) || nom;
 }
+
+// t415 : le dialogue Options d'historique, et ce qui part au pont : seules les cases changées.
+export const OPTIONS_HISTORIQUE = [["premierInstantane", "photolab.historique.opt_premier"], ["instantaneEnregistrement", "photolab.historique.opt_enregistrement"],
+  ["dialogueInstantane", "photolab.historique.opt_dialogue"], ["visibiliteAnnulable", "photolab.historique.opt_visibilite"]];
+export function corpsOptions(avant, cases) {
+  const out = {};
+  for (const [cle] of OPTIONS_HISTORIQUE) if (cases[cle] && cases[cle].checked !== !!avant[cle]) out[cle] = cases[cle].checked;
+  return out;
+}
+
+// t414 : la source du pinceau d'historique (doc.inspect.historySource : {state, label} ou {snapshot, name}).
+export function estSource(doc, cible) {
+  const s = doc && doc.historySource;
+  if (!s) return false;
+  return cible.instantane !== undefined ? s.snapshot === cible.instantane : s.state === cible.etat;
+}
+export const commandeSource = (cible) => (cible.instantane !== undefined ? { snapshot: cible.instantane } : { state: cible.etat });
 
 export function initHistorique(PL) {
   const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
@@ -186,7 +216,10 @@ export function initHistorique(PL) {
   // t256 : Nouvel instantané (history.newSnapshot) ; Nouveau document à partir de l'état actuel (history.newDocument)
   const bInstantane = bouton("dz-action-capturer", "photolab.historique.nouvel_instantane");
   const bDocument = bouton("dz-action-nouveau", "photolab.historique.nouveau_document");
-  barre.append(bAnnuler, bRetablir, bInstantane, bDocument);
+  // t415 : Effacer l'historique (l'image ne change pas, Annuler rend les états) et ses options
+  const bEffacer = bouton("dz-action-supprimer", "photolab.commande.history.clear");
+  const bOptions = bouton("dz-action-reglages", "photolab.historique.options");
+  barre.append(bAnnuler, bRetablir, bInstantane, bDocument, bEffacer, bOptions);
   const instantanes = document.createElement("ul"); instantanes.className = "hi-instantanes";
   instantanes.setAttribute("aria-label", T("photolab.historique.instantanes"));
   const liste = document.createElement("ol"); liste.className = "hi-liste";
@@ -197,20 +230,53 @@ export function initHistorique(PL) {
   // Même chemin que Ctrl+Z / Ctrl+Maj+Z (mod-cycle : cumul, file FIFO, tranches de 100).
   bAnnuler.addEventListener("click", () => PL.historique(-1));
   bRetablir.addEventListener("click", () => PL.historique(1));
-  bInstantane.addEventListener("click", () => PL.executer("history.newSnapshot", {}));
+  let options = null;
+  const lireOptions = async () => { try { options = (await PL.get("/options/moteur", true)).options; } catch (e) { options = null; } return options; };
+  lireOptions();
+  bInstantane.addEventListener("click", async () => {
+    if (!(options && options.dialogueInstantane)) { PL.executer("history.newSnapshot", {}); return; }
+    const { demanderNom } = await import("./mod-nommer.js");         // à la demande : mod-historique est importé par mod-cycle
+    const n = await demanderNom(PL, T("photolab.historique.nouvel_instantane"), "");
+    if (n) PL.executer("history.newSnapshot", { name: n });
+  });
+  bEffacer.addEventListener("click", () => PL.executer("history.clear", {}));
+  bOptions.addEventListener("click", async () => {
+    const o = await lireOptions();
+    if (!o) return;
+    const { ouvrirDialogue } = await import("./mod-fichier.js");
+    const cases = {};
+    const role = await ouvrirDialogue(PL, { titre: T("photolab.historique.options"), construire({ corps: c }) {
+      for (const [cle, lib] of OPTIONS_HISTORIQUE) {
+        const l = document.createElement("label"); l.className = "pl-case";
+        const i = document.createElement("input"); i.type = "checkbox"; i.checked = !!o[cle]; cases[cle] = i;
+        l.append(i, document.createTextNode(" " + T(lib))); c.appendChild(l);
+      }
+    }, boutons: [{ role: "annuler", libelle: T("commun.action.annuler") }, { role: "ok", libelle: T("commun.action.valider"), principal: true }] });
+    if (role !== "ok") return;
+    options = (await PL.post("/options/moteur", corpsOptions(o, cases))).options;
+  });
   // Le moteur rend le NOUVEAU document actif : l'écran le suit, comme un clic sur son onglet.
   bDocument.addEventListener("click", async () => {
     const r = await PL.executer("history.newDocument", {}, { cycle: false });
     if (r && r.ok) { if (PL.suivreDocumentActif) await PL.suivreDocumentActif(); else await PL.documentOuvert(); }
   });
 
+  // t414 : le pinceau en tête de ligne choisit la source du pinceau d'historique
+  function boutonSource(doc, cible) {
+    const b = document.createElement("button"); b.type = "button"; b.title = T("photolab.historique.source"); b.setAttribute("aria-label", b.title);
+    const actif = estSource(doc, cible);
+    b.className = "hi-source" + (actif ? " actif" : ""); b.setAttribute("aria-pressed", String(actif));
+    b.innerHTML = PL.icone("dz-outil-photo-pinceau-historique", 12);
+    b.addEventListener("click", (ev) => { ev.stopPropagation(); PL.executer("history.setSource", commandeSource(cible)); });
+    return b;
+  }
   function dessinerInstantanes(doc) {
     instantanes.textContent = "";
     const l = instantanesDe(doc);
     instantanes.hidden = !l.length;
     for (const s of l) {
       const li = document.createElement("li"); li.className = "hi-instantane";
-      const ic = document.createElement("span"); ic.className = "hi-instantane-icone"; ic.innerHTML = PL.icone("dz-action-capturer", 14);
+      const ic = boutonSource(doc, { instantane: s.id });
       const nom = document.createElement("span"); nom.className = "hi-instantane-nom"; nom.textContent = s.nom;
       nom.setAttribute("data-dz-brut", "");
       li.title = T("photolab.historique.choisir_instantane");
@@ -242,13 +308,14 @@ export function initHistorique(PL) {
     for (const e of etatsHistorique(h, doc.canRedo)) {
       const li = document.createElement("li");
       li.className = "hi-etat" + (e.courant ? " courant" : "");
-      li.textContent = traduireEtat(e.nom, table, T);
+      li.textContent = traduireEtat(nomInstantane(e.nom, doc), table, T);
       if (etatBrut(e.nom, li.textContent)) li.setAttribute("data-dz-brut", "");
       li.title = e.nom;
       li.addEventListener("click", () => {
         const n = annulationsPour(e.index, h);
         if (n > 0) PL.historique(-n);
       });
+      li.prepend(boutonSource(doc, { etat: e.index }));
       liste.appendChild(li);
     }
     const dernier = liste.lastElementChild;

@@ -31,7 +31,9 @@ def check(label, cond, detail=""):
 
 # Fausses alertes connues du relevé : (fichier relatif à frontend/photolab, texte exact) -> raison. Vide à ce jour :
 # une ligne de code qui piégeait l'expression (deux littéraux sur une ligne) a été réécrite plutôt qu'autorisée.
-AUTORISEES = {}
+# Noms de polices de la liste des licences : des noms propres, jamais traduits.
+AUTORISEES = {("js/mod-apropos.js", n) for n in ("Noto Sans Arabic", "Noto Sans CJK SC", "Noto Sans Devanagari", "Noto Sans Georgian",
+              "Noto Sans Hebrew", "Noto Sans Symbols", "Noto Sans Symbols 2", "Noto Sans Thai")}
 
 
 def relever(*args):

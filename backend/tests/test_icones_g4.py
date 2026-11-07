@@ -100,7 +100,7 @@ ATTENDU = {
         "dz-outil-vec-pipette", "dz-outil-vec-plume", "dz-outil-vec-polygone", "dz-outil-vec-rectangle", "dz-outil-vec-selection",
         "dz-outil-vec-texte", "dz-outil-vec-tranche", "dz-outil-vec-triangle"]},
     "js/mod-pinceaux.js": {"dz-action-supprimer": 1},
-    "js/mod-presets.js": {"dz-action-ajouter": 1, "dz-action-deplier": 1, "dz-action-nouveau-dossier": 1, "dz-action-supprimer": 1},
+    "js/mod-presets.js": {"dz-action-ajouter": 1, "dz-action-deplier": 1, "dz-action-exporter": 1, "dz-action-importer": 1, "dz-action-nouveau-dossier": 1, "dz-action-supprimer": 1},
     "js/mod-reglages.js": {k: 1 for k in [
         "dz-calque-balance-couleurs", "dz-calque-couleur-selective", "dz-calque-courbes", "dz-calque-exposition",
         "dz-calque-filtre-photo", "dz-calque-inverser", "dz-calque-luminosite-contraste", "dz-calque-mappage-degrade",

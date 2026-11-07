@@ -707,6 +707,16 @@ body.ecran-plein #panneaux, body.ecran-plein #statut, body.ecran-plein .espace-b
 .tx-police-items { overflow: auto; display: flex; flex-direction: column; }
 .tx-police-item { padding: 3px 6px; background: transparent; border: 0; border-radius: var(--r); color: var(--ink-strong); text-align: left; white-space: nowrap; }
 .tx-police-item:hover { background: var(--accent-soft); }
+.hi-source { flex: none; width: 18px; height: 18px; padding: 0; margin-right: 4px; background: transparent; border: 0; color: var(--ink-soft); opacity: .3; cursor: pointer; vertical-align: middle; }
+.hi-source:hover, .hi-source.actif { opacity: 1; color: var(--accent); }
+.pl-tache { position: fixed; z-index: 90; left: 50%; bottom: 40px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  background: var(--bg-panel-2); color: var(--ink-strong); border: 1px solid var(--stroke); border-radius: var(--r); }
+.pl-tache progress { width: 180px; accent-color: var(--accent); }
+.pl-tache-pct { min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+.tx-police-ligne { display: flex; align-items: center; }
+.tx-police-ligne .tx-police-item { flex: 1; min-width: 0; text-align: left; }
+.tx-police-favori { flex: none; width: 22px; height: 22px; padding: 0; background: transparent; border: 0; color: var(--ink-soft); opacity: .45; cursor: pointer; }
+.tx-police-favori:hover, .tx-police-favori.actif { opacity: 1; color: var(--accent); }
 /* panneaux Caractère et Paragraphe : même dessin que le panneau Couleur (.co-ligne / .co-lib / .co-hex) — une ligne
    par champ, libellé à gauche (--ink-soft), champ de 88 px aligné à droite (78 au panneau Couleur, trop court pour
    « Métrique » et sa flèche ; fond --bg-base, liseré --stroke, valeur

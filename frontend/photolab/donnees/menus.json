@@ -1,7 +1,7 @@
 {
  "source": "storytold/photocraft v0.3.0 crates/ui-egui/src/menu_catalog.rs",
- "source_fr": "storytold/photocraft v0.10.0 (commit 8407d9ccb1) crates/ui-egui/src/i18n/fr.tsv (blob 4a819b0e), traduction française de l'amont, MIT OR Apache-2.0 : repli seulement, les libellés déjà en place restent prioritaires",
- "source_repli": "commandes du moteur photocraft 0.10.0 (engine.commands, photocraft_commandes_0.10.0.json) absentes de l'arbre ; libelle_fr = fr.tsv v0.10.0",
+ "source_fr": "storytold/photocraft v0.21.0 (commit efb7ebd0c0) crates/ui-egui/src/i18n/fr.tsv (blob 0b439428), traduction française de l'amont, MIT OR Apache-2.0 : repli seulement, les libellés déjà en place restent prioritaires",
+ "source_repli": "commandes du moteur photocraft 0.21.0 (engine.commands, photocraft_commandes_0.21.0.json) absentes de l'arbre ; libelle_fr = fr.tsv v0.21.0",
  "licence": "MIT OR Apache-2.0",
  "menus_fr": {
   "File": "Fichier",
@@ -70,7 +70,33 @@
   "Workspace": "Espace de travail"
  },
  "remplacements": [],
- "ecarts_amont": [],
+ "ecarts_amont": [
+  {
+   "id": "layer.layerMask.apply",
+   "garde": "Appliquer",
+   "amont": "Appliquer le masque de calque"
+  },
+  {
+   "id": "view.proofSetup.workingCmyPlate",
+   "garde": "Plaque CMJ de travail",
+   "amont": "Working CMY Plate"
+  },
+  {
+   "id": "view.proofSetup.legacyMacintoshRgb",
+   "garde": "RVB Macintosh (ancien)",
+   "amont": "Legacy Macintosh RGB"
+  },
+  {
+   "id": "view.proofSetup.internetStandardRgb",
+   "garde": "RVB standard d'Internet",
+   "amont": "Internet Standard RGB"
+  },
+  {
+   "id": "window.arrange.newWindowForDocument",
+   "garde": "Nouvelle fenêtre pour le document",
+   "amont": "New Window for Document"
+  }
+ ],
  "entrees": [
   {
    "chemin": [
@@ -7104,6 +7130,9 @@
   "actions.move": {
    "libelle_en": "Move Action or Step"
   },
+  "actions.newSet": {
+   "libelle_en": "New Set"
+  },
   "actions.play": {
    "libelle_en": "Play Action"
   },
@@ -7120,8 +7149,16 @@
   "actions.setColor": {
    "libelle_en": "Set Action Color"
   },
+  "actions.setHistory": {
+   "libelle_en": "Set Actions History"
+  },
+  "actions.setPlayback": {
+   "libelle_en": "Playback Options",
+   "libelle_fr": "Options d'exécution"
+  },
   "actions.stop": {
-   "libelle_en": "Stop Recording"
+   "libelle_en": "Stop Recording",
+   "libelle_fr": "Arrêter l'enregistrement"
   },
   "actions.stopMessage": {
    "libelle_en": "Stop",
@@ -7136,6 +7173,15 @@
   },
   "brush.get": {
    "libelle_en": "Get Brush"
+  },
+  "brush.mixer.clean": {
+   "libelle_en": "Clean Mixer Brush"
+  },
+  "brush.mixer.load": {
+   "libelle_en": "Load Mixer Brush"
+  },
+  "brush.mixer.sample": {
+   "libelle_en": "Sample Mixer Brush"
   },
   "brush.presets.delete": {
    "libelle_en": "Delete Brush Preset"
@@ -7161,7 +7207,8 @@
    "libelle_en": "Move Brush Group"
   },
   "brush.presets.rename": {
-   "libelle_en": "Rename Brush"
+   "libelle_en": "Rename Brush",
+   "libelle_fr": "Renommer le pinceau"
   },
   "brush.presets.renameGroup": {
    "libelle_en": "Rename Brush Group"
@@ -7179,7 +7226,8 @@
    "libelle_en": "Brush Texture Pattern"
   },
   "channel.delete": {
-   "libelle_en": "Delete Channel"
+   "libelle_en": "Delete Channel",
+   "libelle_fr": "Supprimer le canal"
   },
   "channel.duplicate": {
    "libelle_en": "Duplicate Channel…"
@@ -7189,22 +7237,27 @@
    "libelle_fr": "Canaux"
   },
   "channel.merge": {
-   "libelle_en": "Merge Channels…"
+   "libelle_en": "Merge Channels…",
+   "libelle_fr": "Fusionner les canaux…"
   },
   "channel.mergeSpot": {
-   "libelle_en": "Merge Spot Channel"
+   "libelle_en": "Merge Spot Channel",
+   "libelle_fr": "Fusionner le canal de ton direct"
   },
   "channel.move": {
    "libelle_en": "Reorder Channel"
   },
   "channel.new": {
-   "libelle_en": "New Channel…"
+   "libelle_en": "New Channel…",
+   "libelle_fr": "Nouveau canal…"
   },
   "channel.newSpot": {
-   "libelle_en": "New Spot Channel…"
+   "libelle_en": "New Spot Channel…",
+   "libelle_fr": "Nouveau canal de ton direct…"
   },
   "channel.options": {
-   "libelle_en": "Channel Options…"
+   "libelle_en": "Channel Options…",
+   "libelle_fr": "Options de canal…"
   },
   "channel.rename": {
    "libelle_en": "Rename Channel"
@@ -7213,7 +7266,8 @@
    "libelle_en": "Channel Visibility"
   },
   "channel.split": {
-   "libelle_en": "Split Channels"
+   "libelle_en": "Split Channels",
+   "libelle_fr": "Séparer les canaux"
   },
   "channel.target": {
    "libelle_en": "Target Channel"
@@ -7358,6 +7412,9 @@
   "edit.transform.warpGrid": {
    "libelle_en": "Warp Grid"
   },
+  "file.approveMemory": {
+   "libelle_en": "Approve High Memory PSD Import"
+  },
   "file.automate.runDroplet": {
    "libelle_en": "Run Droplet"
   },
@@ -7401,13 +7458,16 @@
    "libelle_fr": "Afficher dans le Finder"
   },
   "filter.gallery.accentedEdges": {
-   "libelle_en": "Accented Edges"
+   "libelle_en": "Accented Edges",
+   "libelle_fr": "Contours accentués"
   },
   "filter.gallery.angledStrokes": {
-   "libelle_en": "Angled Strokes"
+   "libelle_en": "Angled Strokes",
+   "libelle_fr": "Traits obliques"
   },
   "filter.gallery.basRelief": {
-   "libelle_en": "Bas Relief"
+   "libelle_en": "Bas Relief",
+   "libelle_fr": "Bas-relief"
   },
   "filter.gallery.chalkCharcoal": {
    "libelle_en": "Chalk & Charcoal",
@@ -7422,41 +7482,52 @@
    "libelle_fr": "Chrome"
   },
   "filter.gallery.coloredPencil": {
-   "libelle_en": "Colored Pencil"
+   "libelle_en": "Colored Pencil",
+   "libelle_fr": "Crayon de couleur"
   },
   "filter.gallery.conteCrayon": {
    "libelle_en": "Conté Crayon",
    "libelle_fr": "Crayon Conté"
   },
   "filter.gallery.craquelure": {
-   "libelle_en": "Craquelure"
+   "libelle_en": "Craquelure",
+   "libelle_fr": "Craquelure"
   },
   "filter.gallery.crosshatch": {
-   "libelle_en": "Crosshatch"
+   "libelle_en": "Crosshatch",
+   "libelle_fr": "Hachures croisées"
   },
   "filter.gallery.cutout": {
-   "libelle_en": "Cutout"
+   "libelle_en": "Cutout",
+   "libelle_fr": "Découpage"
   },
   "filter.gallery.darkStrokes": {
-   "libelle_en": "Dark Strokes"
+   "libelle_en": "Dark Strokes",
+   "libelle_fr": "Traits sombres"
   },
   "filter.gallery.diffuseGlow": {
-   "libelle_en": "Diffuse Glow"
+   "libelle_en": "Diffuse Glow",
+   "libelle_fr": "Lueur diffuse"
   },
   "filter.gallery.dryBrush": {
-   "libelle_en": "Dry Brush"
+   "libelle_en": "Dry Brush",
+   "libelle_fr": "Pinceau sec"
   },
   "filter.gallery.filmGrain": {
-   "libelle_en": "Film Grain"
+   "libelle_en": "Film Grain",
+   "libelle_fr": "Grain de film"
   },
   "filter.gallery.fresco": {
-   "libelle_en": "Fresco"
+   "libelle_en": "Fresco",
+   "libelle_fr": "Fresque"
   },
   "filter.gallery.glass": {
-   "libelle_en": "Glass"
+   "libelle_en": "Glass",
+   "libelle_fr": "Verre"
   },
   "filter.gallery.glowingEdges": {
-   "libelle_en": "Glowing Edges"
+   "libelle_en": "Glowing Edges",
+   "libelle_fr": "Contours lumineux"
   },
   "filter.gallery.grain": {
    "libelle_en": "Grain",
@@ -7471,29 +7542,36 @@
    "libelle_fr": "Motif de demi-teintes"
   },
   "filter.gallery.inkOutlines": {
-   "libelle_en": "Ink Outlines"
+   "libelle_en": "Ink Outlines",
+   "libelle_fr": "Contours à l'encre"
   },
   "filter.gallery.mosaicTiles": {
-   "libelle_en": "Mosaic Tiles"
+   "libelle_en": "Mosaic Tiles",
+   "libelle_fr": "Carreaux de mosaïque"
   },
   "filter.gallery.neonGlow": {
-   "libelle_en": "Neon Glow"
+   "libelle_en": "Neon Glow",
+   "libelle_fr": "Lueur néon"
   },
   "filter.gallery.notePaper": {
    "libelle_en": "Note Paper",
    "libelle_fr": "Papier à lettres"
   },
   "filter.gallery.oceanRipple": {
-   "libelle_en": "Ocean Ripple"
+   "libelle_en": "Ocean Ripple",
+   "libelle_fr": "Ondulation océanique"
   },
   "filter.gallery.paintDaubs": {
-   "libelle_en": "Paint Daubs"
+   "libelle_en": "Paint Daubs",
+   "libelle_fr": "Barbouillage"
   },
   "filter.gallery.paletteKnife": {
-   "libelle_en": "Palette Knife"
+   "libelle_en": "Palette Knife",
+   "libelle_fr": "Couteau à palette"
   },
   "filter.gallery.patchwork": {
-   "libelle_en": "Patchwork"
+   "libelle_en": "Patchwork",
+   "libelle_fr": "Patchwork"
   },
   "filter.gallery.photocopy": {
    "libelle_en": "Photocopy",
@@ -7504,57 +7582,68 @@
    "libelle_fr": "Plâtre"
   },
   "filter.gallery.plasticWrap": {
-   "libelle_en": "Plastic Wrap"
+   "libelle_en": "Plastic Wrap",
+   "libelle_fr": "Film plastique"
   },
   "filter.gallery.posterEdges": {
-   "libelle_en": "Poster Edges"
+   "libelle_en": "Poster Edges",
+   "libelle_fr": "Contours postérisés"
   },
   "filter.gallery.reticulation": {
    "libelle_en": "Reticulation",
    "libelle_fr": "Réticulation"
   },
   "filter.gallery.roughPastels": {
-   "libelle_en": "Rough Pastels"
+   "libelle_en": "Rough Pastels",
+   "libelle_fr": "Pastels rugueux"
   },
   "filter.gallery.smudgeStick": {
-   "libelle_en": "Smudge Stick"
+   "libelle_en": "Smudge Stick",
+   "libelle_fr": "Estompe"
   },
   "filter.gallery.spatter": {
-   "libelle_en": "Spatter"
+   "libelle_en": "Spatter",
+   "libelle_fr": "Éclaboussures"
   },
   "filter.gallery.sponge": {
    "libelle_en": "Sponge",
    "libelle_fr": "Éponge"
   },
   "filter.gallery.sprayedStrokes": {
-   "libelle_en": "Sprayed Strokes"
+   "libelle_en": "Sprayed Strokes",
+   "libelle_fr": "Traits pulvérisés"
   },
   "filter.gallery.stainedGlass": {
-   "libelle_en": "Stained Glass"
+   "libelle_en": "Stained Glass",
+   "libelle_fr": "Vitrail"
   },
   "filter.gallery.stamp": {
    "libelle_en": "Stamp",
    "libelle_fr": "Tampon"
   },
   "filter.gallery.sumiE": {
-   "libelle_en": "Sumi-e"
+   "libelle_en": "Sumi-e",
+   "libelle_fr": "Sumi-e"
   },
   "filter.gallery.texturizer": {
-   "libelle_en": "Texturizer"
+   "libelle_en": "Texturizer",
+   "libelle_fr": "Texturisation"
   },
   "filter.gallery.tornEdges": {
    "libelle_en": "Torn Edges",
    "libelle_fr": "Bords déchirés"
   },
   "filter.gallery.underpainting": {
-   "libelle_en": "Underpainting"
+   "libelle_en": "Underpainting",
+   "libelle_fr": "Sous-couche"
   },
   "filter.gallery.waterPaper": {
    "libelle_en": "Water Paper",
    "libelle_fr": "Papier mouillé"
   },
   "filter.gallery.watercolor": {
-   "libelle_en": "Watercolor"
+   "libelle_en": "Watercolor",
+   "libelle_fr": "Aquarelle"
   },
   "filter.other.colorToAlpha": {
    "libelle_en": "Color to Alpha…",
@@ -7600,6 +7689,14 @@
   "gradient.presets.stop": {
    "libelle_en": "Edit Gradient Stop"
   },
+  "help.checkForUpdates": {
+   "libelle_en": "Check for Updates…",
+   "libelle_fr": "Rechercher des mises à jour…"
+  },
+  "history.clear": {
+   "libelle_en": "Clear History",
+   "libelle_fr": "Effacer l'historique"
+  },
   "history.deleteSnapshot": {
    "libelle_en": "Delete Snapshot",
    "libelle_fr": "Supprimer l'instantané"
@@ -7614,6 +7711,10 @@
    "libelle_en": "New Snapshot",
    "libelle_fr": "Nouvel instantané"
   },
+  "history.options": {
+   "libelle_en": "History Options…",
+   "libelle_fr": "Options d'historique…"
+  },
   "history.redo": {
    "libelle_en": "Redo",
    "libelle_fr": "Rétablir"
@@ -7626,6 +7727,17 @@
   },
   "history.selectState": {
    "libelle_en": "Select History State"
+  },
+  "history.setSource": {
+   "libelle_en": "Set History Brush Source"
+  },
+  "history.stepBackward": {
+   "libelle_en": "Step Backward",
+   "libelle_fr": "Étape précédente"
+  },
+  "history.stepForward": {
+   "libelle_en": "Step Forward",
+   "libelle_fr": "Étape suivante"
   },
   "history.undo": {
    "libelle_en": "Undo",
@@ -7679,8 +7791,41 @@
    "libelle_en": "Solid Color…",
    "libelle_fr": "Couleur unie…"
   },
+  "layer.frame.convert": {
+   "libelle_en": "Convert to Frame"
+  },
+  "layer.frame.fit": {
+   "libelle_en": "Fit Frame / Content"
+  },
+  "layer.frame.info": {
+   "libelle_en": "Frame Info"
+  },
+  "layer.frame.set": {
+   "libelle_en": "Frame Properties"
+  },
+  "layer.frame.setContent": {
+   "libelle_en": "Replace Frame Content"
+  },
   "layer.layerMask.edit": {
    "libelle_en": "Edit Layer Mask"
+  },
+  "layer.layerStyle.contours.delete": {
+   "libelle_en": "Delete Contour",
+   "libelle_fr": "Supprimer le contour"
+  },
+  "layer.layerStyle.contours.list": {
+   "libelle_en": "List User Contours"
+  },
+  "layer.layerStyle.contours.load": {
+   "libelle_en": "Load Contours…",
+   "libelle_fr": "Charger des contours…"
+  },
+  "layer.layerStyle.contours.new": {
+   "libelle_en": "New Contour…"
+  },
+  "layer.layerStyle.contours.save": {
+   "libelle_en": "Save Contours…",
+   "libelle_fr": "Enregistrer les contours…"
   },
   "layer.layerStyle.defaultFor": {
    "libelle_en": "Layer Style Default"
@@ -7709,14 +7854,16 @@
    "libelle_fr": "Fusionner le groupe"
   },
   "layer.moveTo": {
-   "libelle_en": "Reorder Layer"
+   "libelle_en": "Reorder Layer",
+   "libelle_fr": "Réorganiser le calque"
   },
   "layer.new.backgroundFromLayer": {
    "libelle_en": "Background From Layer",
    "libelle_fr": "Arrière-plan d'après le calque"
   },
   "layer.new.frame": {
-   "libelle_en": "New Frame"
+   "libelle_en": "New Frame",
+   "libelle_fr": "Nouveau cadre"
   },
   "layer.pickAt": {
    "libelle_en": "Auto-Select Layer"
@@ -7734,7 +7881,8 @@
    "libelle_fr": "Supprimer l'arrière-plan"
   },
   "layer.select": {
-   "libelle_en": "Select Layer"
+   "libelle_en": "Select Layer",
+   "libelle_fr": "Sélectionner le calque"
   },
   "layer.selectAbove": {
    "libelle_en": "Select Layer Above",
@@ -7756,7 +7904,8 @@
    "libelle_fr": "Sélectionner le premier calque"
   },
   "layer.setAdjustment": {
-   "libelle_en": "Adjustment Properties"
+   "libelle_en": "Adjustment Properties",
+   "libelle_fr": "Propriétés de l'ajustement"
   },
   "layer.setEffectsExpanded": {
    "libelle_en": "Expand/Collapse Effects"
@@ -7771,10 +7920,12 @@
    "libelle_en": "Layer Color"
   },
   "layer.setProps": {
-   "libelle_en": "Layer Properties"
+   "libelle_en": "Layer Properties",
+   "libelle_fr": "Propriétés du calque"
   },
   "layer.showLayers": {
-   "libelle_en": "Show Layers"
+   "libelle_en": "Show Layers",
+   "libelle_fr": "Afficher les calques"
   },
   "layer.showOnly": {
    "libelle_en": "Show Only This Layer"
@@ -7798,6 +7949,13 @@
    "libelle_en": "Convert to Layers",
    "libelle_fr": "Convertir en calques"
   },
+  "layer.smartObjects.embedAllLinked": {
+   "libelle_en": "Embed All Linked",
+   "libelle_fr": "Incorporer tous les liés"
+  },
+  "layer.smartObjects.exportSvg": {
+   "libelle_en": "Export SVG Contents"
+  },
   "layer.smartObjects.saveContents": {
    "libelle_en": "Save Contents"
   },
@@ -7808,6 +7966,12 @@
   "layer.smartObjects.updateChanged": {
    "libelle_en": "Update Changed Linked Content"
   },
+  "layer.smartObjects.updateSvg": {
+   "libelle_en": "Update SVG Contents"
+  },
+  "layer.smartObjects.updateVectorSource": {
+   "libelle_en": "Update Vector Contents"
+  },
   "layer.stampDown": {
    "libelle_en": "Stamp Down",
    "libelle_fr": "Tamponner sur le calque inférieur"
@@ -7817,13 +7981,15 @@
    "libelle_fr": "Tamponner les calques visibles"
   },
   "layer.toggleLockTransparency": {
-   "libelle_en": "Lock Transparent Pixels"
+   "libelle_en": "Lock Transparent Pixels",
+   "libelle_fr": "Verrouiller les pixels transparents"
   },
   "layer.toggleMaskOverlay": {
    "libelle_en": "Toggle Layer Mask Overlay"
   },
   "layer.translate": {
-   "libelle_en": "Move Layer"
+   "libelle_en": "Move Layer",
+   "libelle_fr": "Déplacer le calque"
   },
   "layer.vectorMask.add": {
    "libelle_en": "Add Vector Mask",
@@ -7838,6 +8004,9 @@
   },
   "layer.vectorMask.info": {
    "libelle_en": "Vector Mask Info"
+  },
+  "layer.xmpMetadata": {
+   "libelle_en": "Layer XMP Metadata"
   },
   "layerComp.apply": {
    "libelle_en": "Apply Layer Comp",
@@ -7865,6 +8034,9 @@
   "layerComp.rename": {
    "libelle_en": "Rename Layer Comp",
    "libelle_fr": "Renommer la composition de calques"
+  },
+  "layerComp.reorder": {
+   "libelle_en": "Reorder Layer Comp"
   },
   "layerComp.restoreLastDocumentState": {
    "libelle_en": "Restore Last Document State"
@@ -7904,6 +8076,10 @@
   },
   "notes.set": {
    "libelle_en": "Edit Note"
+  },
+  "paint.artHistoryBrush": {
+   "libelle_en": "Art History Brush",
+   "libelle_fr": "Pinceau d'historique artistique"
   },
   "paint.backgroundEraser": {
    "libelle_en": "Background Eraser",
@@ -7955,6 +8131,9 @@
    "libelle_en": "Mixer Brush",
    "libelle_fr": "Pinceau mélangeur"
   },
+  "paint.mixerLoad": {
+   "libelle_en": "Load Mixer Brush"
+  },
   "paint.patch": {
    "libelle_en": "Patch",
    "libelle_fr": "Pièce"
@@ -8002,10 +8181,14 @@
    "libelle_en": "Disable Painting Symmetry"
   },
   "paint.symmetryFromPath": {
-   "libelle_en": "Make Symmetry Path"
+   "libelle_en": "Make Symmetry Path",
+   "libelle_fr": "Créer un tracé de symétrie"
   },
   "path.addAnchor": {
    "libelle_en": "Add Anchor Point"
+  },
+  "path.addToSelection": {
+   "libelle_en": "Add Path to Selection"
   },
   "path.bendSegment": {
    "libelle_en": "Drag Segment"
@@ -8037,6 +8220,10 @@
   "path.list": {
    "libelle_en": "List Paths"
   },
+  "path.mergeShapeComponents": {
+   "libelle_en": "Merge Shape Components",
+   "libelle_fr": "Fusionner les composants de forme"
+  },
   "path.moveAnchors": {
    "libelle_en": "Drag Anchor Points"
   },
@@ -8049,27 +8236,38 @@
   "path.set": {
    "libelle_en": "Set Path"
   },
+  "path.setOperation": {
+   "libelle_en": "Path Operation"
+  },
   "path.stroke": {
    "libelle_en": "Stroke Path",
    "libelle_fr": "Contourner le tracé"
   },
   "path.style.copyFill": {
-   "libelle_en": "Copy Fill"
+   "libelle_en": "Copy Fill",
+   "libelle_fr": "Copier le remplissage"
   },
   "path.style.copyStroke": {
-   "libelle_en": "Copy Complete Stroke"
+   "libelle_en": "Copy Complete Stroke",
+   "libelle_fr": "Copier le contour complet"
   },
   "path.style.pasteFill": {
-   "libelle_en": "Paste Fill"
+   "libelle_en": "Paste Fill",
+   "libelle_fr": "Coller le remplissage"
   },
   "path.style.pasteStroke": {
-   "libelle_en": "Paste Complete Stroke"
+   "libelle_en": "Paste Complete Stroke",
+   "libelle_fr": "Coller le contour complet"
+  },
+  "path.subtractFromSelection": {
+   "libelle_en": "Subtract Path from Selection"
   },
   "path.toSelection": {
    "libelle_en": "Make Selection from Path"
   },
   "path.transform": {
-   "libelle_en": "Free Transform Path"
+   "libelle_en": "Free Transform Path",
+   "libelle_fr": "Transformation libre du tracé"
   },
   "pattern.delete": {
    "libelle_en": "Delete Pattern"
@@ -8122,7 +8320,8 @@
    "libelle_en": "Get Preferences"
   },
   "prefs.reset": {
-   "libelle_en": "Reset Preferences"
+   "libelle_en": "Reset Preferences",
+   "libelle_fr": "Réinitialiser les préférences"
   },
   "prefs.set": {
    "libelle_en": "Set Preferences"
@@ -8155,7 +8354,8 @@
    "libelle_fr": "Sélection rapide"
   },
   "select.rect": {
-   "libelle_en": "Rectangular Selection"
+   "libelle_en": "Rectangular Selection",
+   "libelle_fr": "Sélection rectangulaire"
   },
   "select.refineEdge": {
    "libelle_en": "Refine Edge",
@@ -8180,6 +8380,9 @@
   },
   "shape.presets.edit": {
    "libelle_en": "Edit Shape Presets"
+  },
+  "shape.presets.importCsh": {
+   "libelle_en": "Import Shapes"
   },
   "shape.presets.list": {
    "libelle_en": "Shape Presets"
@@ -8227,6 +8430,14 @@
   },
   "style.presets.edit": {
    "libelle_en": "Edit Style Presets"
+  },
+  "style.presets.exportAsl": {
+   "libelle_en": "Export Styles…",
+   "libelle_fr": "Exporter les styles…"
+  },
+  "style.presets.importAsl": {
+   "libelle_en": "Import Styles…",
+   "libelle_fr": "Importer des styles…"
   },
   "style.presets.list": {
    "libelle_en": "Style Presets"
@@ -8320,19 +8531,40 @@
    "libelle_en": "Select Tool Preset"
   },
   "tools.decreaseBrushHardness": {
-   "libelle_en": "Decrease Brush Hardness"
+   "libelle_en": "Decrease Brush Hardness",
+   "libelle_fr": "Réduire la dureté du pinceau"
   },
   "tools.decreaseBrushSize": {
-   "libelle_en": "Decrease Brush Size"
+   "libelle_en": "Decrease Brush Size",
+   "libelle_fr": "Réduire la taille du pinceau"
   },
   "tools.defaultColors": {
-   "libelle_en": "Default Foreground and Background Colors"
+   "libelle_en": "Default Foreground and Background Colors",
+   "libelle_fr": "Couleurs par défaut du premier plan et de l'arrière-plan"
+  },
+  "tools.firstBrush": {
+   "libelle_en": "First Brush",
+   "libelle_fr": "Premier pinceau"
   },
   "tools.increaseBrushHardness": {
-   "libelle_en": "Increase Brush Hardness"
+   "libelle_en": "Increase Brush Hardness",
+   "libelle_fr": "Augmenter la dureté du pinceau"
   },
   "tools.increaseBrushSize": {
-   "libelle_en": "Increase Brush Size"
+   "libelle_en": "Increase Brush Size",
+   "libelle_fr": "Augmenter la taille du pinceau"
+  },
+  "tools.lastBrush": {
+   "libelle_en": "Last Brush",
+   "libelle_fr": "Dernier pinceau"
+  },
+  "tools.nextBrush": {
+   "libelle_en": "Next Brush",
+   "libelle_fr": "Pinceau suivant"
+  },
+  "tools.previousBrush": {
+   "libelle_en": "Previous Brush",
+   "libelle_fr": "Pinceau précédent"
   },
   "tools.rotateBrush": {
    "libelle_en": "Rotate Brush Tip"
@@ -8341,10 +8573,12 @@
    "libelle_en": "Set Brush"
   },
   "tools.setColors": {
-   "libelle_en": "Set Colors"
+   "libelle_en": "Set Colors",
+   "libelle_fr": "Définir les couleurs"
   },
   "tools.swapColors": {
-   "libelle_en": "Switch Foreground and Background Colors"
+   "libelle_en": "Switch Foreground and Background Colors",
+   "libelle_fr": "Permuter les couleurs de premier plan et d'arrière-plan"
   },
   "type.antiAlias.none": {
    "libelle_en": "None",
@@ -8404,6 +8638,16 @@
    "libelle_en": "Edit Type",
    "libelle_fr": "Modifier le texte"
   },
+  "type.fillPath": {
+   "libelle_en": "Area Type"
+  },
+  "type.font.favorite": {
+   "libelle_en": "Add to Favorites",
+   "libelle_fr": "Ajouter aux favoris"
+  },
+  "type.font.library": {
+   "libelle_en": "Font Library"
+  },
   "type.fonts": {
    "libelle_en": "List Fonts"
   },
@@ -8424,6 +8668,95 @@
   },
   "type.navigate": {
    "libelle_en": "Navigate Type"
+  },
+  "type.openType.numerals.default": {
+   "libelle_en": "Default",
+   "libelle_fr": "Par défaut"
+  },
+  "type.openType.numerals.lining": {
+   "libelle_en": "Lining"
+  },
+  "type.openType.numerals.oldstyle": {
+   "libelle_en": "Oldstyle",
+   "libelle_fr": "Chiffres anciens"
+  },
+  "type.openType.numerals.proportional": {
+   "libelle_en": "Proportional"
+  },
+  "type.openType.numerals.proportionalLining": {
+   "libelle_en": "Proportional Lining"
+  },
+  "type.openType.numerals.proportionalOldstyle": {
+   "libelle_en": "Proportional Oldstyle"
+  },
+  "type.openType.numerals.tabular": {
+   "libelle_en": "Tabular"
+  },
+  "type.openType.numerals.tabularLining": {
+   "libelle_en": "Tabular Lining"
+  },
+  "type.openType.numerals.tabularOldstyle": {
+   "libelle_en": "Tabular Oldstyle"
+  },
+  "type.openType.stylisticSets.set1": {
+   "libelle_en": "Set 1"
+  },
+  "type.openType.stylisticSets.set10": {
+   "libelle_en": "Set 10"
+  },
+  "type.openType.stylisticSets.set11": {
+   "libelle_en": "Set 11"
+  },
+  "type.openType.stylisticSets.set12": {
+   "libelle_en": "Set 12"
+  },
+  "type.openType.stylisticSets.set13": {
+   "libelle_en": "Set 13"
+  },
+  "type.openType.stylisticSets.set14": {
+   "libelle_en": "Set 14"
+  },
+  "type.openType.stylisticSets.set15": {
+   "libelle_en": "Set 15"
+  },
+  "type.openType.stylisticSets.set16": {
+   "libelle_en": "Set 16"
+  },
+  "type.openType.stylisticSets.set17": {
+   "libelle_en": "Set 17"
+  },
+  "type.openType.stylisticSets.set18": {
+   "libelle_en": "Set 18"
+  },
+  "type.openType.stylisticSets.set19": {
+   "libelle_en": "Set 19"
+  },
+  "type.openType.stylisticSets.set2": {
+   "libelle_en": "Set 2"
+  },
+  "type.openType.stylisticSets.set20": {
+   "libelle_en": "Set 20"
+  },
+  "type.openType.stylisticSets.set3": {
+   "libelle_en": "Set 3"
+  },
+  "type.openType.stylisticSets.set4": {
+   "libelle_en": "Set 4"
+  },
+  "type.openType.stylisticSets.set5": {
+   "libelle_en": "Set 5"
+  },
+  "type.openType.stylisticSets.set6": {
+   "libelle_en": "Set 6"
+  },
+  "type.openType.stylisticSets.set7": {
+   "libelle_en": "Set 7"
+  },
+  "type.openType.stylisticSets.set8": {
+   "libelle_en": "Set 8"
+  },
+  "type.openType.stylisticSets.set9": {
+   "libelle_en": "Set 9"
   },
   "type.paragraphStyle.apply": {
    "libelle_en": "Apply Paragraph Style"
@@ -8459,6 +8792,9 @@
   },
   "type.setStyle": {
    "libelle_en": "Set Type Style"
+  },
+  "updates.status": {
+   "libelle_en": "Update Check Status"
   },
   "variables.list": {
    "libelle_en": "List Variables"

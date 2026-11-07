@@ -43,8 +43,8 @@ check("8 aucun « Photoshop » dans les libellés montrés (D8)",
       not [e for e in ent if "Photoshop" in e["libelle_fr"] or "Photoshop" in e["libelle_en"]],
       [e["libelle_en"] for e in ent if "Photoshop" in e["libelle_en"]][:5])
 # t258 (M9) : le français vient du fr.tsv livré dans le tag v0.10.0 (repli : nos libellés restent, test_photolab_libelles_m9).
-check("9 source_fr nomme le tag v0.10.0 et le blob 4a819b0e",
-      "v0.10.0" in C.get("source_fr", "") and "4a819b0e" in C.get("source_fr", ""), C.get("source_fr"))
+check("9 source_fr nomme le tag v0.21.0 et le blob 0b439428",
+      "v0.21.0" in C.get("source_fr", "") and "0b439428" in C.get("source_fr", ""), C.get("source_fr"))
 # Refus d'un fr.tsv d'une autre empreinte : le français est épinglé, jamais « celui qui traîne ».
 import subprocess, tempfile
 SCRIPT = RACINE / "scripts" / "photocraft_catalogue.py"

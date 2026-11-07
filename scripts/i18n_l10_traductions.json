@@ -14142,5 +14142,61 @@
  "google: video file not ready after {POLL_TIMEOUT_S}s ({ref})": {
   "fr": "google : fichier vidéo toujours pas prêt après {POLL_TIMEOUT_S} s ({ref})",
   "en": "google: video file not ready after {POLL_TIMEOUT_S}s ({ref})"
+ },
+ "le calque actif n'est pas un objet dynamique": {
+  "fr": "le calque actif n'est pas un objet dynamique",
+  "en": "the active layer is not a smart object"
+ },
+ "options : objet attendu": {
+  "fr": "options : objet attendu",
+  "en": "options: object expected"
+ },
+ "options : clé inconnue : {k}": {
+  "fr": "options : clé inconnue : {k}",
+  "en": "options: unknown key: {k}"
+ },
+ "options : {k} : booléen attendu": {
+  "fr": "options : {k} : booléen attendu",
+  "en": "options: {k}: boolean expected"
+ },
+ "fond : un booléen, pour une longue opération seulement : {cid}": {
+  "fr": "fond : un booléen, pour une longue opération seulement : {cid}",
+  "en": "fond: a boolean, for a long operation only: {cid}"
+ },
+ "tâche inconnue : {job}": {
+  "fr": "tâche inconnue : {job}",
+  "en": "unknown task: {job}"
+ },
+ "compression hors liste pour {fmt} : {v}": {
+  "fr": "compression hors liste pour {fmt} : {v}",
+  "en": "compression not listed for {fmt}: {v}"
+ },
+ "bibliothèque : genre inconnu : {genre}": {
+  "fr": "bibliothèque : genre inconnu : {genre}",
+  "en": "library: unknown kind: {genre}"
+ },
+ "bibliothèque : nom de groupe de 1 à {MAX_NOM} caractères": {
+  "fr": "bibliothèque : nom de groupe de 1 à {MAX_NOM} caractères",
+  "en": "library: group name of 1 to {MAX_NOM} characters"
+ },
+ "bibliothèque : contenu du fichier attendu": {
+  "fr": "bibliothèque : contenu du fichier attendu",
+  "en": "library: file contents expected"
+ },
+ "bibliothèque : contenu illisible": {
+  "fr": "bibliothèque : contenu illisible",
+  "en": "library: unreadable contents"
+ },
+ "bibliothèque : nom de groupe attendu": {
+  "fr": "bibliothèque : nom de groupe attendu",
+  "en": "library: group name expected"
+ },
+ "bibliothèque : fichier trop lourd": {
+  "fr": "bibliothèque : fichier trop lourd",
+  "en": "library: file too large"
+ },
+ "ce calque n'est pas un cadre : {calque}": {
+  "fr": "ce calque n'est pas un cadre : {calque}",
+  "en": "this layer is not a frame: {calque}"
  }
 }

@@ -343,11 +343,22 @@ export function traceLibre(points, ajustement, tolFermer) {
 /* ── menu contextuel des outils de tracé (amont canvas_tool_menu.rs PEN_MENU, entrées que le Photolab sert) ── */
 // cible : {nom} du tracé visé ; forme : le calque actif est un calque de forme (avec fond ? contour ?) ; presse :
 // ce que le presse-papiers de la session tient (fond, contour).
+// t413 : opérations entre composants d'un tracé. Le premier composant combine toujours (moteur) : sans choix utile, tous les
+// autres sont visés. `ancres` = [[sous-tracé, point]…] de la Sélection directe ; `total` = nombre de sous-tracés.
+export const OPERATIONS_TRACE = ["combine", "subtract", "intersect", "exclude"];
+export const LIB_OPERATIONS = { combine: "photolab.traces.op_combine", subtract: "photolab.traces.op_subtract",
+  intersect: "photolab.traces.op_intersect", exclude: "photolab.traces.op_exclude" };
+export function sousTracesVises(ancres, total) {
+  const choisis = [...new Set((ancres || []).map((a) => a[0]))].filter((s) => s > 0 && s < total).sort((a, b) => a - b);
+  return choisis.length ? choisis : Array.from({ length: Math.max(0, total - 1) }, (_, i) => i + 1);
+}
 export function entreesMenuTrace(etat) {
   const e = etat || {}, nom = e.nom || null, enregistre = !!nom && nom !== "work" && nom !== "layer";
   const f = e.forme || null, pp = e.presse || {};
   return [
     { id: "path.toSelection", cle: "photolab.traces.selection", actif: !!nom },
+    { id: "path.selection.add", cle: "photolab.traces.selection_ajouter", actif: !!nom },
+    { id: "path.selection.subtract", cle: "photolab.traces.selection_soustraire", actif: !!nom },
     { id: "path.fill", cle: "photolab.traces.remplir", actif: !!nom && nom !== "layer" },
     { id: "path.stroke", cle: "photolab.traces.contour", actif: !!nom && nom !== "layer" },
     null,
@@ -355,6 +366,9 @@ export function entreesMenuTrace(etat) {
     { id: "path.clippingPath.clear", cle: "photolab.traces.detourage_retirer", actif: !!e.detourage },
     null,
     { id: "path.transform", cle: "photolab.traces.transformer", actif: !!nom },
+    null,
+    ...OPERATIONS_TRACE.map((o) => ({ id: "path.op." + o, cle: LIB_OPERATIONS[o], actif: (e.composants || 0) >= 2 })),
+    { id: "path.mergeShapeComponents", cle: "photolab.traces.fusionner_composants", actif: (e.composants || 0) >= 2 },
     null,
     { id: "path.style.copyFill", cle: "photolab.traces.copier_fond", actif: !!(f && f.fond) },
     { id: "path.style.copyStroke", cle: "photolab.traces.copier_contour", actif: !!(f && f.contour) },
@@ -669,12 +683,21 @@ export function initTrace(PL) {
       forme = { fond: true, contour: true };
       try { const r = await PL.post("/executer", { command: "shape.info", params: {} }); if (r) forme = { fond: r.fill != null, contour: r.stroke != null }; } catch (e) { /* facultatif */ }
     }
-    return { nom: nomVise(), forme, presse: pressePapiers, detourage: !!(liste && liste.clippingPath) };
+    const nom = nomVise();
+    let composants = 0;
+    if (nom) { try { const r = await PL.post("/executer", { command: "path.info", params: { name: nom } }); composants = r && r.path ? r.path.subpaths.length : 0; } catch (e) { /* facultatif */ } }
+    return { nom, forme, presse: pressePapiers, detourage: !!(liste && liste.clippingPath), composants };
   }
   async function choisirMenu(id, nom) {
     if (id === "path.fill") return PL.executer("path.fill", { name: nom, color: fg() });
     if (id === "path.stroke") return PL.executer("path.stroke", { name: nom, tool: "brush" });
     if (id === "path.toSelection") return PL.executer("path.toSelection", { name: nom });
+    if (id === "path.selection.add" || id === "path.selection.subtract") return PL.executer("path.toSelection", { name: nom, mode: id.slice(id.lastIndexOf(".") + 1) });
+    if (id.startsWith("path.op.")) {
+      const r = await PL.post("/executer", { command: "path.info", params: { name: nom } });
+      return PL.executer("path.setOperation", { name: nom, subpaths: sousTracesVises(ds.ancres, r.path.subpaths.length), op: id.slice("path.op.".length) });
+    }
+    if (id === "path.mergeShapeComponents") return PL.executer(id, { name: nom });
     if (id === "path.transform") {
       return PL.ouvrirReglage({ id, libelle: T("photolab.traces.transformer"), champs: CHAMPS_TRANSFORMER },
         { versCommande: (p) => ({ command: id, params: { name: nom, ...p } }) });

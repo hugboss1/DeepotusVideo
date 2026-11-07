@@ -193,6 +193,16 @@ export function urlVignette(genre, item) {
   return "/api/photolab/presets/" + g + "/vignette.png?cle=" + encodeURIComponent(item.cle) + (item.groupe ? "&groupe=" + encodeURIComponent(item.groupe) : "");
 }
 
+// t416 (N6) : importer un .asl ou un .csh, exporter un groupe de styles en .asl. Les octets passent en base64.
+export const EXTENSIONS_BIBLIO = { styles: ".asl", formes: ".csh" };
+export const groupeDeFichier = (nom) => String(nom || "").replace(/\.[A-Za-z0-9]+$/, "").trim().slice(0, 64) || "Import";
+export const corpsImport = (genre, nomFichier, data) => ({ genre, groupe: groupeDeFichier(nomFichier), data });
+export function octetsEnBase64(o) {
+  let s = "";
+  for (let i = 0; i < o.length; i += 0x8000) s += String.fromCharCode.apply(null, o.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+
 export function initPresets(PL, genre) {
   const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
   const C = COMMANDES[genre], E = ECRANS[genre];
@@ -230,6 +240,33 @@ export function initPresets(PL, genre) {
     await commande(C.editer, sel.item ? paramsEdition("supprimer", sel.item, sel.groupe) : paramsEdition("supprimerGroupe", null, sel.groupe));
     sel = null;
   });
+  const extension = EXTENSIONS_BIBLIO[genre];
+  if (extension) {
+    const fichier = document.createElement("input"); fichier.type = "file"; fichier.accept = extension; fichier.hidden = true;
+    pied.appendChild(fichier);
+    fichier.addEventListener("change", async () => {
+      const f = fichier.files && fichier.files[0];
+      fichier.value = "";
+      if (!f) return;
+      let r;
+      try { r = await PL.post("/bibliotheques/importer", corpsImport(genre, f.name, octetsEnBase64(new Uint8Array(await f.arrayBuffer())))); } catch (e) { return; }
+      await relire();
+      PL.signaler(T("photolab.presets.importes", { n: r.count || 0 }));
+    });
+    bouton("dz-action-importer", "photolab.presets.importer", () => fichier.click());
+  }
+  if (genre === "styles") {
+    bouton("dz-action-exporter", "photolab.presets.exporter", async () => {
+      const groupe = sel && sel.groupe;
+      if (!groupe) { PL.signaler(T("photolab.presets.choisir_groupe"), true); return; }
+      let r;
+      try { r = await PL.post("/bibliotheques/exporter", { groupe }); } catch (e) { return; }
+      const octets = Uint8Array.from(atob(r.data), (c) => c.charCodeAt(0));
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([octets], { type: "application/octet-stream" }));
+      a.download = groupeDeFichier(groupe) + ".asl"; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    });
+  }
   if (genre === "degrades") corps.appendChild(barre);
   corps.append(recherche, liste, pied);
   if (PL.hydraterIcones) PL.hydraterIcones(pied);

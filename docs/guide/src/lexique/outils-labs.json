@@ -67,6 +67,10 @@
     "nom": {"fr": "Pinceau d'historique", "en": "History Brush"},
     "fonction": {"fr": "Repeint une zone telle qu'elle était à un état précédent.", "en": "Paints an area back to how it looked at an earlier step."}
   },
+  "dz-outil-photo-pinceau-art-historique": {
+    "nom": {"fr": "Forme d'art d'historique", "en": "Art History Brush"},
+    "fonction": {"fr": "Repeint un état précédent en touches stylisées.", "en": "Paints an earlier step back in stylised strokes."}
+  },
   "dz-outil-photo-recadrer": {
     "nom": {"fr": "Recadrage", "en": "Crop"},
     "fonction": {"fr": "Rogne l'image au cadre que l'on trace en glissant.", "en": "Trims the image to the frame you drag out."}

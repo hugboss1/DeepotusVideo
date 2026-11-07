@@ -21747,6 +21747,39 @@
   "kit": []
  },
  {
+  "cle": "dz-outil-photo-pinceau-art-historique",
+  "famille": "outil-photo",
+  "sens": "Outil Forme d'art d'historique (repeint un état antérieur en touches stylisées).",
+  "origine": "nouveau",
+  "mobile": false,
+  "usages": 1,
+  "zones": [
+   "Photolab"
+  ],
+  "libelles": [
+   "Forme d'art d'historique (Y)"
+  ],
+  "anciens": [
+   "aucune"
+  ],
+  "ncf": [
+   [
+    "dz-outil-photo-pinceau-historique",
+    "Pinceau d'historique rend l'état tel quel ; Forme d'art le repeint en touches. Silhouette : pinceau plein, spirale pâle ≠ pinceau plein, arc anti-horaire pâle."
+   ]
+  ],
+  "dessin": {
+   "metaphore": "pinceau et spirale",
+   "sujet": "pinceau",
+   "support": "flèche anti-horaire",
+   "badge": "",
+   "serie": "retouche",
+   "silhouette": "pinceau plein, spirale pâle"
+  },
+  "source_logo": "",
+  "kit": []
+ },
+ {
   "cle": "dz-outil-photo-pinceau-historique",
   "famille": "outil-photo",
   "sens": "Outil Pinceau d'historique (peint un état antérieur).",

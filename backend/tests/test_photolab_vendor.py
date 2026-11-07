@@ -20,11 +20,11 @@ def check(label, cond, detail=""):
 M = json.loads((RACINE / "vendor" / "photocraft.json").read_text("utf-8"))
 b = M.get("binaire", {})
 # t251 : moteur épinglé = 0.10.0 (0.3.0 retiré).
-check("1 manifeste : version 0.10.0, tag v0.10.0, licence MIT OR Apache-2.0",
-      M.get("version") == "0.10.0" and M.get("tag") == "v0.10.0" and M.get("licence") == "MIT OR Apache-2.0", M)
+check("1 manifeste : version 0.21.0, tag v0.21.0, licence MIT OR Apache-2.0",
+      M.get("version") == "0.21.0" and M.get("tag") == "v0.21.0" and M.get("licence") == "MIT OR Apache-2.0", M)
 check("2 archive Windows épinglée (nom, taille, sha256 de la release)",
-      b.get("archive") == "photocraft-0.10.0-windows-x64-portable.zip" and b.get("taille") == 84828713
-      and b.get("sha256") == "66b7e47d66589eb6947c8d7417c80fa44621cf83823ffdc47f42024eb03bd5d2", b)
+      b.get("archive") == "photocraft-0.21.0-windows-x64-portable.zip" and b.get("taille") == 134361814
+      and b.get("sha256") == "93b4e90a0ba74cdbf61ce36e227128ed78f5a0e43f814aa71563b1bf46e8b6a4", b)
 
 import vendor_photocraft as V                                  # noqa: E402
 
@@ -129,17 +129,17 @@ check("7 les binaires ne sont jamais versionnés (.gitignore vendor/photocraft-*
 # ── t250 (Photolab M1) : la version CANDIDATE 0.10.0 cohabite avec l'épinglée ; une seule source de version ──
 C = M        # t251 : le candidat 0.10.0 est devenu l'épinglé (vendor/photocraft-0.10.0.json retiré : une seule source)
 cb = C.get("binaire", {})
-check("8 manifeste candidat : 0.10.0, tag v0.10.0, archive officielle (taille, sha256 recoupés le 20/10)",
-      C.get("version") == "0.10.0" and C.get("tag") == "v0.10.0" and C.get("licence") == "MIT OR Apache-2.0"
-      and cb.get("archive") == "photocraft-0.10.0-windows-x64-portable.zip" and cb.get("taille") == 84828713
-      and cb.get("sha256") == "66b7e47d66589eb6947c8d7417c80fa44621cf83823ffdc47f42024eb03bd5d2"
-      and cb.get("url") == "https://github.com/storytold/photocraft/releases/download/v0.10.0/" + cb.get("archive", "")
-      and cb.get("dossier") == "vendor/photocraft-0.10.0", cb)
+check("8 manifeste épinglé : 0.21.0, tag v0.21.0, archive officielle (taille, sha256 recoupés le 07/11)",
+      C.get("version") == "0.21.0" and C.get("tag") == "v0.21.0" and C.get("licence") == "MIT OR Apache-2.0"
+      and cb.get("archive") == "photocraft-0.21.0-windows-x64-portable.zip" and cb.get("taille") == 134361814
+      and cb.get("sha256") == "93b4e90a0ba74cdbf61ce36e227128ed78f5a0e43f814aa71563b1bf46e8b6a4"
+      and cb.get("url") == "https://github.com/storytold/photocraft/releases/download/v0.21.0/" + cb.get("archive", "")
+      and cb.get("dossier") == "vendor/photocraft-0.21.0", cb)
 cf = C.get("fichiers") or {}
-check("9 manifeste candidat : les 9 fichiers de l'archive, chacun avec taille et sha256",
-      len(cf) == 9 and all(k.startswith("photocraft-0.10.0-windows-x64-portable/") for k in cf)
+check("9 manifeste épinglé : les 21 fichiers de l'archive (à plat depuis 0.18), chacun avec taille et sha256",
+      len(cf) == 21 and all("/" not in k for k in cf)
       and all(len(v.get("sha256", "")) == 64 and v.get("taille", 0) > 0 for v in cf.values())
-      and {"photocraft-cli.exe", "photocraft.exe", "portable.txt"} <= {k.rsplit("/", 1)[1] for k in cf}, sorted(cf))
+      and {"photocraft-cli.exe", "photocraft.exe", "portable.txt"} <= set(cf), sorted(cf))
 check("10 --manifeste choisit le manifeste candidat, sans option c'est l'épinglé",
       V.manifeste(["--manifeste", "x.json"]) == pathlib.Path("x.json") and V.manifeste([]) == V.MANIFESTE)
 
@@ -155,7 +155,7 @@ with tempfile.TemporaryDirectory() as t:
     (t / "vendor" / "photocraft.json").write_text("{pas du json", "utf-8")
     illisible = PM._version_epinglee(t)
 check("12 version lue du manifeste ; manifeste illisible : la dernière épinglée connue (le backend démarre)",
-      lue == "9.9.9" and illisible == "0.10.0", (lue, illisible))
+      lue == "9.9.9" and illisible == "0.21.0", (lue, illisible))
 
 # verifier_vendor --manifeste --ecrire réécrit le manifeste CANDIDAT, jamais l'épinglé (défaut vu en t250).
 import verifier_vendor as VV                                    # noqa: E402
@@ -187,8 +187,8 @@ check("14 registre 0.10.0 : champs nouveaux du moteur gardés tels quels (disabl
 import os, glob                                                 # noqa: E402
 import photocraft_commandes as PCAP                             # noqa: E402
 V = M["version"]
-cands = [os.environ.get("PHOTOCRAFT_CLI", "")] + sorted(glob.glob(str(RACINE / "vendor" / f"photocraft-{V}" / "*" / "photocraft-cli.exe"))) \
-    + sorted(glob.glob(os.path.join(os.environ.get("LOCALAPPDATA", ""), "DeepotusVideoGen", "vendor", f"photocraft-{V}", "*", "photocraft-cli.exe")))
+cands = [os.environ.get("PHOTOCRAFT_CLI", "")] + sorted(glob.glob(str(RACINE / "vendor" / f"photocraft-{V}" / "photocraft-cli.exe"))) \
+    + sorted(glob.glob(os.path.join(os.environ.get("LOCALAPPDATA", ""), "DeepotusVideoGen", "vendor", f"photocraft-{V}", "photocraft-cli.exe")))
 cli03 = next((pathlib.Path(c) for c in cands if c and pathlib.Path(c).is_file() and V in PCAP.version_cli(pathlib.Path(c)).split()), None)
 if cli03 is None:
     check(f"15 photocraft-cli {V} trouvé pour éprouver la capture (sinon cette section est rouge)", False)

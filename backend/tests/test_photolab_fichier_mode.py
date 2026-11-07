@@ -15,7 +15,7 @@ BACKEND = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(BACKEND))
 from app.services import photolab_moteur as PM                # noqa: E402
 # t251 : 0.10 transforme en bicubique Keys -0.75 (amont 0.9) : une frange d'1 px à demi transparente borde l'image
-PLACE_GRAND = {"0.3.0": [0, 16, 64, 16], "0.10.0": [0, 16, 65, 17]}[PM.VERSION]
+PLACE_GRAND = {"0.3.0": [0, 16, 64, 16], "0.10.0": [0, 16, 65, 17], "0.21.0": [0, 16, 65, 17]}[PM.VERSION]
 from app.services import photolab_registre as PR              # noqa: E402
 
 ok = fail = 0

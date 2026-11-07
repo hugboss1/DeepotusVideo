@@ -6,7 +6,7 @@
 // à chemin : tout fichier passe par une route du pont. Règles PURES exportées (qa/documents.test.mjs).
 
 import { brut } from "./mod-cycle.js";
-import { ouvrirDialogue, nomDocument, aSauvegarder, FORMATS_EXPORT } from "./mod-fichier.js";
+import { ouvrirDialogue, nomDocument, aSauvegarder, FORMATS_EXPORT, avecCompression } from "./mod-fichier.js";
 
 export const DOSSIERS_REVENIR = ["entrees/", "exports/", "biblio/", "natif/"];   // copie de DOSSIERS_REVENIR du pont
 export const FORMATS_CALQUE = ["png", "jpg", "webp"];                          // FORMATS_CALQUE du pont
@@ -117,7 +117,7 @@ export function corpsCopie(form) {
   const corps = { format: f.format, nom: String(form.nom || "").trim().slice(0, 80), destination };
   if (f.calques) corps.calques = true;
   if (f.qualite) corps.quality = qualite(form.quality);
-  return corps;
+  return avecCompression(corps, f, form.compression);
 }
 
 // Formulaire « Exporter sous » (calque) -> corps de /calque/exporter. Échelle entière stricte (« 12,5 » refusé).

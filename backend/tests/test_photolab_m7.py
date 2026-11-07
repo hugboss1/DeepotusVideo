@@ -246,8 +246,8 @@ def moteur():
     etat("2l fusionner le groupe", "Merge Group", h0)
     # Cadre : un groupe découpé par la forme
     h0 = historique(s); r = ex("layer.new.frame", {"x": 10, "y": 10, "width": 50, "height": 40, "shape": "ellipse"})
-    check("2m Nouveau cadre : un groupe masqué par l'ellipse", r.get("frame") == [10, 10, 50, 40] and r.get("shape") == "ellipse"
-          and calque(r["layer"])["kind"] == "Group" and calque(r["layer"])["hasMask"] is True, r)
+    check("2m Nouveau cadre : un groupe de cadre en ellipse (0.21 : sa forme, plus un masque de calque)", r.get("frame") == [10, 10, 50, 40]
+          and r.get("shape") == "ellipse" and calque(r["layer"])["kind"] == "Group" and r.get("content") is None, r)
     etat("2m nouveau cadre", "New Frame", h0)
     m = erreur("layer.new.frame", {"x": 0, "y": 0, "width": 0, "height": 10})
     check("2m cadre de largeur nulle : erreur du moteur", m is not None and "1..=300000" in m, m)
@@ -363,17 +363,20 @@ def instantanes(reg):
     s.appeler("doc.new", {"width": 100, "height": 80, "background": "white"})
     ex("layer.new.layer", {})
     h0 = historique(s)
+    # 0.21 : le document naît avec un instantané de lui-même (history.options : Instantané initial, actif par défaut)
+    premier = ins().get("snapshots") or []
+    check("5c le document naît avec un instantané à son nom", [x["name"] for x in premier] == ["Untitled"], premier)
     r1 = ex("history.newSnapshot", {"name": "Avant"}); r2 = ex("history.newSnapshot", {})
-    check("5d deux instantanés, aucun état d'historique, relus par doc.inspect.snapshots",
-          historique(s) == h0 and ins().get("snapshots") == [{"id": r1["snapshot"], "name": "Avant"}, {"id": r2["snapshot"], "name": r2["name"]}],
+    check("5d deux instantanés de plus, aucun état d'historique, relus par doc.inspect.snapshots",
+          historique(s) == h0 and ins().get("snapshots") == premier + [{"id": r1["snapshot"], "name": "Avant"}, {"id": r2["snapshot"], "name": r2["name"]}],
           ins().get("snapshots"))
     ex("history.renameSnapshot", {"snapshot": r2["snapshot"], "name": "Fond"})
-    check("5e renommer : le nouveau nom, aucun état", ins()["snapshots"][1]["name"] == "Fond" and historique(s) == h0)
+    check("5e renommer : le nouveau nom, aucun état", ins()["snapshots"][2]["name"] == "Fond" and historique(s) == h0)
     ex("select.all"); ex("edit.fill", {"color": "#ff0000"})
     h1 = historique(s); ex("history.selectSnapshot", {"snapshot": r1["snapshot"]})
     check("5f choisir l'instantané : UN état nommé comme lui (le document y revient)", historique(s) == h1 + ["Avant"], historique(s)[-2:])
     ex("history.deleteSnapshot", {"snapshot": r1["snapshot"]})
-    check("5g supprimer : il reste « Fond », le document ne change pas", [x["name"] for x in ins()["snapshots"]] == ["Fond"]
+    check("5g supprimer : il reste « Fond », le document ne change pas", [x["name"] for x in ins()["snapshots"]] == ["Untitled", "Fond"]
           and historique(s)[-1] == "Avant")
     try:
         ex("history.selectSnapshot", {"snapshot": 99}); m = None

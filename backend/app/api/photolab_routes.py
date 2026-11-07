@@ -26,6 +26,8 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 
 from app.services import photolab_moteur as PM
 from app.services import photolab_actions as PA
+from app.services import photolab_options as PO
+from app.services import photolab_bibliotheques as PB
 from app.services import photolab_espaces as ESP
 from app.services import photolab_preferences as PREF
 from app.services import photolab_nuancier as NUA
@@ -36,7 +38,10 @@ router = APIRouter()
 _NOM_IMAGE = re.compile(r"[A-Za-z0-9_]([A-Za-z0-9._ -]{0,179}[A-Za-z0-9_-])?")
 _NOM_SERVI = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,180}")
 # t257 (M8) : + OpenRaster et PDF d'une page (aplati par le moteur) ; le TIFF à calques est « tif » + "calques": true.
-FORMATS = ("pcraft", "psd", "psb", "png", "jpg", "webp", "tif", "tga", "ora", "pdf")
+# t418 (N8) : + JPEG XL (sans perte, que le moteur ne relit pas), DDS, EXR, DPX, Cineon, HDR, BMP, GIF, QOI ; compression
+# par format (clé `compression`, posée sur tiffCompression / ddsCompression).
+FORMATS = ("pcraft", "psd", "psb", "png", "jpg", "webp", "tif", "tga", "ora", "pdf", "jxl", "dds", "exr", "dpx", "cin", "hdr", "bmp", "gif", "qoi")
+COMPRESSIONS = {"tif": ("none", "lzw", "zip"), "dds": ("none", "bc1", "bc2", "bc3")}
 _COMPTEUR_RENDUS = itertools.count(1)
 _PERIPHERIQUE = re.compile(r"(con|prn|aux|nul|com[0-9]|lpt[0-9])", re.IGNORECASE)
 _APERCU = re.compile(r"apercu-\d+-\d+\.png")
@@ -223,6 +228,9 @@ async def ouvrir(body: dict):
 @router.post("/executer")
 async def executer(body: dict):
     cid, params = (body or {}).get("command"), (body or {}).get("params") or {}
+    fond = (body or {}).get("fond", False)                 # t419 : longue opération, rendue aussitôt avec son numéro de tâche
+    if not isinstance(fond, bool) or (fond and not _tache_longue(cid)):
+        raise HTTPException(400, f"fond : un booléen, pour une longue opération seulement : {cid!r}")
     # Syntaxe d'abord : une commande illisible ne démarre pas le moteur pour lire son registre.
     if not isinstance(cid, str) or not PM._ID_COMMANDE.fullmatch(cid):
         raise HTTPException(400, f"commande illisible : {cid!r}")
@@ -267,7 +275,35 @@ async def executer(body: dict):
             PM.verifier_trace(params, liste)
         except ValueError as e:
             raise HTTPException(400, str(e))
-    return _json(*await _appeler("engine.execute", {"command": cid, "params": params}))
+    r = await _appeler("engine.execute", {"command": cid, "params": params, **({"wait": False} if fond else {})})
+    await asyncio.to_thread(PB.apres_edition, cid, params)  # t416 : un groupe supprimé ne revient pas au prochain démarrage
+    return _json(*r)
+
+
+def _tache_longue(cid) -> bool:
+    return isinstance(cid, str) and (cid.startswith("filter.") or cid in ("edit.contentAwareFill", "edit.contentAwareScale"))
+
+
+async def _tache(job: int) -> tuple:
+    liste, gen = await _appeler("jobs.list")
+    j = next((x for x in (liste or {}).get("jobs") or [] if x.get("id") == job), None)
+    if j is None:
+        raise HTTPException(404, f"tâche inconnue : {job}")
+    return j, gen
+
+
+@router.get("/taches/{job}")
+async def tache(job: int):
+    """t419 : {"state": running|done|failed|cancelled, "progress": 0..1, "result"?, "error"?} d'une longue opération."""
+    j, gen = await _tache(job)
+    return _json({k: j[k] for k in ("state", "progress", "result", "error", "message") if k in j}, gen)
+
+
+@router.post("/taches/{job}/annuler")
+async def tache_annuler(job: int):
+    """t419 : arrête une longue opération ; le document reste tel quel."""
+    await _tache(job)
+    return _json(*await _appeler("jobs.cancel", {"job": job}))
 
 
 @router.get("/inspecter")
@@ -335,7 +371,18 @@ def _base_sure(nom, defaut="photolab") -> str:
     return _sur(re.sub(r"[^A-Za-z0-9_-]+", "-", brut).strip("-")[:80] or defaut)
 
 
-async def _exporter(fmt, base, q, calques=False):
+def _compression(corps) -> dict:
+    """{"compression"} d'un corps -> les clés de doc.save ; un format sans compression la refuse."""
+    v = corps.get("compression")
+    if v is None:
+        return {}
+    fmt = corps.get("format")
+    if v not in COMPRESSIONS.get(fmt, ()):
+        raise HTTPException(400, f"compression hors liste pour {fmt} : {v!r}")
+    return {"tiffCompression" if fmt == "tif" else "ddsCompression": v}
+
+
+async def _exporter(fmt, base, q, calques=False, options=None):
     """doc.save sous exports/<base>.<fmt> (suffixe -2, -3… plutôt qu'un écrasement) -> (fichier, génération,
     avertissements du moteur). t257 : `calques` = TIFF à calques."""
     dossier = PM.dossier_travail() / "exports"
@@ -350,6 +397,7 @@ async def _exporter(fmt, base, q, calques=False):
             p["quality"] = q
         if calques and fmt == "tif":
             p["tiffLayers"] = True
+        p.update(options or {})
         r, gen = await _appeler("doc.save", p)
     _retenir(p["path"], _ORIGINES.get(avant))             # le moteur a rattaché le document à ce fichier
     avert = [str(a) for a in (r.get("warnings") or [])][:10] if isinstance(r, dict) else []
@@ -376,7 +424,7 @@ async def enregistrer(body: dict):
     q = None
     if "quality" in corps:
         q = _entier(corps["quality"], 1, 100, "quality")
-    fichier, gen, avert = await _exporter(fmt, _base_sure(corps.get("nom")), q, _calques(corps))
+    fichier, gen, avert = await _exporter(fmt, _base_sure(corps.get("nom")), q, _calques(corps), _compression(corps))
     return _json({"fichier": fichier, "url": f"/api/photolab/exports/{fichier}", "avertissements": avert}, gen)
 
 
@@ -399,6 +447,61 @@ async def historique(body: dict):
         raise HTTPException(400, "historique : exactement un de « annuler » ou « retablir » est attendu")
     n = _entier(corps[cles[0]], 1, 100, cles[0])
     return _json(*await _pool(lambda s: functools.partial(PM.historique, s), cles[0], n))
+
+
+@router.get("/cadres/{calque}")
+async def cadre_info(calque: int):
+    """t417 : la fiche d'un cadre (doc.inspect le montre comme un groupe) ; 404 si ce calque n'en est pas un."""
+    try:
+        return _json(*await _appeler("engine.execute", {"command": "layer.frame.info", "params": {"layer": calque}}))
+    except HTTPException as e:
+        if e.status_code == 422:
+            raise HTTPException(404, f"ce calque n'est pas un cadre : {calque}")
+        raise
+
+
+@router.post("/bibliotheques/importer")
+async def bibliotheques_importer(body: dict):
+    """t416 : {"genre": styles|formes, "groupe", "data": base64 d'un .asl ou .csh} -> réponse du moteur. Gardé pour les
+    prochains démarrages une fois que le moteur l'a lu. Jamais de chemin."""
+    corps = body if isinstance(body, dict) else {}
+    inconnues = set(corps) - {"genre", "groupe", "data"}
+    if inconnues:
+        raise HTTPException(400, f"paramètre inconnu : {sorted(inconnues)[0]}")
+    try:
+        genre, data, groupe = PB.valider(corps.get("genre"), corps.get("data"), corps.get("groupe"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    r = await _appeler("engine.execute", {**PB.etape(genre, data, groupe)})
+    await asyncio.to_thread(PB.ajouter, genre, data, groupe)
+    return _json(*r)
+
+
+@router.post("/bibliotheques/exporter")
+async def bibliotheques_exporter(body: dict):
+    """t416 : {"groupe": nom} -> {"count", "data": base64 du .asl} ; l'écran l'enregistre."""
+    groupe = (body or {}).get("groupe")
+    if not isinstance(groupe, str) or not groupe.strip():
+        raise HTTPException(400, "bibliothèque : nom de groupe attendu")
+    return _json(*await _appeler("engine.execute", {"command": "style.presets.exportAsl", "params": {"group": groupe}}))
+
+
+@router.get("/options/moteur")
+async def options_moteur_lire():
+    """t415 : options d'historique et de lecture des actions -> {"options": {…}}."""
+    return {"options": await asyncio.to_thread(PO.lire)}
+
+
+@router.post("/options/moteur")
+async def options_moteur_ecrire(body: dict):
+    """t415 : {clé: booléen…} (photolab_options.DEFAUTS) -> {"options"}. Écrit le fichier, puis pose les options dans le moteur."""
+    try:
+        PO.valider(body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    options = await asyncio.to_thread(PO.ecrire, {**PO.lire(), **body})
+    await _appeler("batch", {"steps": PO.etapes(options), "stopOnError": True})
+    return {"options": options}
 
 
 @router.get("/vignettes")
@@ -553,10 +656,10 @@ async def copie(body: dict):
     fmt = corps.get("format")
     if fmt not in FORMATS:
         raise HTTPException(400, f"format hors liste : {fmt!r} ({', '.join(FORMATS)})")
-    q, dest, calques = _qualite(corps), _destination(corps, fmt), _calques(corps)
+    q, dest, calques, options = _qualite(corps), _destination(corps, fmt), _calques(corps), _compression(corps)
     base = _base_sure(corps.get("nom"), "copie")
     async with _VERROU_EXPORT:                            # même dossier exports/ que /enregistrer
-        fichier, gen = await _pool(lambda s: functools.partial(PM.copie_document, s), fmt, base, q, calques)
+        fichier, gen = await _pool(lambda s: functools.partial(PM.copie_document, s), fmt, base, q, calques, options)
     return await _livrer(fichier, fmt, base, dest, gen)
 
 
@@ -656,6 +759,14 @@ async def placer_route(body: dict):
     options = {k: body.get(k, True) for k in ("objetDynamique", "reduire")}
     if not all(isinstance(v, bool) for v in options.values()):
         raise HTTPException(400, "objetDynamique et reduire : booléens attendus")
+    chemin = await _vers_entrees_brut(nom)
+    calque = unicodedata.normalize("NFC", os.path.splitext(nom)[0])[:120] or "image"
+    return _json(*await _pool(lambda s: functools.partial(PM.placer, s), chemin, calque,
+                              options["objetDynamique"], options["reduire"]))
+
+
+async def _vers_entrees_brut(nom):
+    """Copie une image de la Bibliothèque sous entrees/, telle quelle -> chemin relatif (404 si elle n'y est pas)."""
     src = _image_biblio(nom)
     if src is None:
         raise HTTPException(404, f"image introuvable dans la Bibliothèque : {nom}")
@@ -663,9 +774,22 @@ async def placer_route(body: dict):
     h = hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
     chemin = _relatif(f"entrees/{h}-{_sur(re.sub(r'[^A-Za-z0-9._-]', '-', souche))}{re.sub(r'[^A-Za-z0-9.]', '-', ext)}")
     await asyncio.to_thread(shutil.copyfile, src, PM.dossier_travail() / chemin)
-    calque = unicodedata.normalize("NFC", souche)[:120] or "image"
-    return _json(*await _pool(lambda s: functools.partial(PM.placer, s), chemin, calque,
-                              options["objetDynamique"], options["reduire"]))
+    return chemin
+
+
+@router.post("/objets/remplacer")
+async def objets_remplacer(body: dict):
+    """t411 : Calque › Objets dynamiques › Remplacer le contenu : {"filename"} d'une image de la Bibliothèque, sur l'objet
+    dynamique actif -> {"layer", "instances"}. La commande moteur de ce nom reste refusée : seul ce chemin y mène."""
+    corps = body if isinstance(body, dict) else {}
+    inconnues = set(corps) - {"filename"}
+    if inconnues:
+        raise HTTPException(400, f"paramètre inconnu : {sorted(inconnues)[0]}")
+    nom = corps.get("filename")
+    if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
+        raise HTTPException(400, f"nom d'image refusé : {nom!r}")
+    chemin = await _vers_entrees_brut(nom)
+    return _json(*await _pool(lambda s: functools.partial(PM.remplacer_contenu, s), chemin))
 
 
 @router.post("/bibliotheque")
@@ -819,6 +943,16 @@ def _format_lot(corps):
 
 
 _PREFIXE_CALQUE = re.compile(r"^dz_\d{4}_(.*)$")
+
+
+@router.post("/objets/exporter")
+async def objets_exporter(body: dict):
+    """t411 : Calque › Objets dynamiques › Exporter le contenu : l'objet dynamique actif en PNG dans la Bibliothèque
+    -> {"filenames"}. La Bibliothèque ne reçoit que des images : le contenu vectoriel y arrive en PNG."""
+    if body:
+        raise HTTPException(400, f"paramètre inconnu : {sorted(body)[0]}")
+    r, gen = await _pool(lambda s: functools.partial(PM.exporter_contenu, s))
+    return await _lot_vers_bibliotheque(r, gen, "contenu", [r.get("nom") or "objet"])
 
 
 @router.post("/calques/fichiers")

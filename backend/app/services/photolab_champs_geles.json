@@ -1,0 +1,7705 @@
+{
+ "actions.load": {
+  "champs": [
+   {
+    "brut": "\".atn file\"",
+    "cle": "path",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "brut": "base64 bytes",
+    "cle": "data",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "set",
+    "note": "override the file's set name",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "replace",
+    "defaut": true,
+    "note": "replace the actions of a set of the same name",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"path\":\".atn file\"?",
+   "\"data\":base64 bytes?"
+  ],
+  "ok": false
+ },
+ "actions.record": {
+  "champs": [
+   {
+    "cle": "name",
+    "note": "new action, default \"Action N\"",
+    "optionnel": true,
+    "type": "str"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "actions.save": {
+  "champs": [
+   {
+    "brut": "\".atn file\"",
+    "cle": "path",
+    "note": "else the bytes come back as base64 `data`",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "set",
+    "note": "that set's actions; default: every action, as the set \"PhotoCraft Actions\"",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "action",
+    "note": "one action",
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "name",
+     "index"
+    ]
+   },
+   {
+    "cle": "skipUnsupported",
+    "defaut": false,
+    "note": "leave out steps with no Photoshop equivalent instead of failing",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"path\":\".atn file\"? (else the bytes come back as base64 `data`)"
+  ],
+  "ok": false
+ },
+ "brush.presets.importAbr": {
+  "champs": [
+   {
+    "brut": "\".abr file\"",
+    "cle": "path",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "brut": "base64 bytes",
+    "cle": "data",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "brut": "string",
+    "cle": "group",
+    "defaut": {
+     "texte": "file name"
+    },
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "replace",
+    "defaut": true,
+    "note": "replace a group of the same name",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "select",
+    "defaut": false,
+    "note": "make the first imported preset current",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"path\":\".abr file\"?",
+   "\"data\":base64 bytes?",
+   "\"group\":string?=file name"
+  ],
+  "ok": false
+ },
+ "channel.options": {
+  "champs": [
+   {
+    "brut": "index|name|\"quickMask\"",
+    "cle": "channel",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "name",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "indicates",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "masked",
+     "selected",
+     "spot"
+    ]
+   },
+   {
+    "cle": "color",
+    "formes": [
+     "hex"
+    ],
+    "optionnel": true,
+    "type": "color"
+   },
+   {
+    "cle": "opacity",
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "solidity",
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   }
+  ],
+  "inconnus": [
+   "\"channel\":index|name|\"quickMask\""
+  ],
+  "ok": false
+ },
+ "channel.target": {
+  "champs": [
+   {
+    "brut": "\"composite\"|\"mask\"|\"vectorMask\"|\"red|green|blue|…\"|index|name",
+    "cle": "channel",
+    "defaut": "composite",
+    "optionnel": false,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"channel\":\"composite\"|\"mask\"|\"vectorMask\"|\"red|green|blue|…\"|index|name=\"composite\""
+  ],
+  "ok": false
+ },
+ "document.activate": {
+  "champs": [
+   {
+    "cle": "document",
+    "optionnel": false,
+    "type": "index"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "edit.autoAlignLayers": {
+  "champs": [
+   {
+    "cle": "projection",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "auto",
+     "perspective",
+     "cylindrical",
+     "spherical",
+     "collage",
+     "reposition"
+    ]
+   },
+   {
+    "brut": "layer id",
+    "cle": "reference",
+    "defaut": {
+     "texte": "bottom selected layer"
+    },
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "geometricCorrection",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "interpolation",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "bicubic",
+     "bilinear",
+     "nearest"
+    ]
+   },
+   {
+    "cle": "registration",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "auto",
+     "features",
+     "intensity"
+    ]
+   }
+  ],
+  "inconnus": [
+   "\"reference\":layer id?=bottom selected layer"
+  ],
+  "ok": false
+ },
+ "edit.clear": {
+  "champs": [],
+  "inconnus": [],
+  "ok": true
+ },
+ "edit.contentAwareFill": {
+  "champs": [
+   {
+    "cle": "sampling",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "auto",
+     "rectangular",
+     "custom"
+    ]
+   },
+   {
+    "cle": "margin",
+    "optionnel": true,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "area",
+    "forme": "[x,y,w,h]",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "channel",
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "index",
+     "name"
+    ]
+   },
+   {
+    "cle": "colorAdaptation",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "default",
+     "none",
+     "high",
+     "veryHigh"
+    ]
+   },
+   {
+    "cle": "rotationAdaptation",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "none",
+     "low",
+     "medium",
+     "high",
+     "full"
+    ]
+   },
+   {
+    "cle": "scale",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "mirror",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "output",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "current",
+     "new",
+     "duplicate"
+    ]
+   },
+   {
+    "cle": "seed",
+    "defaut": 1,
+    "optionnel": false,
+    "type": "int"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "edit.convertToProfile": {
+  "champs": [
+   {
+    "cle": "profile",
+    "note": "or a path to an .icc file",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "srgb",
+     "display-p3",
+     "adobe-rgb-compat",
+     "prophoto-compat",
+     "linear-srgb",
+     "rec2020",
+     "gray-gamma-2.2",
+     "sgray",
+     "lab-d50",
+     "coated-cmyk",
+     "working"
+    ]
+   },
+   {
+    "cle": "intent",
+    "defaut": "relative",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "perceptual",
+     "relative",
+     "saturation",
+     "absolute"
+    ]
+   },
+   {
+    "cle": "bpc",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "edit.copy": {
+  "champs": [
+   {
+    "brut": "\"mask\"",
+    "cle": "target",
+    "defaut": {
+     "texte": "the targeted mask"
+    },
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"target\":\"mask\"? = the targeted mask",
+   "copied as grayscale (#2928)"
+  ],
+  "ok": false
+ },
+ "edit.cut": {
+  "champs": [],
+  "inconnus": [],
+  "ok": true
+ },
+ "edit.fill": {
+  "champs": [
+   {
+    "cle": "contents",
+    "defaut": "color",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "foreground",
+     "background",
+     "color",
+     "contentAware",
+     "pattern",
+     "history",
+     "black",
+     "gray",
+     "white"
+    ]
+   },
+   {
+    "cle": "color",
+    "defaut": {
+     "texte": "foreground"
+    },
+    "formes": [
+     "hex",
+     "rgba"
+    ],
+    "note": "contents=color",
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "cle": "pattern",
+    "note": "contents=pattern",
+    "optionnel": false,
+    "type": "union",
+    "variantes": [
+     "id",
+     "name"
+    ]
+   },
+   {
+    "cle": "scale",
+    "defaut": 100,
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "angle",
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "state",
+    "note": "contents=history; default the oldest state",
+    "optionnel": true,
+    "type": "index"
+   },
+   {
+    "cle": "colorAdaptation",
+    "defaut": true,
+    "note": "contents=contentAware",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "mode",
+    "defaut": "normal",
+    "optionnel": false,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "normal",
+     "multiply"
+    ]
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "preserveTransparency",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "brut": "\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}",
+    "cle": "target",
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?"
+  ],
+  "ok": false
+ },
+ "edit.fillBackground": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}",
+    "cle": "target",
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?"
+  ],
+  "ok": false
+ },
+ "edit.fillBackgroundPreserve": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}",
+    "cle": "target",
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?"
+  ],
+  "ok": false
+ },
+ "edit.fillForeground": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}",
+    "cle": "target",
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?"
+  ],
+  "ok": false
+ },
+ "edit.fillForegroundPreserve": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}",
+    "cle": "target",
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"target\":\"pixels\"|\"mask\"|\"quickMask\"|{\"channel\":i}?"
+  ],
+  "ok": false
+ },
+ "edit.paste": {
+  "champs": [
+   {
+    "cle": "center",
+    "forme": "[x,y]",
+    "note": "view centre; default keeps the position when it overlaps the canvas",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "note": "not pixels: the luminosity pasted into that mask or channel",
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "edit.presets.exportImportPresets": {
+  "champs": [
+   {
+    "cle": "action",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "export",
+     "import"
+    ]
+   },
+   {
+    "cle": "kinds",
+    "forme": "[\"brushes\",\"customShapes\"]",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "data",
+    "note": "import",
+    "optionnel": false,
+    "type": "json"
+   },
+   {
+    "cle": "includeBuiltins",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "edit.transform": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "rect",
+    "forme": "[x0,y0,x1,y1]",
+    "note": "source frame; default = layer content ∩ selection",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "quad",
+    "forme": "[[x,y]×4]",
+    "note": "where the frame's corners go, clockwise from top-left",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "matrix",
+    "forme": "[a,b,c,d,e,f]",
+    "note": "affine alternative",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "scaleX",
+    "optionnel": true,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "scaleY",
+    "optionnel": true,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "rotate",
+    "optionnel": true,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "dx",
+    "optionnel": true,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "dy",
+    "note": "relative alternative: scale and rotate about the frame's centre, then move, as a Photoshop action records a Free Transform",
+    "optionnel": true,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "interpolation",
+    "defaut": "bicubic",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "bicubic",
+     "bilinear",
+     "nearest"
+    ]
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "note": "an unlinked mask, an alpha channel or the Quick Mask transforms alone; a linked mask moves with its layer",
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "edit.transform.warp": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "rect",
+    "forme": "[x0,y0,x1,y1]",
+    "note": "warp box; default = layer content ∩ selection",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "style",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "custom",
+     "none",
+     "arc",
+     "arcLower",
+     "arcUpper",
+     "arch",
+     "bulge",
+     "shellLower",
+     "shellUpper",
+     "flag",
+     "wave",
+     "fish",
+     "rise",
+     "fisheye",
+     "inflate",
+     "squeeze",
+     "twist"
+    ]
+   },
+   {
+    "cle": "bend",
+    "defaut": 50,
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "hDistort",
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "vDistort",
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "vertical",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "mesh",
+    "forme": "{\"us\":[0,…,1],\"vs\":[0,…,1],\"points\":[[x,y]…]}",
+    "note": "(3c+1)×(3r+1) control points, row-major, document px; on a smart object `us`/`vs` span the source contents, so points equal to the placement are an identity warp even when it is skewed",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "grid",
+    "forme": "[cols,rows]",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "warp",
+    "forme": "{full warp object}",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "interpolation",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "bicubic",
+     "bilinear",
+     "nearest"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "file.automate.batch": {
+  "champs": [
+   {
+    "cle": "steps",
+    "forme": "[[commandId,params]|{\"command\":id,\"params\":{}}…]",
+    "note": "a recorded action",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "input",
+    "optionnel": false,
+    "type": "union",
+    "variantes": [
+     "folder",
+     "[paths]"
+    ]
+   },
+   {
+    "cle": "includeSubfolders",
+    "defaut": false,
+    "note": "a folder input also takes the images in its subfolders, up to 32 levels and 100000 files; each result keeps its subfolder under output",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "brut": "folder",
+    "cle": "output",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "format",
+    "defaut": "same",
+    "optionnel": false,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "same",
+     "png",
+     "jpg",
+     "psd",
+     "tiff"
+    ]
+   },
+   {
+    "cle": "quality",
+    "entier": true,
+    "max": 12,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "brut": "string",
+    "cle": "naming",
+    "note": "blank keeps source names; {name}, {serial} padded to 3 digits, {date} as YYYY-MM-DD UTC; extension added automatically",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "startingSerial",
+    "defaut": 1,
+    "entier": true,
+    "max": 4294967295,
+    "min": 1,
+    "note": "input position, including failed inputs",
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "tiffLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "tgaBits",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     24,
+     32
+    ]
+   },
+   {
+    "cle": "dpxBits",
+    "note": "DPX: bits per sample; unset, 8 for an 8-bit document, else 16",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     8,
+     10,
+     12,
+     16
+    ]
+   },
+   {
+    "cle": "calledActions",
+    "forme": "[{\"name\",\"steps\"}…]",
+    "note": "the actions Play Action steps call; default: the session's",
+    "optionnel": true,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [
+   "\"output\":folder",
+   "\"naming\":string? (blank keeps source names; {name}, {serial} padded to 3 digits, {date} as YYYY-MM-DD UTC; extension added automatically)"
+  ],
+  "ok": false
+ },
+ "file.automate.createDroplet": {
+  "champs": [
+   {
+    "cle": "path",
+    "note": ".pcdroplet",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "steps",
+    "forme": "[[id,params]…]",
+    "note": "the action",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "name",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "brut": "folder",
+    "cle": "output",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "format",
+    "optionnel": true,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "same",
+     "png",
+     "jpg"
+    ]
+   },
+   {
+    "cle": "quality",
+    "entier": true,
+    "max": 12,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "shim",
+    "defaut": {
+     "texte": "true on Unix"
+    },
+    "note": "writes <name>.command calling `photocraft-cli droplet`",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"output\":folder?"
+  ],
+  "ok": false
+ },
+ "file.automate.photomerge": {
+  "champs": [
+   {
+    "cle": "paths",
+    "forme": "[str]|folder",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "useOpenDocuments",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "layout",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "auto",
+     "perspective",
+     "cylindrical",
+     "spherical",
+     "collage",
+     "reposition"
+    ]
+   },
+   {
+    "cle": "blend",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "vignetteRemoval",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "geometricCorrection",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "contentAwareFill",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "focalLength",
+    "defaut": 0,
+    "note": "35 mm equivalent; 0 = EXIF or estimated",
+    "optionnel": false,
+    "type": "number",
+    "unite": "mm"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "file.close": {
+  "champs": [
+   {
+    "cle": "document",
+    "optionnel": true,
+    "type": "index"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "file.export.exportPreferences": {
+  "champs": [
+   {
+    "cle": "quickExportFormat",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "png",
+     "jpg",
+     "gif",
+     "webp"
+    ]
+   },
+   {
+    "cle": "quickExportLocation",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "ask",
+     "sameFolder"
+    ]
+   },
+   {
+    "cle": "jpegQuality",
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "webpLossless",
+    "optionnel": true,
+    "type": "bool"
+   },
+   {
+    "cle": "webpQuality",
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "metadata",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "none",
+     "copyright",
+     "all"
+    ]
+   },
+   {
+    "cle": "convertToSrgb",
+    "optionnel": true,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "file.export.layersToFiles": {
+  "champs": [
+   {
+    "brut": "folder",
+    "cle": "dir",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "format",
+    "defaut": "png",
+    "optionnel": false,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "png",
+     "jpg",
+     "psd",
+     "tiff"
+    ]
+   },
+   {
+    "cle": "prefix",
+    "defaut": {
+     "texte": "document name"
+    },
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "visibleOnly",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "quality",
+    "entier": true,
+    "max": 12,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "tiffLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "tgaBits",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     24,
+     32
+    ]
+   },
+   {
+    "cle": "dpxBits",
+    "note": "DPX: bits per sample; unset, 8 for an 8-bit document, else 16",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     8,
+     10,
+     12,
+     16
+    ]
+   }
+  ],
+  "inconnus": [
+   "\"dir\":folder"
+  ],
+  "ok": false
+ },
+ "file.export.presets.save": {
+  "champs": [
+   {
+    "cle": "name",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "settings",
+    "forme": "{\"format\":\"png|jpg|webp|tif|tga|ico\",\"quality\":1..100,\"lossless\":bool,\"transparency\":bool,\"scale\":1..1000,\"width\":px,\"height\":px,\"lockAspect\":bool,\"sizing\":\"scale|pixels\",\"metadata\":\"none|exif|all\",\"profile\":\"document|srgb\",\"embedProfile\":bool,\"tgaBits\":\"auto|24|32\"}",
+    "optionnel": false,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "file.export.saveForWebLegacy": {
+  "champs": [
+   {
+    "cle": "preset",
+    "optionnel": true,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "GIF 128 Dithered",
+     "JPEG High",
+     "PNG-24"
+    ]
+   },
+   {
+    "cle": "format",
+    "defaut": "png24",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "gif",
+     "png8",
+     "png24",
+     "jpeg",
+     "wbmp"
+    ]
+   },
+   {
+    "cle": "palette",
+    "defaut": "selective",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "perceptual",
+     "selective",
+     "adaptive",
+     "restrictive",
+     "exact",
+     "systemMac",
+     "systemWindows",
+     "uniform"
+    ]
+   },
+   {
+    "cle": "colors",
+    "defaut": 256,
+    "entier": true,
+    "max": 256,
+    "min": 2,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "colorTable",
+    "forme": "[\"#rrggbb\",…]",
+    "note": "fixed opaque source palette, 1–256 entries; 255 with transparency",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "colorTableEdits",
+    "forme": "{\"0\":\"#rrggbb\",…}",
+    "note": "replace entries after indexing; requires colorTable",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "dither",
+    "defaut": "diffusion",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "none",
+     "diffusion",
+     "pattern",
+     "noise"
+    ]
+   },
+   {
+    "cle": "ditherAmount",
+    "defaut": 88,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "transparency",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "matte",
+    "defaut": "none",
+    "note": "a preset's own: white; formats without transparency go over white",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "#rrggbb",
+     "none"
+    ]
+   },
+   {
+    "cle": "interlaced",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "webSnap",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "quality",
+    "defaut": 60,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "progressive",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "optimized",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "embedIcc",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "metadata",
+    "defaut": "copyright",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "none",
+     "copyright",
+     "copyrightAndContact",
+     "all"
+    ]
+   },
+   {
+    "cle": "convertToSrgb",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "resample",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "bicubic",
+     "bilinear",
+     "nearest"
+    ]
+   },
+   {
+    "brut": "file",
+    "cle": "path",
+    "note": "whole image",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "brut": "folder",
+    "cle": "dir",
+    "note": "one file per slice in images/",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "brut": "relative-folder",
+    "cle": "imagesFolder",
+    "defaut": "images",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "html",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "trustedSliceHtml",
+    "defaut": false,
+    "note": "only for trusted documents; emit raw no-image cell HTML",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "slices",
+    "defaut": "all",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "all",
+     "user"
+    ]
+   },
+   {
+    "cle": "numbers",
+    "forme": "[n]",
+    "optionnel": true,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [
+   "\"width\"|\"height\"|\"percent\"? (image size)",
+   "\"path\":file? (whole image)",
+   "\"dir\":folder? (one file per slice in images/)",
+   "\"imagesFolder\":relative-folder?=\"images\""
+  ],
+  "ok": false
+ },
+ "file.new": {
+  "champs": [
+   {
+    "cle": "width",
+    "defaut": 1920,
+    "entier": true,
+    "max": 300000,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "height",
+    "defaut": 1080,
+    "entier": true,
+    "max": 300000,
+    "min": 1,
+    "note": "pixel counts are rounded",
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "mode",
+    "defaut": "rgb",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "rgb",
+     "gray",
+     "grayscale",
+     "cmyk",
+     "lab"
+    ]
+   },
+   {
+    "cle": "depth",
+    "defaut": 8,
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     8,
+     16,
+     32
+    ]
+   },
+   {
+    "cle": "background",
+    "defaut": "white",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "white",
+     "black",
+     "backgroundColor",
+     "transparent",
+     "#rrggbb"
+    ]
+   },
+   {
+    "cle": "backgroundColor",
+    "forme": "[r,g,b]",
+    "note": "0..1; defaults to toolbox colour",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "resolution",
+    "defaut": 72,
+    "entier": true,
+    "max": 30000,
+    "min": 1,
+    "note": "ppi",
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "name",
+    "optionnel": false,
+    "type": "str"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "file.openAs": {
+  "champs": [
+   {
+    "cle": "path",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "as",
+    "note": "decode as this format",
+    "optionnel": true,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "psd",
+     "png",
+     "jpg",
+     "tiff"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "file.placeEmbedded": {
+  "champs": [
+   {
+    "cle": "path",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "scale",
+    "note": "default: fit when larger than the canvas",
+    "optionnel": true,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "fit",
+    "note": "default: Preferences > General > Resize Image During Place",
+    "optionnel": true,
+    "type": "bool"
+   },
+   {
+    "cle": "smartObject",
+    "note": "default: Preferences > General > Always Create Smart Objects When Placing",
+    "optionnel": true,
+    "type": "bool"
+   },
+   {
+    "cle": "center",
+    "forme": "[x,y]",
+    "optionnel": true,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "file.placeLinked": {
+  "champs": [
+   {
+    "cle": "path",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "scale",
+    "optionnel": true,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "fit",
+    "note": "default: Preferences > General > Resize Image During Place",
+    "optionnel": true,
+    "type": "bool"
+   },
+   {
+    "cle": "center",
+    "forme": "[x,y]",
+    "optionnel": true,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "file.print": {
+  "champs": [
+   {
+    "brut": "hex",
+    "cle": "printerSettings",
+    "note": "Windows driver settings",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "printer",
+    "note": "default printer",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "copies",
+    "defaut": 1,
+    "entier": true,
+    "max": 999,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "\"letter|legal|tabloid|a3|a4|a5|4x6|5x7\"|[w,h] pt",
+    "cle": "paper",
+    "defaut": "letter",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "orientation",
+    "defaut": "portrait",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "portrait",
+     "landscape"
+    ]
+   },
+   {
+    "cle": "center",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "brut": "in",
+    "cle": "top",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "brut": "in",
+    "cle": "left",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "scale",
+    "defaut": 100,
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "scaleToFit",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "colorHandling",
+    "defaut": "printerManages",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "printerManages",
+     "photocraftManages",
+     "noColorManagement"
+    ]
+   },
+   {
+    "brut": "profile",
+    "cle": "printerProfile",
+    "note": "photocraftManages",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "intent",
+    "defaut": "relative",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "perceptual",
+     "relative",
+     "saturation",
+     "absolute"
+    ]
+   },
+   {
+    "cle": "bpc",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "cornerCropMarks",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "centerCropMarks",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "registrationMarks",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "description",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "labels",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "emulsionDown",
+    "defaut": false,
+    "note": "mirror the page left to right, for sublimation and other transfer printing",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "brut": "pdf path",
+    "cle": "output",
+    "note": "print to PDF; then \"send\" defaults to false",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "send",
+    "optionnel": true,
+    "type": "bool"
+   },
+   {
+    "cle": "printServer",
+    "note": "default: the system's CUPS; a named server is always printed to over IPP",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "host[:port]",
+     "socket path"
+    ]
+   },
+   {
+    "cle": "dryRun",
+    "defaut": false,
+    "note": "render the PDF, report the backend command, don't spool; write a PDF only at an explicit output path",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"printerSettings\":hex? (Windows driver settings)",
+   "\"paper\":\"letter|legal|tabloid|a3|a4|a5|4x6|5x7\"|[w,h] pt=\"letter\"",
+   "\"top\":in?",
+   "\"left\":in?",
+   "\"printerProfile\":profile? (photocraftManages)",
+   "\"output\":pdf path? (print to PDF; then \"send\" defaults to false)"
+  ],
+  "ok": false
+ },
+ "file.print.page": {
+  "champs": [
+   {
+    "cle": "printer",
+    "note": "default printer",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "brut": "hex",
+    "cle": "printerSettings",
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"printerSettings\":hex?"
+  ],
+  "ok": false
+ },
+ "file.saveACopy": {
+  "champs": [
+   {
+    "cle": "path",
+    "note": "format from the extension",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "quality",
+    "entier": true,
+    "max": 12,
+    "min": 0,
+    "note": "JPEG",
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "layers",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "tiffLayers",
+    "defaut": false,
+    "note": "TIFF: keep the layers; flat by default",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "tgaBits",
+    "note": "TGA: 32 writes the alpha channel, or else the transparency, as the alpha; unset, 32 with an alpha channel or transparency, else 24",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     24,
+     32
+    ]
+   },
+   {
+    "cle": "dpxBits",
+    "note": "DPX: bits per sample; unset, 8 for an 8-bit document, else 16",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     8,
+     10,
+     12,
+     16
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "file.scripts.imageProcessor": {
+  "champs": [
+   {
+    "cle": "input",
+    "optionnel": false,
+    "type": "union",
+    "variantes": [
+     "folder",
+     "[paths]"
+    ]
+   },
+   {
+    "cle": "includeSubfolders",
+    "defaut": false,
+    "note": "a folder input also takes the images in its subfolders, up to 32 levels and 100000 files; each result keeps its subfolder under output",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "brut": "folder",
+    "cle": "output",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "format",
+    "defaut": "jpg",
+    "optionnel": false,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "jpg",
+     "png",
+     "psd",
+     "tiff"
+    ]
+   },
+   {
+    "cle": "quality",
+    "defaut": 8,
+    "entier": true,
+    "max": 12,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "tiffLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "tgaBits",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     24,
+     32
+    ]
+   },
+   {
+    "cle": "dpxBits",
+    "note": "DPX: bits per sample; unset, 8 for an 8-bit document, else 16",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     8,
+     10,
+     12,
+     16
+    ]
+   },
+   {
+    "cle": "width",
+    "optionnel": true,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "height",
+    "note": "fit, never enlarge",
+    "optionnel": true,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "convertToSrgb",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"output\":folder"
+  ],
+  "ok": false
+ },
+ "filter.blur.lensBlur": {
+  "champs": [
+   {
+    "cle": "radius",
+    "defaut": 15,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "shape",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "hexagon",
+     "triangle",
+     "square",
+     "pentagon",
+     "heptagon",
+     "octagon"
+    ]
+   },
+   {
+    "cle": "bladeCurvature",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "rotation",
+    "defaut": 0,
+    "entier": true,
+    "max": 360,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "depthMap",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "none",
+     "transparency",
+     "layerMask"
+    ]
+   },
+   {
+    "cle": "focalDistance",
+    "defaut": 0,
+    "entier": true,
+    "max": 255,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "invert",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "brightness",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "threshold",
+    "defaut": 255,
+    "entier": true,
+    "max": 255,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "noise",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "distribution",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "uniform",
+     "gaussian"
+    ]
+   },
+   {
+    "cle": "monochromatic",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "seed",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "int"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "filter.blur.shapeBlur": {
+  "champs": [
+   {
+    "cle": "radius",
+    "defaut": 10,
+    "entier": true,
+    "max": 1000,
+    "min": 5,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "shape",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "circle",
+     "ring",
+     "square",
+     "diamond",
+     "triangle",
+     "hexagon",
+     "star",
+     "heart",
+     "cross"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "filter.cameraRaw": {
+  "champs": [
+   {
+    "cle": "temperature",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "tint",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "exposure",
+    "defaut": 0,
+    "entier": true,
+    "max": 5,
+    "min": -5,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "contrast",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "highlights",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "shadows",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "whites",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "blacks",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "texture",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "clarity",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "dehaze",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "vibrance",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "saturation",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "curveHighlights",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "curveLights",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "curveDarks",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "curveShadows",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "curveSplits",
+    "forme": "[25,50,75]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "pointCurve",
+    "forme": "[[in,out]]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "pointCurveRed",
+    "forme": "[[in,out]]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "pointCurveGreen",
+    "forme": "[[in,out]]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "pointCurveBlue",
+    "forme": "[[in,out]]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "hslHue",
+    "forme": "[8]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "hslSat",
+    "forme": "[8]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "hslLum",
+    "forme": "[8]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "gradeShadows",
+    "forme": "{\"hue\":deg,\"sat\":0..100,\"lum\":-100..100}",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "gradeMidtones",
+    "forme": "{}",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "gradeHighlights",
+    "forme": "{}",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "gradeGlobal",
+    "forme": "{}",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "gradeBlending",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "gradeBalance",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "sharpenAmount",
+    "defaut": 0,
+    "entier": true,
+    "max": 150,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "sharpenRadius",
+    "defaut": 1,
+    "entier": false,
+    "max": 3,
+    "min": 0.5,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "sharpenDetail",
+    "defaut": 25,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "sharpenMasking",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "noiseLuminance",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "noiseLuminanceDetail",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "noiseColor",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "noiseColorDetail",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "grainAmount",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "grainSize",
+    "defaut": 25,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "grainRoughness",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "vignetteAmount",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "vignetteMidpoint",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "vignetteRoundness",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "vignetteFeather",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "vignetteHighlights",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "vignetteStyle",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "highlightPriority",
+     "colorPriority",
+     "paintOverlay"
+    ]
+   },
+   {
+    "cle": "seed",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "int"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "filter.liquify": {
+  "champs": [
+   {
+    "cle": "strokes",
+    "forme": "[{\"tool\":\"forwardWarp|reconstruct|smooth|twirlCw|twirlCcw|pucker|bloat|pushLeft|freeze|thaw|lassoMask|reconstructAll\",\"size\":px=100,\"density\":0-100=50,\"pressure\":0-100=100,\"rate\":0-100=80,\"points\":[[x,y,pressure?]…],\"amount\":%? (reconstructAll; lassoMask: 1 freezes the polygon in points, 0 thaws it)}…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "meshSize",
+    "note": "field resolution, px per node; default 2, or 4 above 4 MP",
+    "optionnel": true,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "filter.render.clouds": {
+  "champs": [
+   {
+    "cle": "seed",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "int"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "filter.render.differenceClouds": {
+  "champs": [
+   {
+    "cle": "seed",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "int"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "filter.vanishingPoint": {
+  "champs": [
+   {
+    "cle": "planes",
+    "forme": "[{\"corners\":[[x,y]×4]} | {\"from\":plane,\"edge\":\"top|right|bottom|left\",\"angle\":deg=90,\"depth\":1}]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "focalLength",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "paste",
+    "forme": "[{\"plane\":0,\"layer\":id? (else the clipboard),\"at\":[u,v]=[0.25,0.25],\"width\":0..1=0.5}]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "clone",
+    "forme": "[{\"source\":[x,y],\"points\":[[x,y]],\"size\":px=40,\"hardness\":0..100=50,\"opacity\":0..100=100}]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "newLayer",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "gradient.presets.apply": {
+  "champs": [
+   {
+    "cle": "preset",
+    "defaut": {
+     "texte": "current|\"stops\":[[t 0..1,\"#rrggbb\"|\"foreground\"|\"background\"],…]"
+    },
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "transparency",
+    "forme": "[[t,opacity 0..100],…]",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "angle",
+    "defaut": 90,
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "style",
+    "defaut": "linear",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "linear",
+     "radial",
+     "angle",
+     "reflected",
+     "diamond"
+    ]
+   },
+   {
+    "cle": "scale",
+    "defaut": 100,
+    "entier": true,
+    "max": 150,
+    "min": 10,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "reverse",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "gradient.presets.importGrd": {
+  "champs": [
+   {
+    "brut": "\".grd file\"",
+    "cle": "path",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "brut": "base64 bytes",
+    "cle": "data",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "brut": "string",
+    "cle": "group",
+    "defaut": {
+     "texte": "file name"
+    },
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "replace",
+    "defaut": true,
+    "note": "replace a group of the same name",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"path\":\".grd file\"?",
+   "\"data\":base64 bytes?",
+   "\"group\":string?=file name"
+  ],
+  "ok": false
+ },
+ "gradient.presets.select": {
+  "champs": [
+   {
+    "brut": "name|\"stops\":[[t 0..1,\"#rrggbb\"|\"foreground\"|\"background\"],…]",
+    "cle": "preset",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "transparency",
+    "forme": "[[t,opacity 0..100],…]",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "group",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "applyToLayer",
+    "defaut": true,
+    "note": "also recolours a selected Gradient Fill layer",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"preset\":name|\"stops\":[[t 0..1,\"#rrggbb\"|\"foreground\"|\"background\"],…]"
+  ],
+  "ok": false
+ },
+ "history.newSnapshot": {
+  "champs": [
+   {
+    "cle": "name",
+    "defaut": "Snapshot N",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "brut": "\"fullDocument\"|\"mergedLayers\"|\"currentLayer\"",
+    "cle": "from",
+    "defaut": "fullDocument",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "fullDocument",
+     "mergedLayers",
+     "currentLayer"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "image.adjustments.colorLookup": {
+  "champs": [
+   {
+    "cle": "lut",
+    "defaut": "none",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "none",
+     "warm",
+     "cool",
+     "tealOrange",
+     "bleachBypass",
+     "fadedFilm",
+     "dayForNight",
+     "monoContrast",
+     "crossProcess"
+    ]
+   },
+   {
+    "cle": "file",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "interpolation",
+    "defaut": "trilinear",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "trilinear",
+     "tetrahedral"
+    ]
+   },
+   {
+    "cle": "dither",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "data",
+    "optionnel": false,
+    "type": "json"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "image.adjustments.desaturate": {
+  "champs": [],
+  "inconnus": [],
+  "ok": true
+ },
+ "image.adjustments.replaceColor": {
+  "champs": [
+   {
+    "cle": "localized",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "color",
+    "formes": [
+     "hex"
+    ],
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "cle": "fuzziness",
+    "defaut": 40,
+    "entier": true,
+    "max": 200,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "range",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "hue",
+    "defaut": 0,
+    "entier": true,
+    "max": 180,
+    "min": -180,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "saturation",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "lightness",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "points",
+    "forme": "[[x,y],…]",
+    "optionnel": true,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "image.applyImage": {
+  "champs": [
+   {
+    "cle": "source",
+    "forme": "{\"document\":index?,\"layer\":id|name|\"merged\"=\"merged\",\"channel\":\"composite\"|\"red|…\"|index|\"selection\"|\"transparency\"|\"mask\"=\"composite\",\"invert\":bool=false}",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "blending",
+    "defaut": "multiply",
+    "optionnel": false,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "normal",
+     "multiply",
+     "screen",
+     "overlay",
+     "softLight",
+     "hardLight",
+     "colorDodge",
+     "colorBurn",
+     "darken",
+     "lighten",
+     "difference",
+     "exclusion",
+     "linearBurn",
+     "linearDodge",
+     "add",
+     "subtract"
+    ]
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "scale",
+    "defaut": 1,
+    "entier": false,
+    "max": 2,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "offset",
+    "defaut": 0,
+    "entier": true,
+    "max": 255,
+    "min": -255,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "preserveTransparency",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "mask",
+    "forme": "{\"document\",\"layer\",\"channel\",\"invert\"}",
+    "optionnel": true,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [
+   "\"sourceChannel|sourceDocument|sourceLayer|sourceInvert|maskChannel|…\":flat form of source/mask?"
+  ],
+  "ok": false
+ },
+ "image.canvasSize": {
+  "champs": [
+   {
+    "cle": "width",
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "height",
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "relative",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "anchor",
+    "defaut": "center",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "topLeft",
+     "top",
+     "topRight",
+     "left",
+     "center",
+     "right",
+     "bottomLeft",
+     "bottom",
+     "bottomRight"
+    ]
+   },
+   {
+    "cle": "extensionColor",
+    "defaut": "background",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "background",
+     "foreground",
+     "white",
+     "black",
+     "transparent",
+     "#rrggbb"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "image.imageSize": {
+  "champs": [
+   {
+    "cle": "width",
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "height",
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "percent",
+    "note": "both sides; an explicit side wins",
+    "optionnel": true,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "resolution",
+    "optionnel": false,
+    "type": "number",
+    "unite": "ppi"
+   },
+   {
+    "cle": "keepPrintSize",
+    "defaut": false,
+    "note": "with only a resolution: resample the pixels to keep the print size",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "resample",
+    "defaut": "bicubic",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "automatic",
+     "preserveDetails",
+     "bicubicSmoother",
+     "bicubicSharper",
+     "bicubicAutomatic",
+     "bicubic",
+     "nearest",
+     "bilinear",
+     "lanczos",
+     "none"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "image.mode.bitmap": {
+  "champs": [
+   {
+    "cle": "method",
+    "defaut": "diffusion",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "diffusion",
+     "threshold",
+     "pattern",
+     "halftone"
+    ]
+   },
+   {
+    "cle": "frequency",
+    "defaut": 53,
+    "entier": true,
+    "max": 999,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "angle",
+    "defaut": 45,
+    "entier": true,
+    "max": 180,
+    "min": -180,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "shape",
+    "defaut": "round",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "round",
+     "ellipse",
+     "line",
+     "square",
+     "diamond",
+     "cross"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.exportAs": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "path",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "scale",
+    "defaut": 100,
+    "entier": true,
+    "max": 1000,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.fill.pattern.set": {
+  "champs": [
+   {
+    "cle": "layer",
+    "note": "default active; a Pattern Fill layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "document",
+    "note": "reject a stale dialog",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "pattern",
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "id",
+     "name"
+    ]
+   },
+   {
+    "cle": "scale",
+    "entier": true,
+    "max": 1000,
+    "min": 1,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "angle",
+    "entier": true,
+    "max": 180,
+    "min": -180,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "link",
+    "optionnel": true,
+    "type": "bool"
+   },
+   {
+    "cle": "phase",
+    "forme": "[x,y]",
+    "note": "Snap to Origin: [0,0]",
+    "optionnel": true,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.fill.solidColor.set": {
+  "champs": [
+   {
+    "cle": "layer",
+    "note": "default active",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "document",
+    "note": "reject a stale dialog",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "\"#rrggbb\"|\"#rrggbbaa\"|[r,g,b,a?]|{mode,c:[f32;4],alpha:f32}",
+    "cle": "color",
+    "optionnel": false,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"color\":\"#rrggbb\"|\"#rrggbbaa\"|[r,g,b,a?]|{mode,c:[f32;4],alpha:f32}"
+  ],
+  "ok": false
+ },
+ "layer.groupLayers": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "name",
+    "optionnel": true,
+    "type": "str"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.layerStyle.bevelEmboss": {
+  "champs": [
+   {
+    "cle": "style",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "inner",
+     "outer",
+     "emboss",
+     "pillow",
+     "stroke"
+    ]
+   },
+   {
+    "cle": "technique",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "smooth",
+     "chiselHard",
+     "chiselSoft"
+    ]
+   },
+   {
+    "cle": "contour",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "contourName",
+    "optionnel": false,
+    "type": "union",
+    "variantes": [
+     "name",
+     "curve"
+    ]
+   },
+   {
+    "cle": "contourRange",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "contourAntiAlias",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "glossContour",
+    "optionnel": false,
+    "type": "union",
+    "variantes": [
+     "name",
+     "curve"
+    ]
+   },
+   {
+    "cle": "texture",
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pattern id",
+     "name"
+    ]
+   },
+   {
+    "cle": "textureScale",
+    "defaut": 100,
+    "entier": true,
+    "max": 1000,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "textureDepth",
+    "defaut": 100,
+    "entier": true,
+    "max": 1000,
+    "min": -1000,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "textureInvert",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "textureLink",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "depth",
+    "defaut": 100,
+    "entier": true,
+    "max": 1000,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "direction",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "up",
+     "down"
+    ]
+   },
+   {
+    "cle": "size",
+    "defaut": 5,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "soften",
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "angle",
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "altitude",
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "add",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.layerStyle.gradientOverlay": {
+  "champs": [
+   {
+    "cle": "from",
+    "formes": [
+     "hex"
+    ],
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "cle": "to",
+    "formes": [
+     "hex"
+    ],
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "cle": "method",
+    "note": "Photoshop's interpolation; omitted: straight stops",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "classic",
+     "perceptual",
+     "linear",
+     "smooth"
+    ]
+   },
+   {
+    "cle": "smoothness",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "style",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "linear",
+     "radial",
+     "angle",
+     "reflected",
+     "diamond"
+    ]
+   },
+   {
+    "cle": "angle",
+    "defaut": 90,
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "scale",
+    "defaut": 100,
+    "entier": true,
+    "max": 150,
+    "min": 10,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "reverse",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "opacity",
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "blend",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "add",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.layerStyle.innerGlow": {
+  "champs": [
+   {
+    "cle": "color",
+    "formes": [
+     "hex"
+    ],
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 75,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "blend",
+    "defaut": "screen",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "technique",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "softer",
+     "precise"
+    ]
+   },
+   {
+    "cle": "source",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "edge",
+     "center"
+    ]
+   },
+   {
+    "cle": "choke",
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "size",
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "contour",
+    "optionnel": false,
+    "type": "union",
+    "variantes": [
+     "name",
+     "curve"
+    ]
+   },
+   {
+    "cle": "antiAlias",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "noise",
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "add",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.layerStyle.outerGlow": {
+  "champs": [
+   {
+    "cle": "color",
+    "formes": [
+     "hex"
+    ],
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 75,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "blend",
+    "defaut": "screen",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "technique",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "softer",
+     "precise"
+    ]
+   },
+   {
+    "cle": "spread",
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "size",
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "range",
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "contour",
+    "optionnel": false,
+    "type": "union",
+    "variantes": [
+     "name",
+     "curve"
+    ]
+   },
+   {
+    "cle": "antiAlias",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "noise",
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "add",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.layerStyle.pasteLayerStyle": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.layerStyle.stroke": {
+  "champs": [
+   {
+    "cle": "size",
+    "defaut": 3,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "position",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "outside",
+     "inside",
+     "center"
+    ]
+   },
+   {
+    "cle": "color",
+    "formes": [
+     "hex"
+    ],
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "cle": "from",
+    "formes": [
+     "hex"
+    ],
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "cle": "to",
+    "formes": [
+     "hex"
+    ],
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "cle": "method",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "classic",
+     "perceptual",
+     "linear",
+     "smooth"
+    ]
+   },
+   {
+    "cle": "smoothness",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "style",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "angle",
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "opacity",
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "blend",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "add",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.linkLayers": {
+  "champs": [],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.moveTo": {
+  "champs": [
+   {
+    "brut": "id?| \"layers\":[id,…]",
+    "cle": "layer",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "target",
+    "optionnel": false,
+    "type": "layerId"
+   },
+   {
+    "cle": "position",
+    "defaut": "above",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "above",
+     "below",
+     "into"
+    ]
+   },
+   {
+    "cle": "copy",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"layer\":id?| \"layers\":[id,…]?"
+  ],
+  "ok": false
+ },
+ "layer.new.artboard": {
+  "champs": [
+   {
+    "cle": "rect",
+    "forme": "[x,y,w,h]? | \"x\"",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "preset",
+    "optionnel": true,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "iPhone 14",
+     "Web 1920",
+     "A4"
+    ]
+   },
+   {
+    "cle": "name",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "background",
+    "defaut": "white",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "white",
+     "black",
+     "transparent",
+     "custom"
+    ]
+   },
+   {
+    "cle": "color",
+    "forme": "[r,g,b]|\"#rrggbb\"",
+    "note": "custom",
+    "optionnel": true,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [
+   "\"y\"",
+   "\"width\"",
+   "\"height\"? (default: canvas size, right of the last board)"
+  ],
+  "ok": false
+ },
+ "layer.new.artboardFromGroup": {
+  "champs": [
+   {
+    "cle": "layer",
+    "note": "a top-level group; default active",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "…",
+    "cle": "background",
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"background\":…?"
+  ],
+  "ok": false
+ },
+ "layer.new.artboardFromLayers": {
+  "champs": [
+   {
+    "cle": "name",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "brut": "…",
+    "cle": "background",
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"background\":…?"
+  ],
+  "ok": false
+ },
+ "layer.new.frame": {
+  "champs": [
+   {
+    "cle": "x",
+    "optionnel": false,
+    "type": "int"
+   },
+   {
+    "cle": "y",
+    "optionnel": false,
+    "type": "int"
+   },
+   {
+    "cle": "width",
+    "optionnel": false,
+    "type": "int"
+   },
+   {
+    "cle": "height",
+    "optionnel": false,
+    "type": "int"
+   },
+   {
+    "cle": "shape",
+    "defaut": "rectangle",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "rectangle",
+     "ellipse"
+    ]
+   },
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "name",
+    "optionnel": true,
+    "type": "str"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.new.frameFromLayers": {
+  "champs": [
+   {
+    "cle": "name",
+    "optionnel": true,
+    "type": "str"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.new.group": {
+  "champs": [
+   {
+    "cle": "name",
+    "optionnel": true,
+    "type": "str"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.new.groupFromLayers": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "name",
+    "optionnel": true,
+    "type": "str"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.newAdjustmentLayer.colorLookup": {
+  "champs": [
+   {
+    "cle": "lut",
+    "defaut": "none",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "none",
+     "warm",
+     "cool",
+     "tealOrange",
+     "bleachBypass",
+     "fadedFilm",
+     "dayForNight",
+     "monoContrast",
+     "crossProcess"
+    ]
+   },
+   {
+    "cle": "file",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "interpolation",
+    "defaut": "trilinear",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "trilinear",
+     "tetrahedral"
+    ]
+   },
+   {
+    "cle": "dither",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "data",
+    "optionnel": false,
+    "type": "json"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.newFillLayer.pattern": {
+  "champs": [
+   {
+    "cle": "pattern",
+    "defaut": {
+     "texte": "first library pattern"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "id",
+     "name"
+    ]
+   },
+   {
+    "cle": "scale",
+    "defaut": 100,
+    "entier": true,
+    "max": 1000,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "angle",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "link",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "phase",
+    "forme": "[x,y]",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "brut": "\"work\"|saved path name|{…path}",
+    "cle": "path",
+    "note": "the active path: becomes the vector mask; else the selection is the layer mask",
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"path\":\"work\"|saved path name|{…path}? (the active path: becomes the vector mask; else the selection is the layer mask)"
+  ],
+  "ok": false
+ },
+ "layer.newFillLayer.solidColor": {
+  "champs": [
+   {
+    "cle": "color",
+    "defaut": {
+     "texte": "foreground"
+    },
+    "formes": [
+     "hex"
+    ],
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "brut": "\"work\"|saved path name|{…path}",
+    "cle": "path",
+    "note": "the active path: becomes the vector mask, making a shape; else the selection is the layer mask",
+    "optionnel": true,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"path\":\"work\"|saved path name|{…path}? (the active path: becomes the vector mask, making a shape; else the selection is the layer mask)"
+  ],
+  "ok": false
+ },
+ "layer.select": {
+  "champs": [
+   {
+    "brut": "id|str | \"name\":str",
+    "cle": "layer",
+    "optionnel": false,
+    "type": "layerId"
+   },
+   {
+    "cle": "occurrence",
+    "optionnel": true,
+    "type": "index"
+   },
+   {
+    "cle": "mode",
+    "defaut": "replace",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "replace",
+     "toggle",
+     "range",
+     "add",
+     "remove"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.setLabelColor": {
+  "champs": [
+   {
+    "cle": "color",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "none",
+     "red",
+     "orange",
+     "yellow",
+     "green",
+     "seafoam",
+     "blue",
+     "indigo",
+     "magenta",
+     "fuchsia",
+     "violet",
+     "gray"
+    ]
+   },
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.smartFilter.deleteFilterMask": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.smartFilter.setParams": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "index",
+    "optionnel": true,
+    "type": "int"
+   },
+   {
+    "cle": "params",
+    "forme": "{…}",
+    "note": "merged",
+    "optionnel": false,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.smartObjects.warp": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "rect",
+    "forme": "[x0,y0,x1,y1]",
+    "note": "warp box; default = layer content ∩ selection",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "style",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "custom",
+     "none",
+     "arc",
+     "arcLower",
+     "arcUpper",
+     "arch",
+     "bulge",
+     "shellLower",
+     "shellUpper",
+     "flag",
+     "wave",
+     "fish",
+     "rise",
+     "fisheye",
+     "inflate",
+     "squeeze",
+     "twist"
+    ]
+   },
+   {
+    "cle": "bend",
+    "defaut": 50,
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "hDistort",
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "vDistort",
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "vertical",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "mesh",
+    "forme": "{\"us\":[0,…,1],\"vs\":[0,…,1],\"points\":[[x,y]…]}",
+    "note": "(3c+1)×(3r+1) control points, row-major, document px; on a smart object `us`/`vs` span the source contents, so points equal to the placement are an identity warp even when it is skewed",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "grid",
+    "forme": "[cols,rows]",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "warp",
+    "forme": "{full warp object}",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "interpolation",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "bicubic",
+     "bilinear",
+     "nearest"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "layer.translate": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "dx",
+    "optionnel": false,
+    "type": "int"
+   },
+   {
+    "cle": "dy",
+    "optionnel": false,
+    "type": "int"
+   },
+   {
+    "brut": "\"px\"|\"pt\"",
+    "cle": "units",
+    "defaut": "px",
+    "note": "pt: points, whole pixels at the document's resolution",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "brut": "\"pixels\"|\"mask\"",
+    "cle": "target",
+    "defaut": "pixels",
+    "optionnel": false,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"units\":\"px\"|\"pt\"=\"px\" (pt: points, whole pixels at the document's resolution)",
+   "\"target\":\"pixels\"|\"mask\"=\"pixels\""
+  ],
+  "ok": false
+ },
+ "layerComp.apply": {
+  "champs": [
+   {
+    "cle": "comp",
+    "note": "default: last applied",
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "id",
+     "name"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "paint.blur": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "strength",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"size\":1..5000 px=tool size",
+   "\"spacing\":1..1000 (% of size)=Brush Settings spacing"
+  ],
+  "ok": false
+ },
+ "paint.bucket": {
+  "champs": [
+   {
+    "cle": "x",
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "y",
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "tolerance",
+    "defaut": 32,
+    "entier": true,
+    "max": 255,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "contiguous",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "antiAlias",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "contents",
+    "defaut": "foreground",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "foreground",
+     "pattern"
+    ]
+   },
+   {
+    "cle": "color",
+    "defaut": {
+     "texte": "foreground"
+    },
+    "formes": [
+     "hex"
+    ],
+    "optionnel": false,
+    "type": "color"
+   },
+   {
+    "cle": "pattern",
+    "note": "contents=pattern",
+    "optionnel": false,
+    "type": "union",
+    "variantes": [
+     "id",
+     "name"
+    ]
+   },
+   {
+    "cle": "scale",
+    "defaut": 100,
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "angle",
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "paint.burn": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "range",
+    "defaut": "midtones",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "shadows",
+     "midtones",
+     "highlights"
+    ]
+   },
+   {
+    "cle": "exposure",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "protectTones",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"size\":1..5000 px=tool size",
+   "\"spacing\":1..1000 (% of size)=Brush Settings spacing"
+  ],
+  "ok": false
+ },
+ "paint.cloneStamp": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "source",
+    "forme": "[sx,sy] (sampled under the first point) | \"offset\":[dx,dy]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "aligned",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "sampleLayer",
+    "defaut": "current",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "current",
+     "currentAndBelow",
+     "all"
+    ]
+   },
+   {
+    "cle": "mode",
+    "defaut": "normal",
+    "optionnel": false,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "normal",
+     "multiply"
+    ]
+   },
+   {
+    "cle": "wrap",
+    "defaut": {
+     "texte": "false (repeat source and stroke at document edges for Pattern Preview) → {\"damage\",\"offset\",\"aligned\",\"nextSource\"}"
+    },
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"size\":1..5000 px=tool size",
+   "\"spacing\":1..1000 (% of size)=Brush Settings spacing"
+  ],
+  "ok": false
+ },
+ "paint.contentAwareMove": {
+  "champs": [
+   {
+    "cle": "offset",
+    "forme": "[dx,dy]",
+    "note": "how far the selection was dragged",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "mode",
+    "defaut": "move",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "move",
+     "extend"
+    ]
+   },
+   {
+    "cle": "structure",
+    "defaut": 4,
+    "entier": true,
+    "max": 7,
+    "min": 1,
+    "note": "3..7 copy the content exactly but for a band about a patch wide along its edge; 2 widens the band, 1 re-synthesises the content too",
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "color",
+    "defaut": 0,
+    "entier": true,
+    "max": 10,
+    "min": 0,
+    "note": "0 keeps the content's level; higher values bring it towards its new place, by up to about 0.04 × color",
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "scaleX",
+    "defaut": 100,
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "scaleY",
+    "defaut": 100,
+    "note": "Transform On Drop: 1..10000, negative flips",
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "rotate",
+    "defaut": 0,
+    "note": "Transform On Drop, clockwise; scale and rotation are about the selection's centre, before the offset; a transformed patch may reach past the canvas edge",
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "paint.dodge": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "range",
+    "defaut": "midtones",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "shadows",
+     "midtones",
+     "highlights"
+    ]
+   },
+   {
+    "cle": "exposure",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "protectTones",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"size\":1..5000 px=tool size",
+   "\"spacing\":1..1000 (% of size)=Brush Settings spacing"
+  ],
+  "ok": false
+ },
+ "paint.gradient": {
+  "champs": [
+   {
+    "cle": "from",
+    "forme": "[x,y]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "to",
+    "forme": "[x,y]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "style",
+    "defaut": "linear",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "linear",
+     "radial",
+     "angle",
+     "reflected",
+     "diamond"
+    ]
+   },
+   {
+    "cle": "colors",
+    "forme": "[\"#rrggbb\",…]",
+    "note": "evenly spaced",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "brut": "preset name",
+    "cle": "gradient",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "stops",
+    "forme": "[[t,\"#rrggbb\"|\"foreground\"|\"background\"],…]",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "transparency",
+    "forme": "[[t,0..100],…]",
+    "note": "default: the current gradient, see gradient.presets.select",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "method",
+    "note": "Photoshop's interpolation; omitted: straight stops",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "classic",
+     "perceptual",
+     "linear",
+     "smooth"
+    ]
+   },
+   {
+    "cle": "smoothness",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "reverse",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "dither",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "mode",
+    "defaut": "normal",
+    "optionnel": false,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "normal",
+     "multiply"
+    ]
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   }
+  ],
+  "inconnus": [
+   "\"gradient\":preset name?"
+  ],
+  "ok": false
+ },
+ "paint.healingBrush": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "source",
+    "forme": "[sx,sy] | \"offset\":[dx,dy]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "aligned",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "sampleLayer",
+    "defaut": "current",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "current",
+     "currentAndBelow",
+     "all"
+    ]
+   },
+   {
+    "cle": "mode",
+    "defaut": {
+     "texte": "\"normal\" → {\"damage\",\"offset\",\"aligned\",\"nextSource\"}"
+    },
+    "optionnel": false,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "normal"
+    ]
+   }
+  ],
+  "inconnus": [
+   "\"size\":1..5000 px=tool size",
+   "\"spacing\":1..1000 (% of size)=Brush Settings spacing"
+  ],
+  "ok": false
+ },
+ "paint.historyBrush": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "state",
+    "note": "into history.entries; default 0 = the oldest held state, normally the Open snapshot",
+    "optionnel": false,
+    "type": "index"
+   }
+  ],
+  "inconnus": [
+   "\"size\":1..5000 px=tool size",
+   "\"spacing\":1..1000 (% of size)=Brush Settings spacing"
+  ],
+  "ok": false
+ },
+ "paint.mixerBrush": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "brush",
+    "forme": "{…}",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "preset",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "brut": "0.5..5000 px",
+    "cle": "size",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "wet",
+    "defaut": {
+     "texte": "brush.mixer.wet"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "load",
+    "defaut": {
+     "texte": "brush.mixer.load"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "mix",
+    "defaut": {
+     "texte": "brush.mixer.mix"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": {
+     "texte": "brush.mixer.flow"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "color",
+    "defaut": {
+     "texte": "foreground"
+    },
+    "formes": [
+     "hex"
+    ],
+    "optionnel": true,
+    "type": "color"
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": {
+     "texte": "brush.mixer.sampleAllLayers"
+    },
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "cleanAfterStroke",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "loadAfterStroke",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "seed",
+    "optionnel": true,
+    "type": "int"
+   }
+  ],
+  "inconnus": [
+   "\"size\":0.5..5000 px?"
+  ],
+  "ok": false
+ },
+ "paint.patch": {
+  "champs": [
+   {
+    "cle": "offset",
+    "forme": "[dx,dy]",
+    "note": "how far the selection was dragged",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "mode",
+    "defaut": "source",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "source",
+     "destination"
+    ]
+   },
+   {
+    "cle": "contentAware",
+    "defaut": false,
+    "note": "fill the selection content-aware from the dragged-to place; a background job",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "structure",
+    "defaut": 4,
+    "entier": true,
+    "max": 7,
+    "min": 1,
+    "note": "content-aware: 3..7 copy the middle exactly, 1..2 re-synthesise more of it",
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "color",
+    "defaut": 0,
+    "entier": true,
+    "max": 10,
+    "min": 0,
+    "note": "content-aware: how far the copy's level adapts to the selection's surroundings",
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": false,
+    "note": "content-aware",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "paint.patternStamp": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "max": 5000,
+    "min": 1,
+    "optionnel": true,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "max": 1000,
+    "min": 1,
+    "optionnel": true,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "pattern",
+    "defaut": {
+     "texte": "Patterns panel current"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "id",
+     "name"
+    ]
+   },
+   {
+    "brut": "1..1000 %",
+    "cle": "scale",
+    "defaut": 100,
+    "max": 1000,
+    "min": 1,
+    "optionnel": true,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "angle",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "aligned",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "impressionist",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "mode",
+    "defaut": "normal",
+    "optionnel": false,
+    "ouverte": true,
+    "type": "enum",
+    "valeurs": [
+     "normal",
+     "multiply"
+    ]
+   },
+   {
+    "cle": "phase",
+    "forme": "[px,py]? → {\"damage\",\"phase\",\"aligned\",\"pattern\"}",
+    "optionnel": false,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "paint.pencil": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?,tiltX?,tiltY?,rotation?,timeMs?,wheel?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "brush",
+    "forme": "{…}",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "preset",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "brut": "0.5..5000 px",
+    "cle": "size",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "opacity",
+    "entier": false,
+    "max": 1,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "color",
+    "defaut": {
+     "texte": "foreground"
+    },
+    "formes": [
+     "hex"
+    ],
+    "optionnel": true,
+    "type": "color"
+   },
+   {
+    "cle": "mode",
+    "defaut": "normal",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "normal",
+     "multiply",
+     "screen",
+     "…",
+     "clear (erases with this brush)"
+    ]
+   },
+   {
+    "cle": "erase",
+    "optionnel": true,
+    "type": "bool"
+   },
+   {
+    "cle": "block",
+    "defaut": false,
+    "note": "a hard 16×16 screen-px square, 16/zoom doc px; size, opacity, flow, hardness and dynamics ignored: the Eraser's Block mode",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "brut": "view zoom",
+    "cle": "zoom",
+    "defaut": 1,
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "autoErase",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "seed",
+    "optionnel": true,
+    "type": "int"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   }
+  ],
+  "inconnus": [
+   "\"size\":0.5..5000 px?",
+   "\"zoom\":view zoom=1"
+  ],
+  "ok": false
+ },
+ "paint.remove": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "max": 5000,
+    "min": 1,
+    "optionnel": true,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "max": 1000,
+    "min": 1,
+    "optionnel": true,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "strokes",
+    "forme": "[[[x,y,pressure?],…],…]",
+    "note": "several strokes removed together, as one job and one undo step; else \"points\"",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "closeLoops",
+    "defaut": true,
+    "note": "a stroke around an object removes what it encloses",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "newLayer",
+    "defaut": {
+     "texte": "false (the fill goes to a new layer above the target, which stays as it was) → {\"damage\",\"layer\"?}"
+    },
+    "note": "a background job",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "paint.sharpen": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "strength",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "protectDetail",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"size\":1..5000 px=tool size",
+   "\"spacing\":1..1000 (% of size)=Brush Settings spacing"
+  ],
+  "ok": false
+ },
+ "paint.smudge": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "strength",
+    "defaut": 50,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "fingerPainting",
+    "defaut": false,
+    "note": "starts with the foreground colour",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"size\":1..5000 px=tool size",
+   "\"spacing\":1..1000 (% of size)=Brush Settings spacing"
+  ],
+  "ok": false
+ },
+ "paint.sponge": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "mode",
+    "defaut": "desaturate",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "desaturate",
+     "saturate"
+    ]
+   },
+   {
+    "cle": "vibrance",
+    "defaut": true,
+    "note": "flow = sponge strength",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"size\":1..5000 px=tool size",
+   "\"spacing\":1..1000 (% of size)=Brush Settings spacing"
+  ],
+  "ok": false
+ },
+ "paint.spotHealing": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "brut": "1..5000 px",
+    "cle": "size",
+    "defaut": {
+     "texte": "tool size"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "defaut": {
+     "texte": "tool hardness"
+    },
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 1,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "brut": "1..1000 (% of size)",
+    "cle": "spacing",
+    "defaut": {
+     "texte": "Brush Settings spacing"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "defaut": {
+     "texte": "active"
+    },
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   },
+   {
+    "cle": "type",
+    "defaut": "contentAware",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "contentAware",
+     "createTexture",
+     "proximityMatch"
+    ]
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"size\":1..5000 px=tool size",
+   "\"spacing\":1..1000 (% of size)=Brush Settings spacing"
+  ],
+  "ok": false
+ },
+ "paint.stroke": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y,pressure?,tiltX?,tiltY?,rotation?,timeMs?,wheel?],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "brush",
+    "forme": "{…BrushSettings}",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "preset",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "brut": "0.5..5000 px",
+    "cle": "size",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "hardness",
+    "entier": false,
+    "max": 1,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "opacity",
+    "entier": false,
+    "max": 1,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "flow",
+    "entier": false,
+    "max": 1,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "spacing",
+    "entier": true,
+    "max": 10,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "cle": "color",
+    "defaut": {
+     "texte": "foreground"
+    },
+    "formes": [
+     "hex"
+    ],
+    "optionnel": true,
+    "type": "color"
+   },
+   {
+    "cle": "mode",
+    "defaut": "normal",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "normal",
+     "multiply",
+     "screen",
+     "…",
+     "clear (erases with this brush)"
+    ]
+   },
+   {
+    "cle": "erase",
+    "optionnel": true,
+    "type": "bool"
+   },
+   {
+    "cle": "smoothing",
+    "entier": false,
+    "max": 1,
+    "min": 0,
+    "optionnel": true,
+    "type": "number"
+   },
+   {
+    "brut": "number",
+    "cle": "zoom",
+    "defaut": 1,
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "seed",
+    "optionnel": true,
+    "type": "int"
+   },
+   {
+    "cle": "target",
+    "defaut": {
+     "texte": "Channels panel target"
+    },
+    "optionnel": true,
+    "type": "union",
+    "variantes": [
+     "pixels",
+     "mask",
+     "quickMask",
+     "{\"channel\":i}"
+    ]
+   }
+  ],
+  "inconnus": [
+   "\"size\":0.5..5000 px?",
+   "\"zoom\":number=1"
+  ],
+  "ok": false
+ },
+ "path.addAnchor": {
+  "champs": [
+   {
+    "brut": "str|\"work\"|\"layer\"",
+    "cle": "name",
+    "defaut": "work",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "layer",
+    "note": "with \"layer\": a shape layer's path or a vector mask",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "i",
+    "cle": "subpath",
+    "optionnel": false,
+    "type": "index"
+   },
+   {
+    "brut": "j",
+    "cle": "knot",
+    "note": "the segment leaving it",
+    "optionnel": false,
+    "type": "index"
+   },
+   {
+    "brut": "0<t<1",
+    "cle": "t",
+    "defaut": {
+     "texte": "0.5 (where on the segment) (a curve is split there without changing its shape and gets a smooth anchor; a straight segment gets a corner)"
+    },
+    "max": 1,
+    "min": 0,
+    "note": "the result also has anchor:{subpath,knot}",
+    "optionnel": true,
+    "type": "number"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "path.bendSegment": {
+  "champs": [
+   {
+    "brut": "str|\"work\"|\"layer\"",
+    "cle": "name",
+    "defaut": "work",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "layer",
+    "note": "with \"layer\": a shape layer's path or a vector mask",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "i",
+    "cle": "subpath",
+    "optionnel": false,
+    "type": "index"
+   },
+   {
+    "brut": "j",
+    "cle": "knot",
+    "note": "the segment leaving it",
+    "optionnel": false,
+    "type": "index"
+   },
+   {
+    "cle": "t",
+    "defaut": 0.5,
+    "entier": false,
+    "max": 1,
+    "min": 0,
+    "note": "where it was grabbed",
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "move",
+    "forme": "[dx,dy]",
+    "note": "a straight segment moves with its anchors; a curve reshapes through the dragged point",
+    "optionnel": false,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "path.convertPoint": {
+  "champs": [
+   {
+    "brut": "str|\"work\"|\"layer\"",
+    "cle": "name",
+    "defaut": "work",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "layer",
+    "note": "with \"layer\": a shape layer's path or a vector mask",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "i",
+    "cle": "subpath",
+    "optionnel": false,
+    "type": "index"
+   },
+   {
+    "brut": "j",
+    "cle": "knot",
+    "optionnel": false,
+    "type": "index"
+   },
+   {
+    "cle": "out",
+    "forme": "[x,y]",
+    "note": "none: corner with retracted handles; given: smooth with this out handle and its mirror",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "curvature",
+    "defaut": false,
+    "note": "the Curvature Pen's double-click: toggles smooth/corner and reflows the smooth knots of the subpath; out ignored",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "path.deleteAnchor": {
+  "champs": [
+   {
+    "brut": "str|\"work\"|\"layer\"",
+    "cle": "name",
+    "defaut": "work",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "layer",
+    "note": "with \"layer\": a shape layer's path or a vector mask",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "i",
+    "cle": "subpath",
+    "optionnel": false,
+    "type": "index"
+   },
+   {
+    "brut": "j (its neighbours are joined, keeping their handles; a subpath's last anchor removes the subpath; the path's only anchor is refused)",
+    "cle": "knot",
+    "note": "the result also has subpathRemoved:bool",
+    "optionnel": false,
+    "type": "index"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "path.moveAnchors": {
+  "champs": [
+   {
+    "brut": "str|\"work\"|\"layer\"",
+    "cle": "name",
+    "defaut": "work",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "layer",
+    "note": "with \"layer\": a shape layer's path or a vector mask",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "anchors",
+    "forme": "[[subpath,knot],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "move",
+    "forme": "[dx,dy]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "curvature",
+    "defaut": false,
+    "note": "anchors move with their handles; Direct Selection drag. curvature = the Curvature Pen's drag: every smooth knot of the touched subpaths gets its handles recomputed so the curve flows through the anchors",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "path.moveHandle": {
+  "champs": [
+   {
+    "brut": "str|\"work\"|\"layer\"",
+    "cle": "name",
+    "defaut": "work",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "layer",
+    "note": "with \"layer\": a shape layer's path or a vector mask",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "i",
+    "cle": "subpath",
+    "optionnel": false,
+    "type": "index"
+   },
+   {
+    "brut": "j",
+    "cle": "knot",
+    "optionnel": false,
+    "type": "index"
+   },
+   {
+    "cle": "handle",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "in",
+     "out"
+    ]
+   },
+   {
+    "cle": "to",
+    "forme": "[x,y]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "independent",
+    "defaut": false,
+    "note": "a smooth point turns its other handle to stay collinear; independent = ⌥ / Convert Point, makes a corner",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "select.float": {
+  "champs": [
+   {
+    "cle": "dx",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "dy",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "copy",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "brut": "\"pixels\"|\"mask\"",
+    "cle": "target",
+    "defaut": "pixels",
+    "note": "mask: float the selected part of the layer's mask, the hole takes the background colour",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "pixels",
+     "mask"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "select.lasso": {
+  "champs": [
+   {
+    "cle": "points",
+    "forme": "[[x,y],…]",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "mode",
+    "defaut": "replace",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "replace",
+     "add",
+     "subtract",
+     "intersect"
+    ]
+   },
+   {
+    "cle": "antiAlias",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "feather",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "select.loadSelection": {
+  "champs": [
+   {
+    "brut": "index|name|\"composite\"|\"red|green|blue|…\"|\"transparency\"|\"mask\"|\"vectorMask\"|\"quickMask\"|\"selection\"|\"targeted\"",
+    "cle": "channel",
+    "note": "the Channels panel's target",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "document",
+    "optionnel": true,
+    "type": "index"
+   },
+   {
+    "cle": "invert",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "operation",
+    "defaut": "new",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "new",
+     "add",
+     "subtract",
+     "intersect"
+    ]
+   }
+  ],
+  "inconnus": [
+   "\"channel\":index|name|\"composite\"|\"red|green|blue|…\"|\"transparency\"|\"mask\"|\"vectorMask\"|\"quickMask\"|\"selection\"|\"targeted\" (the Channels panel's target)"
+  ],
+  "ok": false
+ },
+ "select.refineEdge": {
+  "champs": [
+   {
+    "cle": "radius",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "smartRadius",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "smooth",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "feather",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "contrast",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "shiftEdge",
+    "defaut": 0,
+    "entier": true,
+    "max": 100,
+    "min": -100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "decontaminate",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "amount",
+    "defaut": 100,
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "output",
+    "defaut": "selection",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "selection",
+     "layerMask",
+     "newLayer",
+     "newLayerWithMask",
+     "newDocument",
+     "newDocumentWithMask"
+    ]
+   },
+   {
+    "cle": "sampleAllLayers",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "refineStrokes",
+    "defaut": {
+     "texte": "[]"
+    },
+    "forme": "[{\"points\":[[x,y],…],\"size\":px=30,\"mode\":\"add|subtract\"=\"add\"},…]",
+    "optionnel": false,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "select.subject": {
+  "champs": [
+   {
+    "cle": "sampleAllLayers",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "mode",
+    "defaut": "replace",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "replace",
+     "add",
+     "subtract",
+     "intersect"
+    ]
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "select.transformSelection": {
+  "champs": [
+   {
+    "cle": "rect",
+    "forme": "[x0,y0,x1,y1]",
+    "note": "frame; default = selection bounds",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "matrix",
+    "forme": "[a,b,c,d,e,f]",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "scaleX",
+    "defaut": 100,
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "scaleY",
+    "defaut": 100,
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "rotate",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "skewX",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "skewY",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "deg"
+   },
+   {
+    "cle": "dx",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "dy",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "brut": "\"center|topLeft|top|topRight|left|right|bottomLeft|bottom|bottomRight\"|[x,y]",
+    "cle": "reference",
+    "defaut": "center",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "interpolation",
+    "defaut": "bilinear",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "bilinear",
+     "bicubic",
+     "nearest"
+    ]
+   }
+  ],
+  "inconnus": [
+   "\"quad\"|\"corners\":[[x,y]×4]? (where the frame's corners go: distort/perspective)",
+   "\"reference\":\"center|topLeft|top|topRight|left|right|bottomLeft|bottom|bottomRight\"|[x,y]=\"center\"",
+   "\"style\"|\"mesh\"|\"grid\"|\"warp\":… (warp, as edit.transform.warp)"
+  ],
+  "ok": false
+ },
+ "shape.presets.new": {
+  "champs": [
+   {
+    "cle": "name",
+    "defaut": "Shape",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "group",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "path",
+    "forme": "{…path}|\"M x y L …\" (preset path language)|\"work\"|saved path name",
+    "note": "default: work path, active shape layer or vector mask",
+    "optionnel": true,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "style.presets.new": {
+  "champs": [
+   {
+    "cle": "name",
+    "defaut": "Style",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "group",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "includeEffects",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "includeBlending",
+    "defaut": true,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "effects",
+    "forme": "[[kind, params]]",
+    "note": "explicit list, e.g. the Layer Style dialog's pending state; overrides includeEffects",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "blend",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "fillOpacity",
+    "entier": true,
+    "max": 100,
+    "min": 0,
+    "note": "override the layer's blending options",
+    "optionnel": true,
+    "type": "number"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "swatches.export": {
+  "champs": [
+   {
+    "cle": "format",
+    "defaut": {
+     "texte": "from path"
+    },
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "aco",
+     "ase"
+    ]
+   },
+   {
+    "brut": "file",
+    "cle": "path",
+    "note": "else the bytes come back as base64 `data`",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "group",
+    "note": "only that group",
+    "optionnel": true,
+    "type": "str"
+   },
+   {
+    "cle": "swatches",
+    "forme": "[names]",
+    "note": "only these",
+    "optionnel": true,
+    "type": "struct"
+   }
+  ],
+  "inconnus": [
+   "else aco",
+   "\"path\":file? (else the bytes come back as base64 `data`)"
+  ],
+  "ok": false
+ },
+ "swatches.import": {
+  "champs": [
+   {
+    "brut": "\".aco or .ase file\"",
+    "cle": "path",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "brut": "base64 bytes",
+    "cle": "data",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "format",
+    "note": "detected",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "aco",
+     "ase"
+    ]
+   },
+   {
+    "cle": "mode",
+    "defaut": "append",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "append",
+     "replace"
+    ]
+   },
+   {
+    "cle": "group",
+    "defaut": {
+     "texte": "file name"
+    },
+    "note": "the group for ungrouped colours",
+    "optionnel": true,
+    "type": "str"
+   }
+  ],
+  "inconnus": [
+   "\"path\":\".aco or .ase file\"?",
+   "\"data\":base64 bytes?"
+  ],
+  "ok": false
+ },
+ "type.attachToPath": {
+  "champs": [
+   {
+    "cle": "layer",
+    "note": "default active Type layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "layerId",
+    "cle": "shape",
+    "note": "a shape layer; default the work path",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "subpath",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "index"
+   },
+   {
+    "cle": "start",
+    "defaut": 0,
+    "note": "offset along the path",
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "flip",
+    "defaut": false,
+    "note": "run along the path the other way, on its other side",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [],
+  "ok": true
+ },
+ "type.createSelection": {
+  "champs": [
+   {
+    "cle": "layer",
+    "note": "a type layer whose glyphs become the selection",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "cle": "removeLayer",
+    "defaut": false,
+    "note": "delete that layer in the same step: the Type Mask tools' temporary text",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "operation",
+    "defaut": "new",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "new",
+     "add",
+     "subtract",
+     "intersect"
+    ]
+   },
+   {
+    "cle": "antialias",
+    "optionnel": true,
+    "type": "enum",
+    "valeurs": [
+     "none",
+     "sharp",
+     "crisp",
+     "strong",
+     "smooth"
+    ]
+   }
+  ],
+  "inconnus": [
+   "type.create's keys: \"text\"",
+   "\"x\"",
+   "\"y\" or \"box\"",
+   "\"orientation\"",
+   "\"font\"",
+   "\"size\"",
+   "\"align\""
+  ],
+  "ok": false
+ },
+ "type.setStyle": {
+  "champs": [
+   {
+    "brut": "id? or \"layers\":[id,…]",
+    "cle": "layer",
+    "note": "default selected Type layers",
+    "optionnel": true,
+    "type": "?"
+   },
+   {
+    "cle": "range",
+    "forme": "[startChar,endChar]",
+    "note": "single layer; default all",
+    "optionnel": true,
+    "type": "struct"
+   },
+   {
+    "cle": "metricsAsShown",
+    "defaut": false,
+    "note": "size/leading/leadingBy include each layer's transform scale",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "font",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "fontStyle",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "weight",
+    "entier": true,
+    "max": 900,
+    "min": 100,
+    "optionnel": false,
+    "type": "number"
+   },
+   {
+    "cle": "italic",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "brut": "0.1..",
+    "cle": "size",
+    "defaut": {
+     "texte": "1296 pt"
+    },
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "brut": "\"#rrggbb\"|[r,g,b,a]",
+    "cle": "color",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "brut": "-1000..",
+    "cle": "tracking",
+    "defaut": 10000,
+    "note": "1/1000 em",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "brut": "pt|\"auto\"",
+    "cle": "leading",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "baselineShift",
+    "optionnel": false,
+    "type": "number",
+    "unite": "pt"
+   },
+   {
+    "cle": "horizontalScale",
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "verticalScale",
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "underline",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "strikethrough",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "fauxBold",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "fauxItalic",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "brut": "1/1000em (manual, after each character)|\"metrics\"|\"optical\"|\"off\"",
+    "cle": "kerning",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "caps",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "normal",
+     "small",
+     "all"
+    ]
+   },
+   {
+    "cle": "ligatures",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "discretionaryLigatures",
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "features",
+    "forme": "{\"ss01\":1}",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "variations",
+    "forme": "{\"wght\":650}",
+    "optionnel": false,
+    "type": "struct"
+   },
+   {
+    "cle": "language",
+    "optionnel": false,
+    "type": "str"
+   },
+   {
+    "cle": "baselineShiftBy",
+    "note": "result -5000..=5000",
+    "optionnel": false,
+    "type": "number",
+    "unite": "pt"
+   },
+   {
+    "brut": "1/1000 em",
+    "cle": "trackingBy",
+    "note": "result -1000..=10000",
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "firstLineIndent",
+    "optionnel": false,
+    "type": "number",
+    "unite": "pt"
+   },
+   {
+    "cle": "startIndent",
+    "optionnel": false,
+    "type": "number",
+    "unite": "pt"
+   },
+   {
+    "cle": "endIndent",
+    "optionnel": false,
+    "type": "number",
+    "unite": "pt"
+   },
+   {
+    "cle": "spaceBefore",
+    "optionnel": false,
+    "type": "number",
+    "unite": "pt"
+   },
+   {
+    "cle": "spaceAfter",
+    "optionnel": false,
+    "type": "number",
+    "unite": "pt"
+   },
+   {
+    "cle": "autoLeading",
+    "optionnel": false,
+    "type": "number",
+    "unite": "%"
+   },
+   {
+    "cle": "direction",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "auto",
+     "ltr",
+     "rtl"
+    ]
+   },
+   {
+    "cle": "hyphenate",
+    "optionnel": false,
+    "type": "bool"
+   }
+  ],
+  "inconnus": [
+   "\"layer\":id? or \"layers\":[id,…]? (default selected Type layers)",
+   "\"size\":0.1..=1296 pt",
+   "\"color\":\"#rrggbb\"|[r,g,b,a]",
+   "\"tracking\":-1000..=10000 (1/1000 em)",
+   "\"leading\":pt|\"auto\"",
+   "\"kerning\":1/1000em (manual, after each character)|\"metrics\"|\"optical\"|\"off\"",
+   "relative steps from each character's own value: \"leadingBy\":pt (auto leading starts from its laid-out value; result 0.01..=5000)",
+   "\"trackingBy\":1/1000 em (result -1000..=10000)",
+   "paragraph keys: \"align\":\"left|center|right|justify|justifyCenter|justifyRight|justifyAll\""
+  ],
+  "ok": false
+ },
+ "view.layerMask": {
+  "champs": [
+   {
+    "cle": "layer",
+    "optionnel": true,
+    "type": "layerId"
+   },
+   {
+    "brut": "\"off\"|\"gray\"|\"overlay\"|\"toggleGray\"|\"toggleOverlay\"",
+    "cle": "mode",
+    "defaut": "toggleGray",
+    "optionnel": false,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"mode\":\"off\"|\"gray\"|\"overlay\"|\"toggleGray\"|\"toggleOverlay\"=\"toggleGray\""
+  ],
+  "ok": false
+ },
+ "view.moveGuide": {
+  "champs": [
+   {
+    "cle": "orientation",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "horizontal",
+     "vertical"
+    ]
+   },
+   {
+    "cle": "index",
+    "optionnel": false,
+    "type": "int"
+   },
+   {
+    "brut": "px or \"<number><unit>\"",
+    "cle": "position",
+    "optionnel": false,
+    "type": "?"
+   }
+  ],
+  "inconnus": [
+   "\"position\":px or \"<number><unit>\""
+  ],
+  "ok": false
+ },
+ "view.newGuideLayout": {
+  "champs": [
+   {
+    "cle": "columns",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "int"
+   },
+   {
+    "cle": "width",
+    "optionnel": true,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "gutter",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "rows",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "int"
+   },
+   {
+    "cle": "height",
+    "optionnel": true,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "cle": "rowGutter",
+    "defaut": {
+     "texte": "gutter"
+    },
+    "optionnel": false,
+    "type": "number",
+    "unite": "px"
+   },
+   {
+    "brut": "px|[top,left,bottom,right]",
+    "cle": "margin",
+    "defaut": 0,
+    "optionnel": false,
+    "type": "?"
+   },
+   {
+    "cle": "centerColumns",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "clearExisting",
+    "defaut": false,
+    "optionnel": false,
+    "type": "bool"
+   },
+   {
+    "cle": "target",
+    "defaut": "document",
+    "optionnel": false,
+    "type": "enum",
+    "valeurs": [
+     "document",
+     "selectedArtboards"
+    ]
+   }
+  ],
+  "inconnus": [
+   "\"margin\":px|[top,left,bottom,right]=0"
+  ],
+  "ok": false
+ }
+}

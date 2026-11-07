@@ -76,6 +76,12 @@ export const outilDuPreset = (t) => (Object.prototype.hasOwnProperty.call(OUTILS
 
 /* ───────────── côté DOM ───────────── */
 
+export function touchePinceau(touche, maj) {
+  if (touche === "," || touche === "<") return maj ? "tools.firstBrush" : "tools.previousBrush";
+  if (touche === "." || touche === ">") return maj ? "tools.lastBrush" : "tools.nextBrush";
+  return null;
+}
+
 export function initPinceaux(PL) {
   const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
   const grp = PL.$("#grpPinceaux");
@@ -101,6 +107,17 @@ export function initPinceaux(PL) {
     if (PL.reconstruireOptions) PL.reconstruireOptions();
     return o;
   }
+
+  /* t414 : pinceau précédent / suivant (« , » et « . », Maj : premier et dernier), le moteur tient l'ordre */
+  document.addEventListener("keydown", async (ev) => {
+    const c = touchePinceau(ev.key, ev.shiftKey);
+    if (!c || ev.ctrlKey || ev.altKey || ev.metaKey || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName || "") || ev.target.isContentEditable || !PL.etat.doc) return;
+    ev.preventDefault();
+    const r = await moteur(c, {});
+    if (!r || !r.preset) return;
+    choisi = r.preset; dessinerPresets(); await synchroniserPointe();
+    PL.signaler(r.preset);
+  });
 
   /* onglet Pinceaux */
   const recherche = el("input", "pi-recherche"); recherche.type = "search"; recherche.placeholder = T("photolab.pinceaux.rechercher");

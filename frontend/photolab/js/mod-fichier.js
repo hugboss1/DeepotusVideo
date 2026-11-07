@@ -50,24 +50,38 @@ export const FORMATS_EXPORT = [
   { id: "png", format: "png", libelle: "PNG" },
   { id: "jpg", format: "jpg", libelle: "JPG", qualite: true },
   { id: "webp", format: "webp", libelle: "WEBP", qualite: true },
-  { id: "tif", format: "tif", libelle: "TIFF" },
+  { id: "tif", format: "tif", libelle: "TIFF", compressions: ["none", "lzw", "zip"] },
   { id: "tif-calques", format: "tif", libelle: "TIFF", cle: "photolab.export.tiff_calques", calques: true },
   { id: "psd", format: "psd", libelle: "PSD" },
   { id: "ora", format: "ora", libelle: "ORA" },
   { id: "pdf", format: "pdf", libelle: "PDF", cle: "photolab.export.pdf_page" },
   { id: "pcraft", format: "pcraft", libelle: "PCRAFT" },
+  // t418 (N8, photocraft 0.21)
+  { id: "jxl", format: "jxl", libelle: "JPEG XL", cle: "photolab.export.jxl" },
+  { id: "dds", format: "dds", libelle: "DDS", compressions: ["none", "bc1", "bc2", "bc3"] },
+  { id: "exr", format: "exr", libelle: "OpenEXR" },
+  { id: "dpx", format: "dpx", libelle: "DPX" },
+  { id: "cin", format: "cin", libelle: "Cineon" },
+  { id: "hdr", format: "hdr", libelle: "Radiance HDR" },
+  { id: "bmp", format: "bmp", libelle: "BMP" },
+  { id: "gif", format: "gif", libelle: "GIF" },
+  { id: "qoi", format: "qoi", libelle: "QOI" },
 ];
 
+const LIB_COMPRESSIONS = { none: "photolab.export.compression.none", lzw: "photolab.export.compression.lzw", zip: "photolab.export.compression.zip",
+  bc1: "photolab.export.compression.bc1", bc2: "photolab.export.compression.bc2", bc3: "photolab.export.compression.bc3" };
 export const formatExport = (id) => FORMATS_EXPORT.find((x) => x.id === id) || null;
 export const libelleFormat = (f, T) => (f.cle ? T(f.cle) : f.libelle);
 
-export function corpsExport(id, nom, quality = 90) {
+// t418 : la compression choisie, si ce format en a une et qu'elle n'est pas celle par défaut.
+export const avecCompression = (corps, f, compression) => (f.compressions && f.compressions.includes(compression) && compression !== "none" ? { ...corps, compression } : corps);
+export function corpsExport(id, nom, quality = 90, compression = null) {
   const f = formatExport(id);
   if (!f) throw erreurSaisie("photolab.export.erreur.format");
   const corps = { format: f.format, nom: String(nom || "") };
   if (f.calques) corps.calques = true;
   if (f.qualite) corps.quality = Math.max(1, Math.min(100, Math.round(Number(quality) || 90)));
-  return corps;
+  return avecCompression(corps, f, compression);
 }
 
 // #415 : Fichier › Enregistrer sous… — un NOUVEAU fichier de la Bibliothèque sous le nom saisi (route /bibliotheque :
@@ -123,6 +137,7 @@ export const FORMATS_BIBLIOTHEQUE = ["png", "jpg", "jpeg", "webp", "gif", "bmp",
 export const FORMATS_OUVERTURE = ["ora", "kra", "pdn", "af", "afphoto", "afdesign", "afpub", "exr", "dpx", "dds",
   "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "raf", "rw2", "orf", "pef", "srw", "3fr",
   "iiq", "erf", "mrw", "x3f",
+  "xcf", "dcm", "dicom", "dc3", "iff", "lbm", "ilbm", "fits", "fit", "fts", "hdr", "cin", "qoi", "pcx", "xpm", "ico", "pnm", "pbm", "pgm", "ppm", "pam", "pfm",
   "psd", "psb", "pcraft", "tif", "tiff", "tga", "png", "jpg", "jpeg", "webp", "gif", "bmp"];
 export const IMPORT_MAX = 1024 * 1024 * 1024;
 export function routeFichier(nom, taille = 0) {
@@ -529,7 +544,17 @@ export function initFichier(PL) {
         qualite.addEventListener("input", () => { vq.textContent = qualite.value; });
         const lQualite = champ(T("photolab.export.qualite"), qualite); lQualite.appendChild(vq);
         const majQualite = () => { lQualite.hidden = !formatExport(format.value).qualite; };
+        // t418 : compression du TIFF et du DDS
+        const compression = document.createElement("select");
+        const lCompression = champ(T("photolab.export.compression"), compression);
+        const majCompression = () => {
+          const l = formatExport(format.value).compressions || [];
+          lCompression.hidden = !l.length;
+          compression.textContent = "";
+          for (const v of l) { const o = document.createElement("option"); o.value = v; o.textContent = T(LIB_COMPRESSIONS[v]); compression.appendChild(o); }
+        };
         format.addEventListener("change", majQualite); majQualite();
+        format.addEventListener("change", majCompression); majCompression();
         const nom = entree("text", nomDocument(doc.name), { maxlength: "80" });
         const erreur = document.createElement("p"); erreur.className = "pl-erreur"; erreur.setAttribute("role", "alert");
 
@@ -571,10 +596,10 @@ export function initFichier(PL) {
         dessinerChoix();
         PL.get("/export/prereglages", true).then((r) => { prereglages = (r && r.prereglages) || []; dessinerChoix(); }).catch(() => {});
 
-        corps.append(champ(T("photolab.export.prereglage"), ligneP), champ(T("photolab.export.format"), format), lQualite,
+        corps.append(champ(T("photolab.export.prereglage"), ligneP), champ(T("photolab.export.format"), format), lCompression, lQualite,
           champ(T("photolab.nouveau.nom"), nom), erreur);
         return async () => {
-          try { resultat = await PL.post("/enregistrer", corpsExport(format.value, nom.value, qualite.value)); }
+          try { resultat = await PL.post("/enregistrer", corpsExport(format.value, nom.value, qualite.value, compression.value)); }
           catch (e) { erreur.textContent = e.cle ? T(e.cle) : e.message; return false; }
           return true;
         };

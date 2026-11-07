@@ -176,7 +176,7 @@ if present:
     ex = lambda c, p=None: s.appeler("engine.execute", {"command": c, "params": p or {}})
     pa = lambda c, p=None: PA.executer(s, reg, c, p or {})[0]
     s.appeler("doc.new", {"width": 40, "height": 30})
-    check("3.1 liste vide au départ (réserve vide)", pa("actions.list") == {"actions": [], "recording": None}, pa("actions.list"))
+    check("3.1 liste vide au départ (réserve vide)", pa("actions.list") == {"actions": [], "recording": None, "sets": []}, pa("actions.list"))
     pa("actions.record", {"name": "Inverser"})
     ex("image.adjustments.invert")
     PM.vignettes(s, 32); PM.histogramme(s, None, 32); PM.reperes(s)
@@ -189,7 +189,7 @@ if present:
     h0 = s.appeler("doc.inspect")["history"]
     r = pa("actions.play", {"action": "Inverser"})
     h1 = s.appeler("doc.inspect")["history"]
-    check("3.4 lecture : un état par étape jouée (Invert, Select All)", r.get("ran") == 2 and h1[len(h0):] == ["Invert", "Select All"],
+    check("3.4 lecture : les 2 étapes jouées forment UN état (0.21, comme la référence)", r.get("ran") == 2 and h1[len(h0):] == ["Action: Inverser"],
           (r, h1[len(h0):]))
     # une étape refusée posée DANS le moteur (sans le pont) : la lecture refuse avant le moindre pas
     ex("actions.insert", {"action": "Inverser", "id": "file.saveAs", "params": {"path": "exports/x.png"}})
@@ -264,8 +264,8 @@ if present:
     r = pa("actions.play", {"action": "Seg", "from": 0, "until": 2})
     h1 = s.appeler("doc.inspect")["history"]
     ap = pa("actions.get", {"action": "Seg"})
-    check("3.21 segment [0, 2) : 2 étapes jouées, pas de « failed », 2 états", r.get("ran") == 2 and not r.get("failed")
-          and h1[len(h0):] == ["Invert", "Select All"], (r, h1[len(h0):]))
+    check("3.21 segment [0, 2) : 2 étapes jouées, pas de « failed », un état", r.get("ran") == 2 and not r.get("failed")
+          and h1[len(h0):] == ["Action: Seg"], (r, h1[len(h0):]))
     check("3.22 … l'action et la réserve sont intactes (aucun Arrêt temporaire)", ap == av
           and next(a for a in PA.lire()["actions"] if a["name"] == "Seg")["steps"] == av["steps"], (av, ap))
     r = pa("actions.play", {"action": "Seg", "from": 2, "until": 9})

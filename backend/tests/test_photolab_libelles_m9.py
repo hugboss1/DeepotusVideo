@@ -50,15 +50,15 @@ def empreinte_arbre(m):
 
 print("[1] menus.json : source, attribution, arbre inchangé")
 src = MENUS.get("source_fr", "")
-check("1.1 français de l'amont : tag v0.10.0, blob 4a819b0e, repli seulement", "v0.10.0" in src and "4a819b0e" in src
+check("1.1 français de l'amont : tag v0.21.0, blob 0b439428, repli seulement", "v0.21.0" in src and "0b439428" in src
       and "repli" in src and "3d23a708c2" not in src, src)
 check("1.2 licence et source de l'arbre (v0.3.0) inchangées", MENUS.get("licence") == "MIT OR Apache-2.0"
       and MENUS.get("source") == "storytold/photocraft v0.3.0 crates/ui-egui/src/menu_catalog.rs")
 check("1.3 l'arbre et nos libellés : empreinte d'avant M9", empreinte_arbre(MENUS) == EMPREINTE_ARBRE, empreinte_arbre(MENUS))
-check("1.4 765 lignes, aucun écart amont (le fr.tsv v0.10.0 ne contredit aucun de nos libellés)",
-      len(MENUS.get("entrees", [])) == 765 and MENUS.get("ecarts_amont") == [], MENUS.get("ecarts_amont"))
+check("1.4 765 lignes ; là où le fr.tsv v0.21.0 dit autre chose, notre libellé reste (écart consigné)",
+      len(MENUS.get("entrees", [])) == 765 and all(e.get("garde") and e.get("amont") for e in MENUS.get("ecarts_amont")), MENUS.get("ecarts_amont"))
 attr = (ROOT / "frontend" / "photolab" / "ATTRIBUTION.md").read_text("utf-8")
-check("1.5 ATTRIBUTION.md cite la traduction française de l'amont (fr.tsv, v0.10.0)", "fr.tsv" in attr and "v0.10.0" in attr)
+check("1.5 ATTRIBUTION.md cite la traduction française de l'amont (fr.tsv, v0.21.0)", "fr.tsv" in attr and "v0.21.0" in attr)
 
 print("[2] repli : commandes du moteur hors de l'arbre")
 CMD = PV.commandes()
@@ -68,9 +68,9 @@ rep = MENUS.get("repli", {})
 check("2.1 exactement les commandes hors arbre (moins D8)", set(rep) == set(attendus),
       (sorted(set(attendus) - set(rep))[:5], sorted(set(rep) - set(attendus))[:5]))
 check("2.2 libellé anglais = celui du moteur", all(rep[i]["libelle_en"] == attendus[i] for i in rep if i in attendus))
-check("2.3 forme : libelle_en, libelle_fr facultatif, rien d'autre ; 118 traduits par le fr.tsv",
+check("2.3 forme : libelle_en, libelle_fr facultatif, rien d'autre ; 203 traduits par le fr.tsv",
       all(set(v) <= {"libelle_en", "libelle_fr"} and v.get("libelle_fr", "x").strip() for v in rep.values())
-      and sum(1 for v in rep.values() if "libelle_fr" in v) == 118, sum(1 for v in rep.values() if "libelle_fr" in v))
+      and sum(1 for v in rep.values() if "libelle_fr" in v) == 203, sum(1 for v in rep.values() if "libelle_fr" in v))
 check("2.4 aucun « Photoshop » dans le repli (D8)", "Photoshop" not in json.dumps(rep, ensure_ascii=False))
 
 print("[3] script : nos libellés d'abord")
@@ -87,13 +87,13 @@ r = PC.repli([{"id": "a.b", "label": "A"}, {"id": "x.y", "label": "Patch"}, {"id
               {"id": "z.z", "label": "Zed"}, {"id": "i.d", "label": "Id"}], {"a.b"}, {"Patch": "Pièce"}, {"i.d": "Par id"})
 check("3.3 repli : hors arbre, sans Photoshop, @id d'abord, trié", r == {"i.d": {"libelle_en": "Id", "libelle_fr": "Par id"},
       "x.y": {"libelle_en": "Patch", "libelle_fr": "Pièce"}, "z.z": {"libelle_en": "Zed"}}, r)
-check("3.4 épinglage : blob du fr.tsv de v0.10.0", PC.BLOB_FR == "4a819b0e1b15b2ed7f6fc2625895be1d02e46cf4" and PC.TAG_FR == "v0.10.0")
+check("3.4 épinglage : blob du fr.tsv de v0.21.0", PC.BLOB_FR == "0b4394288d20e2c81c4ba8ef46f7b276f8100b41" and PC.TAG_FR == "v0.21.0")
 
 print("[4] les commandes ouvertes par M3-M8 ont nos libellés")
 C3 = {c["id"] for c in PV.commandes("0.3.0")}
 ouvertes = {c["id"] for c in CMD} - C3 - set(COMMANDES_NEUVES_FERMEES)
-table = dict(re.findall(r'^\s*"([a-zA-Z.]+)": "(photolab\.[A-Za-z0-9_.]+)",', MOD, re.M))
-check("4.1 79 commandes ouvertes (142 neuves - fermées)", len(ouvertes) == 79, len(ouvertes))
+table = dict(re.findall(r'^\s*"([a-zA-Z0-9.]+)": "(photolab\.[A-Za-z0-9_.]+)",', MOD, re.M))
+check("4.1 126 commandes ouvertes (79 de 0.10 + 30 de N2 + 1 de N5 + 2 de N3 + 9 de N4 + 5 de N7)", len(ouvertes) == 126, len(ouvertes))
 check("4.2 LIBELLES_COMMANDES = exactement les commandes ouvertes", set(table) == ouvertes,
       (sorted(ouvertes - set(table)), sorted(set(table) - ouvertes)))
 manq = [c for c in table.values() if not (DICO.get(c) and DICO[c]["fr"].strip() and DICO[c]["en"].strip())]
@@ -115,7 +115,7 @@ for k, v in tout.items():
 conflits = [(k, DICO[k]["fr"], sorted(par_fr[DICO[k]["fr"]])) for k in DICO if k.startswith("photolab.commande.")
             and len(par_fr.get(DICO[k]["fr"], ())) > 1]
 check("5.1 nos clés neuves ne donnent pas deux anglais au même français", not conflits, conflits)
-check("5.2 34 clés neuves photolab.commande.*", sum(1 for k in DICO if k.startswith("photolab.commande.")) == 34)
+check("5.2 69 clés neuves photolab.commande.*", sum(1 for k in DICO if k.startswith("photolab.commande.")) == 69)
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
