@@ -26,6 +26,9 @@
 .cf-print .cf-print-ecart { margin: 6px 0 0; }
 .cf-print .cf-print-ecart.hidden,
 .cf-print .btn.hidden { display: none; }
+/* t421 : le gabarit de dessin d'un hexagone (caché pour un rectangle) */
+.cf-print .cf-print-gabhex[hidden] { display: none; }
+.cf-print .cf-print-gabhex a.btn { text-decoration: none; }
 
 /* ── ligne de tete : ce que l'export va produire, en clair ───────────────── */
 .cf-print .cf-print-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

@@ -26,7 +26,8 @@ from __future__ import annotations
 from .contract import CardGeom, MM_PER_INCH
 
 __all__ = ["decale", "contour_coupe_toile_mm", "contour_toile_mm",
-           "contour_sur_mm", "milieux_cotes_mm", "refuser_si_hex", "NON_GERE"]
+           "contour_sur_mm", "milieux_cotes_mm", "refuser_si_hex", "NON_GERE",
+           "gabarit_svg", "gabarit_png"]
 
 Point = tuple[float, float]
 
@@ -164,6 +165,92 @@ def milieux_cotes_mm(g: CardGeom) -> list[Point]:
     pts = contour_coupe_toile_mm(g)
     return [((pts[i][0] + pts[(i + 1) % 6][0]) / 2,
              (pts[i][1] + pts[(i + 1) % 6][1]) / 2) for i in range(6)]
+
+
+# ── t421 (07/11/2026, tâche 6) : le GABARIT à télécharger ───────────────────
+# L'utilisateur dessine sa carte dans le Photolab ou le Vectorlab : le gabarit
+# lui montre la coupe, le fond perdu, la zone sûre et, au milieu de chaque
+# côté, un repère discret où poser ses symboles de liens. Aucun texte dans
+# l'image : la légende est la `class` / l'`id` SVG (coupe, fond-perdu,
+# zone-sure, milieu), les couleurs sont distinctes.
+_TRAITS = (                      # (id, couleur, épaisseur en mm, pointillé SVG)
+    ("coupe", "#e5004b", 0.25, None),
+    ("fond-perdu", "#0a84ff", 0.2, "1.5 1"),
+    ("zone-sure", "#16a34a", 0.2, "0.8 0.8"),
+)
+_COULEUR_MILIEU = "#f59e0b"
+_REPERE_MM = 1.5                 # demi-longueur de la croix d'un repère
+
+
+def _contours_gabarit(g: CardGeom) -> dict[str, list[Point]]:
+    return {"coupe": contour_coupe_toile_mm(g),
+            "fond-perdu": contour_toile_mm(g),
+            "zone-sure": contour_sur_mm(g)}
+
+
+def gabarit_svg(g: CardGeom) -> str:
+    """Le gabarit en SVG : unités et viewBox en millimètres, à l'échelle 1 ;
+    trois groupes `coupe`, `fond-perdu`, `zone-sure` (un polygone chacun, vide
+    si la zone sûre dépasse l'apothème) et six repères `milieu`. Lève
+    `ValueError` sur un rectangle."""
+    k = MM_PER_INCH / g.dpi
+    w, h = g.canvas_px[0] * k, g.canvas_px[1] * k
+    contours = _contours_gabarit(g)
+    out = ['<?xml version="1.0" encoding="UTF-8"?>',
+           '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" '
+           f'width="{w:.3f}mm" height="{h:.3f}mm" '
+           f'viewBox="0 0 {w:.3f} {h:.3f}">']
+    for ident, couleur, ep, tirets in _TRAITS:
+        pts = contours[ident]
+        attr = (f'fill="none" stroke="{couleur}" stroke-width="{ep}" '
+                'stroke-linejoin="miter"'
+                + (f' stroke-dasharray="{tirets}"' if tirets else ""))
+        out.append(f'<g id="{ident}" class="{ident}" {attr}>')
+        if pts:
+            out.append('<polygon points="%s"/>' % " ".join(
+                f"{x:.3f},{y:.3f}" for x, y in pts))
+        out.append("</g>")
+    out.append(f'<g id="reperes" fill="none" stroke="{_COULEUR_MILIEU}" '
+               'stroke-width="0.2">')
+    r = _REPERE_MM
+    for x, y in milieux_cotes_mm(g):
+        out.append(
+            f'<path class="milieu" data-cx="{x:.3f}" data-cy="{y:.3f}" '
+            f'd="M{x - r:.3f},{y:.3f}L{x + r:.3f},{y:.3f}'
+            f'M{x:.3f},{y - r:.3f}L{x:.3f},{y + r:.3f}"/>')
+    out.append("</g>")
+    out.append("</svg>")
+    return chr(10).join(out) + chr(10)
+
+
+def gabarit_png(g: CardGeom) -> bytes:
+    """Le gabarit en PNG RGBA, à la taille de la toile (`canvas_px`), DPI
+    inscrit, transparent partout hors des traits. Lève `ValueError` sur un
+    rectangle."""
+    import io
+    from PIL import Image, ImageDraw
+    contours = _contours_gabarit(g)
+    milieux = milieux_cotes_mm(g)
+    px = g.dpi / MM_PER_INCH                      # pixels par mm
+    im = Image.new("RGBA", tuple(g.canvas_px), (0, 0, 0, 0))
+    dessin = ImageDraw.Draw(im)
+    ep = max(2, round(g.dpi / 150))
+
+    def vers_px(pts):
+        return [(x * px, y * px) for x, y in pts]
+
+    for ident, couleur, _ep, _t in _TRAITS:
+        pts = contours[ident]
+        if len(pts) >= 3:
+            p = vers_px(pts)
+            dessin.line(p + [p[0]], fill=couleur, width=ep, joint="curve")
+    r = _REPERE_MM * px
+    for x, y in vers_px(milieux):
+        dessin.line([(x - r, y), (x + r, y)], fill=_COULEUR_MILIEU, width=ep)
+        dessin.line([(x, y - r), (x, y + r)], fill=_COULEUR_MILIEU, width=ep)
+    buf = io.BytesIO()
+    im.save(buf, "PNG", dpi=(g.dpi, g.dpi))
+    return buf.getvalue()
 
 
 # t421 (07/11/2026) : la phrase du refus. Française en dur, comme toutes les

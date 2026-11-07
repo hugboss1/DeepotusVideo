@@ -8,6 +8,7 @@ core.js :
   CORE (§8 : aucun fetch dans une pièce), comme CF.images et CF.models ;
 - `CF.deckDepuisImages(corps)` : écrit le jeu ouvert, crée le deck par POST /api/cards/decks/depuis-images (route de
   la tâche 4), puis l'OUVRE par ?deck= (galGo, comme « Nouveau jeu depuis ce modèle ») ;
+- `CF.gabaritUrl(format, ext, opt)` : l'adresse de téléchargement du gabarit de dessin d'un hexagone (tâche 6) ;
 - `CF.libelleFormat(id)` : le libellé affiché d'un format, la règle du sélecteur de format de la barre (les deux
   libellés traduits, les hexagones par hexLabel, sinon la table) ; le sélecteur n'est pas touché.
 Les textes du dialogue lui-même (js/depuis-images.js, fichier neuf hors de la base L7) sont des entrées H.
@@ -94,12 +95,23 @@ _FONCTIONS = r"""/* ── t421 : NOUVEAU JEU DEPUIS DES IMAGES ─────�
     return id === "square_eu" ? dzT("cartes.core.fmt_carre") : id === "business" ? dzT("cartes.core.fmt_visite")
       : f.forme === "hex" ? hexLabel(id) : f.label;
   }
+  /* t421 (tache 6) : l'adresse du GABARIT de dessin d'un format hexagonal
+     (GET /api/cards/gabarit/{format}.{png|svg}) ; `opt` = { dpi, bleed_mm, safe_mm },
+     chacun facultatif (le serveur prend 300 dpi et le fond perdu natif). Un lien de
+     telechargement, pas un appel : le reseau reste au CORE (§8). */
+  function gabaritUrl(fmt, ext, opt) {
+    const o = opt || {}, q = [];
+    ["dpi", "bleed_mm", "safe_mm"].forEach((k) => { if (o[k] != null) q.push(k + "=" + encodeURIComponent(String(o[k]))); });
+    return "/api/cards/gabarit/" + encodeURIComponent(String(fmt == null ? "" : fmt)) + "." + (ext === "svg" ? "svg" : "png")
+      + (q.length ? "?" + q.join("&") : "");
+  }
 
   /* « Importer une carte » : la galerie ferme et la piece 10 s'ouvre. Le"""
 
 _API = r"""images: images, imageURL: imageURL, ApiMissing: ApiMissing,
     /* t421 : la Bibliotheque et la creation depuis des images (§8, au CORE) */
-    bibliotheque: bibliotheque, deckDepuisImages: deckDepuisImages, libelleFormat: libelleFormat,"""
+    bibliotheque: bibliotheque, deckDepuisImages: deckDepuisImages, libelleFormat: libelleFormat,
+    gabaritUrl: gabaritUrl,"""
 
 _CORE = {
     "cartes.depuis.gal_titre": ("Nouveau jeu depuis des images", "New deck from images"),
@@ -172,6 +184,13 @@ _DIALOGUE = {
     "recap_nom": ("Nom", "Name"),
     "recap_cartes": ("Cartes à créer", "Cards to create"),
     "fond_perdu": ("Mon fichier inclut le fond perdu", "My file includes the bleed"),
+    "gabarit_titre": ("Gabarit de dessin", "Drawing template"),
+    "gabarit_aide": ("Un PNG transparent à la taille de la toile et un SVG en millimètres montrent la coupe, le fond perdu, "
+                     "la zone sûre et le milieu de chaque côté, où placer vos symboles de liens.",
+                     "A transparent PNG at canvas size and an SVG in millimetres show the cut line, the bleed, the safe zone "
+                     "and the middle of each side, where your link symbols go."),
+    "gabarit_png": ("Télécharger le gabarit (PNG)", "Download the template (PNG)"),
+    "gabarit_svg": ("Télécharger le gabarit (SVG)", "Download the template (SVG)"),
     "fond_perdu_aide": ("Cochée d'office si vos images ont le rapport du gabarit (coupe + {mm} mm de fond perdu de chaque côté). "
                         "Décochée : le jeu naît sans fond perdu et rien n'est rogné.",
                         "Ticked automatically when your images have the template's ratio (trim + {mm} mm of bleed on each side). "

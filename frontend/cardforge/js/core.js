@@ -2534,6 +2534,16 @@
     return id === "square_eu" ? dzT("cartes.core.fmt_carre") : id === "business" ? dzT("cartes.core.fmt_visite")
       : f.forme === "hex" ? hexLabel(id) : f.label;
   }
+  /* t421 (tache 6) : l'adresse du GABARIT de dessin d'un format hexagonal
+     (GET /api/cards/gabarit/{format}.{png|svg}) ; `opt` = { dpi, bleed_mm, safe_mm },
+     chacun facultatif (le serveur prend 300 dpi et le fond perdu natif). Un lien de
+     telechargement, pas un appel : le reseau reste au CORE (§8). */
+  function gabaritUrl(fmt, ext, opt) {
+    const o = opt || {}, q = [];
+    ["dpi", "bleed_mm", "safe_mm"].forEach((k) => { if (o[k] != null) q.push(k + "=" + encodeURIComponent(String(o[k]))); });
+    return "/api/cards/gabarit/" + encodeURIComponent(String(fmt == null ? "" : fmt)) + "." + (ext === "svg" ? "svg" : "png")
+      + (q.length ? "?" + q.join("&") : "");
+  }
 
   /* « Importer une carte » : la galerie ferme et la piece 10 s'ouvre. Le
      bouton a tenu la place d'un panneau absent (un toast qui disait
@@ -2913,6 +2923,7 @@
     images: images, imageURL: imageURL, ApiMissing: ApiMissing,
     /* t421 : la Bibliotheque et la creation depuis des images (§8, au CORE) */
     bibliotheque: bibliotheque, deckDepuisImages: deckDepuisImages, libelleFormat: libelleFormat,
+    gabaritUrl: gabaritUrl,
     /* les dehors /api/vector et /api/print3d — routes et verbes figes au
        CORE (§8) : aucune piece ne formule de requete arbitraire. */
     vector: vector, print3d: print3d,

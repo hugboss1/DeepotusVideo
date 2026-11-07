@@ -691,6 +691,16 @@
       + '<button class="btn sm" type="button" data-act="undo" title="' + dzT("cartes.print.annuler_titre") + '" aria-label="' + dzT("cartes.print.annuler_titre") + '">' + ICO("dz-action-annuler", 16) + '</button>'
       + '</div>'
 
+      /* ── t421 : GABARIT DE DESSIN d'un format hexagonal (visible pour un hexagone seulement) ── */
+      + '<div class="cf-print-gabhex" data-role="gabhex" hidden>'
+      + '<details class="grp" open><summary>' + dzT("cartes.print.gabhex_titre") + '</summary><div class="grp-body">'
+      + '<div class="btn-row">'
+      + '<a class="btn sm" data-role="gabhex-png" href="#" download>' + ICO("dz-action-telecharger", 16, "cf-ic") + dzT("cartes.print.gabhex_png") + '</a>'
+      + '<a class="btn sm" data-role="gabhex-svg" href="#" download>' + ICO("dz-action-telecharger", 16, "cf-ic") + dzT("cartes.print.gabhex_svg") + '</a>'
+      + '</div>'
+      + '<p class="hint">' + dzT("cartes.print.gabhex_aide") + '</p>'
+      + '</div></details></div>'
+
       /* ── GABARIT D'IMPRIMEUR (tache #83) : le choix qui regle tout le reste ── */
       + '<details class="grp" open><summary>' + dzT("cartes.print.titre_gabarit") + '</summary><div class="grp-body">'
       + '<div class="cf-print-gabs" data-role="gabs"></div>'
@@ -2263,8 +2273,24 @@
     mine.innerHTML = ICO("dz-edit-reperes", 16, "cf-ic") + dzT("cartes.print.reperes") + (on ? "" : dzT("cartes.print.masques"));
   }
 
+  /* t421 : les liens du gabarit de dessin suivent le format, le DPI et le fond perdu du jeu ;
+     le bloc n'est visible que pour un hexagone. */
+  function syncGabaritHex(g) {
+    const box = q('[data-role="gabhex"]');
+    if (!box) return;
+    const hex = !!g && g.forme === "hex";
+    box.hidden = !hex;
+    if (!hex) return;
+    const fmt = CF.doc().format.fmt, opt = { dpi: g.dpi, bleed_mm: g.bleed_mm, safe_mm: g.safe_mm };
+    ["png", "svg"].forEach((ext) => {
+      const a = q('[data-role="gabhex-' + ext + '"]');
+      if (a) a.setAttribute("href", CF.gabaritUrl(fmt, ext, opt));
+    });
+  }
+
   function sync() {
     const s = currentState(), f = CF.doc().format, g = CF.geom();
+    syncGabaritHex(g);
     qa("[data-num]").forEach((i) => {
       const k = i.dataset.num;
       i.value = (k in f) ? f[k] : s[k];

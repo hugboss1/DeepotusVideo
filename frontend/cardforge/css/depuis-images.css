@@ -68,6 +68,12 @@
 .cf-di-recap dt { color: var(--ink-soft); }
 .cf-di-recap dd { margin: 0; color: var(--ink-strong); }
 .cf-di-case { max-width: 640px; }
+/* t421 : le gabarit de dessin d'un format hexagonal */
+.cf-di-gabarit { display: flex; flex-direction: column; gap: 6px; max-width: 640px; padding: 9px 11px;
+  background: var(--bg-base); border: 1px solid var(--stroke); }
+.cf-di-gabarit b { color: var(--ink-strong); font-size: 12.5px; font-weight: 500; }
+.cf-di-gabarit-liens { display: flex; gap: 8px; flex-wrap: wrap; }
+.cf-di-gabarit a.btn { text-decoration: none; }
 .cf-di-avert { margin: 0; padding: 8px 11px; font-size: 11.5px; line-height: 1.5; color: var(--ink);
   border-left: 3px solid var(--amber); background: color-mix(in srgb, var(--amber) 9%, var(--bg-panel)); }
 .cf-di-liste { font-size: 11.5px; color: var(--ink); }

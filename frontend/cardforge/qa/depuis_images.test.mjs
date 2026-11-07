@@ -144,6 +144,7 @@ const fauxCF = CF && {
   FORMATS: CF.FORMATS, nativeBleed: CF.nativeBleed,
   doc: () => ({ format: { fmt: "poker_eu" } }),
   libelleFormat: (id) => "⟦fmt:" + id + "⟧",
+  gabaritUrl: (fmt, ext, opt) => "/api/cards/gabarit/" + fmt + "." + ext + (opt && opt.bleed_mm != null ? "?bleed_mm=" + opt.bleed_mm : ""),
   busy: (on, t) => APPELS.push(["busy", on, t]),
   bibliotheque: {
     images: async () => BIB.slice(),
@@ -241,6 +242,25 @@ if (fauxCF) {
   ok("6.15 cocher le fond perdu retire l'avertissement de liseré", parClasse(root, "cf-di-avert").length === 0);
   const cb2 = trouve(root, (x) => x.type === "checkbox")[0];
   cb2.checked = false; cb2.fire("change");
+  /* t421 (tâche 6) : le gabarit de dessin, pour un hexagone seulement */
+  ok("6.15b un rectangle n'a pas de gabarit à télécharger", parClasse(root, "cf-di-gabarit").length === 0);
+  const versFormat = async (id) => {
+    parClasse(root, "cf-di-etape")[0].click(); await dort();
+    const sel = trouve(root, (x) => x.tagName === "SELECT")[0];
+    sel.value = id; sel.fire("change"); await dort();
+    parClasse(root, "cf-di-etape")[3].click(); await dort();
+  };
+  await versFormat("hex_p75");
+  const liensG = trouve(parClasse(root, "cf-di-gabarit")[0] || root, (x) => x.tagName === "A");
+  ok("6.15c un hexagone : deux liens, PNG et SVG, vers la route du gabarit (fond perdu natif si le fichier en a un)",
+     liensG.length === 2 && liensG[0].attrs.href === "/api/cards/gabarit/hex_p75.png?bleed_mm=0"
+     && liensG[1].attrs.href === "/api/cards/gabarit/hex_p75.svg?bleed_mm=0"
+     && "download" in liensG[0].attrs, JSON.stringify(liensG.map((l) => l.attrs)));
+  const cbG = trouve(root, (x) => x.type === "checkbox")[0];
+  cbG.checked = true; cbG.fire("change");
+  ok("6.15d fichier avec fond perdu : le gabarit garde le fond perdu natif (aucun paramètre)",
+     trouve(parClasse(root, "cf-di-gabarit")[0], (x) => x.tagName === "A")[0].attrs.href === "/api/cards/gabarit/hex_p75.png");
+  await versFormat("poker_us");
   /* le texte affiché : rien que des clés dzT, des noms de fichiers, des chiffres et de la ponctuation */
   const textes = tous(root).filter((x) => x._t).map((x) => x._t)
     .concat(tous(root).flatMap((x) => [x.title, x.placeholder, x.attrs["aria-label"]].filter(Boolean)));

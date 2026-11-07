@@ -13,6 +13,10 @@ VALIDÉ avant `create_deck` : un refus ne laisse aucun deck derrière lui.
 Ce routeur est inclus AVANT `core` (cf. `__init__`) : `/decks/depuis-images`
 doit être apparié avant le joker `/{did}` de core.
 
+Il porte aussi `GET /gabarit/{fmt}.{svg|png}` (tâche 6) : le gabarit à
+télécharger d'un format hexagonal (deux segments : aucun conflit avec le joker
+`/{did}` de core). Un rectangle n'a pas de gabarit : 404.
+
 Aucune dépense IA, aucune écriture dans `images/`.
 """
 from __future__ import annotations
@@ -21,11 +25,11 @@ import asyncio
 import os
 import re
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from loguru import logger
 
-from . import core
-from .contract import FORMATS
+from . import core, hexa
+from .contract import FORMATS, geom, is_hex
 
 __all__ = ["router"]
 
@@ -150,3 +154,27 @@ async def post_depuis_images(body: dict | None = None):
         raise HTTPException(500, "Création du deck impossible : écriture "
                                  f"refusée ({e.strerror or 'E/S'})")
     return {"deck": doc}
+
+
+@router.get("/gabarit/{fmt}.{ext}")
+async def get_gabarit(fmt: str, ext: str, dpi: int = 300,
+                      bleed_mm: float | None = None,
+                      safe_mm: float | None = None):
+    """Le gabarit d'un format hexagonal : PNG transparent à la taille de la
+    toile ou SVG en mm. Fond perdu par défaut : le natif du format (3 mm)."""
+    if ext not in ("svg", "png"):
+        raise HTTPException(404, f"gabarit : extension inconnue : {ext!r}")
+    if fmt not in FORMATS:
+        raise HTTPException(404, f"gabarit : format inconnu : {fmt!r}")
+    if not is_hex(fmt):
+        raise HTTPException(404, "gabarit : seul un format hexagonal en a un")
+    try:
+        g = geom(fmt, dpi, bleed_mm, safe_mm)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if ext == "svg":
+        corps, mime = hexa.gabarit_svg(g).encode("utf-8"), "image/svg+xml"
+    else:
+        corps, mime = await asyncio.to_thread(hexa.gabarit_png, g), "image/png"
+    return Response(corps, media_type=mime, headers={
+        "Content-Disposition": f'attachment; filename="gabarit-{fmt}.{ext}"'})

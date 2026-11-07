@@ -558,6 +558,28 @@
   }
 
   /* ── 4. le récapitulatif ────────────────────────────────────────────────── */
+  /* Le gabarit de dessin d'un format hexagonal (GET /api/cards/gabarit/{format}.{png|svg}) : un PNG
+     transparent et un SVG en mm, avec la coupe, le fond perdu, la zone sûre et le milieu des côtés. Deux
+     liens de téléchargement, pas des appels : le fond fait 0 mm si le fichier de l'utilisateur n'en a pas. */
+  function lienGabarit(fmtId, ext, avecFondPerdu) {
+    const a = el("a", "btn sm");
+    a.setAttribute("href", CF.gabaritUrl(fmtId, ext, avecFondPerdu ? null : { bleed_mm: 0 }));
+    a.setAttribute("download", "");
+    a.appendChild(icone("dz-action-telecharger"));
+    a.appendChild(document.createTextNode(ext === "svg" ? dzT("cartes.depuis.gabarit_svg") : dzT("cartes.depuis.gabarit_png")));
+    return a;
+  }
+  function blocGabarit(fmtId, avecFondPerdu) {
+    const b = el("div", "cf-di-gabarit");
+    b.appendChild(el("b", null, dzT("cartes.depuis.gabarit_titre")));
+    b.appendChild(el("span", "cf-di-note", dzT("cartes.depuis.gabarit_aide")));
+    const l = el("div", "cf-di-gabarit-liens");
+    l.appendChild(lienGabarit(fmtId, "png", avecFondPerdu));
+    l.appendChild(lienGabarit(fmtId, "svg", avecFondPerdu));
+    b.appendChild(l);
+    return b;
+  }
+
   function etape4(c) {
     const P = plan();
     const dl = el("dl", "cf-di-recap");
@@ -569,6 +591,7 @@
                    apparie: dzT("cartes.depuis.verso_apparie") }[E.verso];
     ligne(dzT("cartes.depuis.e3"), E.verso === "commun" ? mode + " — " + E.commun : mode);
     c.appendChild(dl);
+    if (P.fmt.forme === "hex") c.appendChild(blocGabarit(P.fmt.id, P.inclut));
     if (E.fmtPropose) c.appendChild(el("p", "cf-di-note", dzT("cartes.depuis.format_propose", { format: CF.libelleFormat(E.fmt) })));
     const fp = el("label", "cf-di-case");
     const cb = el("input");
