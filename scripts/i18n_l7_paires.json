@@ -387,6 +387,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 101731,
+    "avant": "    + '<div class=\"cf-gal-body\">'",
+    "apres": "    + '<div class=\"cf-gal-body\">'\r\n    /* t421 : « Nouveau jeu depuis des images » (js/depuis-images.js) */\r\n    + '<section class=\"cf-gal-sec cf-gal-images\"><h3>' + dzT(\"cartes.depuis.gal_titre\") + '</h3>'\r\n    + '<p class=\"cf-gal-note\">' + dzT(\"cartes.depuis.gal_note\") + '</p>'\r\n    + '<button class=\"btn strong sm\" id=\"galImages\" type=\"button\">' + dzT(\"cartes.depuis.gal_bouton\") + '</button></section>'",
+    "groupe": "t421_depuis"
+   },
+   {
     "pos": 101801,
     "avant": "<h3>Nouveau jeu depuis un modèle</h3>'",
     "apres": "<h3>' + dzT(\"cartes.core.gal_nouveau\") + '</h3>'",
@@ -415,6 +421,12 @@
     "avant": "root.innerHTML = GAL_SKELETON;",
     "apres": "root.innerHTML = GAL_SKELETON();",
     "groupe": "coque"
+   },
+   {
+    "pos": 103078,
+    "avant": "if (i) i.addEventListener(\"click\", galImport);",
+    "apres": "if (i) i.addEventListener(\"click\", galImport);\r\n    const gi = el(\"#galImages\"); if (gi) gi.addEventListener(\"click\", galImages);",
+    "groupe": "t421_depuis"
    },
    {
     "pos": 103872,
@@ -609,6 +621,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 113800,
+    "avant": "/* « Importer une carte » : la galerie ferme et la piece 10 s'ouvre. Le",
+    "apres": "/* ── t421 : NOUVEAU JEU DEPUIS DES IMAGES ────────────────────────────────\r\n     Le dialogue vit dans js/depuis-images.js (window.CFDepuisImages) ; la\r\n     galerie lui cede la place. Ses dehors sont tenus ICI (§8) : la\r\n     Bibliotheque en lecture, l'import d'un fichier, la creation du deck. */\r\n  function galImages() {\r\n    const D = (typeof window !== \"undefined\") ? window.CFDepuisImages : null;\r\n    if (!D || typeof D.ouvrir !== \"function\") { toast(dzT(\"cartes.depuis.absent\"), true); return; }\r\n    closeGallery();\r\n    D.ouvrir();\r\n  }\r\n  const bibliotheque = Object.freeze({\r\n    /* GET /api/images : nom, dimensions (lues par le serveur), provenance */\r\n    async images() {\r\n      const d = await jsonNamed(\"GET\", \"/images\");\r\n      return (Array.isArray(d && d.images) ? d.images : []).filter(isPlain).map((x) => ({\r\n        filename: String(x.filename || \"\"), width: Number(x.width) || null, height: Number(x.height) || null,\r\n        source: String(x.source || \"\"),\r\n      })).filter((x) => x.filename);\r\n    },\r\n    async projets() {\r\n      const d = await jsonNamed(\"GET\", \"/library/projets\");\r\n      return (Array.isArray(d && d.projets) ? d.projets : []).filter(isPlain).map((p) => ({\r\n        id: String(p.id || \"\"), nom: String(p.nom || \"\"), n: Number(p.n) || 0,\r\n      })).filter((p) => p.id);\r\n    },\r\n    /* les items d'un projet : `ref` est le nom de fichier pour une image */\r\n    async projet(id) {\r\n      const d = await jsonNamed(\"GET\", \"/library/projets/\" + encodeURIComponent(String(id == null ? \"\" : id)));\r\n      return { id: String((d && d.id) || id), nom: String((d && d.nom) || \"\"),\r\n        refs: (Array.isArray(d && d.items) ? d.items : []).filter(isPlain).map((i) => String(i.ref || \"\")).filter(Boolean) };\r\n    },\r\n    /* UN fichier par appel (la route n'en prend qu'un) ; le nom RENDU fait foi\r\n       (un homonyme devient « nom-1.png ») */\r\n    async importer(file) {\r\n      if (typeof FormData === \"undefined\" || !file) throw new Error(dzT(\"cartes.depuis.import_impossible\"));\r\n      const fd = new FormData();\r\n      fd.append(\"file\", file, String(file.name || \"image.png\"));\r\n      const d = await jsonNamed(\"POST\", \"/images/upload\", fd);\r\n      return { filename: String((d && d.filename) || \"\") };\r\n    },\r\n    /* l'adresse SERVIE d'une image (GET /api/images/{nom}, routes.py) — pas\r\n       CF.imageURL, dont /api/images/file/ n'existe pas (mod-face.js) */\r\n    url(nom) { return \"/api/images/\" + encodeURIComponent(String(nom == null ? \"\" : nom)); },\r\n  });\r\n  /* corps : celui de POST /api/cards/decks/depuis-images. Le jeu ouvert est\r\n     ecrit d'abord ; le deck cree est OUVERT (la page part, `busy` reste au\r\n     voile) ; une phrase du serveur (404 qui nomme le fichier, 400) remonte. */\r\n  async function deckDepuisImages(corps) {\r\n    if (OFFLINE) throw new Error(dzT(\"cartes.depuis.hors_ligne\"));\r\n    await galFlush();\r\n    const d = await jsonNamed(\"POST\", \"/cards/decks/depuis-images\", isPlain(corps) ? corps : {});\r\n    const did = d && d.deck && d.deck.id;\r\n    if (!did) throw new Error(dzT(\"cartes.core.sans_did\"));\r\n    galGo(did);\r\n    return d.deck;\r\n  }\r\n  /* le libelle AFFICHE d'un format : la regle du selecteur de la barre */\r\n  function libelleFormat(id) {\r\n    const f = FMT_BY_ID[id];\r\n    if (!f) return String(id == null ? \"\" : id);\r\n    return id === \"square_eu\" ? dzT(\"cartes.core.fmt_carre\") : id === \"business\" ? dzT(\"cartes.core.fmt_visite\")\r\n      : f.forme === \"hex\" ? hexLabel(id) : f.label;\r\n  }\r\n\r\n  /* « Importer une carte » : la galerie ferme et la piece 10 s'ouvre. Le",
+    "groupe": "t421_depuis"
+   },
+   {
     "pos": 118617,
     "avant": "\"mod-\" + fautifs.join(\".js, mod-\") + \".js ne commence(nt) pas par \\\"use strict\\\" : \"\r\n      + \"dans ce mode une mutation du document est un no-op MUET (le module croit avoir écrit et relit \"\r\n      + \"l'ancienne valeur). Module non démarré, couches retirées. Règle 9 du lint — build rejeté.\"",
     "apres": "dzT(\"cartes.core.strict_msg\", { liste: \"mod-\" + fautifs.join(\".js, mod-\") + \".js\" })",
@@ -703,6 +721,12 @@
     "avant": "cards: cards, card: card,",
     "apres": "cards: cards, card: card,\r\n    /* t421 : les pieces qui ne gerent pas encore l'hexagone */\r\n    horsHex: horsHex,",
     "groupe": "t421_apercu"
+   },
+   {
+    "pos": 132999,
+    "avant": "images: images, imageURL: imageURL, ApiMissing: ApiMissing,",
+    "apres": "images: images, imageURL: imageURL, ApiMissing: ApiMissing,\r\n    /* t421 : la Bibliotheque et la creation depuis des images (§8, au CORE) */\r\n    bibliotheque: bibliotheque, deckDepuisImages: deckDepuisImages, libelleFormat: libelleFormat,",
+    "groupe": "t421_depuis"
    }
   ],
   "js/mod-capture.js": [

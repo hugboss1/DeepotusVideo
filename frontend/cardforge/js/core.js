@@ -2207,6 +2207,10 @@
     + '<span class="cf-gal-note">' + dzT("cartes.core.gal_sans_illus") + '</span>'
     + '</div>'
     + '<div class="cf-gal-body">'
+    /* t421 : « Nouveau jeu depuis des images » (js/depuis-images.js) */
+    + '<section class="cf-gal-sec cf-gal-images"><h3>' + dzT("cartes.depuis.gal_titre") + '</h3>'
+    + '<p class="cf-gal-note">' + dzT("cartes.depuis.gal_note") + '</p>'
+    + '<button class="btn strong sm" id="galImages" type="button">' + dzT("cartes.depuis.gal_bouton") + '</button></section>'
     + '<section class="cf-gal-sec"><h3>' + dzT("cartes.core.gal_nouveau") + '</h3>'
     + '<p class="cf-gal-note">' + dzT("cartes.core.gal_vignette") + '</p>'
     + '<div class="cf-gal-grid" id="galModels"></div></section>'
@@ -2230,6 +2234,7 @@
     root.addEventListener("click", (e) => { if (e.target === root) closeGallery(); });
     const c = el("#galClose"); if (c) c.addEventListener("click", () => closeGallery());
     const i = el("#galImport"); if (i) i.addEventListener("click", galImport);
+    const gi = el("#galImages"); if (gi) gi.addEventListener("click", galImages);
     const d = el("#galDup"); if (d) d.addEventListener("click", () => { galDuplicate(); });
     const so = el("#galSaveOpen"); if (so) so.addEventListener("click", () => galSaveToggle(true));
     const sc = el("#galSaveCancel"); if (sc) sc.addEventListener("click", () => galSaveToggle(false));
@@ -2466,6 +2471,70 @@
     } catch (e) { toast(galMsg(e), true); }
     finally { busy(false); }
   }
+  /* ── t421 : NOUVEAU JEU DEPUIS DES IMAGES ────────────────────────────────
+     Le dialogue vit dans js/depuis-images.js (window.CFDepuisImages) ; la
+     galerie lui cede la place. Ses dehors sont tenus ICI (§8) : la
+     Bibliotheque en lecture, l'import d'un fichier, la creation du deck. */
+  function galImages() {
+    const D = (typeof window !== "undefined") ? window.CFDepuisImages : null;
+    if (!D || typeof D.ouvrir !== "function") { toast(dzT("cartes.depuis.absent"), true); return; }
+    closeGallery();
+    D.ouvrir();
+  }
+  const bibliotheque = Object.freeze({
+    /* GET /api/images : nom, dimensions (lues par le serveur), provenance */
+    async images() {
+      const d = await jsonNamed("GET", "/images");
+      return (Array.isArray(d && d.images) ? d.images : []).filter(isPlain).map((x) => ({
+        filename: String(x.filename || ""), width: Number(x.width) || null, height: Number(x.height) || null,
+        source: String(x.source || ""),
+      })).filter((x) => x.filename);
+    },
+    async projets() {
+      const d = await jsonNamed("GET", "/library/projets");
+      return (Array.isArray(d && d.projets) ? d.projets : []).filter(isPlain).map((p) => ({
+        id: String(p.id || ""), nom: String(p.nom || ""), n: Number(p.n) || 0,
+      })).filter((p) => p.id);
+    },
+    /* les items d'un projet : `ref` est le nom de fichier pour une image */
+    async projet(id) {
+      const d = await jsonNamed("GET", "/library/projets/" + encodeURIComponent(String(id == null ? "" : id)));
+      return { id: String((d && d.id) || id), nom: String((d && d.nom) || ""),
+        refs: (Array.isArray(d && d.items) ? d.items : []).filter(isPlain).map((i) => String(i.ref || "")).filter(Boolean) };
+    },
+    /* UN fichier par appel (la route n'en prend qu'un) ; le nom RENDU fait foi
+       (un homonyme devient « nom-1.png ») */
+    async importer(file) {
+      if (typeof FormData === "undefined" || !file) throw new Error(dzT("cartes.depuis.import_impossible"));
+      const fd = new FormData();
+      fd.append("file", file, String(file.name || "image.png"));
+      const d = await jsonNamed("POST", "/images/upload", fd);
+      return { filename: String((d && d.filename) || "") };
+    },
+    /* l'adresse SERVIE d'une image (GET /api/images/{nom}, routes.py) — pas
+       CF.imageURL, dont /api/images/file/ n'existe pas (mod-face.js) */
+    url(nom) { return "/api/images/" + encodeURIComponent(String(nom == null ? "" : nom)); },
+  });
+  /* corps : celui de POST /api/cards/decks/depuis-images. Le jeu ouvert est
+     ecrit d'abord ; le deck cree est OUVERT (la page part, `busy` reste au
+     voile) ; une phrase du serveur (404 qui nomme le fichier, 400) remonte. */
+  async function deckDepuisImages(corps) {
+    if (OFFLINE) throw new Error(dzT("cartes.depuis.hors_ligne"));
+    await galFlush();
+    const d = await jsonNamed("POST", "/cards/decks/depuis-images", isPlain(corps) ? corps : {});
+    const did = d && d.deck && d.deck.id;
+    if (!did) throw new Error(dzT("cartes.core.sans_did"));
+    galGo(did);
+    return d.deck;
+  }
+  /* le libelle AFFICHE d'un format : la regle du selecteur de la barre */
+  function libelleFormat(id) {
+    const f = FMT_BY_ID[id];
+    if (!f) return String(id == null ? "" : id);
+    return id === "square_eu" ? dzT("cartes.core.fmt_carre") : id === "business" ? dzT("cartes.core.fmt_visite")
+      : f.forme === "hex" ? hexLabel(id) : f.label;
+  }
+
   /* « Importer une carte » : la galerie ferme et la piece 10 s'ouvre. Le
      bouton a tenu la place d'un panneau absent (un toast qui disait
      honnetement « l'import arrive ») ; le panneau existe, le toast meurt.
@@ -2842,6 +2911,8 @@
        lue gardée `typeof` par les pièces, comme le chevron. */
     icone: icone,
     images: images, imageURL: imageURL, ApiMissing: ApiMissing,
+    /* t421 : la Bibliotheque et la creation depuis des images (§8, au CORE) */
+    bibliotheque: bibliotheque, deckDepuisImages: deckDepuisImages, libelleFormat: libelleFormat,
     /* les dehors /api/vector et /api/print3d — routes et verbes figes au
        CORE (§8) : aucune piece ne formule de requete arbitraire. */
     vector: vector, print3d: print3d,
