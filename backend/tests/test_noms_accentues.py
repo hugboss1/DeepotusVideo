@@ -58,13 +58,24 @@ async def scenario():
             check(f"1a /ouvrir accepte le nom accentué ({etiquette})", r.status_code == 200
                   and re.fullmatch(r"entrees/[0-9a-f]{8}-[A-Za-z0-9._-]+\.png", r.json().get("path", "")), (r.status_code, r.text))
         avant = sorted(x.name for x in (D / "entrees").iterdir())
-        for mauvais in ("a/b.png", "a\b.png", "..", "x\n.png", "../t.db", "a:b.png", ""):
+        for mauvais in ("a/b.png", "a\\b.png", "..", "x\n.png", "../t.db", "a:b.png", ""):
             r = await c.post("/api/photolab/ouvrir", json={"filename": mauvais})
             check(f"1b /ouvrir refuse {mauvais!r} (400)", r.status_code == 400, (r.status_code, r.text))
-        for absent in ("con.png", "nul.txt"):
-            r = await c.post("/api/photolab/ouvrir", json={"filename": absent})
-            check(f"1c /ouvrir {absent!r} : rien d'ouvert (introuvable)", r.status_code == 404, (r.status_code, r.text))
-        check("1d aucun fichier copié par ces refus", sorted(x.name for x in (D / "entrees").iterdir()) == avant)
+        check("1c aucun fichier copié par ces refus", sorted(x.name for x in (D / "entrees").iterdir()) == avant)
+        # Garde périphérique (Windows) : « con », « nul » existent bel et bien dans la Bibliothèque ; ils s'ouvrent, mais
+        # la copie du moteur porte un nom suffixé « _ », jamais le nom de périphérique brut.
+        for brut in ("con.png", "nul.png", "nul.txt"):
+            Image.new("RGB", (8, 8), (10, 10, 10)).save(_tmp / "images" / brut, format="PNG")
+        for brut, sur in (("con.png", "con_.png"), ("nul.png", "nul_.png")):
+            r = await c.post("/api/photolab/ouvrir", json={"filename": brut})
+            chemin = r.json().get("path", "")
+            check(f"1d {brut!r} existe et s'ouvre sous le nom suffixé entrees/<hash>-{sur}", r.status_code == 200
+                  and re.fullmatch(r"entrees/[0-9a-f]{8}-" + re.escape(sur), chemin) and (D / chemin).is_file(), (r.status_code, r.text))
+        await c.post("/api/photolab/ouvrir", json={"filename": "nul.txt"})      # le moteur peut refuser l'extension : seule la copie compte
+        copies = [x.name for x in (D / "entrees").iterdir()]
+        check("1e jamais de copie au nom de périphérique brut (con., nul.)",
+              not [x for x in copies if re.fullmatch(r"[0-9a-f]{8}-(con|nul|prn|aux)(\..*)?", x)], copies)
+        check("1f « nul.txt » copié sous « -nul_.txt »", any(re.fullmatch(r"[0-9a-f]{8}-nul_\.txt", x) for x in copies), copies)
 
         print("\n[2] /actions/lot")
         for etiquette, nom in (("NFC", NFC), ("NFD", NFD)):
