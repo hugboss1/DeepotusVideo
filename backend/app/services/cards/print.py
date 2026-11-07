@@ -4508,6 +4508,8 @@ async def post_sheet(did: str, spec: str = Form("{}"),
                      backs: list[UploadFile] = File(default=[])):
     """UNE page de planche, en PNG. `page` et `side` choisissent laquelle."""
     doc = _deck(did)
+    if _est_hex(doc):                    # t421 : la planche en nid d'abeilles
+        return await _hex_sheet_reponse(doc, _json_form(spec), fronts, backs)
     body = _json_form(spec)
     try:
         p = build_plan(_spec_of(doc, body),
@@ -4550,6 +4552,8 @@ async def post_pdf(did: str, spec: str = Form("{}"),
     `/BleedBox` sur CHAQUE page. C'est le fichier qu'on envoie à
     l'imprimeur."""
     doc = _deck(did)
+    if _est_hex(doc):                    # t421 : la planche en nid d'abeilles
+        return await _hex_pdf_reponse(doc, _json_form(spec), fronts, backs)
     body = _json_form(spec)
     n = len(fronts or [])
     if n < 1:
@@ -4854,6 +4858,18 @@ async def post_audit(did: str, body: dict | None = None):
 # rectangulaire (400) : le chemin rectangulaire ne change de rien.
 # ══════════════════════════════════════════════════════════════════════════
 
+def _est_hex(doc: dict) -> bool:
+    from .core import geom_of as geom_deck
+    return geom_deck(doc).forme == "hex"
+
+
+def _premier(body: dict, *cles):
+    for k in cles:
+        if body.get(k) is not None:
+            return body[k]
+    return None
+
+
 def _plan_hex_de(doc: dict, body: dict, n: int | None = None):
     """Le plan hexagonal du deck, ou le 400 qui dit pourquoi."""
     from .core import geom_of as geom_deck
@@ -4865,8 +4881,11 @@ def _plan_hex_de(doc: dict, body: dict, n: int | None = None):
     body = body if isinstance(body, dict) else {}
     try:
         return PHX.plan_hex(
-            g, body.get("sheet") or "a4", body.get("marge_mm"),
-            body.get("gouttiere_mm"),
+            g, body.get("sheet") or "a4",
+            # les noms du panneau rectangulaire valent aussi (margin_mm,
+            # gutter_mm) : /sheet et /pdf délèguent ici pour un hexagone
+            _premier(body, "marge_mm", "margin_mm"),
+            _premier(body, "gouttiere_mm", "gutter_mm"),
             n if n is not None else (body.get("n_cards") or 1),
             _flag(body, "trait"), _flag(body, "duplex"))
     except ValueError as e:
@@ -4892,16 +4911,9 @@ async def post_hex_coupe(did: str, body: dict | None = None):
     })
 
 
-@router.post("/hex/pdf")
-async def post_hex_pdf(did: str, spec: str = Form("{}"),
-                       fronts: list[UploadFile] = File(default=[]),
-                       backs: list[UploadFile] = File(default=[])):
-    """Le PDF de la planche en nid d'abeilles : comme `/pdf`, le navigateur
-    rend chaque face à la taille de la toile et la téléverse ; recto puis
-    verso par page. Un verso vide (fichier de 0 octet) ou absent laisse son
-    emplacement blanc."""
-    doc = _deck(did)
-    body = _json_form(spec)
+async def _hex_pdf_reponse(doc: dict, body: dict, fronts: list, backs: list):
+    """Le PDF en nid d'abeilles d'un deck hexagonal : servi par `/hex/pdf` et
+    par `/pdf` quand le deck est hexagonal."""
     n = len(fronts or [])
     p = _plan_hex_de(doc, body, max(1, n))
     if n < 1:
@@ -4934,3 +4946,56 @@ async def post_hex_pdf(did: str, spec: str = Form("{}"),
         "X-CF-Par-Page": str(p.par_page),
         "X-CF-Pixels": f"{p.sheet_px[0]}x{p.sheet_px[1]}",
     })
+
+
+async def _hex_lire(blobs_in: list, p, label: str) -> list:
+    blobs = [await f.read() for f in (blobs_in or [])]
+    try:
+        return [open_card(b, p, i) if b else None for i, b in enumerate(blobs)]
+    except ValueError as e:
+        raise HTTPException(400, f"{label}: {e}")
+
+
+async def _hex_sheet_reponse(doc: dict, body: dict, fronts: list, backs: list):
+    """UNE page de la planche en nid d'abeilles, en PNG : `/sheet` pour un
+    deck hexagonal. `page` et `side` choisissent laquelle, comme au
+    rectangle ; 409 hors du plan."""
+    p = _plan_hex_de(doc, body, max(1, len(fronts or []), len(backs or [])))
+    side = "back" if str(body.get("side") or "front") == "back" else "front"
+    try:
+        page = max(0, int(body.get("page") or 0))
+    except (TypeError, ValueError, OverflowError):
+        page = 0
+    if page >= p.pages:
+        raise HTTPException(409, f"Page {page + 1} hors du plan ({p.pages} page(s))")
+    imgs = await _hex_lire(backs if side == "back" else fronts, p,
+                           "verso" if side == "back" else "recto")
+
+    def work():
+        im = PHX.compose_page(p, imgs, page,
+                              "verso" if side == "back" else "recto")
+        buf = io.BytesIO()
+        im.save(buf, "PNG", dpi=(p.geom.dpi, p.geom.dpi))
+        return png_tag_icc(buf.getvalue(), srgb_icc())
+    try:
+        out = await asyncio.to_thread(work)
+    except Exception as e:
+        logger.exception("cards/print: planche hexagonale impossible")
+        raise HTTPException(500, f"Planche impossible: {e}")
+    return Response(content=out, media_type="image/png", headers={
+        "Content-Disposition": f'attachment; filename="planche_{page + 1}.png"',
+        "X-CF-Pixels": f"{p.sheet_px[0]}x{p.sheet_px[1]}",
+        "X-CF-Par-Page": str(p.par_page),
+    })
+
+
+@router.post("/hex/pdf")
+async def post_hex_pdf(did: str, spec: str = Form("{}"),
+                       fronts: list[UploadFile] = File(default=[]),
+                       backs: list[UploadFile] = File(default=[])):
+    """Le PDF de la planche en nid d'abeilles : comme `/pdf`, le navigateur
+    rend chaque face à la taille de la toile et la téléverse ; recto puis
+    verso par page. Un verso vide (fichier de 0 octet) ou absent laisse son
+    emplacement blanc."""
+    return await _hex_pdf_reponse(_deck(did), _json_form(spec), fronts, backs)
+

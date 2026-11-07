@@ -494,8 +494,39 @@ def test_le_pdf_compte_ses_pages_au_format_de_la_feuille():
         assert len(pdf.pages) == attendu == p.pages * (2 if duplex else 1)
         for pg in pdf.pages:
             w, h = float(pg.mediabox.width), float(pg.mediabox.height)
-            assert abs(w - 215.9 / 25.4 * 72) <= 0.5
-            assert abs(h - 279.4 / 25.4 * 72) <= 0.5
+            # la feuille en points EXACTS (Letter = 612 x 792 pt)
+            assert abs(w - 612.0) <= 1e-3 and abs(h - 792.0) <= 1e-3
+            # SANS PERTE : une image Flate en RGB brut par page, aucune DCT
+            xo = pg["/Resources"]["/XObject"]
+            assert len(xo) == 1
+            im = xo[list(xo)[0]].get_object()
+            assert im["/Filter"] == "/FlateDecode"
+            assert im["/ColorSpace"] == "/DeviceRGB"
+            assert (im["/Width"], im["/Height"]) == CT.sheet_px("letter", 150)
+        assert b"/DCTDecode" not in data
+    # les pixels relus dans le PDF sont ceux de la planche, au bit près. A4 :
+    # sa raster (1240 x 1754 px à 150 DPI) n'est pas la feuille exacte, la
+    # pose au coin haut-gauche se voit donc dans la matrice.
+    p = PH.plan_hex(g, "a4", 12, 6, 7, trait=True, duplex=True)
+    rec = [_carte(g, BLEU, repere=True)] * 7
+    ver = [_carte(g, (200, 40, 40))] * 7
+    pdf = PdfReader(io.BytesIO(PH.pdf_planche(p, rec, ver)))
+    faces = [(pg, c, im) for pg in range(p.pages)
+             for c, im in (("recto", rec), ("verso", ver))]
+    assert len(faces) == len(pdf.pages) >= 2
+    for i, (page, cote, imgs) in enumerate(faces):
+        xo = pdf.pages[i]["/Resources"]["/XObject"]
+        brut = xo[list(xo)[0]].get_object().get_data()
+        assert brut == PH.compose_page(p, imgs, page, cote).tobytes()
+        # l'image est posée au coin HAUT-GAUCHE, à sa taille native
+        ops = pdf.pages[i].get_contents().get_data().decode("ascii")
+        iw, ih = (v * 72 / 150 for v in CT.sheet_px("a4", 150))
+        a, _b, _c, d, e, f_ = (float(v) for v in ops.split()[1:7])
+        assert abs(a - iw) < 1e-3 and abs(d - ih) < 1e-3
+        H = 297 / 25.4 * 72
+        assert [float(v) for v in pdf.pages[i].mediabox] == pytest.approx(
+            [0, 0, 210 / 25.4 * 72, H], abs=1e-3)
+        assert e == 0 and abs(f_ + ih - H) < 1e-3 and abs(ih - H) > 0.02
 
 
 # ═════════════════════ 5. les routes ════════════════════════════════════════
@@ -553,6 +584,35 @@ def test_les_routes_hex():
     assert r.status_code == 400
     r = _api("POST", base + "/pdf", data={"spec": "{}"})
     assert r.status_code == 400
+
+    # /print/pdf et /print/sheet suivent le nid d'abeilles pour un hexagone
+    spec = json.dumps({"duplex": True, "trait": True})
+    r_hex = _api("POST", base + "/pdf", files=files, data={"spec": spec})
+    r_pdf = _api("POST", f"/api/cards/{did}/print/pdf", files=files,
+                 data={"spec": spec})
+    assert r_pdf.status_code == 200, r_pdf.text[:300]
+    a = PdfReader(io.BytesIO(r_hex.content))
+    b = PdfReader(io.BytesIO(r_pdf.content))
+    assert len(a.pages) == len(b.pages) == 2
+    for pa, pb in zip(a.pages, b.pages):
+        assert [float(v) for v in pa.mediabox] == [float(v) for v in pb.mediabox]
+    assert r_pdf.headers["x-cf-par-page"] == "13"
+    p = PH.plan_hex(g, "a4", 12, 6, 3, trait=True, duplex=True)
+    for side, cote in (("front", "recto"), ("back", "verso")):
+        r = _api("POST", f"/api/cards/{did}/print/sheet", files=files,
+                 data={"spec": json.dumps({"side": side, "trait": True,
+                                           "duplex": True})})
+        assert r.status_code == 200, r.text[:300]
+        im = Image.open(io.BytesIO(r.content)).convert("RGB")
+        assert im.size == CT.sheet_px("a4", 150) == p.sheet_px
+        imgs = [_carte(g, BLEU)] * 3 if cote == "recto" else [_carte(g, BLEU), None]
+        assert im.tobytes() == PH.compose_page(p, imgs, 0, cote).tobytes()
+    r = _api("POST", f"/api/cards/{did}/print/sheet", files=files,
+             data={"spec": json.dumps({"page": 3})})
+    assert r.status_code == 409
+    r = _api("POST", f"/api/cards/{did}/print/pdf", files=files,
+             data={"spec": json.dumps({"gutter_mm": 4})})
+    assert r.status_code == 400 and "gouttière" in r.json()["detail"]
 
     # un jeu rectangulaire est refusé par les trois routes
     rid = CC.create_deck("Rect", {"fmt": "poker_eu", "dpi": 150})["id"]

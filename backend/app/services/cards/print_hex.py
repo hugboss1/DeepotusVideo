@@ -47,8 +47,9 @@ coupe se fait recto dessus : les fichiers de coupe suivent la page recto. Une
 carte sans verso laisse son emplacement BLANC.
 
 ── RASTER ET VECTEUR ────────────────────────────────────────────────────────
-Le PDF est fait par Pillow (une image par page, `resolution = dpi`) : trait de
-coupe et repères y sont PIXÉLISÉS ; seul le fichier de coupe est vectoriel.
+Le PDF porte une image par page (composée par Pillow, écrite SANS PERTE en
+/FlateDecode par pypdf, à `dpi`) : trait de coupe et repères y sont
+PIXÉLISÉS ; seul le fichier de coupe est vectoriel.
 Une carte est collée au pixel ENTIER le plus proche de sa position exacte :
 l'écart vaut au plus un demi-pixel (0,042 mm à 300 DPI), absorbé par le fond
 perdu. Le trait de coupe et les repères, eux, sont tracés aux coordonnées
@@ -394,18 +395,53 @@ def compose_page(p: PlanHex, images: list, page: int,
 
 
 def pdf_planche(p: PlanHex, recto: list, verso: list | None = None) -> bytes:
-    """Le PDF d'impression : par page, le recto puis (duplex) le verso. Page
-    au format de la feuille, `resolution = dpi`."""
+    """Le PDF d'impression : par page, le recto puis (duplex) le verso.
+
+    SANS PERTE, comme le défaut rectangulaire (`lossless: True`) : chaque
+    page est UNE image RGB brute en `/FlateDecode` (zlib), écrite ici par
+    pypdf (Pillow, lui, n'encode le RGB qu'en JPEG). La `/MediaBox` est la
+    feuille en points EXACTS (A4 = 595,2756 x 841,8898 pt) ; l'image, à sa
+    taille native `sheet_px / dpi`, est posée au coin HAUT-GAUCHE, origine
+    du repère mm du plan et du fichier de coupe : aucun pixel n'est
+    ré-échantillonné et aucune position ne glisse vers le bas de page."""
+    import zlib
+    from pypdf import PdfWriter
+    from pypdf.generic import (DecodedStreamObject, DictionaryObject,
+                               NameObject, NumberObject)
     verso = verso or []
-    pages = []
+    faces = []
     for page in range(p.pages):
-        pages.append(compose_page(p, recto, page, "recto"))
+        faces.append((page, "recto", recto))
         if p.duplex:
-            pages.append(compose_page(p, verso, page, "verso"))
+            faces.append((page, "verso", verso))
+    pt = 72.0 / MM_PER_INCH
+    pw, ph = p.size_mm[0] * pt, p.size_mm[1] * pt
+    w = PdfWriter()
+    for page, cote, imgs in faces:
+        im = compose_page(p, imgs, page, cote)
+        xo = DecodedStreamObject()
+        xo.set_data(zlib.compress(im.tobytes(), 6))
+        xo[NameObject("/Type")] = NameObject("/XObject")
+        xo[NameObject("/Subtype")] = NameObject("/Image")
+        xo[NameObject("/Width")] = NumberObject(im.size[0])
+        xo[NameObject("/Height")] = NumberObject(im.size[1])
+        xo[NameObject("/ColorSpace")] = NameObject("/DeviceRGB")
+        xo[NameObject("/BitsPerComponent")] = NumberObject(8)
+        xo[NameObject("/Filter")] = NameObject("/FlateDecode")
+        iw = im.size[0] * 72.0 / p.geom.dpi
+        ih = im.size[1] * 72.0 / p.geom.dpi
+        pg = w.add_blank_page(width=pw, height=ph)
+        res = DictionaryObject()
+        res[NameObject("/XObject")] = DictionaryObject(
+            {NameObject("/Im0"): w._add_object(xo)})
+        pg[NameObject("/Resources")] = res
+        cs = DecodedStreamObject()
+        cs.set_data(("q %.4f 0 0 %.4f 0 %.4f cm /Im0 Do Q"
+                     % (iw, ih, ph - ih)).encode("ascii"))
+        pg[NameObject("/Contents")] = w._add_object(cs)
+    w.add_metadata({"/Title": "Planche en nid d'abeilles"})
     buf = io.BytesIO()
-    pages[0].save(buf, "PDF", save_all=True, append_images=pages[1:],
-                  resolution=float(p.geom.dpi), quality=95, subsampling=0,
-                  title="Planche en nid d'abeilles")
+    w.write(buf)
     return buf.getvalue()
 
 
