@@ -35,8 +35,10 @@ from app.services import photolab_nuancier as NUA
 router = APIRouter()
 # Un nom ne finit ni par « . » ni par une espace : Windows les retire en silence (« a.png. » devient « a.png »), le
 # fichier copié n'aurait alors plus le nom qu'on ouvre.
-_NOM_IMAGE = re.compile(r"[A-Za-z0-9_]([A-Za-z0-9._ -]{0,179}[A-Za-z0-9_-])?")
-_NOM_SERVI = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,180}")
+# t421 : les lettres accentuées passent (53 des 93 cartes réelles en portent) : \w (Unicode) + les accents combinants
+# (forme NFD). Jamais de séparateur de dossier, de « : » ni de retour à la ligne : ils ne sont ni \w ni dans la classe.
+_NOM_IMAGE = re.compile(r"[\w\u0300-\u036f]([\w\u0300-\u036f. -]{0,179}[\w\u0300-\u036f-])?")
+_NOM_SERVI = re.compile(r"[\w\u0300-\u036f][\w\u0300-\u036f._-]{0,180}")
 # t257 (M8) : + OpenRaster et PDF d'une page (aplati par le moteur) ; le TIFF à calques est « tif » + "calques": true.
 # t418 (N8) : + JPEG XL (sans perte, que le moteur ne relit pas), DDS, EXR, DPX, Cineon, HDR, BMP, GIF, QOI ; compression
 # par format (clé `compression`, posée sur tiffCompression / ddsCompression).
@@ -369,6 +371,18 @@ def _base_sure(nom, defaut="photolab") -> str:
     # ASCII d'abord (« Photo d'été » -> « Photo-d-ete ») : Windows et le moteur ne se fient pas aux accents.
     brut = unicodedata.normalize("NFKD", str(nom or "")).encode("ascii", "ignore").decode()
     return _sur(re.sub(r"[^A-Za-z0-9_-]+", "-", brut).strip("-")[:80] or defaut)
+
+
+def _base_defaut(nom) -> str:
+    """t421 : la base de nom d'un document sans `nom` donné — le même nettoyage que `nomDocument` (mod-fichier.js) :
+    empreinte « <sha1 8>- » en tête, extension, préfixe « photolab_<horodatage>_ » et « -png »/« -jpg » du fichier de
+    travail ; puis `_base_sure` (ASCII, comme tout nom enregistré)."""
+    s = re.sub(r"^[0-9a-f]{8}-", "", str(nom or ""))
+    s = re.sub(r"\.[A-Za-z0-9]{2,6}$", "", s)
+    m = re.match(r"photolab_\d{8}-\d{6}_(.+)$", s)
+    if m:
+        s = re.sub(r"-(png|jpg)$", "", m.group(1))
+    return _base_sure(s, "image")
 
 
 def _compression(corps) -> dict:
@@ -808,7 +822,7 @@ async def bibliotheque(body: dict):
     nom_doc = (body or {}).get("nom")
     if not nom_doc:
         nom_doc = (await _appeler("doc.inspect"))[0].get("name")      # sans document, le moteur refuse : 422 dit
-    base = _base_sure(nom_doc, "image")
+    base = _base_sure(nom_doc, "image") if (body or {}).get("nom") else _base_defaut(nom_doc)
     fichier, gen, _ = await _exporter(fmt, base, q)
     src = PM.dossier_travail() / "exports" / fichier
     dossier = settings.images_path

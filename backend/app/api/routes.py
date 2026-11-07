@@ -4188,7 +4188,9 @@ def _safe_rename_image(old_name: str, new_name: str) -> str:
     ext = src.suffix
     raw = Path(new_name).name
     raw_stem = raw[:-len(Path(raw).suffix)] if Path(raw).suffix else raw
-    stem = re.sub(r"[^A-Za-z0-9._ -]", "_", raw_stem)
+    # t421 : les accents restent (« été ») ; ce qu'un nom de la Bibliothèque ne peut pas porter (interdits de Windows,
+    # contrôles, et ce que les écrans refusent) devient « _ ».
+    stem = re.sub(r"[^\w\u0300-\u036f._ -]", "_", raw_stem)
     stem = re.sub(r"_+", "_", stem).strip(" _") or "image"
     dest = settings.images_path / f"{stem}{ext}"
     if dest.resolve() == src.resolve():

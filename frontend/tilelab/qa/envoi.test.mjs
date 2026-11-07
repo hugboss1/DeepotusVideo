@@ -13,6 +13,7 @@ ok("1.1 une image reçue devient la source (poignée __tl.select de tilelab.js)"
   && JSON.stringify(choisies) === '["herbe.png"]', JSON.stringify(choisies));
 ok("1.2 rien de reçu : rien choisi", appliquer(null, tl) === false && choisies.length === 1);
 ok("1.3 Tile Lab pas prêt (pas de poignée) : rien, sans lever", appliquer({ image: "a.png" }, undefined) === false && appliquer({ image: "a.png" }, {}) === false);
+ok("1.4 un envoi refusé n'ouvre rien (la source ne change pas) et ne lève pas sous node", appliquer({ refus: "a/b.png" }, tl) === false && choisies.length === 1);
 
 const html = readFileSync(join(racine, "index.html"), "utf-8");
 const iEnvoi = html.indexOf('<script type="module" src="envoi.js"></script>'), iTl = html.indexOf('<script src="tilelab.js"></script>');

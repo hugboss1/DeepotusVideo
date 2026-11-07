@@ -631,5 +631,6 @@ export function initFichier(PL) {
 
   // t139 : une image envoyée par un autre écran (« Envoyer vers › Photolab ») ou `?img=` : ouverte à l'arrivée.
   const recu = recevoir("photolab");
-  if (recu) ouvrirImage(recu.image);
+  if (recu && recu.refus) PL.signaler(T("commun.envoi.refuse", { nom: recu.refus }), true);   // t421 : dit, n'ouvre rien
+  else if (recu) ouvrirImage(recu.image);
 }

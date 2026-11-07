@@ -31,9 +31,13 @@ check("1.6 envoi périmé (> 120 s) : rien, mais consommé", lireEnvoi("", p, "p
 p = envoi("photolab", "rouge.png", T0 + 60000);
 check("1.7 horodatage dans le futur : refusé", lireEnvoi("", p, "photolab", T0) === null);
 check("1.8 envoi à la limite (120 s pile) : accepté", lireEnvoi("", envoi("photolab", "a.png", T0 - DUREE_MS), "photolab", T0) !== null);
-for (const mauvais of ["../t.db", "a/b.png", "a\\b.png", "", ".cache", 12, null])
-  check("1.9 nom refusé " + JSON.stringify(mauvais), lireEnvoi("", envoi("photolab", mauvais), "photolab", T0) === null
-    && (typeof mauvais !== "string" || lireEnvoi("?img=" + encodeURIComponent(mauvais), null, "photolab", T0) === null));
+// t421 : un nom refusé n'ouvre rien ; s'il est du texte non vide, l'écran en est INFORMÉ ({refus}) au lieu d'une page vide.
+for (const mauvais of ["../t.db", "a/b.png", "a\\b.png", "", ".cache", 12, null]) {
+  const dit = typeof mauvais === "string" && mauvais !== "";
+  const attendu = (r) => (dit ? JSON.stringify(r) === JSON.stringify({ refus: mauvais }) : r === null);
+  check("1.9 nom refusé " + JSON.stringify(mauvais), attendu(lireEnvoi("", envoi("photolab", mauvais), "photolab", T0))
+    && (typeof mauvais !== "string" || attendu(lireEnvoi("?img=" + encodeURIComponent(mauvais), null, "photolab", T0))));
+}
 check("1.10 sans porteur ni URL : null", lireEnvoi("", null, "photolab", T0) === null && lireEnvoi(undefined, undefined, "photolab", T0) === null);
 check("1.11 nomValide accepte les noms de la Bibliothèque", nomValide("photolab_20261008-154030_herbe.png") && nomValide("Mon image 2.jpg"));
 

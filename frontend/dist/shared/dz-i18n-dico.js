@@ -5502,6 +5502,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "commun.action.supprimer": {"fr": "Supprimer", "en": "Delete"},
   "commun.action.telecharger": {"fr": "Télécharger", "en": "Download"},
   "commun.action.valider": {"fr": "Valider", "en": "Confirm"},
+  "commun.envoi.refuse": {"fr": "Envoi refusé : « {nom} » n'est pas un nom d'image valide.", "en": "Send refused: “{nom}” is not a valid image name."},
   "commun.etat.aucun_resultat": {"fr": "Aucun résultat", "en": "No results"},
   "commun.etat.chargement": {"fr": "Chargement…", "en": "Loading…"},
   "commun.etat.enregistre": {"fr": "Enregistré", "en": "Saved"},

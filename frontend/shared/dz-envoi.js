@@ -11,7 +11,8 @@
 
 export const DUREE_MS = 120000;
 // Le nom d'une image de la Bibliothèque : jamais de séparateur de dossier (les routes revérifient de toute façon).
-const NOM = /^[A-Za-z0-9_][A-Za-z0-9._ -]{0,180}$/;
+// t421 : lettres, accents combinants (forme NFD) et chiffres de toute langue — « âmes_fracturées.png » passe.
+const NOM = /^[\p{L}\p{M}\p{N}_][\p{L}\p{M}\p{N}._ -]{0,180}$/u;
 
 export function nomValide(nom) {
   return typeof nom === "string" && NOM.test(nom);
@@ -30,18 +31,21 @@ export function porteurDe(fenetre) {
   }
 }
 
-// -> { image, via: "url" | "envoi" } ou null. Consomme l'envoi destiné à `cible` (frais ou périmé : il ne servira plus) ;
-// un envoi destiné à un AUTRE écran est laissé intact.
+// -> { image, via: "url" | "envoi" }, ou { refus: nom } quand l'écran est visé par un nom invalide (l'écran le DIT au
+// lieu d'ouvrir une page vide en silence — t421), ou null s'il n'y a rien. Consomme l'envoi destiné à `cible` (frais ou
+// périmé : il ne servira plus) ; un envoi destiné à un AUTRE écran est laissé intact.
 export function lireEnvoi(search, porteur, cible, maintenant = Date.now()) {
   let parUrl = null;
   try { parUrl = new URLSearchParams(search || "").get("img"); } catch (e) { parUrl = null; }
   if (nomValide(parUrl)) return { image: parUrl, via: "url" };
+  if (parUrl) return { refus: parUrl };
   let e = null;
   try { e = porteur ? porteur.__dzEnvoiImg : null; } catch (err) { return null; }
   if (!e || typeof e !== "object" || e.cible !== cible) return null;
   try { delete porteur.__dzEnvoiImg; } catch (err) { /* porteur gelé : l'âge le rendra caduc */ }
   const age = maintenant - Number(e.t);
-  if (!(age >= 0 && age <= DUREE_MS) || !nomValide(e.image)) return null;
+  if (!(age >= 0 && age <= DUREE_MS)) return null;
+  if (!nomValide(e.image)) return typeof e.image === "string" && e.image ? { refus: e.image } : null;
   return { image: e.image, via: "envoi" };
 }
 
@@ -59,7 +63,7 @@ export function sansImg(href) {
 // Recevoir pour l'écran courant (navigateur) : lit l'URL et la fenêtre de l'application, nettoie l'URL.
 export function recevoir(cible, fenetre = window) {
   const r = lireEnvoi(fenetre.location.search, porteurDe(fenetre), cible);
-  if (r && r.via === "url") {
+  if (r && (r.via === "url" || r.refus)) {                    // un refus nettoie aussi : il ne se redit pas au rechargement
     const propre = sansImg(fenetre.location.href);
     try { if (propre) fenetre.history.replaceState(fenetre.history.state, "", propre); } catch (e) { /* sans historique */ }
   }
