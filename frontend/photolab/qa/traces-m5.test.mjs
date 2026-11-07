@@ -123,10 +123,10 @@ check("6.9 un clic ne trace rien ; ajustement borné 0,5..10", traceLibre([[5, 5
 
 /* 7 — menu des tracés */
 const ids = (e) => entreesMenuTrace(e).filter(Boolean).filter((x) => x.actif).map((x) => x.id);
-check("7.1 tracé de travail : sélection, remplir, contour, transformer ; détourage refusé (il faut un tracé enregistré)", eq(ids({ nom: "work" }), ["path.toSelection", "path.fill", "path.stroke", "path.transform"]));
+check("7.1 tracé de travail : sélection, remplir, contour, transformer ; détourage refusé (il faut un tracé enregistré)", eq(ids({ nom: "work" }), ["path.toSelection", "path.selection.add", "path.selection.subtract", "path.fill", "path.stroke", "path.transform"]));
 check("7.2 tracé enregistré : + Tracé de détourage ; Retirer seulement s'il y en a un", ids({ nom: "Tracé 1" }).includes("path.clippingPath.set") && !ids({ nom: "Tracé 1" }).includes("path.clippingPath.clear")
   && ids({ nom: "Tracé 1", detourage: true }).includes("path.clippingPath.clear"));
-check("7.3 calque de forme : copier selon fond / contour ; coller seulement après une copie", eq(ids({ nom: "layer", forme: { fond: true, contour: false }, presse: {} }), ["path.toSelection", "path.transform", "path.style.copyFill"])
+check("7.3 calque de forme : copier selon fond / contour ; coller seulement après une copie", eq(ids({ nom: "layer", forme: { fond: true, contour: false }, presse: {} }), ["path.toSelection", "path.selection.add", "path.selection.subtract", "path.transform", "path.style.copyFill"])
   && ids({ nom: "layer", forme: { fond: true, contour: true }, presse: { fond: true, contour: true } }).includes("path.style.pasteStroke"));
 check("7.4 sans tracé : tout grisé sauf rien", eq(ids({}), []));
 check("7.5 dialogue Transformer : bornes et défauts de l'amont (translation ±30000, échelle 0,01..100 = 1, angle ±360)",

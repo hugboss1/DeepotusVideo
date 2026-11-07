@@ -27,7 +27,10 @@ def check(label, cond, detail=""):
 ATTENDUS = {"NOTICE-photocraft.txt", "licences-photocraft/NOTICE", "licences-photocraft/OFL-Inter.txt",
             "licences-photocraft/OFL-JetBrainsMono.txt", "licences-photocraft/LICENSE-SCOWL.txt",
             "licences-photocraft/LICENSE-lucide.txt", "LICENSE-MIT", "LICENSE-APACHE", "OFL-biz-ud-mincho.txt",
-            "OFL-biz-ud-pgothic.txt", "OFL-shippori-mincho.txt",
+            "OFL-biz-ud-pgothic.txt", "OFL-shippori-mincho.txt", "OFL-lxgw-wenkai-lite.txt", "OFL-nanum-gothic.txt",
+            "OFL-noto-sans-arabic.txt", "OFL-noto-sans-cjk-sc.txt", "OFL-noto-sans-devanagari.txt",
+            "OFL-noto-sans-georgian.txt", "OFL-noto-sans-hebrew.txt", "OFL-noto-sans-symbols.txt",
+            "OFL-noto-sans-symbols-2.txt", "OFL-noto-sans-thai.txt",
             "licences-photocraft/LICENSE-libfacedetection.txt",     # t251 : exigée par la NOTICE amont 0.10.0
             # t259 : ATTRIBUTION amont 0.10.0 et licences des matériaux intégrés au moteur
             "licences-photocraft/ATTRIBUTION.md", "licences-photocraft/LICENSE-translations.txt",
@@ -41,7 +44,7 @@ async def scenario():
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app, client=("127.0.0.1", 5000)), base_url="http://t") as c:
         r = await c.get("/api/photolab/licences")
         j = r.json() if r.status_code == 200 else {}
-        check("1a /licences : version 0.10.0, dépôt, double licence", j.get("version") == "0.10.0"
+        check("1a /licences : version 0.21.0, dépôt, double licence", j.get("version") == "0.21.0"
               and j.get("depot") == "storytold/photocraft" and j.get("licence") == "MIT OR Apache-2.0", j)
         check("1b la liste contient chaque texte livré (NOTICE en tête)", set(j.get("fichiers", [])) == ATTENDUS
               and (j.get("fichiers") or [""])[0] == "NOTICE-photocraft.txt", j.get("fichiers"))

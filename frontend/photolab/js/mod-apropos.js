@@ -4,7 +4,11 @@
 import { ouvrirDialogue } from "./mod-fichier.js";
 
 const FAMILLES = { "Inter": "Inter", "JetBrainsMono": "JetBrains Mono", "biz-ud-mincho": "BIZ UDMincho",
-  "biz-ud-pgothic": "BIZ UDPGothic", "shippori-mincho": "Shippori Mincho" };
+  "biz-ud-pgothic": "BIZ UDPGothic", "shippori-mincho": "Shippori Mincho", "lxgw-wenkai-lite": "LXGW WenKai Lite",
+  "nanum-gothic": "Nanum Gothic", "noto-sans-arabic": "Noto Sans Arabic", "noto-sans-cjk-sc": "Noto Sans CJK SC",
+  "noto-sans-devanagari": "Noto Sans Devanagari", "noto-sans-georgian": "Noto Sans Georgian",
+  "noto-sans-hebrew": "Noto Sans Hebrew", "noto-sans-symbols": "Noto Sans Symbols",
+  "noto-sans-symbols-2": "Noto Sans Symbols 2", "noto-sans-thai": "Noto Sans Thai" };
 
 // Nom de fichier -> libellé lisible (dictionnaire) ; un fichier inconnu garde son nom.
 export function libelleLicence(nom, T) {
@@ -29,7 +33,7 @@ const RANG = (nom) => (nom === "NOTICE-photocraft.txt" ? 0 : nom === "licences-p
 // info = réponse de GET /licences (ou null si le pont ne répond pas : les crédits restent).
 export function contenuApropos(info, T) {
   const i = info || {};
-  const version = i.version || "0.10.0";
+  const version = i.version || "0.21.0";
   const licence = String(i.licence || "MIT OR Apache-2.0").replace(" OR ", " " + T("photolab.apropos.ou") + " ");
   const lignes = [
     T("photolab.apropos.moteur_v", { version, licence }),

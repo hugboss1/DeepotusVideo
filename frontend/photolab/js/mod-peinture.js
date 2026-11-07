@@ -20,6 +20,7 @@ export const OUTILS_PEINTURE = {
   magicEraser: { commande: "paint.magicEraser", sorte: "clic" },
   cloneStamp: { commande: "paint.cloneStamp", sorte: "trait" },
   historyBrush: { commande: "paint.historyBrush", sorte: "trait" },
+  artHistoryBrush: { commande: "paint.artHistoryBrush", sorte: "trait" },         // t414
   spotHealing: { commande: "paint.spotHealing", sorte: "trait" },
   healing: { commande: "paint.healingBrush", sorte: "trait" },
   gradient: { commande: "paint.gradient", sorte: "degrade" },
@@ -53,6 +54,8 @@ const LISSAGE = pct("lissageTrait");
 const CASE = (cle) => opt("case", cle);
 const TOUS = CASE("tousCalques");
 const ECHANTILLON = opt("liste", "echantillon", { valeurs: ["current", "currentAndBelow", "all"] });
+// t414 : Forme d'art d'historique, styles du moteur
+export const STYLES_ART = ["tightShort", "tightMedium", "tightLong", "looseMedium", "looseLong", "dab", "tightCurl", "looseCurl"];
 const RETOUCHE = [TAILLE, DURETE, pct("intensite", 1), TOUS];
 const DENSITE = [TAILLE, DURETE, opt("liste", "gamme", { valeurs: ["shadows", "midtones", "highlights"] }), pct("exposition", 1), CASE("protegerTons")];
 // t252 : la symétrie de peinture est un état du DOCUMENT dans le moteur (doc.inspect.symmetry), pas un réglage d'outil :
@@ -65,13 +68,15 @@ const STRUCTURE = opt("nombre", "structure", { min: 1, max: 7, pas: 1 }), COULEU
 export const OPTIONS_PEINTURE = {
   brush: [TAILLE, DURETE, FUSION, OPAC0, FLUX, LISSAGE, SYMETRIE],
   pencil: [TAILLE, FUSION, OPAC0, CASE("effacementAuto"), SYMETRIE],
-  mixerBrush: [TAILLE, pct("humidite"), pct("charge"), pct("melange"), FLUX, TOUS],
+  mixerBrush: [TAILLE, pct("humidite"), pct("charge"), pct("melange"), FLUX, TOUS, CASE("nettoyerApres"), CASE("chargerApres"),
+    opt("bouton", "chargerPinceau", { action: "brush.mixer.load" }), opt("bouton", "nettoyerPinceau", { action: "brush.mixer.clean" })],
   eraser: [opt("choix", "modeGomme", { valeurs: ["pinceau", "crayon"] }), TAILLE, DURETE, OPAC0, FLUX, LISSAGE, CASE("historique"), SYMETRIE],
   backgroundEraser: [TAILLE, DURETE, opt("choix", "echantillonnage", { valeurs: ["continuous", "once", "backgroundSwatch"] }),
     opt("liste", "limites", { valeurs: ["discontiguous", "contiguous", "findEdges"] }), pct("tolerance"), CASE("protegerPremierPlan")],
   magicEraser: [opt("nombre", "tolerance", { min: 0, max: 255, pas: 1 }), CASE("lissage"), CASE("contigu"), TOUS, OPAC1],
   cloneStamp: [TAILLE, DURETE, FUSION, OPAC1, FLUX, CASE("aligne"), ECHANTILLON],
   historyBrush: [TAILLE, DURETE, OPAC1, FLUX],
+  artHistoryBrush: [TAILLE, DURETE, OPAC0, opt("liste", "styleArt", { valeurs: STYLES_ART }), pct("zone"), pct("toleranceArt")],
   spotHealing: [TAILLE, DURETE, opt("choix", "type", { valeurs: ["contentAware", "createTexture", "proximityMatch"] }), TOUS],
   healing: [TAILLE, DURETE, FUSION, CASE("aligne"), ECHANTILLON],
   gradient: [opt("choix", "style", { valeurs: ["linear", "radial", "angle", "reflected", "diamond"] }), FUSION, OPAC1, CASE("inverser"), CASE("tramage")],
@@ -95,12 +100,13 @@ export const OPTIONS_PEINTURE = {
 const DEFAUTS = {
   brush: { taille: 13, durete: 100, fusion: "normal", opacite: 100, flux: 100, lissageTrait: 10 },
   pencil: { taille: 1, fusion: "normal", opacite: 100, effacementAuto: false },
-  mixerBrush: { taille: 13, humidite: 50, charge: 50, melange: 50, flux: 100, tousCalques: false },
+  mixerBrush: { taille: 13, humidite: 50, charge: 50, melange: 50, flux: 100, tousCalques: false, nettoyerApres: false, chargerApres: false },
   eraser: { modeGomme: "pinceau", taille: 13, durete: 100, opacite: 100, flux: 100, lissageTrait: 0, historique: false },
   backgroundEraser: { taille: 13, durete: 100, echantillonnage: "continuous", limites: "contiguous", tolerance: 50, protegerPremierPlan: false },
   magicEraser: { tolerance: 32, lissage: true, contigu: true, tousCalques: false, opacite: 100 },
   cloneStamp: { taille: 21, durete: 0, fusion: "normal", opacite: 100, flux: 100, aligne: true, echantillon: "current" },
   historyBrush: { taille: 21, durete: 0, opacite: 100, flux: 100 },
+  artHistoryBrush: { taille: 21, durete: 0, opacite: 100, styleArt: "tightMedium", zone: 50, toleranceArt: 0 },
   spotHealing: { taille: 19, durete: 100, type: "contentAware", tousCalques: false },
   healing: { taille: 19, durete: 100, fusion: "normal", aligne: true, echantillon: "current" },
   gradient: { style: "linear", fusion: "normal", opacite: 100, inverser: false, tramage: true },
@@ -140,7 +146,7 @@ export function commandeTrait(outil, points, o, couleurs) {
       return { command: def.commande, params: { points, size, opacity: un(o.opacite), mode: o.fusion, autoErase: !!o.effacementAuto, color: fg } };
     case "mixerBrush":
       return { command: def.commande, params: { points, size, wet: cent(o.humidite), load: cent(o.charge), mix: cent(o.melange),
-        flow: cent(o.flux), sampleAllLayers: !!o.tousCalques, color: fg } };
+        flow: cent(o.flux), sampleAllLayers: !!o.tousCalques, cleanAfterStroke: !!o.nettoyerApres, loadAfterStroke: !!o.chargerApres, color: fg } };
     case "eraser":
       // « Effacer d'après l'historique » = Forme d'historique (référence) ; mode Crayon = bords nets ; sinon pinceau effaceur.
       if (o.historique) return { command: "paint.historyBrush", params: retouche({ opacity: cent(o.opacite), flow: cent(o.flux) }) };
@@ -165,6 +171,8 @@ export function commandeTrait(outil, points, o, couleurs) {
         aligned: !!o.aligne, impressionist: !!o.impressionniste }) };
     case "historyBrush":
       return { command: def.commande, params: retouche({ opacity: cent(o.opacite), flow: cent(o.flux) }) };
+    case "artHistoryBrush":
+      return { command: def.commande, params: retouche({ opacity: cent(o.opacite), style: o.styleArt, area: cent(o.zone), tolerance: cent(o.toleranceArt) }) };
     case "blur":
       return { command: def.commande, params: retouche({ strength: cent(o.intensite), sampleAllLayers: !!o.tousCalques }) };
     case "sharpen":
@@ -307,11 +315,17 @@ export function sourceActive(liste) {
   return !!(s && Array.isArray(s.source));
 }
 // Alt = pipette temporaire (amont canvas.rs:2172-2194).
+// t414 : Alt-clic du Mélangeur : charge le pinceau de la couleur de la toile, le premier plan ne change pas.
+export const altCharge = (outil) => outil === "mixerBrush";
+export const commandeChargeMelangeur = (x, y, o) => ({ command: "paint.mixerLoad", params: { x: Math.floor(x), y: Math.floor(y), size: 1, sampleAllLayers: !!o.tousCalques } });
 export const altPipette = (outil) => outil === "brush" || outil === "pencil" || outil === "gradient" || outil === "paintBucket";
 
 /* ───────────── côté DOM ───────────── */
 
 export function initPeinture(PL) {
+  PL.actions = PL.actions || {};
+  PL.actions["brush.mixer.load"] = () => PL.executer("brush.mixer.load", { color: (PL.etat.couleurs && PL.etat.couleurs.fg) || "#000000" }, { cycle: false });
+  PL.actions["brush.mixer.clean"] = () => PL.executer("brush.mixer.clean", {}, { cycle: false });
   const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
   PL.etat.peinture = {};
   const opts = (id) => (PL.etat.peinture[id] = PL.etat.peinture[id] || defautsPeinture(id));
@@ -359,6 +373,12 @@ export function initPeinture(PL) {
     return {
       async appui(p, ev) {
         if (ev.altKey && altPipette(id)) { pipette(p); return; }
+        if (ev.altKey && altCharge(id)) {
+          const c = commandeChargeMelangeur(p.x, p.y, opts(id));
+          const r = await PL.executer(c.command, c.params, { cycle: false });
+          if (r.ok) PL.signaler(T("photolab.peinture.melangeur_charge"));
+          return;
+        }
         if (ev.altKey && sourceRequise(id)) {
           const r = await PL.executer("cloneSource.set", { source: [Math.round(p.x), Math.round(p.y)] }, { cycle: false });
           if (r.ok) PL.signaler(T("photolab.peinture.source_definie"));

@@ -19,15 +19,15 @@ const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 // t252 : + Supprimer, Tampon de motif, Œil rouge, Pièce, Déplacement basé sur le contenu (moteur 0.10)
 const ATTENDUS = ["brush", "pencil", "mixerBrush", "eraser", "backgroundEraser", "magicEraser", "cloneStamp", "historyBrush",
   "spotHealing", "healing", "gradient", "paintBucket", "blur", "sharpen", "smudge", "dodge", "burn", "sponge",
-  "remove", "patternStamp", "redEye", "patch", "contentAwareMove"];
-check("1.1 23 outils de peinture et de retouche", eq(Object.keys(OUTILS_PEINTURE).sort(), [...ATTENDUS].sort()), Object.keys(OUTILS_PEINTURE));
+  "remove", "patternStamp", "redEye", "patch", "contentAwareMove", "artHistoryBrush"];
+check("1.1 24 outils de peinture et de retouche", eq(Object.keys(OUTILS_PEINTURE).sort(), [...ATTENDUS].sort()), Object.keys(OUTILS_PEINTURE));
 const tous = EMPLACEMENTS.flat();
 check("1.2 chacun existe dans la barre d'outils", ATTENDUS.every((id) => tous.some((o) => o.id === id)));
 check("1.3 t252 : la Pièce est un outil (sorte « piece » : glisser de la sélection)", OUTILS_PEINTURE.patch && OUTILS_PEINTURE.patch.sorte === "piece");
 check("1.4 chaque outil a ses options et un défaut pour chacune", ATTENDUS.every((id) => {
   const d = defautsPeinture(id);
   // t252 : une option `doc` (symétrie) vit dans le document, pas dans les réglages : aucun défaut d'outil
-  return optionsPeinture(id).length > 0 && optionsPeinture(id).every((o) => o.doc ? d[o.cle] === undefined : d[o.cle] !== undefined);
+  return optionsPeinture(id).length > 0 && optionsPeinture(id).every((o) => (o.doc || o.type === "bouton") ? d[o.cle] === undefined : d[o.cle] !== undefined);
 }));
 check("1.5 les défauts sont DANS leurs bornes", ATTENDUS.every((id) => {
   const d = defautsPeinture(id);
@@ -51,7 +51,7 @@ c = commandeTrait("pencil", P, o("pencil", { taille: 3, opacite: 100, effacement
 check("2.2 Crayon -> paint.pencil", c.command === "paint.pencil" && eq(c.params, { points: P, size: 3, opacity: 1, mode: "normal", autoErase: true, color: "#112233" }), c);
 c = commandeTrait("mixerBrush", P, o("mixerBrush", { taille: 7, humidite: 60, charge: 40, melange: 50, flux: 90, tousCalques: true }), C);
 check("2.3 Mélangeur -> paint.mixerBrush, valeurs 0..100", c.command === "paint.mixerBrush"
-  && eq(c.params, { points: P, size: 7, wet: 60, load: 40, mix: 50, flow: 90, sampleAllLayers: true, color: "#112233" }), c);
+  && eq(c.params, { points: P, size: 7, wet: 60, load: 40, mix: 50, flow: 90, sampleAllLayers: true, cleanAfterStroke: false, loadAfterStroke: false, color: "#112233" }), c);
 c = commandeTrait("eraser", P, o("eraser", { modeGomme: "pinceau", taille: 9, durete: 100, opacite: 50, flux: 100, lissageTrait: 0, historique: false }), C);
 check("2.4 Gomme (pinceau) -> paint.stroke erase, 0..1", c.command === "paint.stroke"
   && eq(c.params, { points: P, size: 9, hardness: 1, opacity: 0.5, flow: 1, smoothing: 0, erase: true }), c);

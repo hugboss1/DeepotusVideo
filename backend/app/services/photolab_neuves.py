@@ -55,3 +55,51 @@ COMMANDES_NEUVES_FERMEES = frozenset({
     "tools.increaseBrushSize", "tools.rotateBrush", "type.caret", "type.hitTest", "type.navigate", "view.editGuide",
     "view.resetRulerOrigin", "view.setRulerOrigin",
 })
+
+# Montée 0.21.0 (07/11/2026) : les 75 commandes que photocraft 0.21.0 ajoute à 0.10.0, fermées de la même façon.
+# Liste = ids de tests/photocraft_commandes_0.21.0.json absents de tests/photocraft_commandes_0.10.0.json.
+COMMANDES_NEUVES_021 = frozenset({
+    "actions.newSet", "actions.setHistory", "actions.setPlayback", "brush.mixer.clean", "brush.mixer.load",
+    "brush.mixer.sample", "file.approveMemory", "help.checkForUpdates", "history.clear", "history.options",
+    "history.setSource", "history.stepBackward", "history.stepForward", "layer.frame.convert", "layer.frame.fit",
+    "layer.frame.info", "layer.frame.set", "layer.frame.setContent", "layer.layerStyle.contours.delete",
+    "layer.layerStyle.contours.list", "layer.layerStyle.contours.load", "layer.layerStyle.contours.new",
+    "layer.layerStyle.contours.save", "layer.smartObjects.embedAllLinked", "layer.smartObjects.exportSvg",
+    "layer.smartObjects.updateSvg", "layer.smartObjects.updateVectorSource", "layer.xmpMetadata",
+    "layerComp.reorder", "paint.artHistoryBrush", "paint.mixerLoad", "path.addToSelection",
+    "path.mergeShapeComponents", "path.setOperation", "path.subtractFromSelection", "shape.presets.importCsh",
+    "style.presets.exportAsl", "style.presets.importAsl", "tools.firstBrush", "tools.lastBrush", "tools.nextBrush",
+    "tools.previousBrush", "type.fillPath", "type.font.favorite", "type.font.library",
+    "type.openType.numerals.default", "type.openType.numerals.lining", "type.openType.numerals.oldstyle",
+    "type.openType.numerals.proportional", "type.openType.numerals.proportionalLining",
+    "type.openType.numerals.proportionalOldstyle", "type.openType.numerals.tabular",
+    "type.openType.numerals.tabularLining", "type.openType.numerals.tabularOldstyle",
+    "type.openType.stylisticSets.set1", "type.openType.stylisticSets.set10", "type.openType.stylisticSets.set11",
+    "type.openType.stylisticSets.set12", "type.openType.stylisticSets.set13", "type.openType.stylisticSets.set14",
+    "type.openType.stylisticSets.set15", "type.openType.stylisticSets.set16", "type.openType.stylisticSets.set17",
+    "type.openType.stylisticSets.set18", "type.openType.stylisticSets.set19", "type.openType.stylisticSets.set2",
+    "type.openType.stylisticSets.set20", "type.openType.stylisticSets.set3", "type.openType.stylisticSets.set4",
+    "type.openType.stylisticSets.set5", "type.openType.stylisticSets.set6", "type.openType.stylisticSets.set7",
+    "type.openType.stylisticSets.set8", "type.openType.stylisticSets.set9", "updates.status",
+})
+# Ouvertes depuis (avec leurs bancs) :
+#   t417 (N7, 07/11) : layer.frame.* (Calque › Cadre).
+#   t416 (N6, 07/11) : aucune ouverte à /executer : style.presets.importAsl / exportAsl et shape.presets.importCsh passent par
+#                      /bibliotheques/*. layer.layerStyle.contours.* restent fermées : aucun champ Contour au dialogue.
+#   t414 (N4, 07/11) : Mélangeur (mixerLoad, load, clean), Forme d'art d'historique, source de l'historique, pinceau
+#                      précédent / suivant / premier / dernier. brush.mixer.sample et la clé mixerState restent fermés.
+#   t413 (N3, 07/11) : path.setOperation, path.mergeShapeComponents. shape.create et shape.edit sortent du gel (angles
+#                      arrondis, flèches). path.addToSelection / subtractFromSelection restent fermées : path.toSelection
+#                      fait déjà la même chose par `mode`.
+#   t415 (N5, 07/11) : history.clear. history.options et actions.setHistory passent par /options/moteur ; stepForward et
+#                      stepBackward doublent Annuler / Rétablir ; actions.newSet n'a ni suppression ni renommage au moteur,
+#                      les jeux vides restent à l'écran ; setPlayback ne rythme pas la lecture hors de l'app native.
+#   t412 (N2, 07/11) : styles de chiffres, jeux stylistiques, Texte dans une forme. type.font.* reste fermée : les favoris
+#                      sont gardés par l'écran, la commande écrirait les préférences du moteur.
+OUVERTES_021 = frozenset({f"type.openType.numerals.{c}" for c in (
+    "default", "lining", "oldstyle", "proportional", "tabular", "proportionalLining", "tabularLining", "proportionalOldstyle",
+    "tabularOldstyle")} | {f"type.openType.stylisticSets.set{n}" for n in range(1, 21)} | {"type.fillPath"}
+    | {"history.clear", "path.setOperation", "path.mergeShapeComponents"}
+    | {"layer.frame.set", "layer.frame.info", "layer.frame.convert", "layer.frame.setContent", "layer.frame.fit"}
+    | {"paint.artHistoryBrush", "paint.mixerLoad", "brush.mixer.load", "brush.mixer.clean", "history.setSource", "tools.previousBrush", "tools.nextBrush", "tools.firstBrush", "tools.lastBrush"})
+COMMANDES_NEUVES_FERMEES = COMMANDES_NEUVES_FERMEES | (COMMANDES_NEUVES_021 - OUVERTES_021)

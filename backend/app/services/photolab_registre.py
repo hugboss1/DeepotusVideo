@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 from app.services.photolab_neuves import COMMANDES_NEUVES_FERMEES
 
@@ -316,6 +317,13 @@ CHAMPS_REECRITS = {
 }
 
 
+# Montée 0.21.0 (07/11/2026) : commandes dont la description a changé -> leur lecture 0.10.0 reste celle du pont. Rien ne
+# s'ouvre par la seule montée ; un lot ouvre une clé en retirant la commande de ce fichier
+# (généré par scripts/photocraft_releve/geler_champs.py, recalculé par test_photolab_registre).
+_FICHIER_GELES = Path(__file__).with_name("photolab_champs_geles.json")
+CHAMPS_GELES: dict[str, dict] = json.loads(_FICHIER_GELES.read_text(encoding="utf-8")) if _FICHIER_GELES.is_file() else {}
+
+
 def structurer(commandes: list[dict]) -> dict[str, dict]:
     """id -> {"id", "label", "menu", "enabled", "champs", "ok", "inconnus", "queue"} pour tout le registre
     (une seule passe, ~776 entrées). `ok`/`inconnus` disent si la description est entièrement comprise."""
@@ -330,6 +338,9 @@ def structurer(commandes: list[dict]) -> dict[str, dict]:
         corriges = {k for (i, k) in CORRECTIONS_CHAMPS if i == c["id"]}
         inconnus = [x for x in d["inconnus"] if not any(x.lstrip().startswith(f'"{k}"') for k in corriges)]
         ok = d["ok"] or (bool(d["champs"] or d["inconnus"]) and not inconnus and "raison" not in d)
+        gel = CHAMPS_GELES.get(c["id"])
+        if gel:
+            champs, ok, inconnus = [dict(x) for x in gel["champs"]], gel["ok"], list(gel["inconnus"])
         sortie[c["id"]] = {"id": c["id"], "label": c.get("label"), "menu": c.get("menu") or [],
                            "enabled": c.get("enabled", True), "champs": champs, "ok": ok,
                            "inconnus": inconnus, "queue": d["queue"]}
@@ -631,7 +642,9 @@ def verifier(registre: dict, cid, params, kind=None, etat=None, etape=False) -> 
 
 
 # ── t252 : outils de retouche de photocraft 0.10 (Pièce, Déplacement basé sur le contenu, Œil rouge) ────────────────
-CHAMPS_M3 = {"paint.redEye": ({"cle": "pupilSize", "type": "number", "min": 1, "max": 100, "optionnel": True},
+CHAMPS_M3 = {"history.setSource": ({"cle": "snapshot", "type": "int", "min": 0, "optionnel": True},),   # t414
+             "shape.create": ({"cle": "op", "type": "enum", "valeurs": ["combine", "subtract", "intersect", "exclude"], "optionnel": True},),   # t413
+             "paint.redEye": ({"cle": "pupilSize", "type": "number", "min": 1, "max": 100, "optionnel": True},
                               {"cle": "darken", "type": "number", "min": 0, "max": 100, "optionnel": True})}
 # `offset` = [dx, dy] du glisser de la sélection : un « struct » au registre, vérifié ici (deux nombres finis, bornés
 # à la taille maximale d'un document : 300 000 px, registre de file.new 0.10).
@@ -1095,6 +1108,8 @@ def _v_infos(cid, params):
 # DONNÉES (le format que `export` rend), jamais un chemin : `edit.presets.migratePresets` {path} reste refusée.
 GENRES_GESTIONNAIRE = ("brushes", "customShapes", "patterns")
 GENRES_ECHANGE = ("brushes", "customShapes")
+# 0.21 : l'export du moteur porte aussi les préréglages d'outils ; à l'import ils passent le même contrôle, le genre `tools` reste fermé.
+CLES_DONNEES_ECHANGE = GENRES_ECHANGE + ("toolPresets",)
 MAX_NOM_PRESET = 64
 MAX_INDEX_PRESET = 10_000
 MAX_PRESETS_ECHANGE = 500
@@ -1170,7 +1185,7 @@ def _v_echange(cid, params):
     d = params.get("data")
     if not isinstance(d, dict):
         raise ValueError(f"{cid} : data : le contenu d'un fichier de préréglages exporté attendu")
-    _cles(cid, d, ("format", "version") + GENRES_ECHANGE)
+    _cles(cid, d, ("format", "version") + CLES_DONNEES_ECHANGE)
     if d.get("format") != "photocraft-presets" or d.get("version") != 1 or isinstance(d.get("version"), bool):
         raise ValueError(f"{cid} : data : ce n'est pas un fichier de préréglages (format photocraft-presets, version 1)")
     try:
@@ -1179,7 +1194,7 @@ def _v_echange(cid, params):
         raise ValueError(f"{cid} : data : illisible")
     if taille > MAX_OCTETS_ECHANGE:
         raise ValueError(f"{cid} : data : {MAX_OCTETS_ECHANGE // 1_000_000} Mo au plus")
-    for g in GENRES_ECHANGE:
+    for g in CLES_DONNEES_ECHANGE:
         liste = d.get(g, [])
         if not isinstance(liste, list) or len(liste) > MAX_PRESETS_ECHANGE:
             raise ValueError(f"{cid} : data.{g} : liste de {MAX_PRESETS_ECHANGE} préréglages au plus")

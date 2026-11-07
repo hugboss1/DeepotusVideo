@@ -32,7 +32,7 @@ def _version_epinglee(racine: Path) -> str:
     try:
         return str(json.loads((racine / "vendor" / "photocraft.json").read_text("utf-8"))["version"])
     except (OSError, ValueError, KeyError, TypeError):
-        return "0.10.0"
+        return "0.21.0"
 
 
 VERSION = _version_epinglee(RACINE_APP)
@@ -113,7 +113,8 @@ _EXT_FICHIER = (".png", ".jpg", ".jpeg", ".psd", ".psb", ".pcraft", ".tif", ".ti
                 ".exr", ".hdr", ".cube", ".3dl", ".look", ".icc", ".icm", ".abr", ".grd", ".pat", ".json", ".exe",
                 ".dll", ".wasm", ".txt", ".csv", ".pdf", ".ai",
                 # t257 : les formats que 0.10 lit ou écrit en plus
-                ".ora", ".kra", ".pdn", ".af", ".afphoto", ".afdesign", ".afpub", ".dpx", ".dds", ".heic", ".heif",
+                ".ora", ".kra", ".pdn", ".xcf", ".dcm", ".dicom", ".dc3", ".iff", ".lbm", ".ilbm", ".fits", ".fit", ".fts",
+                ".cin", ".qoi", ".pcx", ".xpm", ".ico", ".pnm", ".pbm", ".pgm", ".ppm", ".pam", ".pfm", ".jxl", ".af", ".afphoto", ".afdesign", ".afpub", ".dpx", ".dds", ".heic", ".heif",
                 ".dng", ".cr2", ".cr3", ".nef", ".arw", ".raf", ".rw2", ".orf")
 _LECTEUR = re.compile(r"^[A-Za-z]:")
 
@@ -349,7 +350,20 @@ class SessionMoteur:
             raise MoteurAbsent("Photolab arrêté")
         if not self.vivant():
             self._demarrer()
+            self._poser_options()
         return self.generation
+
+    def _poser_options(self):
+        """t415 : le moteur ne garde pas ces réglages : l'option de l'utilisateur est reposée à chaque démarrage. Un échec
+        ne bloque pas le travail : le moteur reste sur ses défauts."""
+        from app.services import photolab_bibliotheques as PB, photolab_options as PO
+        etapes = (PO.etapes(PO.lire()) if PO.en_place() else []) + PB.etapes()      # t416 : styles et formes importés
+        if not etapes:
+            return
+        try:
+            self._echange(self._proc, self._lignes, "batch", {"steps": etapes, "stopOnError": False}, self.delai_s)
+        except (MoteurErreur, OSError):
+            pass
 
     def _echange(self, proc, lignes, methode, params, delai):
         """UNE requête sur CE processus, SOUS le verrou. `proc`/`lignes` sont des locaux : un fermer() concurrent ne
@@ -1039,13 +1053,17 @@ def _au_sommet(appel):
 
 def _remplissage(appel, couleur):
     """Un calque de remplissage uni au-dessus du calque actif -> son id (le calque actif après création)."""
+    avait_selection = (appel("doc.inspect") or {}).get("hasSelection")
     _ex(appel, "layer.newFillLayer.solidColor", {"color": couleur})
     insp = appel("doc.inspect") or {}
     lid = insp.get("activeLayer")
     # t251 : photocraft 0.10 donne au calque uni le masque de la sélection courante (0.3.0 : jamais masqué). Ce calque
     # doit COUVRIR tout le document : son masque est rendu entièrement blanc, la sélection reste intacte.
-    if insp.get("hasSelection") and any(c.get("id") == lid and c.get("hasMask") for c in _a_plat(insp.get("layers"))):
+    # 0.21 : le masque CONSOMME la sélection, comme la référence -> elle est reprise (select.reselect).
+    if avait_selection and any(c.get("id") == lid and c.get("hasMask") for c in _a_plat(insp.get("layers"))):
         _ex(appel, "layer.layerMask.revealAll", {"layer": lid})
+    if avait_selection and not insp.get("hasSelection"):
+        _ex(appel, "select.reselect")
     return lid
 
 
@@ -1318,7 +1336,7 @@ def nom_libre(dossier: Path, base: str, ext: str) -> str:
     return fichier
 
 
-def copie_document(s: SessionMoteur, fmt: str, base: str, quality=None, calques: bool = False):
+def copie_document(s: SessionMoteur, fmt: str, base: str, quality=None, calques: bool = False, options=None):
     """Enregistrer une copie -> (nom sous exports/, génération). Le document actif est DUPLIQUÉ, la copie enregistrée
     puis refermée : l'original garde son fichier, son état « modifié », sa sélection et son historique (un doc.save de
     l'original le rattacherait au nouveau fichier). t257 : `calques` = TIFF à calques (tiffLayers)."""
@@ -1330,6 +1348,7 @@ def copie_document(s: SessionMoteur, fmt: str, base: str, quality=None, calques:
             p["quality"] = quality
         if calques and fmt == "tif":
             p["tiffLayers"] = True
+        p.update(options or {})
         _sur_copie(appel, insp, actif, n_avant, "dz-copie", lambda cible: appel("doc.save", p))
         return fichier
     return s.sequence(fn)
@@ -1454,7 +1473,8 @@ def placer(s: SessionMoteur, chemin: str, nom: str, objet_dynamique: bool = True
         finally:
             appel("doc.close", {"index": idx})
             ex("document.activate", document=actif)
-        ex("edit.paste", center=list(centre) if centre else [w / 2, h / 2])
+        # 0.21 : sans clampToCanvas:false, le collage plus grand que la toile part en haut à gauche et `center` est ignoré
+        ex("edit.paste", center=list(centre) if centre else [w / 2, h / 2], clampToCanvas=False)
         if objet_dynamique:
             lid = (ex("layer.smartObjects.convertToSmartObject") or {}).get("layer")
         else:
@@ -1466,6 +1486,52 @@ def placer(s: SessionMoteur, chemin: str, nom: str, objet_dynamique: bool = True
             ex("edit.transform", layer=lid, quad=[[x0, y0], [x0 + iw * f, y0], [x0 + iw * f, y0 + ih * f], [x0, y0 + ih * f]])
         calque = next((c for c in _a_plat((appel("doc.inspect") or {}).get("layers")) if c.get("id") == lid), {})
         return {"layer": lid, "bounds": calque.get("bounds")}
+    return s.sequence(fn)
+
+
+def _objet_actif(insp) -> int:
+    """L'id du calque actif s'il est un objet dynamique ; sinon un refus clair, avant tout appel au moteur."""
+    lid = insp.get("activeLayer")
+    calque = next((c for c in _a_plat(insp.get("layers")) if c.get("id") == lid), None)
+    if not calque or calque.get("kind") != "Smart Object":
+        raise ValueError("le calque actif n'est pas un objet dynamique")
+    return lid
+
+
+def remplacer_contenu(s: SessionMoteur, chemin: str):
+    """t411 : Calque › Objets dynamiques › Remplacer le contenu -> ({"layer", "instances"}, génération). `chemin` est
+    déjà copié sous entrees/ ; doc.replaceSmartObject le lit sous la racine (la commande de ce nom refuse tout chemin)."""
+    relatif(chemin)
+
+    def fn(appel, gen):
+        _actif, _n, insp = _ouvrir_original(appel)
+        lid = _objet_actif(insp)
+        r = appel("doc.replaceSmartObject", {"path": chemin, "layer": lid}) or {}
+        return {"layer": lid, "instances": r.get("instances") or []}
+    return s.sequence(fn)
+
+
+def exporter_contenu(s: SessionMoteur):
+    """t411 : Calque › Objets dynamiques › Exporter le contenu -> ({"dossier", "fichiers", "nom"}, génération). La commande
+    du moteur refuse tout chemin : le contenu est ouvert (editContents), enregistré en PNG sous un dossier neuf de
+    sorties/, puis refermé sans rien changer à l'objet. L'appelant dépose le fichier et efface le dossier."""
+    def fn(appel, gen):
+        actif, _n, insp = _ouvrir_original(appel)
+        lid = _objet_actif(insp)
+        nom = next((c.get("name") for c in _a_plat(insp.get("layers")) if c.get("id") == lid), None)
+        dossier = relatif(f"sorties/{time.strftime('%Y%m%d-%H%M%S')}-{next(_COMPTEUR_SORTIES)}")
+        (dossier_travail() / dossier).mkdir(parents=True, exist_ok=True)
+        fichier = f"{dossier}/contenu.png"
+        ouvert = _ex(appel, "layer.smartObjects.editContents", {"layer": lid}).get("document")
+        if not isinstance(ouvert, int) or isinstance(ouvert, bool):
+            raise MoteurErreur("editContents n'a pas rendu le document du contenu")
+        try:
+            appel("doc.save", {"path": fichier, "index": ouvert})
+        finally:
+            appel("doc.close", {"index": ouvert})
+            if (appel("session.list") or {}).get("active") != actif:
+                appel("doc.select", {"index": actif})
+        return {"dossier": dossier, "fichiers": [fichier], "nom": nom}
     return s.sequence(fn)
 
 
@@ -1566,6 +1632,8 @@ def importer_notes(s: SessionMoteur, source: int):
 FORMATS_OUVERTURE = ("ora", "kra", "pdn", "af", "afphoto", "afdesign", "afpub", "exr", "dpx", "dds",
                      "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "raf", "rw2", "orf", "pef", "srw", "3fr",
                      "iiq", "erf", "mrw", "x3f",
+                     # t418, lot N8 : GIMP, médical, astronomie, Amiga, cinéma, Netpbm, rastérs simples ; JPEG XL reste à l'export
+                     "xcf", "dcm", "dicom", "dc3", "iff", "lbm", "ilbm", "fits", "fit", "fts", "hdr", "cin", "qoi", "pcx", "xpm", "ico", "pnm", "pbm", "pgm", "ppm", "pam", "pfm",
                      "psd", "psb", "pcraft", "tif", "tiff", "tga", "png", "jpg", "jpeg", "webp", "gif", "bmp")
 _COMPTEUR_SORTIES = itertools.count(1)
 

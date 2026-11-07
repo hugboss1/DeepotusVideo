@@ -4,20 +4,31 @@ Deepotus Video Gen — Photolab : composants tiers
 Le Photolab calcule ses images avec le moteur photocraft, livré tel que publié et vérifié fichier par fichier
 (vendor/photocraft.json) :
 
-  photocraft 0.10.0 (photocraft-cli.exe, photocraft.exe)
-  https://github.com/storytold/photocraft — tag v0.10.0
+  photocraft 0.21.0 (photocraft-cli.exe, photocraft.exe)
+  https://github.com/storytold/photocraft — tag v0.21.0
   Copyright (c) 2026 ArtCraft Team and the PhotoCraft contributors.
   Double licence, au choix : MIT ou Apache 2.0
-    photocraft-0.10.0/photocraft-0.10.0-windows-x64-portable/LICENSE-MIT
-    photocraft-0.10.0/photocraft-0.10.0-windows-x64-portable/LICENSE-APACHE
+    photocraft-0.21.0/LICENSE-MIT
+    photocraft-0.21.0/LICENSE-APACHE
   Mentions requises par l'amont, reproduites telles quelles : licences-photocraft/NOTICE
 
 Matériel tiers intégré au moteur, sous ses propres licences :
 
-  Polices BIZ UDMincho, BIZ UDPGothic, Shippori Mincho — SIL Open Font License 1.1
-    photocraft-0.10.0/photocraft-0.10.0-windows-x64-portable/OFL-biz-ud-mincho.txt
-    photocraft-0.10.0/photocraft-0.10.0-windows-x64-portable/OFL-biz-ud-pgothic.txt
-    photocraft-0.10.0/photocraft-0.10.0-windows-x64-portable/OFL-shippori-mincho.txt
+  Polices BIZ UDMincho, BIZ UDPGothic, Shippori Mincho, LXGW WenKai Lite, Nanum Gothic, Noto Sans (Arabic, CJK SC,
+  Devanagari, Georgian, Hebrew, Symbols, Symbols 2, Thai) — SIL Open Font License 1.1
+    photocraft-0.21.0/OFL-biz-ud-mincho.txt
+    photocraft-0.21.0/OFL-biz-ud-pgothic.txt
+    photocraft-0.21.0/OFL-shippori-mincho.txt
+    photocraft-0.21.0/OFL-lxgw-wenkai-lite.txt
+    photocraft-0.21.0/OFL-nanum-gothic.txt
+    photocraft-0.21.0/OFL-noto-sans-arabic.txt
+    photocraft-0.21.0/OFL-noto-sans-cjk-sc.txt
+    photocraft-0.21.0/OFL-noto-sans-devanagari.txt
+    photocraft-0.21.0/OFL-noto-sans-georgian.txt
+    photocraft-0.21.0/OFL-noto-sans-hebrew.txt
+    photocraft-0.21.0/OFL-noto-sans-symbols.txt
+    photocraft-0.21.0/OFL-noto-sans-symbols-2.txt
+    photocraft-0.21.0/OFL-noto-sans-thai.txt
   Police Inter — SIL Open Font License 1.1 : licences-photocraft/OFL-Inter.txt
   Police JetBrains Mono — SIL Open Font License 1.1 : licences-photocraft/OFL-JetBrainsMono.txt
   Liste de mots anglaise SCOWL (vérification orthographique) — licence SCOWL : licences-photocraft/LICENSE-SCOWL.txt
@@ -34,15 +45,17 @@ Matériel tiers intégré au moteur, sous ses propres licences :
     licences-photocraft/LICENSE-symmetry-axes.txt
   Traductions de l'interface de l'app native (crates/ui-egui/src/i18n/*.tsv, dont fr.tsv) — MIT ou Apache 2.0 :
     licences-photocraft/LICENSE-translations.txt
+  Sous-ensemble de police egui-icons (emoji-icon-font, John Slegers) et sctk-adwaita (Linux seulement) — MIT :
+    texte reproduit dans licences-photocraft/NOTICE
   Liste complète des matériaux du moteur, auteur par auteur, telle que l'amont la publie : licences-photocraft/ATTRIBUTION.md
 
 Repris par l'écran du Photolab (frontend/photolab/, voir ATTRIBUTION.md) : les icônes Lucide (même licence ISC,
 frontend/photolab/icones/LICENSE-lucide.txt), le catalogue des menus et les libellés français des commandes de
-photocraft (MIT ou Apache 2.0) ; depuis 0.10 (t258), la traduction française de l'amont (fr.tsv du tag v0.10.0) en
+photocraft (MIT ou Apache 2.0) ; depuis 0.10 (t258), la traduction française de l'amont (fr.tsv du tag v0.21.0) en
 repli pour les commandes que notre catalogue ne nomme pas.
 
 Les noms, logos et marques ArtCraft ne sont pas couverts par ces licences et ne sont pas utilisés par Deepotus.
-Les textes des licences de licences-photocraft/ viennent des sources du tag v0.10.0 (commit 8407d9ccb), reproduits
+Les textes des licences de licences-photocraft/ viennent des sources du tag v0.21.0 (commit efb7ebd0c), reproduits
 tels quels ; NOTICE, OFL-Inter, OFL-JetBrainsMono, LICENSE-SCOWL et LICENSE-lucide sont identiques à ceux du tag v0.3.0,
 les autres sont nouveaux en 0.10 (t251 : libfacedetection ; t259 : ATTRIBUTION.md, traductions, Solarized, Noun Project,
 axes de symétrie). COPYING-xorg-rgb.txt est le COPYING de xorg/app/rgb (GitLab freedesktop, commit fb06ee0b), auquel

@@ -204,10 +204,44 @@ export const recents = (liste, ch, max = 12) => [ch, ...(liste || []).filter((x)
 export const pointDeCode = (ch) => "U+" + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
 
 /* ── menu Texte ── */
-export function decorerTexte(menus, prefs) {
+// t412 : Chiffres et Jeux stylistiques cochés d'après type.info (runs[].style.features) : coché seulement si TOUT le texte
+// porte le trait. undefined : entrée d'une autre famille.
+const CHIFFRES_TRAITS = { default: [], lining: ["lnum"], oldstyle: ["onum"], proportional: ["pnum"], tabular: ["tnum"],
+  proportionalLining: ["lnum", "pnum"], tabularLining: ["lnum", "tnum"], proportionalOldstyle: ["onum", "pnum"], tabularOldstyle: ["onum", "tnum"] };
+const TRAITS_CHIFFRES = ["lnum", "onum", "pnum", "tnum"];
+export function cocheOpenType(id, info) {
+  const chiffres = /^type\.openType\.numerals\.(.+)$/.exec(id), jeu = /^type\.openType\.stylisticSets\.set(\d+)$/.exec(id);
+  if (!chiffres && !jeu) return undefined;
+  const runs = info && Array.isArray(info.runs) ? info.runs : [];
+  if (!runs.length) return false;
+  const tags = (r) => ((r.style && r.style.features) || []).map((f) => f.tag);
+  if (jeu) { const ss = "ss" + jeu[1].padStart(2, "0"); return runs.every((r) => tags(r).includes(ss)); }
+  const voulus = CHIFFRES_TRAITS[chiffres[1]] || [];
+  return runs.every((r) => { const a = tags(r).filter((x) => TRAITS_CHIFFRES.includes(x)).sort(); return JSON.stringify(a) === JSON.stringify(voulus); });
+}
+// t412 : Texte dans une forme — les cibles : le tracé de travail (valeur vide : le moteur le prend par défaut), puis les
+// calques de forme du document. Liste vide : rien à remplir.
+export function choixFormes(doc, avecTrace, T = (k) => k) {
+  const out = avecTrace ? [{ valeur: "", libelle: T("photolab.traces.travail") }] : [];
+  const voir = (l) => { for (const c of l || []) { if (c.kind === "Shape") out.push({ valeur: c.id, libelle: c.name }); voir(c.children); } };
+  voir(doc && doc.layers);
+  return out;
+}
+// t412 : polices favorites, gardées par l'écran (type.font.favorite écrirait les préférences du moteur).
+export function ordonnerPolices(familles, favoris, recherche) {
+  const q = String(recherche || "").trim().toLowerCase();
+  const f = familles.filter((x) => !q || x.toLowerCase().includes(q));
+  return [...f.filter((x) => favoris.includes(x)), ...f.filter((x) => !favoris.includes(x))];
+}
+export const basculerFavori = (favoris, famille) => (favoris.includes(famille) ? favoris.filter((x) => x !== famille) : [...favoris, famille]);
+
+export function decorerTexte(menus, prefs, info = null, surTexte = !!info) {
   const p = { ...PREFS_DEFAUT, ...(prefs || {}) };
   const voir = (es) => (es || []).map((e) => {
     if (e.type === "sous-menu") return { ...e, entrees: voir(e.entrees) };
+    const coche = e.id ? cocheOpenType(e.id, info) : undefined;
+    if (coche !== undefined) return { ...e, coche };
+    if (e.id === "type.fillPath" && !surTexte) return { ...e, etat: "inactif" };
     if (APERCUS[e.id] != null) return { ...e, etat: "actif", coche: p.apercu === e.id };
     if (LANGUES.includes(e.id)) return { ...e, etat: "actif", coche: p.langue === e.id };
     if (PANNEAUX_TEXTE[e.id]) return { ...e, etat: "actif" };
@@ -232,6 +266,10 @@ export function initTexte(PL) {
   let prefs = { ...PREFS_DEFAUT, ...lireLS(CLE_PREFS, {}) };
   const opts = (PL.etat.texte = { ...DEFAUT_TEXTE });
   let polices = null;                                        // familles du moteur (type.fonts), une fois
+  const CLE_FAVORIS = "dz-photolab-polices-favorites";
+  let cleInfoMenus = null;
+  let favoris = lireLS(CLE_FAVORIS, []);
+  if (!Array.isArray(favoris)) favoris = [];
   let info = null, infoCalque = null, infoRev = null;        // type.info du calque de texte actif
   let ed = null;                                             // édition : {calque|null, pl, avant, zone, boite}
   let g = null;                                              // geste de l'outil : {a}
@@ -481,13 +519,19 @@ export function initTexte(PL) {
     const ul = document.createElement("div"); ul.className = "tx-police-items";
     pop.append(rech, ul);
     const remplir = async () => {
-      const fs = await listePolices(), q = rech.value.trim().toLowerCase(), px = APERCUS[prefs.apercu] || 14;
+      const fs = await listePolices(), px = APERCUS[prefs.apercu] || 14;
       ul.textContent = "";
-      for (const f of fs.filter((x) => !q || x.toLowerCase().includes(q)).slice(0, 300)) {
+      for (const f of ordonnerPolices(fs, favoris, rech.value).slice(0, 300)) {
+        // t412 : une étoile par ligne, les favoris remontent en tête ; gardés par ce navigateur
+        const ligne = document.createElement("div"); ligne.className = "tx-police-ligne";
+        const etoile = document.createElement("button"); etoile.type = "button"; etoile.title = T("photolab.texte.favori");
+        etoile.className = "tx-police-favori" + (favoris.includes(f) ? " actif" : ""); etoile.innerHTML = PL.icone("dz-action-favori", 12);
+        etoile.setAttribute("aria-pressed", String(favoris.includes(f)));
+        etoile.addEventListener("click", () => { favoris = basculerFavori(favoris, f); ecrireLS(CLE_FAVORIS, favoris); remplir(); });
         const it = document.createElement("button"); it.type = "button"; it.className = "tx-police-item"; it.textContent = f; it.setAttribute("data-dz-brut", "");
         it.style.fontFamily = `"${f}", sans-serif`; it.style.fontSize = px + "px";
         it.addEventListener("click", () => { pop.hidden = true; b.textContent = f; b.style.fontFamily = `"${f}", sans-serif`; choisir(f); });
-        ul.appendChild(it);
+        ligne.append(etoile, it); ul.appendChild(ligne);
       }
     };
     b.addEventListener("click", () => { pop.hidden = !pop.hidden; if (!pop.hidden) { remplir(); rech.focus(); } });
@@ -704,7 +748,24 @@ export function initTexte(PL) {
 
   /* menu Texte, panneaux, rafraîchissements */
   PL.decorateursMenus = PL.decorateursMenus || [];
-  PL.decorateursMenus.push((menus) => decorerTexte(menus, prefs));
+  PL.decorateursMenus.push((menus) => {
+    const c = calqueActifTexte(), rev = PL.etat.doc ? PL.etat.doc.revision : null, cle = c ? `${c.id}:${rev}` : null;
+    // type.info n'est lu d'ordinaire que panneau Caractère ouvert : les coches du menu le relisent une fois par révision
+    if (c && (infoCalque !== c.id || infoRev !== rev) && cleInfoMenus !== cle) {
+      cleInfoMenus = cle;
+      relireInfo().then(() => { if (PL.menus && PL.menus.redessiner) PL.menus.redessiner(); }).catch(() => {});
+    }
+    return decorerTexte(menus, prefs, c && infoCalque === c.id ? info : null, !!c);
+  });
+  // t412 : Texte dans une forme — le tracé de travail ou un calque de forme, choisis dans le dialogue générique
+  PL.actions["type.fillPath"] = async () => {
+    let l = null;
+    try { l = await PL.post("/executer", { command: "path.list", params: {} }); } catch (e) { return; }
+    const valeurs = choixFormes(PL.etat.doc, !!(l && l.workPath), T);
+    if (!valeurs.length) { PL.signaler(T("photolab.texte.aucune_forme"), true); return; }
+    const entree = { id: "type.fillPath", libelle: T("photolab.commande.type.fill_path"), champs: [] };
+    PL.ouvrirReglage(entree, { choix: [{ cle: "shape", libelle: T("photolab.texte.forme_cible"), valeurs }] });
+  };
   PL.actions = PL.actions || {};
   for (const id of [...Object.keys(APERCUS), ...LANGUES]) {
     PL.actions[id] = () => {

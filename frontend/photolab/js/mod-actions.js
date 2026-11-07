@@ -196,7 +196,7 @@ export function entreesMenu(e) {
     it("monter", "photolab.actions.menu.monter", a && !rec), it("descendre", "photolab.actions.menu.descendre", a && !rec), null,
     it("effacer", "photolab.actions.menu.effacer", e.n > 0 && !rec), it("charger", "photolab.actions.menu.charger", !rec),
     it("remplacer", "photolab.actions.menu.remplacer", !rec), it("sauver", "photolab.actions.menu.sauver", e.n > 0 && !rec), null,
-    it("lot", "photolab.actions.menu.lot", e.n > 0 && !rec),
+    it("lot", "photolab.actions.menu.lot", e.n > 0 && !rec), it("lecture", "photolab.actions.menu.lecture", !rec),
   ];
 }
 
@@ -499,6 +499,7 @@ export function initActions(PL) {
     else if (id === "remplacer") charger(true);
     else if (id === "sauver") sauverAtn();
     else if (id === "lot") traitementParLots();
+    else if (id === "lecture") optionsLecture();
   }
 
   /* ── dialogues ── */
@@ -543,6 +544,17 @@ export function initActions(PL) {
     sel = { action: nom }; ouvertes.add(nom);
     PL.signaler(T("photolab.actions.enregistrement", { nom }));
     relire();
+  }
+  // t415 : le moteur rythme ses lectures seul hors de l'app native ; reste le regroupement en un état d'historique
+  async function optionsLecture() {
+    let o = null;
+    try { o = (await PL.get("/options/moteur", true)).options; } catch (e) { return; }
+    const l = document.createElement("label"); l.className = "pl-case";
+    const i = document.createElement("input"); i.type = "checkbox"; i.checked = !!o.actionUnEtat;
+    l.append(i, document.createTextNode(" " + T("photolab.actions.lecture_un_etat")));
+    const role = await ouvrirDialogue(PL, { titre: T("photolab.actions.lecture_titre"), construire({ corps: c }) { c.appendChild(l); },
+      boutons: [{ role: "annuler", libelle: T("commun.action.annuler") }, { role: "ok", libelle: T("commun.action.valider"), principal: true }] });
+    if (role === "ok" && i.checked !== !!o.actionUnEtat) await PL.post("/options/moteur", { actionUnEtat: i.checked });
   }
   async function nouveauJeu() {
     const n = await demanderNom(PL, T("photolab.actions.nouveau_jeu_titre"), nomNouvelle(jeuxDe(arbre), (k) => T("photolab.actions.jeu_n", { n: k })), MAX_NOM);

@@ -3,8 +3,8 @@
 Données de photocraft, MIT OR Apache-2.0 : la source et la licence sont écrites dans le JSON.
 D8 : « Photoshop » n'apparaît dans aucun libellé montré ; chaque remplacement est consigné dans `remplacements`.
 
-t258 (M9, 20/10/2026) : le français vient du fr.tsv LIVRÉ dans v0.10.0 (plus du commit 3d23a708c2, postérieur à
-v0.3.0) et n'est qu'un REPLI :
+t258 (M9, 20/10/2026) : le français vient du fr.tsv LIVRÉ dans le tag du moteur épinglé (v0.21.0 depuis le 07/11/2026)
+et n'est qu'un REPLI :
 - l'arbre des menus reste celui de v0.3.0 (l'écran y insère lui-même les entrées de 0.10 : INSERTIONS_M7/M8) ;
 - un libellé français déjà présent dans le menus.json en place est GARDÉ, même si l'amont dit autre chose
   (l'écart est consigné dans `ecarts_amont`) : rien de ce que l'écran affiche ne change en douce ;
@@ -12,14 +12,14 @@ v0.3.0) et n'est qu'un REPLI :
   backend/tests/photocraft_commandes_<version>.json), avec le libellé anglais du moteur et, quand le fr.tsv l'a,
   sa traduction. L'écran ne s'en sert qu'après ses propres libellés (mod-libelles.js).
 
-Usage : python scripts/photocraft_catalogue.py <sources v0.3.0> --fr-tsv <fr.tsv de v0.10.0>
+Usage : python scripts/photocraft_catalogue.py <sources v0.3.0> --fr-tsv <fr.tsv de v0.21.0>
                                                [--commandes <registre .json>] [--sortie <menus.json>]
 """
 import hashlib, json, pathlib, re, sys
 
-TAG_FR = "v0.10.0"
-COMMIT_FR = "8407d9ccb1"                                   # commit du tag v0.10.0
-BLOB_FR = "4a819b0e1b15b2ed7f6fc2625895be1d02e46cf4"
+TAG_FR = "v0.21.0"
+COMMIT_FR = "efb7ebd0c0"                                   # commit du tag v0.21.0
+BLOB_FR = "0b4394288d20e2c81c4ba8ef46f7b276f8100b41"
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 SORTIE = RACINE / "frontend" / "photolab" / "donnees" / "menus.json"
@@ -97,14 +97,14 @@ def main(args) -> int:
             opts[cle] = args[i + 1]
             del args[i:i + 2]
     if len(args) != 1 or "--fr-tsv" not in opts:
-        print("Usage : photocraft_catalogue.py <sources v0.3.0> --fr-tsv <fr.tsv de v0.10.0> [--commandes <registre>] "
+        print("Usage : photocraft_catalogue.py <sources v0.3.0> --fr-tsv <fr.tsv de v0.21.0> [--commandes <registre>] "
               "[--sortie <menus.json>]")
         return 2
     if "--sortie" in opts:
         SORTIE = pathlib.Path(opts["--sortie"]).resolve()
     src = pathlib.Path(args[0])
     tsv = pathlib.Path(opts["--fr-tsv"])
-    # Le français est épinglé par son empreinte git : celui du tag v0.10.0, jamais « celui qui traîne ». Calculée sur
+    # Le français est épinglé par son empreinte git : celui du tag du moteur, jamais « celui qui traîne ». Calculée sur
     # les fins de ligne LF, comme git (une extraction Windows peut l'avoir passé en CRLF).
     empreinte = blob_git(tsv.read_bytes().replace(b"\r\n", b"\n"))
     if empreinte != BLOB_FR:
@@ -132,6 +132,9 @@ def main(args) -> int:
     ancien = json.loads(SORTIE.read_text("utf-8")) if SORTIE.is_file() else {}
     ecarts = garder(entrees, menus, ancien)
     rep = repli(json.loads(reg.read_text("utf-8")), {e["id"] for e in entrees if e.get("id")}, texte, par_id)
+    for cid, v in ((ancien or {}).get("repli") or {}).items():      # un libellé de repli en place reste, comme l'arbre
+        if cid in rep and v.get("libelle_fr"):
+            rep[cid]["libelle_fr"] = v["libelle_fr"]
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
     SORTIE.write_text(json.dumps({"source": "storytold/photocraft v0.3.0 crates/ui-egui/src/menu_catalog.rs",
                                   "source_fr": f"storytold/photocraft {TAG_FR} (commit {COMMIT_FR}) "

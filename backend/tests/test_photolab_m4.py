@@ -156,7 +156,7 @@ def moteur():
     h0 = historique(s)
     r = ex("image.crop", {"x": -10, "y": -10, "width": 220, "height": 140, "contentAware": True})
     check("2g Recadrage qui agrandit avec « Contenu pris en compte » : 220 × 140", ins().get("width") == 220 and ins().get("height") == 140, r)
-    etat("2g Recadrage", "Crop", h0)
+    etat("2g Recadrage", "Content-aware Crop", h0)
     h0 = historique(s)
     r = ex("image.perspectiveCrop", {"corners": COINS, "interpolation": "bicubic"})
     check("2h Recadrage de perspective : quadrilatère redressé en 150 × 91 (côtés moyens)", ins().get("width") == 150 and ins().get("height") == 91, r)

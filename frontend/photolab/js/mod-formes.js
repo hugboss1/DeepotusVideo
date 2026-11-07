@@ -5,8 +5,11 @@
 // (couleur de premier plan), contour (épaisseur, couleur, alignement), rayon des angles, côtés, épaisseur du trait,
 // forme personnalisée. Fonctions PURES exportées (qa/formes.test.mjs).
 
+import { trouverCalque } from "./mod-calques.js";
+
 export const OUTILS_FORME = ["rectangle", "ellipseShape", "triangle", "polygon", "line", "customShape"];
-export const FORMES_DEFAUT = { remplir: true, contour: 0, couleurContour: "#000000", alignContour: "center", rayon: 0, cotes: 5, epaisseur: 3 };
+export const FORMES_DEFAUT = { remplir: true, contour: 0, couleurContour: "#000000", alignContour: "center", rayon: 0, cotes: 5, epaisseur: 3,
+  operation: "nouveau", flecheDebut: false, flecheFin: false, flecheLargeur: 52, flecheLongueur: 50, flecheCreux: 0 };
 export const ALIGNEMENTS_CONTOUR = ["inside", "center", "outside"];
 export const LIB_ALIGNEMENTS = { inside: "photolab.formes.align_inside", center: "photolab.formes.align_center", outside: "photolab.formes.align_outside" };
 const PAS45 = Math.PI / 4;
@@ -59,13 +62,27 @@ export function peinture(opts, fg) {
     align: ALIGNEMENTS_CONTOUR.includes(opts.alignContour) ? opts.alignContour : "center" } : null;
   return p;
 }
+// t413 : une forme ajoutée au calque de forme actif (composant du même calque) au lieu d'un calque neuf ; le trait et la
+// forme personnalisée restent des calques à part.
+export const OPERATIONS_FORME = ["nouveau", "combine", "subtract", "intersect", "exclude"];
+const LIB_OPERATIONS_FORME = { nouveau: "photolab.formes.op_nouveau", combine: "photolab.traces.op_combine", subtract: "photolab.traces.op_subtract",
+  intersect: "photolab.traces.op_intersect", exclude: "photolab.traces.op_exclude" };
+export function ajoutForme(c, outil, opts, calqueForme) {
+  if (!c || c.command !== "shape.create" || outil === "line" || !calqueForme || !opts.operation || opts.operation === "nouveau") return c;
+  const { fill, stroke, ...p } = c.params;
+  return { command: c.command, params: { ...p, addTo: calqueForme, op: opts.operation } };
+}
 // La commande du moteur pour la géométrie g, ou null (forme de moins d'un pixel).
 export function commandeForme(outil, g, opts = FORMES_DEFAUT, fg = "#000000", preset = null, mods = {}) {
   if (!OUTILS_FORME.includes(outil) || tropPetite(g)) return null;
   const pt = peinture(opts, fg);
   if (outil === "line") {
+    // t413 : flèches du trait, en pixels ; aucune clé sans flèche
+    const fleches = opts.flecheDebut || opts.flecheFin ? { arrowStart: !!opts.flecheDebut, arrowEnd: !!opts.flecheFin,
+      arrowWidth: Math.max(1, Number(opts.flecheLargeur) || 52), arrowLength: Math.max(1, Number(opts.flecheLongueur) || 50),
+      arrowConcavity: Math.max(0, Math.min(100, Number(opts.flecheCreux) || 0)) } : {};
     return { command: "shape.create", params: { kind: "line", from: g.de.map(arr), to: g.a.map(arr),
-      weight: Math.max(1, Math.min(1000, Number(opts.epaisseur) || 3)), fill: pt.fill || fg, stroke: pt.stroke } };
+      weight: Math.max(1, Math.min(1000, Number(opts.epaisseur) || 3)), ...fleches, fill: pt.fill || fg, stroke: pt.stroke } };
   }
   const r = [arr(g.rect.x), arr(g.rect.y), arr(g.rect.w), arr(g.rect.h)];
   if (outil === "customShape") {
@@ -79,8 +96,10 @@ export function commandeForme(outil, g, opts = FORMES_DEFAUT, fg = "#000000", pr
     return { command: "shape.create", params: rayon > 0 ? { kind: "roundedRect", radii: rayon, ...p } : { kind: "rect", ...p } };
   }
   if (outil === "ellipseShape") return { command: "shape.create", params: { kind: "ellipse", ...p } };
-  if (outil === "triangle") return { command: "shape.create", params: { kind: "polygon", sides: 3, ...p } };
-  return { command: "shape.create", params: { kind: "polygon", sides: Math.max(3, Math.min(100, Math.round(opts.cotes) || 5)), ...p } };
+  // t413 : angles arrondis du triangle et du polygone (moteur 0.21)
+  const rayonPoly = Math.max(0, Number(opts.rayon) || 0), angles = rayonPoly > 0 ? { cornerRadius: rayonPoly } : {};
+  if (outil === "triangle") return { command: "shape.create", params: { kind: "polygon", sides: 3, ...angles, ...p } };
+  return { command: "shape.create", params: { kind: "polygon", sides: Math.max(3, Math.min(100, Math.round(opts.cotes) || 5)), ...angles, ...p } };
 }
 
 /* ───────────── côté DOM ───────────── */
@@ -106,7 +125,8 @@ export function initFormes(PL) {
         if (!g) return;
         const geo = geometrie(outil, g.a, [p.x, p.y], mods(ev));
         g = null; montrer(outil, null);
-        const c = commandeForme(outil, geo, opts, fg(), PL.formePersonnalisee, mods(ev));
+        const d = PL.etat.doc, actif = d ? trouverCalque(d.layers, d.activeLayer) : null;
+        const c = ajoutForme(commandeForme(outil, geo, opts, fg(), PL.formePersonnalisee, mods(ev)), outil, opts, actif && actif.kind === "Shape" ? actif.id : null);
         if (c) PL.executer(c.command, c.params);
       },
       annuler() { g = null; montrer(outil, null); },
@@ -136,9 +156,25 @@ export function initFormes(PL) {
     for (const v of ALIGNEMENTS_CONTOUR) { const o = document.createElement("option"); o.value = v; o.textContent = T(LIB_ALIGNEMENTS[v]); al.appendChild(o); }
     al.value = opts.alignContour; al.addEventListener("change", () => { opts.alignContour = al.value; });
     champ("photolab.formes.alignement", al);
-    if (outil === "rectangle") nombre("rayon", "photolab.formes.rayon", 0, 10000, "px");
+    if (outil !== "line" && outil !== "customShape") {
+      const op = document.createElement("select");
+      for (const v of OPERATIONS_FORME) { const o = document.createElement("option"); o.value = v; o.textContent = T(LIB_OPERATIONS_FORME[v]); op.appendChild(o); }
+      op.value = opts.operation; op.addEventListener("change", () => { opts.operation = op.value; });
+      champ("photolab.formes.operation", op);
+    }
+    if (outil === "rectangle" || outil === "triangle" || outil === "polygon") nombre("rayon", "photolab.formes.rayon", 0, 10000, "px");
     if (outil === "polygon") nombre("cotes", "photolab.formes.cotes", 3, 100);
-    if (outil === "line") nombre("epaisseur", "photolab.formes.epaisseur", 1, 1000, "px");
+    if (outil === "line") {
+      nombre("epaisseur", "photolab.formes.epaisseur", 1, 1000, "px");
+      for (const [cle, lib] of [["flecheDebut", "photolab.formes.fleche_debut"], ["flecheFin", "photolab.formes.fleche_fin"]]) {
+        const c = Object.assign(document.createElement("input"), { type: "checkbox", checked: opts[cle] });
+        c.addEventListener("change", () => { opts[cle] = c.checked; });
+        champ(lib, c);
+      }
+      nombre("flecheLargeur", "photolab.formes.fleche_largeur", 1, 1000, "px");
+      nombre("flecheLongueur", "photolab.formes.fleche_longueur", 1, 1000, "px");
+      nombre("flecheCreux", "photolab.formes.fleche_creux", 0, 100, "%");
+    }
     if (outil === "customShape") {
       const nom = document.createElement("button"); nom.type = "button"; nom.className = "fo-preset";
       const maj = () => { const f = PL.formePersonnalisee; nom.textContent = f && f.preset ? (PL.nomPreset ? PL.nomPreset(f.preset) : f.preset) : "—"; };

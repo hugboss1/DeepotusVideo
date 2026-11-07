@@ -62,7 +62,7 @@ STRUCT = PR.structurer(COMMANDES)
 # t256 PR 3 : 183 — `size` de edit.transform.warpGrid compris (énumération).
 # #415 : 181 — view.newGuide (position) corrigé (la couleur reste « ? ») ; image.trap et edit.checkSpelling réécrits
 # (photolab_registre.CHAMPS_REECRITS).
-NB_NON_OK = {"0.3.0": 123, "0.10.0": 181}[_PV.VERSION]
+NB_NON_OK = {"0.3.0": 123, "0.10.0": 181, "0.21.0": 230}[_PV.VERSION]
 
 print("\n[1] les dix exemples bruts")
 r = PR.parser(EX["filter.blur.gaussianBlur"]["params"])
@@ -162,7 +162,7 @@ check("1o type inconnu -> « ? » avec le texte brut, ok faux, listé dans incon
        and len(r["inconnus"]) == 1)(PR.parser('{"x":machin truc}')))
 
 print("\n[2] le registre réel")
-NB_CMD = {"0.3.0": 776, "0.10.0": 918}[_PV.VERSION]
+NB_CMD = {"0.3.0": 776, "0.10.0": 918, "0.21.0": 993}[_PV.VERSION]
 check(f"2a la copie du registre contient {NB_CMD} entrées", len(COMMANDES) == NB_CMD, len(COMMANDES))
 check(f"2b structurer rend {NB_CMD} ids, chacun avec id/label/menu/enabled/champs",
       len(STRUCT) == NB_CMD and all({"id", "label", "menu", "enabled", "champs"} <= set(v) for v in STRUCT.values()))
@@ -174,7 +174,7 @@ adj_image = sorted(i for i in PAR_ID if i.startswith("image.adjustments.") and i
 styles = sorted(i for i in PAR_ID if i.startswith(("layer.layerStyle.", "style.presets.")) and i not in _FERMEES)
 galerie = sorted(i for i in PAR_ID if i.startswith("filter.gallery."))
 # t256 : Rééclairer et Couleur en alpha (0.10) entrent au menu Filtre ; transferEffects, makeDefault, defaultFor aux styles.
-NB_FILTRES, NB_STYLES, NB_LAYERSTYLE = {"0.3.0": (75, 24, 19), "0.10.0": (77, 27, 22)}[_PV.VERSION]
+NB_FILTRES, NB_STYLES, NB_LAYERSTYLE = {"0.3.0": (75, 24, 19), "0.10.0": (77, 27, 22), "0.21.0": (77, 27, 22)}[_PV.VERSION]
 check(f"2c périmètre : {NB_FILTRES} filtres du menu Filtre", len(filtres) == NB_FILTRES, len(filtres))
 check("2c périmètre : 16 layer.newAdjustmentLayer.*", len(adj_calques) == 16, len(adj_calques))
 check("2c périmètre : 23 image.adjustments.* (22 réglages + colorLookup.list ; le plan disait 22 en tout)",
@@ -579,13 +579,17 @@ check("6d lut déjà absente : rien n'est marqué élagué", "lutElague" not in 
 # par champ, et ne touche rien d'autre (des `exposure` entiers existent ailleurs dans le registre).
 print("\n[7] corrections explicites du registre (exposition en EV)")
 _garde = PR.CORRECTIONS_CHAMPS
+_garde_gel = dict(PR.CHAMPS_GELES)                      # le gel 0.21 remplace les champs : 7a-7e ne regardent que les corrections
+PR.CHAMPS_GELES.clear()
+SANS_GEL = PR.structurer(COMMANDES)
 PR.CORRECTIONS_CHAMPS = {}
 try:
     BRUT = PR.structurer(COMMANDES)
 finally:
     PR.CORRECTIONS_CHAMPS = _garde
+    PR.CHAMPS_GELES.update(_garde_gel)
 changes = [(i, a.get("cle"), {k: (a.get(k), b.get(k)) for k in set(a) | set(b) if a.get(k) != b.get(k)})
-           for i in STRUCT for a, b in zip(BRUT[i]["champs"], STRUCT[i]["champs"]) if a != b]
+           for i in SANS_GEL for a, b in zip(BRUT[i]["champs"], SANS_GEL[i]["champs"]) if a != b]
 # t251 : en 0.10 s'ajoutent les corrections de layer.select / tools.setColors / contour d'ombre (sans effet sur 0.3.0,
 # où le parseur donne déjà ces types) — 7a/7b portent sur l'exposition seule, 7e sur les corrections de t251.
 expo = [x for x in changes if x[1] == "exposure"]
@@ -626,7 +630,7 @@ autres = [(i, c["cle"]) for i, v in STRUCT.items() for c in v["champs"]
 check("7c les autres `exposure` du registre ne sont pas touchés", all(
     next(c for c in BRUT[i]["champs"] if c["cle"] == k) == next(c for c in STRUCT[i]["champs"] if c["cle"] == k)
     for i, k in autres), autres)
-check("7d même nombre de champs partout", all(len(BRUT[i]["champs"]) == len(STRUCT[i]["champs"]) for i in STRUCT))
+check("7d même nombre de champs partout", all(len(BRUT[i]["champs"]) == len(SANS_GEL[i]["champs"]) for i in SANS_GEL))
 
 # t251 (M2) : 0.10 ajoute à Coller / Symétrie / Rotation une cible de canal dont le DÉFAUT est posé par le moteur
 # (« Channels panel target »). L'omettre = le comportement 0.3.0 : le champ est opaque mais OPTIONNEL, sinon l'écran
@@ -671,8 +675,24 @@ for cid_f, cle_f in (("layer.newAdjustmentLayer.levels", "eyedropper"), ("image.
 from app.services.photolab_neuves import COMMANDES_NEUVES_FERMEES as NEUVES   # noqa: E402
 ids03 = {c["id"] for c in json.loads((BACKEND / "tests" / "photocraft_commandes_0.3.0.json").read_text(encoding="utf-8"))}
 ids10 = {c["id"] for c in json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8"))}
+from app.services.photolab_neuves import COMMANDES_NEUVES_021 as NEUVES21, OUVERTES_021 as OUVERTES21   # noqa: E402
+ids21 = {c["id"] for c in json.loads((BACKEND / "tests" / "photocraft_commandes_0.21.0.json").read_text(encoding="utf-8"))}
 check("9a la liste des fermées = exactement les ids de 0.10.0 absents de 0.3.0 (moins celles qu'un lot a ouvertes)",
-      NEUVES <= ids10 - ids03 and not (NEUVES & ids03), (len(NEUVES), len(ids10 - ids03)))
+      NEUVES - NEUVES21 <= ids10 - ids03 and not (NEUVES & ids03), (len(NEUVES), len(ids10 - ids03)))
+check("9a2 montée 0.21 : les 75 commandes ajoutées à 0.10.0 sont fermées, aucune retirée", NEUVES21 == ids21 - ids10 and len(NEUVES21) == 75
+      and NEUVES21 - OUVERTES21 <= NEUVES and not (OUVERTES21 & NEUVES) and ids10 <= ids21, sorted(NEUVES21 ^ (ids21 - ids10))[:5])
+# Montée 0.21 : le gel rend à chaque commande de 0.10.0 EXACTEMENT sa lecture de 0.10.0 ; une clé neuve reste refusée.
+_gel10 = PR.structurer(json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8")))
+_gel21 = PR.structurer(json.loads((BACKEND / "tests" / "photocraft_commandes_0.21.0.json").read_text(encoding="utf-8")))
+ecarts_gel = [i for i, a in _gel10.items() if i not in ("shape.create", "shape.edit") and (a["champs"], a["ok"], a["inconnus"]) != (_gel21[i]["champs"], _gel21[i]["ok"], _gel21[i]["inconnus"])]
+check("9a3 gel : toute commande de 0.10.0 garde sa lecture de 0.10.0 sous le registre 0.21.0", not ecarts_gel and len(PR.CHAMPS_GELES) == 126, ecarts_gel[:8])
+for cid_g, p_g in (("edit.paste", {"clampToCanvas": False}), ("layer.newAdjustmentLayer.colorLookup", {"fileName": "a.cube"}),
+                   ("filter.blur.shapeBlur", {"shapePath": {"x": 1}}), ("edit.transform", {"stepName": "x"})):
+    try:
+        PR.verifier(_gel21, cid_g, p_g); m_g = None
+    except ValueError as e:
+        m_g = str(e)
+    check(f"9a4 {cid_g}.{next(iter(p_g))} : clé neuve de 0.21 refusée à l'écran", m_g is not None, m_g)
 OUVERTES = {"paint.patch", "paint.contentAwareMove", "paint.patternStamp", "paint.redEye", "paint.remove",   # t252
             "paint.setSymmetry", "paint.symmetryFromPath", "paint.symmetryDisable",
             # t253
@@ -701,8 +721,8 @@ OUVERTES = {"paint.patch", "paint.contentAwareMove", "paint.patternStamp", "pain
             # t256 PR 3 : Ctrl+T › Déformer
             "edit.transform.warpGrid"}
 check("9b fermées = les 142 neuves moins celles ouvertes lot par lot (t252 : 8, t253 : 10, t254 : 20, t255 : 18, "
-      "t256 : 17 + 5 + 1) -> 63",
-      len(NEUVES) == 63 and NEUVES | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
+      "t256 : 17 + 5 + 1) -> 63, plus les 75 de 0.21 moins celles ouvertes (t412 : 30, t415 : 1, t413 : 2, t414 : 9, t417 : 5)",
+      len(NEUVES) == 91 and (NEUVES - NEUVES21) | OUVERTES == ids10 - ids03 and not (NEUVES & OUVERTES), len(NEUVES))
 REG10 = PR.structurer(json.loads((BACKEND / "tests" / "photocraft_commandes_0.10.0.json").read_text(encoding="utf-8")))
 for cid, p in (("layer.layerStyle.replace", {"layer": 1, "effects": []}), ("swatches.list", {}), ("swatches.add", {}), ("history.undo", {})):
     try:

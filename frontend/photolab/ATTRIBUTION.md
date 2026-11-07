@@ -1,6 +1,6 @@
 # Attribution — Photolab
 
-L'écran Photolab pilote le moteur **photocraft** (`photocraft-cli` 0.10.0, épinglé depuis le 20/10/2026 ; 0.3.0 avant), publié sous licence MIT OU Apache-2.0.
+L'écran Photolab pilote le moteur **photocraft** (`photocraft-cli` 0.21.0, épinglé depuis le 07/11/2026 ; 0.10.0 puis 0.3.0 avant), publié sous licence MIT OU Apache-2.0.
 
 Reprises de photocraft 0.3.0 :
 
@@ -10,8 +10,8 @@ Reprises de photocraft 0.3.0 :
 
 Reprise de photocraft 0.10.0 (t258, 20/10/2026) :
 
-- la **traduction française** de l'amont (`crates/ui-egui/src/i18n/fr.tsv` du tag v0.10.0, commit 8407d9ccb, blob
-  4a819b0e ; MIT OU Apache-2.0), en **repli** seulement : elle nomme les commandes du moteur absentes du catalogue des
+- la **traduction française** de l'amont (`crates/ui-egui/src/i18n/fr.tsv` du tag v0.21.0, commit efb7ebd0c, blob
+  `0b439428` ; MIT OU Apache-2.0), en **repli** seulement : elle nomme les commandes du moteur absentes du catalogue des
   menus (section `repli` de `donnees/menus.json`) ; nos libellés, et ceux du catalogue déjà en place, restent
   prioritaires.
 

@@ -164,6 +164,9 @@ I["dz-outil-vec-pinceau"] = () => { const b = brosse();
   return [pl(tout(b)), pa(fuseau)]; };
 I["dz-outil-px-pinceau-melangeur"] = () => { const b = brosse(); return [pl(tout(b)), pa(M.goutte({ cx: 5.6, cy: 17.4, r: 3.8 }))]; };
 I["dz-outil-photo-pinceau-historique"] = () => { const b = brosse(); return [pl(tout(b)), pa(M.flecheCourbe({ cx: 9, cy: 13.4, r: 5.8, e: 2.4, a0: -40, a1: -300, hw: 6, hl: 3.8 }))]; };
+I["dz-outil-photo-pinceau-art-historique"] = () => { const b = brosse();
+  const spirale = []; for (let i = 0; i <= 26; i++) { const a = i / 26 * 4.4 * Math.PI, r = 0.5 + i / 26 * 5.2; spirale.push([7.6 + r * Math.cos(a), 15.6 + r * Math.sin(a)]); }
+  return [pl(tout(b)), pa(trait(spirale, 1.7))]; };
 I["dz-outil-vec-tuiles"] = () => { const b = brosse(); return [pl(tout(b)), pa(G.ngon(5.6, 14.8, 3.6, 6, 0) + G.ngon(9.4, 18.4, 3.6, 6, 0))]; };
 I["dz-outil-px-crayon"] = () => { const m = mine();
   return [pl(tout(m)), pa(G.rect(2.4, 18.6, 3.6, 3.6, 0.3) + G.rect(7.6, 18.6, 3.6, 3.6, 0.3) + G.rect(2.4, 13.4, 3.6, 3.6, 0.3))]; };

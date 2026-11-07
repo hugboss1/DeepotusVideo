@@ -35,9 +35,11 @@ DOSSIER = RACINE / M["binaire"]["dossier"]
 
 print("\n[1] le manifeste")
 noms = {pathlib.PurePosixPath(k).name for k in FICHIERS}
-check("1a le manifeste liste chaque fichier livré (2 exe, 2 licences du moteur, 3 OFL, README, portable.txt)",
-      {"photocraft-cli.exe", "photocraft.exe", "LICENSE-MIT", "LICENSE-APACHE", "OFL-biz-ud-mincho.txt",
-       "OFL-biz-ud-pgothic.txt", "OFL-shippori-mincho.txt", "README.md", "portable.txt"} == noms, sorted(noms))
+check("1a le manifeste liste chaque fichier livré (2 exe, 2 licences, ATTRIBUTION, NOTICE, 13 OFL, README, portable.txt)",
+      {"photocraft-cli.exe", "photocraft.exe", "LICENSE-MIT", "LICENSE-APACHE", "ATTRIBUTION.md", "NOTICE", "README.md",
+       "portable.txt"} | {f"OFL-{p}.txt" for p in ("biz-ud-mincho", "biz-ud-pgothic", "shippori-mincho", "lxgw-wenkai-lite",
+                          "nanum-gothic", "noto-sans-arabic", "noto-sans-cjk-sc", "noto-sans-devanagari", "noto-sans-georgian",
+                          "noto-sans-hebrew", "noto-sans-symbols", "noto-sans-symbols-2", "noto-sans-thai")} == noms, sorted(noms))
 check("1b chaque entrée : taille entière > 0 et sha256 de 64 hex, chemins relatifs en /",
       all(isinstance(v.get("taille"), int) and v["taille"] > 0 and len(v.get("sha256", "")) == 64
           and "\\" not in k and not k.startswith("/") and ".." not in k for k, v in FICHIERS.items()), FICHIERS)
@@ -140,8 +142,8 @@ if pwsh and etape and DOSSIER.is_dir():
         check("4g exécutée : un moteur non conforme dans l'arbre préparé ARRÊTE le build", "ETAPE:ARRET" in out and "ETAPE:OK" not in out, out[-400:])
         vrai = T / "vrai" / "vendor" / f"photocraft-{_v}"
         shutil.copytree(DOSSIER, vrai, ignore=shutil.ignore_patterns("PhotoCraftData"))
-        (vrai / f"photocraft-{_v}-windows-x64-portable" / "PhotoCraftData").mkdir()
-        (vrai / f"photocraft-{_v}-windows-x64-portable" / "PhotoCraftData" / "preferences.json").write_text("{}")
+        (vrai / "PhotoCraftData").mkdir()                      # zip à plat depuis 0.18 : à côté de photocraft.exe
+        (vrai / "PhotoCraftData" / "preferences.json").write_text("{}")
         vieux = T / "vrai" / "vendor" / "photocraft-0.3.0"           # t259 : un moteur d'avant laissé sur le poste de build
         (vieux / "photocraft-0.3.0-windows-x64-portable").mkdir(parents=True)
         (vieux / "photocraft-0.3.0-windows-x64-portable" / "photocraft-cli.exe").write_bytes(b"MZ ancien")
@@ -149,7 +151,7 @@ if pwsh and etape and DOSSIER.is_dir():
         check("4h exécutée : le vrai moteur passe ; NOTICE, manifeste et licences posés ; préférences du poste retirées",
               "ETAPE:OK" in out and (T / "vrai" / "vendor" / "NOTICE-photocraft.txt").is_file()
               and (T / "vrai" / "vendor" / "photocraft.json").is_file() and (T / "vrai" / "vendor" / "licences-photocraft" / "NOTICE").is_file()
-              and not (vrai / f"photocraft-{_v}-windows-x64-portable" / "PhotoCraftData").exists(), out[-400:])
+              and not (vrai / "PhotoCraftData").exists(), out[-400:])
         check("4i exécutée (t259) : un moteur d'une AUTRE version laissé sur le poste de build ne part pas chez l'acheteur",
               not vieux.exists() and vrai.is_dir() and (T / "vrai" / "vendor" / "photocraft.json").is_file(), out[-400:])
     finally:
@@ -181,11 +183,11 @@ src = (RACINE / "scripts" / "vendor_photocraft.py").read_text("utf-8")
 check("5d vendor_photocraft.py revérifie l'extraction contre le manifeste fichier par fichier",
       "comparer(" in src and "fichiers" in src)
 
-print("\n[6] t259 : attributions de photocraft 0.10.0 (ATTRIBUTION amont et licences des matériaux du moteur)")
-# Empreintes git (blob) des fichiers du tag v0.10.0 (API GitHub, 21/10/2026) ; COPYING de xorg/app/rgb (GitLab freedesktop,
+print("\n[6] t259 : attributions de photocraft 0.21.0 (ATTRIBUTION amont et licences des matériaux du moteur)")
+# Empreintes git (blob) des fichiers du tag v0.21.0 (clone du tag, 07/11/2026) ; COPYING de xorg/app/rgb (GitLab freedesktop,
 # blob 7c566482, commit fb06ee0b). Reproduits TELS QUELS : le texte livré doit être celui de l'amont (fins de ligne LF).
-AMONT = {"ATTRIBUTION.md": ("1ae19efa6621ced81f8db17e8b0834ddcb5d6b66", "Every non-code asset"),
-         "LICENSE-translations.txt": ("93a609f9463c9c718814fc942c3ec56ead5ec2e3", "MIT OR Apache-2.0"),
+AMONT = {"ATTRIBUTION.md": ("4ff977241227fa3f7b0439af956fdb8a8e4b6188", "Every non-code asset"),
+         "LICENSE-translations.txt": ("18ecbe5f11f5302f4bc84bb6912b1f98f4fdc9de", "MIT OR Apache-2.0"),
          "LICENSE-solarized.txt": ("1124be212d80160156bd321f76fd459f03a47b1c", "Ethan Schoonover"),
          "LICENSE-noun-magnetic-lasso.txt": ("7fcb546dd27dcd08a1a7a89be87fbafe66ca1324", "CC BY 3.0"),
          "LICENSE-symmetry-axes.txt": ("2232ec82fb8ee9c917f8cb4a00ac7c5fc0591394", "@shorbank"),

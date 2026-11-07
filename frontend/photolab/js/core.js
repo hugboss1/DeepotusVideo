@@ -51,6 +51,9 @@ import { initModificateurs } from "./mod-modificateurs.js";
 import { initGestionnaire } from "./mod-gestionnaire.js";
 import { initActions } from "./mod-actions.js";
 import { initExports } from "./mod-exports.js";
+import { initObjets } from "./mod-objets.js";
+import { initTaches } from "./mod-taches.js";
+import { initCadres } from "./mod-cadres.js";
 import { initDocks } from "./mod-docks.js";
 
 const T = (cle, vars) => (window.dzT ? window.dzT(cle, vars) : cle);
@@ -131,6 +134,9 @@ initStyles(PL);            // t138 B6 : après le dialogue générique (coquille
 initGalerie(PL);           // t157 : après le dialogue générique (coquille, PL.prendreReglage) ; donne PL.ouvrirGalerie aux menus et aux filtres dynamiques
 initMasquer(PL);           // t157 : Sélectionner et masquer (PL.actions["select.selectAndMask"], barre des outils de sélection)
 initDocuments(PL);         // t158 : après le fichier (remplace « Fermer », PL.choisirImage) et le dialogue générique (PL.choixDialogue)
+initCadres(PL);            // t417 : Calque › Cadre
+initTaches(PL);            // t419 : progression et annulation des longues opérations
+initObjets(PL);            // t411 : Remplacer / Exporter le contenu d'un objet dynamique
 initExports(PL);           // t257 : Calques / Jeux de données en fichiers, Importer des jeux, Image › Variables
 initMode(PL);              // t158 : Image › Mode (PL.ouvrirMode pour les menus)
 initIaCalque(PL);          // t191 : calque IA et « Retirer le fond du calque » (PL.iaCalque, PL.actions pl.calque.*)

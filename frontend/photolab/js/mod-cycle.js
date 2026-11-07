@@ -1,4 +1,5 @@
 import { tranches } from "./mod-historique.js";
+import { estTacheLongue } from "./mod-taches.js";
 
 // mod-cycle.js — le cycle inspect -> rendu (décision D1) : après CHAQUE commande, l'écran relit le document
 // (GET /inspecter), met à jour les panneaux, redemande un rendu complet (POST /rendu) et le pose sur le canevas ; les
@@ -253,7 +254,14 @@ export function initCycle(PL) {
     if (!PL.etat.doc) return Promise.resolve({ ok: false });
     return PL.file(async () => {
       let r;
-      try { r = await PL.post("/executer", { command, params }); } catch (e) { return { ok: false, erreur: e }; }
+      const longue = !!PL.suivreTache && estTacheLongue(command);
+      try { r = await PL.post("/executer", { command, params, ...(longue ? { fond: true } : {}) }); } catch (e) { return { ok: false, erreur: e }; }
+      // t419 : une longue opération rend son numéro de tâche ; la file attend sa fin, barre et annulation sont dans mod-taches
+      if (longue && r && r.job != null) {
+        const fin = await PL.suivreTache(r.job);
+        if (!fin.ok) { if (cycle) PL.cycle(); return { ok: false, annule: !!fin.annule }; }
+        r = fin.r;
+      }
       if (cycle) PL.cycle();
       return { ok: true, r };
     });

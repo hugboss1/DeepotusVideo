@@ -230,7 +230,7 @@ if ($gpZip -and (Test-Path $gpZip)) {
 # Epingle dans vendor\photocraft.json (version, archive officielle, sha256, et chaque fichier extrait). Absent du poste
 # de build : vendor_photocraft.py le telecharge depuis la release officielle et verifie l'archive. Puis l'arbre
 # PREPARE est verifie fichier par fichier (rien d'altere, de manquant ni d'ajoute) et le moteur ne doit dependre
-# d'aucun runtime Visual C++ (0.3.0 et 0.10.0 n'en ont pas besoin : aucun redistribuable n'est pose). Ecart = build arrete.
+# d'aucun runtime Visual C++ (0.3.0, 0.10.0 et 0.21.0 n'en ont pas besoin : aucun redistribuable n'est pose). Ecart = build arrete.
 # t250 : la version vient du manifeste (une montee de moteur ne change que vendor\photocraft.json).
 $pcVersion = (Get-Content (Join-Path $AppDir "vendor\photocraft.json") -Raw -Encoding UTF8 | ConvertFrom-Json).version
 if (-not $pcVersion) { throw "vendor\photocraft.json : version absente" }

@@ -4,6 +4,7 @@
 // Une entrée que le moteur ne connaît pas, ou que le pont refuse, reste affichée mais « bientôt » : la barre ressemble
 // à celle de photocraft sans promettre ce qui n'est pas là. Toute la construction est PURE (qa/menus.test.mjs).
 
+import { LIBELLES_COMMANDES } from "./mod-libelles.js";
 import { champsVisibles, sansEcran, D9, SANS_EDITEUR, OPAQUES, CLES_CACHEES } from "./mod-champs.js";
 import { RACCOURCIS_ECRAN } from "./mod-raccourcis.js";
 
@@ -39,6 +40,8 @@ export const IDS_MESURE = ["window.panel.measurementLog", "window.panel.notes", 
 // enregistrer, exporter) : actives même si le pont refuserait la commande moteur de ce nom.
 // t139 : `pl.envoyer` (« Envoyer vers… ») n'est pas du catalogue amont — l'écran l'insère après « Revenir ».
 // t158 : les entrées de mod-documents (toutes visent un document ouvert).
+// t411 (N1) : Calque › Objets dynamiques › Remplacer / Exporter le contenu (mod-objets : routes /objets/*).
+export const IDS_OBJETS = ["layer.smartObjects.replaceContents", "layer.smartObjects.exportContents"];
 export const IDS_DOCUMENTS = ["file.closeAll", "file.closeOthers", "file.saveACopy", "file.revert", "file.export.quickExportAsPng",
   "file.placeEmbedded", "file.fileInfo", "layer.quickExportAsPng", "layer.exportAs"];
 // t191 : les deux entrées de l'écran insérées dans Calque (après « Dupliquer le calque… »), payantes, document requis.
@@ -65,6 +68,18 @@ export const INSERTIONS_M7 = [
 export const INSERTIONS_M8 = [
   { chemin: ["File"], apres: "file.open", id: "pl.importer", cle: "photolab.menu.importer" },
 ];
+// t412 (N2, photocraft 0.21) : Texte › OpenType › Chiffres / Jeux stylistiques (sous-menus absents de l'arbre 0.3.0) et
+// Texte › Texte dans une forme (mod-texte : dialogue qui choisit la forme).
+export const IDS_CHIFFRES = ["default", "lining", "oldstyle", "proportional", "tabular", "proportionalLining", "tabularLining",
+  "proportionalOldstyle", "tabularOldstyle"].map((c) => "type.openType.numerals." + c);
+export const IDS_JEUX = Array.from({ length: 20 }, (_, i) => `type.openType.stylisticSets.set${i + 1}`);
+export const SOUS_MENUS_N2 = [{ chemin: ["Type", "OpenType"], nom: "Numerals", cle: "photolab.menu.chiffres", ids: IDS_CHIFFRES },
+  { chemin: ["Type", "OpenType"], nom: "Stylistic Sets", cle: "photolab.menu.jeux_stylistiques", ids: IDS_JEUX }];
+// t417 (N7) : Calque › Cadre, entrées de l'écran (mod-cadres).
+export const SOUS_MENU_CADRE = { nom: "Frame", cle: "photolab.menu.cadre_sous_menu", ids: ["pl.cadre.proprietes", "pl.cadre.contenu", "pl.cadre.contenu_au_cadre", "pl.cadre.cadre_au_contenu", "pl.cadre.convertir"],
+  cles: { "pl.cadre.proprietes": "photolab.cadre.proprietes", "pl.cadre.contenu": "photolab.cadre.contenu", "pl.cadre.contenu_au_cadre": "photolab.cadre.contenu_au_cadre",
+    "pl.cadre.cadre_au_contenu": "photolab.cadre.cadre_au_contenu", "pl.cadre.convertir": "photolab.cadre.convertir" } };
+export const INSERTIONS_N2 = [{ chemin: ["Type"], apres: "type.convertToPointText", id: "type.fillPath", cle: "photolab.commande.type.fill_path" }];
 // t257 : entrées que l'écran sert par ses routes ou ses dialogues (mod-exports : /calques/fichiers, /jeux/fichiers,
 // /jeux/importer ; Image › Variables : dialogues sur mesure, commandes moteur vérifiées clé par clé par le pont).
 export const IDS_EXPORTS_M8 = ["file.export.layersToFiles", "file.export.dataSetsAsFiles", "file.import.variableDataSets",
@@ -105,6 +120,9 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   ...IDS_CALQUES_M7,
   // t257 : Calques et jeux de données en fichiers, Importer des jeux, Image › Variables (mod-exports)
   ...IDS_EXPORTS_M8,
+  ...IDS_OBJETS,
+  ...SOUS_MENU_CADRE.ids,
+  "type.fillPath",
   // t155 : le groupe Pinceaux (mod-pinceaux, PL.actions) ; window.* reste refusé au moteur
   "window.panel.brushes", "window.panel.brushSettings", "window.panel.cloneSource", "window.panel.toolPresets",
   // t151 : espaces de travail et Fenêtre › <panneau> (mod-espaces : ACTIONS_ESPACE, PANNEAUX, BARRES — banc espaces 5.9)
@@ -148,7 +166,7 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   // #415 : outils d'Image › Analyse, bascules du masque de calque
   ...Object.keys(OUTILS_ANALYSE), ...IDS_MASQUE_ECRAN, ...IDS_DIALOGUES_ECRAN, ...IDS_VERIF_TEXTE, "edit.toolbar"]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, ...IDS_IA, ...IDS_CALQUES_M7, ...IDS_EXPORTS_M8, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
+export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, ...IDS_OBJETS, ...SOUS_MENU_CADRE.ids, "type.fillPath", ...IDS_IA, ...IDS_CALQUES_M7, ...IDS_EXPORTS_M8, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
   // t154 : la transformation manuelle vise le calque actif
@@ -329,7 +347,7 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
   // t256 : les entrées de photocraft 0.10 (INSERTIONS_M7), dans l'ordre de la table : une insertion peut suivre la
   // précédente (Plan de travail voisin puis Cadre).
   // t257 : puis celles de M8 (Fichier › Ouvrir depuis l'ordinateur…).
-  for (const ins of [...INSERTIONS_M7, ...INSERTIONS_M8]) {
+  for (const ins of [...INSERTIONS_M7, ...INSERTIONS_M8, ...INSERTIONS_N2]) {
     let liste = (menus.find((m) => m.nom === ins.chemin[0]) || {}).entrees;
     for (const nom of ins.chemin.slice(1)) liste = liste && (liste.find((x) => x.type === "sous-menu" && x.nom === nom) || {}).entrees;
     if (!liste) continue;
@@ -338,6 +356,18 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
     liste.splice(k >= 0 ? k + 1 : liste.length, 0, { type: "commande", id: ins.id, libelle: t(ins.cle), raccourci: "",
       etat: ecran ? "actif" : etatDe(ins.id, idx, refuses), champs: ecran ? [] : champsDe(idx.get(ins.id)) });
   }
+  // t412 : les sous-menus de 0.21, en fin de leur parent ; le libellé de chaque commande vient de LIBELLES_COMMANDES.
+  // Une entrée bascule directement, comme chez la référence : `on` et `range` du moteur n'ouvrent pas de dialogue.
+  for (const s of SOUS_MENUS_N2) {
+    let liste = (menus.find((m) => m.nom === s.chemin[0]) || {}).entrees;
+    for (const nom of s.chemin.slice(1)) liste = liste && (liste.find((x) => x.type === "sous-menu" && x.nom === nom) || {}).entrees;
+    if (!liste) continue;
+    liste.push({ type: "sous-menu", nom: s.nom, nom_affiche: t(s.cle), entrees: s.ids.map((id) => ({ type: "commande", id,
+      libelle: t(LIBELLES_COMMANDES[id]), raccourci: "", etat: etatDe(id, idx, refuses), champs: [] })) });
+  }
+  const coucheCadre = (menus.find((m) => m.nom === "Layer") || {}).entrees;
+  if (coucheCadre) coucheCadre.push({ type: "sous-menu", nom: SOUS_MENU_CADRE.nom, nom_affiche: t(SOUS_MENU_CADRE.cle), entrees: SOUS_MENU_CADRE.ids.map((id) => ({
+    type: "commande", id, libelle: t(SOUS_MENU_CADRE.cles[id]), raccourci: "", etat: "actif", champs: [] })) });
   menus.push({
     nom: "Aide", nom_affiche: t("photolab.menu.aide"),
     entrees: [{ type: "commande", id: "pl.apropos", libelle: t("photolab.menu.apropos"), raccourci: "", etat: "actif", champs: [] }],

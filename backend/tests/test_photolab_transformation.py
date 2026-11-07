@@ -88,7 +88,7 @@ def moteur():
     apres, sl_apres = s.appeler("doc.inspect"), s.appeler("session.list")
     check("2a l'original est intact (révision, historique, calques, documents)", avant["revision"] == apres["revision"] and avant["history"] == apres["history"]
           and avant["layers"] == apres["layers"] and len(sl_avant["documents"]) == len(sl_apres["documents"]), (avant["revision"], apres["revision"]))
-    check("2b résultat de l'étape : le cadre source", sortie["resultats"][0] == {"rect": [20.0, 20.0, 60.0, 50.0]}, sortie["resultats"])
+    check("2b résultat de l'étape : le cadre source", sortie["resultats"][0].get("rect") == [20.0, 20.0, 60.0, 50.0], sortie["resultats"])
     f_apv = PM.dossier_travail() / "rendus" / sortie["fichier"]
     with Image.open(f_apv) as im:
         apv = im.convert("RGBA").copy()
