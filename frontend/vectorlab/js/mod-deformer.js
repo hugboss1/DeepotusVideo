@@ -10,7 +10,7 @@
 import { T } from "./mod-i18n.js";
 import { polylignes_objet } from "./mod-bool.js";
 
-const EFFETS = new Set(["enveloppe", "distorsion", "torsion"]);
+const EFFETS = new Set(["enveloppe", "distorsion", "torsion", "rugosite", "zigzag"]);
 const PAS_MAX = 2;                    // aucun segment déformé ne dépasse 2 px : une droite peut se courber
 const POINTS_MAX = 20000;
 const nbc = (x) => String(Math.round(x * 100) / 100 + 0);
@@ -23,6 +23,11 @@ export const STYLES_ENVELOPPE = ["arc", "arc_bas", "arc_haut", "arche", "renflem
 function _nombre(v, defaut, min, max, cle) {
   const n = Number(v === undefined ? defaut : v);
   if (!Number.isFinite(n) || n < min || n > max) throw new Error(T(cle, { min, max }));
+  return n;
+}
+function _entier(v, defaut, min, max) {
+  const n = Number(v === undefined ? defaut : v);
+  if (!Number.isInteger(n) || n < min || n > max) throw new Error(T("vectorlab.deformer.entier", { min, max }));
   return n;
 }
 function _params(effet, p = {}, base = {}) {
@@ -48,6 +53,17 @@ function _params(effet, p = {}, base = {}) {
     return { coins: c.map((q) => [q[0], q[1]]) };
   }
   if (effet === "torsion") return { angle: _nombre(v.angle, 45, -3600, 3600, "vectorlab.deformer.angle") };
+  if (effet === "rugosite") return {
+    taille: _nombre(v.taille, 5, 0, 1000, "vectorlab.deformer.valeur"),
+    details: _nombre(v.details, 10, 0.1, 100, "vectorlab.deformer.valeur"),
+    lisse: !!v.lisse,
+    graine: _entier(v.graine, 1, 0, 1e9),
+  };
+  if (effet === "zigzag") return {
+    taille: _nombre(v.taille, 5, 0, 1000, "vectorlab.deformer.valeur"),
+    cretes: _entier(v.cretes, 4, 1, 100),
+    lisse: !!v.lisse,
+  };
   throw new Error(T("vectorlab.deformer.effet", { effet }));
 }
 
@@ -138,7 +154,69 @@ function _torsion(p, B) {
     return [cx + dx * Math.cos(a) - dy * Math.sin(a), cy + dx * Math.sin(a) + dy * Math.cos(a)];
   };
 }
-const _TRANSFORMEES = { enveloppe: _enveloppe, distorsion: _distorsion, torsion: _torsion };
+/* ── T3 (t462) Rugosité et Zigzag : ils travaillent LE LONG du tracé (échantillons, normales), une ligne à la fois ;
+   ils rendent { ligne(l, i) -> { points, lisse } } au lieu d'une fonction de point ── */
+// un générateur pseudo-aléatoire à graine (mulberry32) : la même graine redonne le même tracé à chaque recalcul
+function _prng(a) {
+  return () => {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// des points à intervalles égaux le long d'une polyligne (fermée : le dernier ne répète pas le premier)
+function _echantillonner(l, pas) {
+  const q = l.ferme ? l.points.concat([l.points[0]]) : l.points;
+  const cum = [0];
+  for (let i = 1; i < q.length; i++) cum.push(cum[i - 1] + Math.hypot(q[i][0] - q[i - 1][0], q[i][1] - q[i - 1][1]));
+  const L = cum[cum.length - 1];
+  const n = Math.max(l.ferme ? 3 : 1, Math.round(L / pas));
+  const out = [];
+  let j = 1;
+  for (let k = 0; k < (l.ferme ? n : n + 1); k++) {
+    const s = L * k / n;
+    while (j < q.length - 1 && cum[j] < s) j++;
+    const d = cum[j] - cum[j - 1], u = d > 0 ? (s - cum[j - 1]) / d : 0;
+    out.push([q[j - 1][0] + (q[j][0] - q[j - 1][0]) * u, q[j - 1][1] + (q[j][1] - q[j - 1][1]) * u]);
+  }
+  return out;
+}
+function _rugosite(p) {
+  return { ligne: (l, i) => {
+    const r = _prng(p.graine * 1000003 + i * 7919);
+    return { points: _echantillonner(l, 100 / p.details).map(([x, y]) => [x + (r() * 2 - 1) * p.taille, y + (r() * 2 - 1) * p.taille]), lisse: p.lisse };
+  } };
+}
+// chaque segment d'origine : 2 × crêtes intervalles, les points intérieurs écartés de ± taille selon la normale ;
+// les ancres restent en place
+function _zigzag(p) {
+  return { ligne: (l) => {
+    const q = l.ferme ? l.points.concat([l.points[0]]) : l.points;
+    const out = [q[0]], n = 2 * p.cretes;
+    for (let i = 1; i < q.length; i++) {
+      const [ax, ay] = q[i - 1], [bx, by] = q[i], L = Math.hypot(bx - ax, by - ay) || 1;
+      const nx = -(by - ay) / L, ny = (bx - ax) / L;
+      for (let k = 1; k <= n; k++) {
+        const e = k < n ? (k % 2 ? 1 : -1) * p.taille : 0;
+        out.push([ax + (bx - ax) * k / n + nx * e, ay + (by - ay) * k / n + ny * e]);
+      }
+    }
+    if (l.ferme) out.pop();
+    return { points: out, lisse: p.lisse };
+  } };
+}
+// une suite de points en courbes (Catmull-Rom → Bézier cubiques), fermée ou non
+function _dLisse(q, ferme) {
+  const n = q.length, P = (i) => (ferme ? q[(i + n) % n] : q[Math.max(0, Math.min(n - 1, i))]);
+  let d = `M${nbc(q[0][0])} ${nbc(q[0][1])}`;
+  for (let i = 0; i < (ferme ? n : n - 1); i++) {
+    const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+    d += ` C${nbc(p1[0] + (p2[0] - p0[0]) / 6)} ${nbc(p1[1] + (p2[1] - p0[1]) / 6)} ${nbc(p2[0] - (p3[0] - p1[0]) / 6)} ${nbc(p2[1] - (p3[1] - p1[1]) / 6)} ${nbc(p2[0])} ${nbc(p2[1])}`;
+  }
+  return d + (ferme ? " Z" : "");
+}
+const _TRANSFORMEES = { enveloppe: _enveloppe, distorsion: _distorsion, torsion: _torsion, rugosite: _rugosite, zigzag: _zigzag };
 
 /* ── le résultat ── */
 function _resultat(gid, source, effet, params, cache) {
@@ -148,10 +226,13 @@ function _resultat(gid, source, effet, params, cache) {
   // le pas grandit sur un très grand dessin, pour rester sous POINTS_MAX points
   const pas = Math.max(PAS_MAX, (2 * (B.w + B.h) * F.length) / POINTS_MAX);
   const tr = _TRANSFORMEES[effet](params, B);
+  let ni = 0;
   return F.map((f, k) => {
     const d = f.lignes.map((l) => {
-      const q = _subdiviser(l, pas).map(tr);
+      // une fonction de point (enveloppe, distorsion, torsion) ou un traitement de ligne (rugosité, zigzag)
+      const { points: q, lisse } = typeof tr === "function" ? { points: _subdiviser(l, pas).map(tr), lisse: false } : tr.ligne(l, ni++);
       if (q.some(([x, y]) => !Number.isFinite(x) || !Number.isFinite(y))) throw new Error(T("vectorlab.deformer.sans_geometrie"));
+      if (lisse) return _dLisse(q, l.ferme);
       return "M" + q.map(([x, y]) => `${nbc(x)} ${nbc(y)}`).join(" L") + (l.ferme ? " Z" : "");
     }).join(" ");
     const r = { id: `${gid}_d${k + 1}`, type: "path", d, style: _cloner(f.style), genere: true };

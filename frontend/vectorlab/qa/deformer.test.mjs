@@ -2,6 +2,7 @@
 // T1 (t460) Le modèle vivant (groupe [source cachée, résultat généré], Modifier le contenu, Annuler, Décomposer) et
 // l'Enveloppe par déformation prédéfinie (15 styles, courbure, distorsions, orientation).
 // T2 (t461) Distorsion libre (bilinéaire sur les quatre coins) et Torsion (angle proportionnel à la distance au centre).
+// T3 (t462) Rugosité (graine stable, taille, détails) et Zigzag (crêtes par segment, selon la normale) ; pointes ou lisse.
 import { createRequire } from "node:module";
 import { polylignes_objet, fournirMartinez, versMulti, aplatir_objet, aire_multi } from "../js/mod-bool.js";
 import { op_deformer, op_deformation_regler, op_deformation_editer, op_deformation_annuler, STYLES_ENVELOPPE } from "../js/mod-deformer.js";
@@ -194,6 +195,54 @@ const def = (effet, params, source = rect("a")) => { const d = doc(source); op_d
   ok("torsion négative : sens inverse", proche(def("torsion", { angle: -90 }).r, 150, 250) < 0.6);
   const d = doc(rect("a"));
   ok("torsion : angle non numérique → refus traduit", refus(() => op_deformer(d, ["a"], "torsion", { angle: "x" })) === T("vectorlab.deformer.angle", { min: -3600, max: 3600 }));
+}
+
+/* ── T3 (t462) Rugosité et Zigzag ── */
+{
+  const boite = (o) => { const p = pts(o); return { x0: Math.min(...p.map((q) => q[0])), x1: Math.max(...p.map((q) => q[0])), y0: Math.min(...p.map((q) => q[1])), y1: Math.max(...p.map((q) => q[1])) }; };
+  const r1 = def("rugosite", { taille: 5, details: 10, graine: 7 }).r;
+  const r2 = def("rugosite", { taille: 5, details: 10, graine: 7 }).r;
+  const r3 = def("rugosite", { taille: 5, details: 10, graine: 8 }).r;
+  ok("rugosité : réglages par défaut", JSON.stringify(def("rugosite", {}).g.deformation.params) === '{"taille":5,"details":10,"lisse":false,"graine":1}', JSON.stringify(def("rugosite", {}).g.deformation.params));
+  ok("rugosité : même graine → même tracé (stable d'un recalcul à l'autre)", r1.d === r2.d);
+  ok("rugosité : autre graine → autre tracé", r1.d !== r3.d);
+  const b = boite(r1);
+  ok("rugosité : aucun point ne s'écarte de plus de la taille", b.x0 >= 95 - 0.01 && b.x1 <= 305 + 0.01 && b.y0 >= 95 - 0.01 && b.y1 <= 205 + 0.01, JSON.stringify(b));
+  ok("rugosité : le tracé a bougé", b.x0 < 99.5 || b.y0 < 99.5);
+  ok("rugosité : 10 points par 100 px (périmètre 600 → 60 points)", pts(r1).length === 60, pts(r1).length);
+  ok("rugosité pointes : des droites seulement", /^M[^C]*Z$/.test(r1.d.trim()) && r1.d.includes("L"));
+  const rl = def("rugosite", { taille: 5, details: 10, lisse: true }).r;
+  ok("rugosité lisse : des courbes", rl.d.includes("C") && !/L/.test(rl.d), rl.d.slice(0, 80));
+  const nums = rl.d.match(/-?[\d.]+/g).map(Number);
+  ok("rugosité lisse : de vraies poignées (la première n'est pas l'ancre de départ)", Math.abs(nums[2] - nums[0]) > 0.01 && Math.abs(nums[3] - nums[1]) > 0.01, rl.d.slice(0, 80));
+  ok("rugosité taille 0 : la forme d'origine", pres(aire(def("rugosite", { taille: 0 }).r), aire(rect("a")), aire(rect("a")) * 0.005));
+  const d = doc(rect("a"));
+  ok("rugosité : taille négative → refus", refus(() => op_deformer(d, ["a"], "rugosite", { taille: -1 })) === T("vectorlab.deformer.valeur", { min: 0, max: 1000 }));
+  ok("rugosité : détails 0 → refus", !!refus(() => op_deformer(d, ["a"], "rugosite", { details: 0 })));
+  ok("rugosité : graine non entière → refus", !!refus(() => op_deformer(d, ["a"], "rugosite", { graine: 1.5 })));
+}
+{
+  // zigzag sur un rectangle : 4 segments, 3 crêtes chacun → 6 intervalles par segment → 24 points
+  const z = def("zigzag", { taille: 8, cretes: 3 }).r;
+  ok("zigzag : réglages par défaut", JSON.stringify(def("zigzag", {}).g.deformation.params) === '{"taille":5,"cretes":4,"lisse":false}', JSON.stringify(def("zigzag", {}).g.deformation.params));
+  ok("zigzag : 3 crêtes par segment → 24 points", pts(z).length === 24, pts(z).length);
+  ok("zigzag : les coins (ancres) restent", proche(z, 100, 100) < 0.01 && proche(z, 300, 200) < 0.01);
+  // le bord haut (y = 100) : ses points pairs dessus, ses points impairs écartés de ±8 selon la normale
+  const haut = pts(z).filter((p) => p[0] > 100.5 && p[0] < 299.5 && Math.abs(p[1] - 100) <= 8.01);
+  ok("zigzag : sur le bord haut, des points à 8 px de part et d'autre", haut.some((p) => pres(p[1], 92)) && haut.some((p) => pres(p[1], 108)), JSON.stringify(haut));
+  const droit = pts(z).filter((p) => p[1] > 100.5 && p[1] < 199.5 && Math.abs(p[0] - 300) <= 8.01);
+  ok("zigzag : sur le bord droit, l'écart suit sa normale (horizontal)", droit.some((p) => pres(p[0], 292)) && droit.some((p) => pres(p[0], 308)), JSON.stringify(droit));
+  ok("zigzag : écart jamais plus grand que la taille", pts(z).every((p) => p[0] >= 92 - 0.01 && p[0] <= 308 + 0.01 && p[1] >= 92 - 0.01 && p[1] <= 208 + 0.01));
+  ok("zigzag pointes : des droites", !z.d.includes("C"));
+  ok("zigzag lisse : des courbes", def("zigzag", { taille: 8, cretes: 3, lisse: true }).r.d.includes("C"));
+  // un chemin ouvert reste ouvert
+  const ouvert = def("zigzag", { taille: 4, cretes: 2 }, { id: "a", type: "path", d: "M0 0 L100 0", style: { contour: "#000", epaisseur: 1 } }).r;
+  const ouvertLisse = def("zigzag", { taille: 4, cretes: 2, lisse: true }, { id: "a", type: "path", d: "M0 0 L100 0", style: { contour: "#000", epaisseur: 1 } }).r;
+  ok("zigzag lisse : un chemin ouvert reste ouvert", !/Z/.test(ouvertLisse.d) && ouvertLisse.d.includes("C"), ouvertLisse.d);
+  ok("zigzag : un chemin ouvert reste ouvert, ses deux bouts en place", !/Z/.test(ouvert.d) && pres(pts(ouvert)[0][0], 0) && pres(pts(ouvert)[pts(ouvert).length - 1][0], 100), ouvert.d);
+  const d = doc(rect("a"));
+  ok("zigzag : crêtes 0 → refus", !!refus(() => op_deformer(d, ["a"], "zigzag", { cretes: 0 })));
+  ok("zigzag : crêtes non entières → refus", !!refus(() => op_deformer(d, ["a"], "zigzag", { cretes: 2.5 })));
 }
 
 if (echecs.length) {
