@@ -18,6 +18,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "agent.action.montrer": {"fr": "Montre-moi : {libelle}", "en": "Show me: {libelle}"},
   "agent.boites.assets3d": {"fr": "Pièces, budgets et comparatifs 3D", "en": "3D parts, budgets and comparisons"},
   "agent.boites.blender": {"fr": "Scène Blender (lecture)", "en": "Blender scene (read-only)"},
+  "agent.boites.briques": {"fr": "Mesures, ancres et registre", "en": "Measures, anchors and log"},
   "agent.boites.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
   "agent.boites.capture": {"fr": "Capture de l'app", "en": "App recording"},
   "agent.boites.chapitres": {"fr": "Chapitres", "en": "Chapters"},

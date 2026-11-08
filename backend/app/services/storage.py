@@ -650,6 +650,25 @@ class Depense(Base):
     espace_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True, default=lambda: _espace_par_defaut())
 
 
+class EtapeRegistre(Base):
+    """t434 (lot M1 « Méthodes », B7) : une ÉTAPE d'une tâche d'agent métier — devis avant, coût réel et durée après.
+    `tache` regroupe les étapes (id de conversation, de méthode lancée…) ; `depenses` = les ids des lignes `Depense`
+    écrites par la garde pour cette étape (JSON), d'où le réel quand le fournisseur l'a donné. Table neuve :
+    create_all suffit (et registre_taches la crée à la volée, comme plafonds pour `depenses`)."""
+    __tablename__ = "etapes_registre"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tache: Mapped[str] = mapped_column(String(64), index=True)
+    etape: Mapped[str] = mapped_column(String(80), default="")
+    debut: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    fin: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    statut: Mapped[str] = mapped_column(String(12), default="en_cours")   # en_cours | fait | echec | annule
+    estime_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    reel_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    depenses: Mapped[str] = mapped_column(Text, default="[]")
+    espace_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, index=True)
+
+
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
 async_session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
