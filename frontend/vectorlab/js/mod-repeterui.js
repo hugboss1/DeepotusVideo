@@ -248,14 +248,17 @@ export function initRepeterUI(VL) {
         const SNS = "http://www.w3.org/2000/svg";
         const ov = (nom, attrs) => { const el = document.createElementNS(SNS, nom); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); return el; };
         A.dessinerPoignees(o, ov, VL.ecranPt, VL.etat.zoom || 1);
+        if (VL.deformerUI && VL.deformerUI.dessinerPoignees) VL.deformerUI.dessinerPoignees(o, ov, VL.ecranPt);   // t466 : coins D3
       };
     });
     document.addEventListener("pointerdown", (ev) => {
       const pg = ev.target && ev.target.closest && ev.target.closest(".poignee-vivant");
-      if (!pg || !A.poignee.debut(pg.dataset.vivant)) return;
+      // t466 : un coin de distorsion libre (D3) est un geste de mod-deformerui
+      const C = pg && /^coin/.test(pg.dataset.vivant) && VL.deformerUI && VL.deformerUI.poignee ? VL.deformerUI.poignee : A.poignee;
+      if (!pg || !C.debut(pg.dataset.vivant)) return;
       ev.preventDefault(); ev.stopPropagation();
-      const bouger = (e) => { const [x, y] = VL.docPt(e.clientX, e.clientY); A.poignee.bouger(x, y); };
-      const fin = () => { window.removeEventListener("pointermove", bouger, true); window.removeEventListener("pointerup", fin, true); A.poignee.fin(); };
+      const bouger = (e) => { const [x, y] = VL.docPt(e.clientX, e.clientY); C.bouger(x, y); };
+      const fin = () => { window.removeEventListener("pointermove", bouger, true); window.removeEventListener("pointerup", fin, true); C.fin(); };
       window.addEventListener("pointermove", bouger, true);
       window.addEventListener("pointerup", fin, true);
     }, true);

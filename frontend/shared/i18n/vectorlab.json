@@ -429,6 +429,7 @@
   "vectorlab.deformer.p_ouverte": {"fr": "Flèche ouverte", "en": "Open arrow"},
   "vectorlab.deformer.p_triangle": {"fr": "Triangle", "en": "Triangle", "contexte": true},
   "vectorlab.deformer.pas_deformation": {"fr": "{id} n'est pas une déformation", "en": "{id} is not a distortion"},
+  "vectorlab.deformer.poignee_coin": {"fr": "Tirer ce coin pour déformer librement", "en": "Drag this corner to distort freely"},
   "vectorlab.deformer.pointe": {"fr": "Pointes de flèche : style inconnu « {pointe} »", "en": "Arrowheads: unknown style “{pointe}”"},
   "vectorlab.deformer.pourcent": {"fr": "Déformer : la valeur va de {min} à {max} %", "en": "Distort: the value ranges from {min} to {max}%"},
   "vectorlab.deformer.r_enveloppe": {"fr": "Enveloppe : {style}, {courbure} %", "en": "Envelope: {style}, {courbure}%"},

@@ -7,7 +7,7 @@ import { T } from "./mod-i18n.js";
 import { formulaire_dom } from "./mod-tracesui.js";
 import { dialogue_apercu } from "./mod-repeterui.js";
 import { op_deformer, op_deformation_regler, op_deformation_editer, op_deformation_annuler, STYLES_ENVELOPPE,
-         STYLES_POINTES } from "./mod-deformer.js";
+         STYLES_POINTES, boite_source } from "./mod-deformer.js";
 
 const _esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 export const EFFETS_MENU = ["enveloppe", "distorsion", "torsion", "rugosite", "zigzag", "gonfler", "pointes"];
@@ -68,6 +68,29 @@ export function resume_deformation(o) {
   return T(TITRES[d.effet]);
 }
 
+/* ── T7 (t466) les quatre coins de la Distorsion libre, tirables sur la toile ── */
+// les poignées d'une distorsion libre, en coordonnées du document : chaque coin de la boîte de la source + son
+// déplacement ; rien pour un autre effet, ni en « Modifier le contenu »
+export function poignees_deformation(g) {
+  if (!g || !g.deformation || g.deformation.effet !== "distorsion" || g.deformation.edition) return [];
+  const B = boite_source(g);
+  if (!B) return [];
+  const c = g.deformation.params.coins;
+  return [[B.x, B.y], [B.x + B.w, B.y], [B.x + B.w, B.y + B.h], [B.x, B.y + B.h]]
+    .map(([x, y], i) => ({ role: "coin" + i, x: x + c[i][0], y: y + c[i][1] }));
+}
+// le réglage que donne un coin tiré en (x, y), lu sur la déformation d'AVANT le geste ; null si sans objet
+export function params_par_poignee_def(g, role, x, y) {
+  const i = ["coin0", "coin1", "coin2", "coin3"].indexOf(role);
+  const B = i >= 0 && g && g.deformation && g.deformation.effet === "distorsion" ? boite_source(g) : null;
+  if (!B) return null;
+  const base = [[B.x, B.y], [B.x + B.w, B.y], [B.x + B.w, B.y + B.h], [B.x, B.y + B.h]][i];
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const coins = g.deformation.params.coins.map((q) => q.slice());
+  coins[i] = [r2(x - base[0]), r2(y - base[1])];
+  return { coins };
+}
+
 export function deformer_actions(VL) {
   const etat = VL.etat;
   const sel = () => (etat.doc ? etat.selection.slice() : []);
@@ -94,6 +117,42 @@ export function deformer_actions(VL) {
   T_.editer = { peut: () => !!defo(), faire: () => VL.executer(op_deformation_editer, sel()[0]) };
   T_.annuler = { peut: () => !!defo(), faire: () => poser(VL.executer(op_deformation_annuler, sel()[0])) };
   A.action = (arg) => T_[arg] || { peut: () => false, faire: () => {} };
+  // le geste d'un coin (comme les poignées de D2) : aperçu sur une copie du document d'avant, puis UNE exécution
+  let geste = null;
+  const rendre = () => { if (VL.rendre) VL.rendre(); };
+  A.poignee = {
+    debut: (role) => {
+      const g = defo();
+      if (!g || !poignees_deformation(g).some((p) => p.role === role)) return false;
+      geste = { role, id: g.id, avant: etat.doc, g, params: null };
+      return true;
+    },
+    bouger: (x, y) => {
+      if (!geste) return;
+      const p = params_par_poignee_def(geste.g, geste.role, x, y);
+      try { const essai = JSON.parse(JSON.stringify(geste.avant)); op_deformation_regler(essai, geste.id, p); etat.doc = essai; geste.params = p; }
+      catch (e) { etat.doc = geste.avant; geste.params = null; }
+      rendre();
+    },
+    fin: () => {
+      if (!geste) return;
+      const g = geste;
+      geste = null;
+      etat.doc = g.avant;
+      rendre();
+      if (g.params) VL.executer(op_deformation_regler, g.id, g.params);
+    },
+  };
+  // les coins dans l'overlay (outil Sélection) : le quadrilatère en pointillés et quatre disques tirables
+  A.dessinerPoignees = (o, ov, ecranPt) => {
+    if (etat.outil !== "select") return;
+    const P = poignees_deformation(defo());
+    if (!P.length) return;
+    const e = P.map((p) => ecranPt(p.x, p.y));
+    o.appendChild(ov("polygon", { points: e.map(([x, y]) => `${x},${y}`).join(" "), fill: "none", stroke: "#39b3d0", "stroke-dasharray": "4 4", "pointer-events": "none" }));
+    P.forEach((p, i) => o.appendChild(ov("circle", { cx: e[i][0], cy: e[i][1], r: 6, fill: "#39b3d0", stroke: "#0d2a33", "stroke-width": 1.5,
+      class: "poignee-vivant", "data-vivant": p.role, style: "pointer-events:auto;cursor:grab", "aria-label": T("vectorlab.deformer.poignee_coin") })));
+  };
   A.sectionApparence = (o) => {
     if (!o || !o.deformation) return "";
     const ed = !!o.deformation.edition;

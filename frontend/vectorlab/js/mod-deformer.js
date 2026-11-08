@@ -420,6 +420,13 @@ export function op_deformation_annuler(doc, id) {
   return source.id;
 }
 
+/* ── T7 (t466) la boîte de la source d'une déformation (les coins de la distorsion libre y sont ancrés) ── */
+export function boite_source(g) {
+  if (!g || !g.deformation || !Array.isArray(g.enfants) || !g.enfants.length) return null;
+  const F = _feuilles(g.enfants[0]);
+  return F.length ? _boite(F) : null;
+}
+
 /* ── vivant : appelé par vivants_d2_rafraichir (mod-repeter.js), donc par derives_rafraichir ── */
 export function deformations_rafraichir(doc) {
   let n = 0;

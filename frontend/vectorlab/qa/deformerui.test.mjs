@@ -1,8 +1,9 @@
 // deformerui.test.mjs — lot D3 « Déformer » T6 (t465) : le câblage des déformations vivantes. Un VL factice qui
 // EXÉCUTE vraiment (clone, op, dérivés) et note chaque appel ; `demander` remplacé. Les actions « repeter:def-<x> »
 // passent par mod-repeterui.js ; dialogues pré-remplis à aperçu ; Options, Modifier le contenu, Annuler, Décomposer ;
-// section Apparence ; le menu Vecteur nomme le bloc Déformer.
-import { deformer_actions, initDeformerUI, champs_deformation, params_formulaire, resume_deformation, EFFETS_MENU } from "../js/mod-deformerui.js";
+// section Apparence ; le menu Vecteur nomme le bloc Déformer. T7 (t466) : les coins de la Distorsion libre sur la toile.
+import { deformer_actions, initDeformerUI, champs_deformation, params_formulaire, resume_deformation, EFFETS_MENU, poignees_deformation,
+         params_par_poignee_def } from "../js/mod-deformerui.js";
 import { repeter_actions } from "../js/mod-repeterui.js";
 import { op_deformer, op_deformation_regler, op_deformation_editer, op_deformation_annuler } from "../js/mod-deformer.js";
 import { derives_rafraichir, op_derive_detacher } from "../js/mod-vivants.js";
@@ -127,6 +128,48 @@ const avecDeformation = (effet = "enveloppe", params = { style: "arc", courbure:
   ok("Apparence en édition : le bouton dit « Terminer »", g.VL.deformerUI.sectionApparence({ ...o, deformation: { ...o.deformation, edition: true } }).includes(T("vectorlab.deformer.a_editer_fin")));
   ok("Apparence d'un objet ordinaire : rien", g.VL.deformerUI.sectionApparence({ id: "x", type: "rect" }) === "" && resume_deformation(null) === "");
 }
+/* ── T7 (t466) les coins de la Distorsion libre sur la toile ── */
+{
+  const g = avecDeformation("distorsion", { coins: [[-20, -10], [0, 0], [0, 0], [0, 0]] });
+  const o = () => g.etat.doc.calques[0].objets[0];
+  const P = poignees_deformation(o());
+  ok("quatre coins : la boîte de la source + leur déplacement", P.length === 4 && P[0].role === "coin0" && P[0].x === 80 && P[0].y === 90 && P[2].x === 300 && P[2].y === 200, JSON.stringify(P));
+  ok("un coin tiré : seul ce coin change", JSON.stringify(params_par_poignee_def(o(), "coin2", 320, 230)) === '{"coins":[[-20,-10],[0,0],[20,30],[0,0]]}');
+  ok("rôle inconnu ou autre effet : rien", params_par_poignee_def(o(), "rayon", 0, 0) === null && poignees_deformation(avecDeformation().etat.doc.calques[0].objets[0]).length === 0 && poignees_deformation(null).length === 0);
+  ok("source devenue sans géométrie : pas de coins (jamais NaN)", poignees_deformation({ ...o(), enfants: [{ id: "a", type: "path", d: "M5 5", cache: true }, ...o().enfants.slice(1)] }).length === 0);
+  ok("en « Modifier le contenu » : pas de coins", poignees_deformation({ ...o(), deformation: { ...o().deformation, edition: true } }).length === 0);
+  const A = g.VL.deformerUI;
+  ok("geste : un rôle inconnu ne démarre pas", A.poignee.debut("coin9") === false);
+  const avant = g.etat.doc;
+  ok("geste : début sur un coin", A.poignee.debut("coin0") === true);
+  A.poignee.bouger(70, 80);
+  ok("geste : aperçu en direct sans exécution", g.appels.length === 0 && g.etat.doc !== avant && JSON.stringify(g.etat.doc.calques[0].objets[0].deformation.params.coins[0]) === "[-30,-20]");
+  const exec = g.VL.executer;
+  let vu = null;
+  g.VL.executer = (fn, ...a) => { vu = g.etat.doc; return exec(fn, ...a); };
+  A.poignee.fin();
+  g.VL.executer = exec;
+  ok("geste : à la fin, UNE exécution d'op_deformation_regler depuis le document d'avant", g.appels.length === 1 && g.appels[0].fn === op_deformation_regler && vu === avant
+     && JSON.stringify(g.etat.doc.calques[0].objets[0].deformation.params.coins[0]) === "[-30,-20]");
+  const d2 = g.etat.doc;
+  A.poignee.debut("coin1"); A.poignee.fin();
+  ok("geste : un clic sans glisser n'exécute rien", g.appels.length === 1 && g.etat.doc === d2);
+  A.poignee.debut("coin1"); A.poignee.bouger(310, 95); A.poignee.bouger(NaN, NaN);
+  ok("geste : une valeur impossible montre aussitôt le document d'avant", g.etat.doc === d2);
+  A.poignee.fin();
+  ok("geste : une valeur impossible oublie l'aperçu", g.appels.length === 1 && g.etat.doc === d2);
+  // le dessin : un quadrilatère et quatre disques aux libellés traduits, à l'outil Sélection seulement
+  g.etat.outil = "select";
+  const els = [];
+  A.dessinerPoignees({ appendChild: (e) => els.push(e) }, (nom, attrs) => ({ nom, attrs }), (x, y) => [x, y]);
+  ok("dessin : un quadrilatère et quatre coins", els[0].nom === "polygon" && els.filter((e) => e.attrs.class === "poignee-vivant").length === 4
+     && els[1].attrs["aria-label"] === T("vectorlab.deformer.poignee_coin") && !/^vectorlab\./.test(els[1].attrs["aria-label"]), JSON.stringify(els.map((e) => e.nom)));
+  g.etat.outil = "plume";
+  const n = els.length;
+  A.dessinerPoignees({ appendChild: (e) => els.push(e) }, (nom, attrs) => ({ nom, attrs }), (x, y) => [x, y]);
+  ok("dessin : rien hors de l'outil Sélection", els.length === n);
+}
+
 /* ── menu ── */
 {
   const vec = MENUS_BARRE.find((m) => m.entrees.some((x) => x.action === "bool:union"));
