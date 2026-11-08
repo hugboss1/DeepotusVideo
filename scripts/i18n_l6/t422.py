@@ -44,4 +44,11 @@ ENTREES = [
       "Divide Objects Below: select ONE path or shape placed above the objects to cut"),
     H("vectorlab.traces.diviser_rien", "Diviser les objets en dessous : ce tracé ne traverse aucun objet rempli déverrouillé placé sous lui",
       "Divide Objects Below: this path does not cross any unlocked filled object below it"),
+    # t428 Lignes et colonnes
+    H("vectorlab.traces.lignes_nombre", "Lignes et colonnes : de 1 à 100 lignes et colonnes (nombres entiers)",
+      "Rows and Columns: 1 to 100 rows and columns (whole numbers)"),
+    H("vectorlab.traces.lignes_taille", "Lignes et colonnes : les gouttières (≥ 0) ne laissent pas de place aux cellules",
+      "Rows and Columns: the gutters (≥ 0) leave no room for the cells"),
+    H("vectorlab.traces.lignes_objet", "Lignes et colonnes : sélectionnez un rectangle, une forme ou un tracé",
+      "Rows and Columns: select a rectangle, a shape or a path"),
 ]

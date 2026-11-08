@@ -4,7 +4,7 @@
 import { T } from "./mod-i18n.js";
 import { contour_en_multi, multi_vers_d, cibles_b, polylignes_objet, aplatir_objet, versMulti, aire_multi, martinez }
   from "./mod-bool.js";
-import { chemin_parser, chemin_serialiser } from "./mod-doc.js";
+import { chemin_parser, chemin_serialiser, op_guide_ajouter } from "./mod-doc.js";
 import { forme_d } from "./mod-formes.js";
 import { simplifier } from "./mod-crayon.js";
 import { op_noeuds_aligner } from "./mod-noeuds.js";
@@ -373,4 +373,37 @@ export function op_diviser_dessous(doc, idCouteau) {
   const cc = doc.calques[ci];
   cc.objets.splice(cc.objets.indexOf(couteau), 1);
   return poses;
+}
+
+/* ── T7 (t428) Objet › Tracé › Lignes et colonnes… ──
+   La boîte RÉELLE de l'objet (transform appliqué) devient lignes × colonnes rectangles séparés par des gouttières
+   (gouttiereLignes entre deux lignes, gouttiereColonnes entre deux colonnes), au style de l'objet, à sa place dans
+   la pile, rangés ligne par ligne ; l'objet disparaît. `reperes` pose un repère sur chaque bord de colonne (v) et de
+   ligne (h), sans doubler un repère existant. Pour les planches de cartes. -> ids des cellules */
+const _arr = (v) => Math.round(v * 1e6) / 1e6 + 0;
+
+export function op_lignes_colonnes(doc, id, { lignes = 1, colonnes = 1, gouttiereLignes = 0, gouttiereColonnes = 0, reperes = false } = {}) {
+  const nL = Number(lignes), nC = Number(colonnes), gL = Number(gouttiereLignes), gC = Number(gouttiereColonnes);
+  if (![nL, nC].every((n) => Number.isInteger(n) && n >= 1 && n <= 100)) throw new Error(T("vectorlab.traces.lignes_nombre"));
+  const [cible] = cibles_b(doc, [id]);
+  const o = cible.objet;
+  if (!TYPES_SIMPLIFIABLES.has(o.type)) throw new Error(T("vectorlab.traces.lignes_objet"));
+  const pts = aplatir_objet(o).flat();
+  const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+  const x0 = Math.min(...xs), y0 = Math.min(...ys), W = Math.max(...xs) - x0, H = Math.max(...ys) - y0;
+  const w = (W - gC * (nC - 1)) / nC, h = (H - gL * (nL - 1)) / nL;
+  if (!(gL >= 0) || !(gC >= 0) || !(w > 0) || !(h > 0)) throw new Error(T("vectorlab.traces.lignes_taille"));
+  const neuf = _idsNeufs(doc);
+  const cellules = [];
+  for (let l = 0; l < nL; l++) for (let c = 0; c < nC; c++) {
+    cellules.push({ id: neuf(), type: "rect", x: _arr(x0 + c * (w + gC)), y: _arr(y0 + l * (h + gL)), w: _arr(w), h: _arr(h),
+                    style: { ...(o.style || {}) } });
+  }
+  cible.calque.objets.splice(cible.calque.objets.indexOf(o), 1, ...cellules);
+  if (reperes) {
+    const poser = (axe, v) => { const g = (doc.guides && doc.guides[axe]) || []; if (!g.some((x) => Math.abs(x - v) < 1e-6)) op_guide_ajouter(doc, axe, v); };
+    for (let c = 0; c < nC; c++) { poser("v", _arr(x0 + c * (w + gC))); poser("v", _arr(x0 + c * (w + gC) + w)); }
+    for (let l = 0; l < nL; l++) { poser("h", _arr(y0 + l * (h + gL))); poser("h", _arr(y0 + l * (h + gL) + h)); }
+  }
+  return cellules.map((x) => x.id);
 }

@@ -7,9 +7,10 @@
 // T4 (t425) Moyenne : les nœuds choisis vont à leur position moyenne — horizontale (même y), verticale (même x) ou les deux.
 // T5 (t426) Nettoyer : points isolés, objets invisibles, textes vides retirés du document entier ; liens et masques protégés.
 // T6 (t427) Diviser les objets en dessous : le tracé du dessus découpe chaque objet rempli situé SOUS lui, puis disparaît.
+// T7 (t428) Lignes et colonnes : la boîte de l'objet devient une grille de rectangles séparés par des gouttières, repères en option.
 import { createRequire } from "node:module";
 import { fournirMartinez, aplatir_objet, versMulti, aire_multi } from "../js/mod-bool.js";
-import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres, op_noeuds_moyenne, op_nettoyer, op_diviser_dessous } from "../js/mod-traces.js";
+import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres, op_noeuds_moyenne, op_nettoyer, op_diviser_dessous, op_lignes_colonnes } from "../js/mod-traces.js";
 import { chemin_parser } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
 
@@ -413,6 +414,67 @@ const finsDe = (d) => chemin_parser(d).filter((g) => g.c !== "Z").map((g) => g.p
   const av2 = JSON.stringify(e);
   ok("T6 couteau = texte : refus traduit, document intact", refus(() => op_diviser_dessous(e, "t")) === T("vectorlab.traces.diviser_couteau") && JSON.stringify(e) === av2);
   ok("T6 les clés existent", T("vectorlab.traces.diviser_rien") !== "vectorlab.traces.diviser_rien" && T("vectorlab.traces.diviser_couteau") !== "vectorlab.traces.diviser_couteau");
+}
+
+/* ── T7 : Lignes et colonnes ── */
+{
+  const geo = (o) => [o.x, o.y, o.w, o.h];
+  const d = doc({ id: "a", type: "rect", x: 0, y: 0, w: 5, h: 5, style: { fond: "#eee" } },
+                { id: "r", type: "rect", x: 0, y: 0, w: 100, h: 100, nom: "Planche", style: { fond: "#0047AB", contour: "#000", epaisseur: 1 } },
+                { id: "z", type: "rect", x: 0, y: 0, w: 5, h: 5, style: { fond: "#eee" } });
+  const ids = op_lignes_colonnes(d, "r", { lignes: 2, colonnes: 2, gouttiereLignes: 10, gouttiereColonnes: 10 });
+  const cel = objets(d).slice(1, 5);
+  ok("T7 2 × 2, gouttière 10 : 4 rectangles 45 × 45 aux bonnes places, ligne par ligne", ids.length === 4 && objets(d).length === 6
+     && JSON.stringify(cel.map(geo)) === JSON.stringify([[0, 0, 45, 45], [55, 0, 45, 45], [0, 55, 45, 45], [55, 55, 45, 45]]), JSON.stringify(cel.map(geo)));
+  ok("T7 la source disparaît, les cellules prennent sa place et son style", !tousIdsDoc(d).includes("r") && objets(d)[0].id === "a" && objets(d)[5].id === "z"
+     && cel.every((o) => o.type === "rect" && o.style.fond === "#0047AB" && o.style.epaisseur === 1));
+  ok("T7 ids rendus = cellules, uniques", JSON.stringify(ids) === JSON.stringify(cel.map((o) => o.id)) && new Set(tousIdsDoc(d)).size === tousIdsDoc(d).length);
+  ok("T7 sans repères demandés : aucun repère posé", !d.guides || ((d.guides.v || []).length === 0 && (d.guides.h || []).length === 0), JSON.stringify(d.guides));
+}
+{
+  const d = doc({ id: "r", type: "rect", x: 10, y: 20, w: 100, h: 60, style: { fond: "#eee" } });
+  op_lignes_colonnes(d, "r", { lignes: 1, colonnes: 3, gouttiereLignes: 0, gouttiereColonnes: 5 });
+  ok("T7 3 colonnes, gouttière 5 : largeur 30, x = 10, 45, 80", JSON.stringify(objets(d).map((o) => [o.x, o.y, o.w, o.h])) === JSON.stringify([[10, 20, 30, 60], [45, 20, 30, 60], [80, 20, 30, 60]]),
+     JSON.stringify(objets(d).map((o) => [o.x, o.w])));
+  const u = doc({ id: "r", type: "rect", x: 10, y: 20, w: 100, h: 60, style: { fond: "#eee" } });
+  op_lignes_colonnes(u, "r", { lignes: 1, colonnes: 1 });
+  ok("T7 1 × 1 : un rectangle identique", objets(u).length === 1 && JSON.stringify([objets(u)[0].x, objets(u)[0].y, objets(u)[0].w, objets(u)[0].h]) === "[10,20,100,60]");
+}
+{
+  // repères : bords de chaque colonne et de chaque ligne, sans doublon avec un repère existant
+  const d = doc({ id: "r", type: "rect", x: 0, y: 0, w: 100, h: 100, style: { fond: "#eee" } });
+  d.guides = { v: [0], h: [] };
+  op_lignes_colonnes(d, "r", { lignes: 2, colonnes: 2, gouttiereLignes: 10, gouttiereColonnes: 10, reperes: true });
+  const tri = (a) => [...a].sort((x, y) => x - y);
+  ok("T7 repères verticaux 0, 45, 55, 100 (le 0 existant n'est pas doublé)", JSON.stringify(tri(d.guides.v)) === "[0,45,55,100]", JSON.stringify(d.guides));
+  ok("T7 repères horizontaux 0, 45, 55, 100", JSON.stringify(tri(d.guides.h)) === "[0,45,55,100]", JSON.stringify(d.guides));
+}
+{
+  // objet tourné : sa boîte RÉELLE (ellipse 100 × 40 tournée de 90° autour de son centre → x 30..70, y 0..100)
+  const d = doc({ id: "e", type: "ellipse", cx: 50, cy: 50, rx: 50, ry: 20, transform: "rotate(90 50 50)", style: { fond: "#eee" } });
+  op_lignes_colonnes(d, "e", { lignes: 2, colonnes: 1, gouttiereLignes: 0 });
+  const g = objets(d).map((o) => [o.x, o.y, o.w, o.h].map((v) => Math.round(v * 10) / 10));
+  ok("T7 objet tourné : grille dans sa boîte réelle, sans transform", JSON.stringify(g) === "[[30,0,40,50],[30,50,40,50]]" && objets(d).every((o) => !o.transform), JSON.stringify(g));
+}
+{
+  // refus : nombres invalides, gouttières trop grandes, objet non traçable → message, document intact
+  const cas = [
+    [{ lignes: 0, colonnes: 2 }, "vectorlab.traces.lignes_nombre"],
+    [{ lignes: 1.5, colonnes: 2 }, "vectorlab.traces.lignes_nombre"],
+    [{ lignes: 2, colonnes: 101 }, "vectorlab.traces.lignes_nombre"],
+    [{ lignes: 1, colonnes: 2, gouttiereColonnes: 100 }, "vectorlab.traces.lignes_taille"],
+    [{ lignes: 2, colonnes: 1, gouttiereLignes: -1 }, "vectorlab.traces.lignes_taille"],
+  ];
+  for (const [opts, cle] of cas) {
+    const d = doc({ id: "r", type: "rect", x: 0, y: 0, w: 100, h: 100, style: { fond: "#eee" } });
+    const av = JSON.stringify(d);
+    ok(`T7 refus ${JSON.stringify(opts)} → ${cle}, document intact`, refus(() => op_lignes_colonnes(d, "r", opts)) === T(cle) && JSON.stringify(d) === av);
+    ok(`T7 la clé ${cle} existe`, T(cle) !== cle);
+  }
+  const t = doc({ id: "t", type: "texte", x: 0, y: 0, contenu: "A", style: { fond: "#000" } });
+  const avT = JSON.stringify(t);
+  ok("T7 objet non traçable : refus traduit, document intact", refus(() => op_lignes_colonnes(t, "t", { lignes: 2, colonnes: 2 })) === T("vectorlab.traces.lignes_objet") && JSON.stringify(t) === avT);
+  ok("T7 la clé lignes_objet existe", T("vectorlab.traces.lignes_objet") !== "vectorlab.traces.lignes_objet");
 }
 
 if (echecs.length) {
