@@ -151,10 +151,22 @@ enfants: [source, ...résultat] }`.
 - Fiches de catalogue de l'assistant pour les entrées neuves (skill `connaissance-agent`).
 - Carte « Déformer » au chapitre Vectorlab du guide, FR et EN (skill `guide-deepotus`).
 
-### T9 (t468) — Preuve et livraison
+### T9 (t468) — Preuve et livraison (FAIT)
 
-- QA complète et bancs Python.
-- Preuve 8799 en FR et en EN : chaque effet, Modifier le contenu, export SVG relu, enregistrement puis rechargement.
+- `origin/main` (chantier Méthodes t443b) fusionnée sans conflit ; guide, L6 et catalogue relancés : rien ne change.
+- Bancs : `node qa/run.mjs` vert ; `test_i18n_l6` 24, `test_icones_g3_vectorlab` 18, agent 117 + 12 + 23 + 21,
+  `test_guide_v3` 494, `test_vectorlab_guide_devis` 17. Mutants : T1 37/37, T2 14/14, T3 19/19, T4 9/9, T5 20/20,
+  T6 18/18, T7 13/13.
+- Preuve 8799 (FR puis EN) :
+  - au vrai clic et clavier : menu Vecteur › Enveloppe… (15 styles, aperçu), Drapeau à 60 % appliqué ;
+  - Apparence « Déformation vivante » : Modifier le contenu (l'original revient, le bouton dit « Terminer »),
+    original élargi, Terminer → résultat recalculé à 330 px ;
+  - Distorsion libre, puis le coin haut-gauche tiré au vrai glisser (≈ −40, −30) ;
+  - Pointes de flèche (cercle au début, triangle à la fin) et Contraction et dilatation −60 % validées à Entrée ;
+  - export SVG valide : 5 tracés et 1 cercle, ni source cachée ni recette ;
+  - enregistré puis rechargé : toujours vivant ;
+  - Annuler la déformation au menu → la source revient ;
+  - menu et Apparence en anglais.
 - PR unique. Installation seulement sur accord.
 
 ## Hors lot
