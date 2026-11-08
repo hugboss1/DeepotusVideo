@@ -4,6 +4,7 @@
 // T2 (t461) Distorsion libre (bilinéaire sur les quatre coins) et Torsion (angle proportionnel à la distance au centre).
 // T3 (t462) Rugosité (graine stable, taille, détails) et Zigzag (crêtes par segment, selon la normale) ; pointes ou lisse.
 // T4 (t463) Contraction et dilatation : chaque segment devient une courbe, ancres et poignées en sens opposés.
+// T5 (t464) Pointes de flèche : sur un chemin ouvert, le trait raccourci et des pointes orientées selon la tangente.
 import { createRequire } from "node:module";
 import { polylignes_objet, fournirMartinez, versMulti, aplatir_objet, aire_multi } from "../js/mod-bool.js";
 import { op_deformer, op_deformation_regler, op_deformation_editer, op_deformation_annuler, STYLES_ENVELOPPE } from "../js/mod-deformer.js";
@@ -268,6 +269,58 @@ const def = (effet, params, source = rect("a")) => { const d = doc(source); op_d
   ok("un chemin ouvert reste ouvert (2 segments)", !/Z/.test(ouv.d) && (ouv.d.match(/C/g) || []).length === 2, ouv.d);
   const d = doc(rect("a"));
   ok("pourcentage hors bornes → refus traduit", refus(() => op_deformer(d, ["a"], "gonfler", { pourcent: 201 })) === T("vectorlab.deformer.pourcent", { min: -200, max: 200 }));
+}
+
+/* ── T5 (t464) Pointes de flèche ── */
+{
+  const ligne = (d = "M0 0 L100 0", ep = 2) => ({ id: "a", type: "path", d, style: { contour: "#c03030", epaisseur: ep, fond: "none" } });
+  const fl = (params, src = ligne()) => { const x = def("pointes", params, src); return { ...x, tous: resultat(x.g) }; };
+  ok("pointes : réglages par défaut (fin en triangle, échelle 100)", JSON.stringify(def("pointes", {}, ligne()).g.deformation.params) === '{"debut":"aucune","fin":"triangle","echelle":100}', JSON.stringify(def("pointes", {}, ligne()).g.deformation.params));
+  const t = fl({ fin: "triangle" });
+  ok("triangle au bout : le trait + une pointe", t.tous.length === 2, t.tous.length);
+  const trait = t.tous[0], pointe = t.tous[1];
+  ok("le trait garde son style et se raccourcit de la longueur de la pointe (3 × épaisseur)", trait.style.contour === "#c03030" && pres(Math.max(...pts(trait).map((p) => p[0])), 94, 0.01), trait.d);
+  ok("la pointe est pleine, de la couleur du trait, sans contour", pointe.style.fond === "#c03030" && pointe.style.contour === "none", JSON.stringify(pointe.style));
+  ok("la pointe : sommet au bout (100, 0), base en x = 94, demi-largeur 2,5", proche(pointe, 100, 0) < 0.01 && proche(pointe, 94, 2.5) < 0.01 && proche(pointe, 94, -2.5) < 0.01, pointe.d);
+  const deux = fl({ debut: "triangle", fin: "triangle" });
+  ok("deux pointes : le trait raccourci des deux côtés, pointe de début tournée vers la gauche", deux.tous.length === 3 && pres(Math.min(...pts(deux.tous[0]).map((p) => p[0])), 6, 0.01) && proche(deux.tous[1], 0, 0) < 0.01 && proche(deux.tous[1], 6, 2.5) < 0.01, JSON.stringify(deux.tous.map((x) => x.d)));
+  const vert = fl({ fin: "triangle" }, ligne("M0 0 L0 100"));
+  ok("trait vertical : raccourci en y (fin à 94)", pres(Math.max(...pts(vert.tous[0]).map((p) => p[1])), 94, 0.01) && pres(Math.max(...pts(vert.tous[0]).map((p) => Math.abs(p[0]))), 0, 0.01), vert.tous[0].d);
+  const court = fl({ fin: "triangle" }, ligne("M0 0 L100 0 L103 0"));
+  ok("dernier segment plus court que la pointe : le raccourci continue sur le précédent (fin à 97)", pres(Math.max(...pts(court.tous[0]).map((p) => p[0])), 97, 0.01), court.tous[0].d);
+  ok("orientation : sur un trait vertical, la pointe descend", proche(vert.tous[1], 0, 100) < 0.01 && proche(vert.tous[1], 2.5, 94) < 0.01, vert.tous[1].d);
+  const gros = fl({ fin: "triangle", echelle: 200 });
+  ok("échelle 200 % : la pointe double (base en x = 88)", proche(gros.tous[1], 88, 5) < 0.01);
+  const cercle = fl({ fin: "cercle" });
+  ok("cercle : rond (rayon 3 en hauteur aussi)", proche(cercle.tous[1], 100, 3) < 0.05, proche(cercle.tous[1], 100, 3));
+  ok("cercle : centré au bout, rayon 1,5 × épaisseur, le trait n'est pas raccourci", proche(cercle.tous[1], 103, 0) < 0.05 && pres(Math.max(...pts(cercle.tous[0]).map((p) => p[0])), 100, 0.01), cercle.tous[1].d);
+  const carre = fl({ fin: "carre" });
+  ok("carré : un tracé fermé", /Z\s*$/.test(carre.tous[1].d), carre.tous[1].d);
+  ok("carré : côté 3 × épaisseur, centré au bout", proche(carre.tous[1], 103, 3) < 0.01 && proche(carre.tous[1], 97, -3) < 0.01, carre.tous[1].d);
+  const ouverte = fl({ fin: "ouverte" });
+  ok("flèche ouverte : un V au trait (sans fond), sommet au bout", ouverte.tous[1].style.fond === "none" && ouverte.tous[1].style.contour === "#c03030" && ouverte.tous[1].style.epaisseur === 2 && proche(ouverte.tous[1], 100, 0) < 0.01 && !/Z/.test(ouverte.tous[1].d), JSON.stringify(ouverte.tous[1]));
+  const barre = fl({ fin: "barre" });
+  ok("barre : un trait perpendiculaire de 4 × épaisseur centré au bout", barre.tous[1].style.fond === "none" && proche(barre.tous[1], 100, 4) < 0.01 && proche(barre.tous[1], 100, -4) < 0.01, barre.tous[1].d);
+  // un trait coudé : la pointe suit la tangente du DERNIER segment
+  const coude = fl({ fin: "triangle" }, ligne("M0 0 L100 0 L100 50"));
+  ok("trait coudé : la pointe suit le dernier segment (vers le bas)", proche(coude.tous[1], 100, 50) < 0.01 && proche(coude.tous[1], 102.5, 44) < 0.01, coude.tous[1].d);
+  // Modifier le contenu : le trait d'origine revient, le trait raccourci et les pointes se cachent
+  const ed = fl({ fin: "triangle" });
+  op_deformation_editer(ed.d, ed.g.id);
+  ok("modifier le contenu : toutes les pièces du résultat sont cachées", resultat(objets(ed.d)[0]).length === 2 && resultat(objets(ed.d)[0]).every((x) => x.cache === true));
+  // vivant : le trait s'allonge, la pointe suit
+  const v = fl({ fin: "triangle" });
+  v.g.enfants[0].d = "M0 0 L200 0";
+  derives_rafraichir(v.d);
+  ok("vivant : le trait s'allonge, la pointe suit (sommet en 200, 0)", proche(resultat(objets(v.d)[0])[1], 200, 0) < 0.01);
+  // refus
+  const d = doc(rect("a"));
+  ok("un chemin fermé : refus traduit", refus(() => op_deformer(d, ["a"], "pointes", {})) === T("vectorlab.deformer.ouvert"));
+  const d2 = doc(ligne());
+  ok("style de début inconnu : refus traduit", refus(() => op_deformer(d2, ["a"], "pointes", { debut: "plume" })) === T("vectorlab.deformer.pointe", { pointe: "plume" }));
+  ok("style de pointe inconnu : refus traduit", refus(() => op_deformer(d2, ["a"], "pointes", { fin: "plume" })) === T("vectorlab.deformer.pointe", { pointe: "plume" }));
+  ok("aucune pointe ni au début ni à la fin : refus", refus(() => op_deformer(d2, ["a"], "pointes", { debut: "aucune", fin: "aucune" })) === T("vectorlab.deformer.aucune_pointe"));
+  ok("échelle hors bornes : refus", !!refus(() => op_deformer(d2, ["a"], "pointes", { echelle: 5 })));
 }
 
 if (echecs.length) {

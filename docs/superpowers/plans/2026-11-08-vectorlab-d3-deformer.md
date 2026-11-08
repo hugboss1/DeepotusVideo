@@ -120,7 +120,10 @@ enfants: [source, ...résultat] }`.
   - `echelle` en %, proportionnelle à l'épaisseur du trait.
 - Les pointes sont des formes générées, orientées selon la tangente du bout, et le trait est raccourci de leur
   longueur, comme Illustrator.
-- La source reste visible : seules les pointes s'ajoutent, sans « Modifier le contenu ».
+- (FAIT) Même modèle que les autres effets, plutôt qu'une source visible : la source est cachée, et le résultat est
+  le trait raccourci plus les pointes. « Modifier le contenu » marche donc aussi pour les flèches. Tailles : triangle
+  3 × 2,5 épaisseurs (le trait raccourci de 3), cercle de rayon 1,5, carré de côté 3, barre de 4, flèche ouverte au
+  trait ; le tout × échelle.
 - Banc :
   - orientation au bout ;
   - taille proportionnelle à l'épaisseur ;

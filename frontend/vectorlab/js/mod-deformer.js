@@ -10,7 +10,8 @@
 import { T } from "./mod-i18n.js";
 import { polylignes_objet } from "./mod-bool.js";
 
-const EFFETS = new Set(["enveloppe", "distorsion", "torsion", "rugosite", "zigzag", "gonfler"]);
+const EFFETS = new Set(["enveloppe", "distorsion", "torsion", "rugosite", "zigzag", "gonfler", "pointes"]);
+export const STYLES_POINTES = ["aucune", "triangle", "ouverte", "cercle", "carre", "barre"];
 const PAS_MAX = 2;                    // aucun segment déformé ne dépasse 2 px : une droite peut se courber
 const POINTS_MAX = 20000;
 const nbc = (x) => String(Math.round(x * 100) / 100 + 0);
@@ -59,6 +60,12 @@ function _params(effet, p = {}, base = {}) {
     lisse: !!v.lisse,
     graine: _entier(v.graine, 1, 0, 1e9),
   };
+  if (effet === "pointes") {
+    const debut = v.debut === undefined ? "aucune" : v.debut, fin = v.fin === undefined ? "triangle" : v.fin;
+    for (const x of [debut, fin]) if (!STYLES_POINTES.includes(x)) throw new Error(T("vectorlab.deformer.pointe", { pointe: x }));
+    if (debut === "aucune" && fin === "aucune") throw new Error(T("vectorlab.deformer.aucune_pointe"));
+    return { debut, fin, echelle: _nombre(v.echelle, 100, 10, 1000, "vectorlab.deformer.pourcent") };
+  }
   if (effet === "gonfler") return { pourcent: _nombre(v.pourcent, 30, -200, 200, "vectorlab.deformer.pourcent") };
   if (effet === "zigzag") return {
     taille: _nombre(v.taille, 5, 0, 1000, "vectorlab.deformer.valeur"),
@@ -236,10 +243,65 @@ function _gonfler(p, B) {
 }
 const _TRANSFORMEES = { enveloppe: _enveloppe, distorsion: _distorsion, torsion: _torsion, rugosite: _rugosite, zigzag: _zigzag, gonfler: _gonfler };
 
+/* ── T5 (t464) Pointes de flèche : sur chaque ligne OUVERTE, le trait raccourci de la longueur d'une pointe pleine et
+   des pointes orientées selon la tangente du bout (taille proportionnelle à l'épaisseur du trait × échelle) ── */
+// la polyligne privée de `L` px à partir de son début (depuisFin = false) ou de sa fin
+function _raccourcir(q, L, depuisFin) {
+  const p = depuisFin ? q.slice().reverse() : q.slice();
+  let reste = L;
+  while (p.length > 1) {
+    const [ax, ay] = p[0], [bx, by] = p[1], d = Math.hypot(bx - ax, by - ay);
+    if (d > reste) { p[0] = [ax + (bx - ax) * reste / d, ay + (by - ay) * reste / d]; break; }
+    reste -= d; p.shift();
+  }
+  return depuisFin ? p.reverse() : p;
+}
+function _pointe(style, bout, t, w, couleur, id) {
+  // bout : le point d'extrémité ; t : la tangente unitaire vers l'extérieur ; n : la normale
+  const n = [-t[1], t[0]], at = (a, b) => [bout[0] + t[0] * a + n[0] * b, bout[1] + t[1] * a + n[1] * b];
+  const ecr = (ps, ferme) => "M" + ps.map(([x, y]) => `${nbc(x)} ${nbc(y)}`).join(" L") + (ferme ? " Z" : "");
+  const plein = { fond: couleur, contour: "none" }, trait = { fond: "none", contour: couleur, epaisseur: w };
+  if (style === "triangle") return { id, type: "path", d: ecr([at(0, 0), at(-3 * w, 1.25 * w), at(-3 * w, -1.25 * w)], true), style: plein };
+  if (style === "ouverte") return { id, type: "path", d: ecr([at(-3 * w, 1.25 * w), at(0, 0), at(-3 * w, -1.25 * w)], false), style: trait };
+  if (style === "carre") return { id, type: "path", d: ecr([at(-1.5 * w, -1.5 * w), at(1.5 * w, -1.5 * w), at(1.5 * w, 1.5 * w), at(-1.5 * w, 1.5 * w)], true), style: plein };
+  if (style === "barre") return { id, type: "path", d: ecr([at(0, -2 * w), at(0, 2 * w)], false), style: trait };
+  return { id, type: "ellipse", cx: bout[0], cy: bout[1], rx: 1.5 * w, ry: 1.5 * w, style: plein };   // cercle
+}
+function _resultatPointes(gid, F, p, cache) {
+  const out = [];
+  let k = 0;
+  const neuf = () => `${gid}_d${++k}`;
+  for (const f of F) {
+    const ouvertes = f.lignes.filter((l) => !l.ferme && l.points.length >= 2);
+    if (!ouvertes.length) continue;
+    const w = (Number(f.style.epaisseur) > 0 ? Number(f.style.epaisseur) : 1) * p.echelle / 100;
+    const couleur = typeof f.style.contour === "string" && f.style.contour !== "none" ? f.style.contour : "#000000";
+    const traits = [], pointes = [];
+    for (const l of ouvertes) {
+      let q = l.points;
+      const tan = (a, b) => { const d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1; return [(a[0] - b[0]) / d, (a[1] - b[1]) / d]; };
+      const bouts = [["debut", q[0], tan(q[0], q[1])], ["fin", q[q.length - 1], tan(q[q.length - 1], q[q.length - 2])]];
+      for (const [cote, bout, t] of bouts) {
+        const st = p[cote];
+        if (st === "aucune") continue;
+        if (st === "triangle") q = _raccourcir(q, 3 * w, cote === "fin");   // la pointe pleine prend la place du bout du trait
+        pointes.push([st, bout, t]);
+      }
+      traits.push("M" + q.map(([x, y]) => `${nbc(x)} ${nbc(y)}`).join(" L"));
+    }
+    out.push({ id: neuf(), type: "path", d: traits.join(" "), style: _cloner(f.style), genere: true });
+    for (const [st, bout, t] of pointes) out.push({ ..._pointe(st, bout, t, w, couleur, neuf()), genere: true });
+  }
+  if (!out.length) throw new Error(T("vectorlab.deformer.ouvert"));
+  if (cache) for (const o of out) o.cache = true;
+  return out;
+}
+
 /* ── le résultat ── */
 function _resultat(gid, source, effet, params, cache) {
   const F = _feuilles(source);
   if (!F.length) throw new Error(T("vectorlab.deformer.sans_geometrie"));
+  if (effet === "pointes") return _resultatPointes(gid, F, params, cache);
   const B = _boite(F);
   // le pas grandit sur un très grand dessin, pour rester sous POINTS_MAX points
   const pas = Math.max(PAS_MAX, (2 * (B.w + B.h) * F.length) / POINTS_MAX);
