@@ -4,6 +4,7 @@
 // trace. Au passage : la matrice des booléens lit translate / scale / matrix / skew (les copies en dépendent).
 // T2 (t451) Répétition en grille : lignes × colonnes au pas de la boîte de la source (+ écart), briques, miroirs
 // alternés, pavage hexagonal sans jour ni recouvrement.
+// T3 (t452) Répétition en miroir : la source et son reflet par un axe (angle, écart au bord de la source).
 import { createRequire } from "node:module";
 import { polylignes_objet, fournirMartinez, martinez, versMulti, aplatir_objet, aire_multi } from "../js/mod-bool.js";
 import { op_repeter, op_repetition_regler } from "../js/mod-repeter.js";
@@ -351,6 +352,70 @@ const pts = (o) => polylignes_objet(o).flatMap((l) => l.points.map(([x, y]) => `
   ok("écart qui annule le pas : refus", refus(() => op_repeter(d, ["a"], "grille", { ecartX: -20 })) === T("vectorlab.repeter.ecart"));
   ok("écart non numérique : refus traduit", refus(() => op_repeter(d, ["a"], "grille", { ecartY: "x" })) === T("vectorlab.repeter.ecart_invalide"));
   ok("aucune trace après les refus", JSON.stringify(d) === avant);
+}
+
+/* ── T3 (t452) répétition en miroir : la source et son reflet par un axe (angle, écart) ── */
+{
+  // triangle rectangle, angle droit en haut à gauche ; axe vertical (90°) collé au bord droit (x = 110)
+  const tri = () => ({ id: "a", type: "path", d: "M90 40 L110 40 L90 60 Z", style: { fond: "#c33" } });
+  const d = doc(tri());
+  const gid = op_repeter(d, ["a"], "miroir", {});
+  const g = objets(d)[0];
+  ok("miroir : la source et UN reflet", g.enfants.length === 2 && g.enfants[1].id === `${gid}_r1` && g.enfants[1].genere);
+  ok("miroir : réglages par défaut (axe vertical, collé)", JSON.stringify(g.repetition.params) === JSON.stringify({ angle: 90, ecart: 0 }), JSON.stringify(g.repetition.params));
+  const r = pts(g.enfants[1]);
+  ok("miroir vertical collé : sommets reflétés par x = 110", r.includes("130,40") && r.includes("110,40") && r.includes("130,60") && !r.includes("110,60"), r.join(" "));
+  ok("miroir : le document reste valide", !refus(() => parserDoc(d)));
+  // l'écart éloigne l'axe : 10 → axe en x = 120, le reflet commence à x = 130
+  const d2 = doc(tri());
+  op_repeter(d2, ["a"], "miroir", { ecart: 10 });
+  const b2 = boite(objets(d2)[0].enfants[1]);
+  ok("miroir écart 10 : un jour de 20 entre la source et son reflet", pres(b2.x, 130) && pres(b2.w, 20), JSON.stringify(b2));
+  // axe horizontal (0°) : au-dessus de la source (y = 40), le reflet monte
+  const d3 = doc(tri());
+  op_repeter(d3, ["a"], "miroir", { angle: 0 });
+  const r3 = pts(objets(d3)[0].enfants[1]);
+  ok("miroir horizontal : reflet au-dessus, par y = 40", r3.includes("90,40") && r3.includes("110,40") && r3.includes("90,20") && !r3.includes("110,20"), r3.join(" "));
+  // axe à 45° : chaque sommet a son reflet exact par la droite de l'axe
+  const d4 = doc(tri());
+  op_repeter(d4, ["a"], "miroir", { angle: 45, ecart: 3 });
+  const g4 = objets(d4)[0];
+  const src = polylignes_objet(g4.enfants[0])[0].points, ref = polylignes_objet(g4.enfants[1])[0].points;
+  const n = [Math.SQRT1_2, -Math.SQRT1_2];          // la normale de l'axe à 45°, hors de la source
+  // l'axe : sa normale n pointe hors de la source ; il passe à (la plus grande avancée de la source le long de n) + écart
+  const proj = (p) => p[0] * n[0] + p[1] * n[1];
+  const axe = Math.max(...src.map(proj)) + 3;
+  const reflet = (p) => { const t = proj(p) - axe; return [p[0] - 2 * t * n[0], p[1] - 2 * t * n[1]]; };
+  ok("miroir à 45° : chaque sommet a son reflet par l'axe", src.every((p, k) => pres(reflet(p)[0], ref[k][0]) && pres(reflet(p)[1], ref[k][1])), JSON.stringify([src, ref]));
+  ok("miroir à 45° : le reflet est du côté de la normale, au-delà de l'écart", ref.every((p) => proj(p) >= axe + 3 - 0.01), JSON.stringify(ref.map(proj)));
+  // vivant : la source change, le reflet suit
+  g.enfants[0].d = "M90 40 L120 40 L90 60 Z";
+  derives_rafraichir(d);
+  const r5 = pts(objets(d)[0].enfants[1]);
+  ok("miroir vivant : l'axe suit le bord droit élargi (x = 120)", r5.includes("150,40") && r5.includes("120,40") && r5.includes("150,60"), r5.join(" "));
+  // une source devenue sans aucun point : le reflet garde son dernier état (pas de transform NaN)
+  const dn = doc(tri());
+  op_repeter(dn, ["a"], "miroir", {});
+  const refletAvant = JSON.stringify(objets(dn)[0].enfants[1]);
+  objets(dn)[0].enfants[0] = { ...tri(), d: "M90 40" };      // un chemin réduit à un point isolé : aucun point
+  derives_rafraichir(dn);
+  ok("miroir : source sans géométrie → reflet gardé", JSON.stringify(objets(dn)[0].enfants[1]) === refletAvant, JSON.stringify(objets(dn)[0].enfants[1]));
+  // régler
+  op_repetition_regler(d, gid, { angle: 0 });
+  ok("régler le miroir : l'angle change, l'écart reste", objets(d)[0].repetition.params.angle === 0 && objets(d)[0].repetition.params.ecart === 0);
+  // refus
+  const avant = JSON.stringify(doc(tri()));
+  const d6 = doc(tri());
+  ok("miroir : angle non numérique refusé", refus(() => op_repeter(d6, ["a"], "miroir", { angle: "x" })) === T("vectorlab.repeter.angle"));
+  ok("miroir : écart non numérique refusé", refus(() => op_repeter(d6, ["a"], "miroir", { ecart: "x" })) === T("vectorlab.repeter.ecart_invalide"));
+  ok("miroir : aucune trace après les refus", JSON.stringify(d6) === avant);
+  // un angle au-delà d'un tour se ramène dans [0, 360)
+  const d7 = doc(tri());
+  op_repeter(d7, ["a"], "miroir", { angle: 450 });
+  ok("miroir : 450° = 90°", objets(d7)[0].repetition.params.angle === 90 && pts(objets(d7)[0].enfants[1]).includes("130,60"));
+  const d8 = doc(tri());
+  op_repeter(d8, ["a"], "miroir", { angle: -90 });
+  ok("miroir : -90° = 270°, axe vertical à GAUCHE (x = 90)", objets(d8)[0].repetition.params.angle === 270 && pts(objets(d8)[0].enfants[1]).includes("70,40") && !pts(objets(d8)[0].enfants[1]).includes("110,40"), pts(objets(d8)[0].enfants[1]).join(" "));
 }
 
 if (echecs.length) {

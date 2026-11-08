@@ -113,13 +113,14 @@ un groupe ordinaire, dont les copies reçoivent des ids `o<n>` neufs (`_idLibre`
 ### T3 (t452) — Répétition en miroir
 
 - Mode `"miroir"` : la source plus sa réflexion par un **axe**.
-  - L'axe est donné par `angle` (90° par défaut, donc vertical) et `ecart`, la distance de l'axe au bord droit de la
-    source (0 par défaut, l'axe touche la source).
-  - La copie est un `matrix(...)` de réflexion préfixé au transform de la source.
-- Banc :
-  - axe vertical à ecart 0 → copie collée, symétrique ;
-  - axe à 45° → les points se correspondent par réflexion (± 0,01) ;
-  - modifier la source → le reflet suit.
+  - `angle` : la direction de l'axe en degrés, 90° par défaut (vertical), ramenée dans [0, 360). La normale de
+    l'axe (angle − 90°) pointe hors de la source : à 90° vers la droite, à 0° vers le haut, à 270° vers la gauche.
+  - `ecart` : 0 par défaut. L'axe passe par la plus grande avancée de la source le long de la normale (le bord, pas
+    la boîte : exact à 45°), plus l'écart. Le reflet est donc collé à la source, comme dans Illustrator.
+  - La copie est un `matrix(...)` de réflexion préfixé au transform de la source ; l'axe se relit à chaque recalcul.
+- Banc (fait) : axe vertical collé (sommets relus), écart 10, axe horizontal, axe à 45° (chaque sommet a son
+  reflet, du bon côté), source élargie → l'axe suit, source réduite à un point → reflet gardé, régler, angles 450°
+  et −90°, refus traduits sans trace.
 
 ### T4 (t453) — Fusion : créer et interpoler
 

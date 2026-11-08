@@ -13,21 +13,26 @@ import { T } from "./mod-i18n.js";
 import { polylignes_objet } from "./mod-bool.js";
 
 const MAX_COPIES = 200;
-const MODES = new Set(["radiale", "grille"]);
+const MODES = new Set(["radiale", "grille", "miroir"]);
 const DECALAGES = new Set(["aucun", "brique_lignes", "brique_colonnes", "hexagones"]);
 // au millionième : un pas arrondi au centième (34,64 pour √3 × 20) ouvrirait des jours dans un pavage
 const nbc = (x) => String(Math.round(x * 1e6) / 1e6 + 0);
 
-/* ── la boîte d'un objet, transform compris (la géométrie des booléens) ── */
-function _boite(o) {
+/* ── les points et la boîte d'un objet, transform compris (la géométrie des booléens) ── */
+function _points(o) {
   let lignes;
   if (o.type === "image" || o.type === "cadre") {
     lignes = polylignes_objet({ type: "rect", x: o.x, y: o.y, w: o.w, h: o.h, transform: o.transform });
   } else {
     try { lignes = polylignes_objet(o); } catch (e) { return null; }
   }
+  return lignes.flatMap((l) => l.points);
+}
+function _boite(o) {
+  const pts = _points(o);
+  if (!pts) return null;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const l of lignes) for (const [x, y] of l.points) {
+  for (const [x, y] of pts) {
     if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
   }
   if (!(x1 >= x0) || !(y1 >= y0)) return null;
@@ -83,6 +88,13 @@ function _params(mode, p, source, base = {}) {
       decalage, miroirLignes: !!v.miroirLignes, miroirColonnes: !!v.miroirColonnes,
     };
     return g;                                   // le pas se vérifie à la construction (_pas)
+  }
+  if (mode === "miroir") {
+    const angle = _fini(v.angle === undefined ? 90 : v.angle, "vectorlab.repeter.angle");
+    return {
+      angle: ((angle % 360) + 360) % 360,      // 450° = 90°, -90° = 270°
+      ecart: _fini(v.ecart === undefined ? 0 : v.ecart, "vectorlab.repeter.ecart_invalide"),
+    };
   }
   throw new Error(T("vectorlab.repeter.mode", { mode }));
 }
@@ -150,6 +162,20 @@ function _copies(gid, mode, p, source) {
       }
     }
   }
+  else if (mode === "miroir") {
+    // l'axe a la direction de l'angle (90° = vertical) ; sa normale (angle - 90°) pointe hors de la source : à 90°
+    // vers la droite, à 0° vers le haut. Il passe à la plus grande avancée de la source le long de la normale, plus
+    // l'écart — collé au bord, comme le miroir d'Illustrator.
+    const pts = _points(source);
+    if (!pts || !pts.length) throw new Error(T("vectorlab.repeter.source_type"));
+    const a = p.angle * Math.PI / 180, nx = Math.sin(a), ny = -Math.cos(a);
+    const d = Math.max(...pts.map(([x, y]) => x * nx + y * ny)) + p.ecart;
+    // réflexion par la droite {X·n = d} : X' = X - 2 (X·n - d) n
+    const m = [1 - 2 * nx * nx, -2 * nx * ny, -2 * nx * ny, 1 - 2 * ny * ny, 2 * d * nx, 2 * d * ny];
+    const c = _copier(source, `${gid}_r1`);
+    _prefixer(c, `matrix(${m.map(nbc).join(" ")})`);
+    out.push(c);
+  }
   if (out.length + 1 > MAX_COPIES) throw new Error(T("vectorlab.repeter.trop", { max: MAX_COPIES }));
   return out;
 }
@@ -188,7 +214,7 @@ function _source_ids(doc) {
   return () => { while (pris.has("o" + n)) n++; pris.add("o" + n); return "o" + n; };
 }
 
-/* ── T1 (t450) Objet › Répétition › Radiale ; T2 (t451) › Grille ──
+/* ── T1 (t450) Objet › Répétition › Radiale ; T2 (t451) › Grille ; T3 (t452) › Miroir ──
    La sélection (objets du premier niveau d'un calque déverrouillé) devient la SOURCE — plusieurs objets sont
    d'abord groupés — et le groupe vivant prend la place du plus haut d'entre eux. -> id du groupe vivant */
 export function op_repeter(doc, ids, mode, params = {}) {
