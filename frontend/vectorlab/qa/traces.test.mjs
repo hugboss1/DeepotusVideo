@@ -4,9 +4,10 @@
 // devient un groupe [fond sans contour, contour vectorisé] à la même place ; refus sans trace.
 // T2 (t423) Simplifier : moins de points, forme tenue, angles gardés, jamais plus de points que l'original.
 // T3 (t424) Ajouter des points d'ancrage : un point au milieu de chaque segment, segment de fermeture compris ; forme identique.
+// T4 (t425) Moyenne : les nœuds choisis vont à leur position moyenne — horizontale (même y), verticale (même x) ou les deux.
 import { createRequire } from "node:module";
 import { fournirMartinez, aplatir_objet, versMulti, aire_multi } from "../js/mod-bool.js";
-import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres } from "../js/mod-traces.js";
+import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres, op_noeuds_moyenne } from "../js/mod-traces.js";
 import { chemin_parser } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
 
@@ -270,6 +271,29 @@ const finsDe = (d) => chemin_parser(d).filter((g) => g.c !== "Z").map((g) => g.p
   const z = doc({ id: "z", type: "path", d: "M 0 0 L 10 0 L 10 10 Z L 0 10", style: { fond: "none", contour: "#000", epaisseur: 1 } });
   op_points_ajouter(z, ["z"]);
   ok("T3 segment après Z : son milieu part du départ (0 5)", finsDe(objets(z)[0].d).some((pt) => pt[0] === 0 && pt[1] === 5), objets(z)[0].d);
+}
+
+/* ── T4 : Moyenne ── */
+{
+  const tri = () => doc({ id: "p", type: "path", d: "M 0 0 L 100 10 L 50 80 L 200 200 Z", style: { fond: "#eee" } });
+  const pts = (d) => finsDe(objets(d)[0].d);
+  const a = tri(); op_noeuds_moyenne(a, "p", [0, 1, 2], "deux");
+  ok("T4 les deux : les 3 nœuds au barycentre (50 30), le 4e immobile",
+     JSON.stringify(pts(a)) === JSON.stringify([[50, 30], [50, 30], [50, 30], [200, 200]]), JSON.stringify(pts(a)));
+  const h = tri(); op_noeuds_moyenne(h, "p", [0, 1, 2], "horizontale");
+  ok("T4 horizontale : même y (30), x gardés", JSON.stringify(pts(h)) === JSON.stringify([[0, 30], [100, 30], [50, 30], [200, 200]]), JSON.stringify(pts(h)));
+  const v = tri(); op_noeuds_moyenne(v, "p", [0, 2], "verticale");
+  ok("T4 verticale : même x (25), y gardés", JSON.stringify(pts(v)) === JSON.stringify([[25, 0], [100, 10], [25, 80], [200, 200]]), JSON.stringify(pts(v)));
+  // les poignées suivent leur nœud
+  const c = doc({ id: "c", type: "path", d: "M 0 0 C 10 0 20 10 30 10 L 60 40", style: { fond: "none", contour: "#000", epaisseur: 1 } });
+  op_noeuds_moyenne(c, "c", [1, 2], "deux");
+  const g = chemin_parser(objets(c)[0].d);
+  ok("T4 la poignée d'arrivée suit son nœud (même décalage)", g[1].c === "C" && g[1].p[2] === 35 && g[1].p[3] === 25 && g[1].p[4] === 45 && g[1].p[5] === 25, JSON.stringify(g[1]));
+  // refus : un seul nœud, mode inconnu → document intact
+  const r1 = tri(), av1 = JSON.stringify(r1);
+  ok("T4 un seul nœud : refus de l'alignement, document intact", refus(() => op_noeuds_moyenne(r1, "p", [1], "deux")) === T("vectorlab.noeuds.err_aligner") && JSON.stringify(r1) === av1);
+  const r2 = tri(), av2 = JSON.stringify(r2);
+  ok("T4 mode inconnu : refus, document intact", refus(() => op_noeuds_moyenne(r2, "p", [0, 1], "diagonale")) !== null && JSON.stringify(r2) === av2);
 }
 
 if (echecs.length) {

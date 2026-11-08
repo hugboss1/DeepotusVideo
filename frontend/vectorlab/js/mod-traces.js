@@ -6,6 +6,7 @@ import { contour_en_multi, multi_vers_d, cibles_b, polylignes_objet } from "./mo
 import { chemin_parser, chemin_serialiser } from "./mod-doc.js";
 import { forme_d } from "./mod-formes.js";
 import { simplifier } from "./mod-crayon.js";
+import { op_noeuds_aligner } from "./mod-noeuds.js";
 
 // les types dont le contour se vectorise (un texte se vectorise d'abord par Texte › Convertir en courbes ; un
 // groupe porte des enfants de styles différents : dégrouper d'abord)
@@ -241,4 +242,16 @@ export function op_points_ajouter(doc, ids) {
     c.calque.objets.splice(c.calque.objets.indexOf(o), 1, neuf);
   }
   return calculs.map((c) => c.objet.id);
+}
+
+/* ── T4 (t425) Objet › Tracé › Moyenne… ──
+   Les nœuds choisis d'UN chemin vont à leur position moyenne, comme dans Illustrator : « horizontale » = même y
+   (sur une ligne horizontale), « verticale » = même x, « deux » = au barycentre. Les poignées suivent leur nœud.
+   C'est l'alignement au centre de mod-noeuds (centreV / centreH), qui refuse lui-même moins de deux nœuds. */
+const _MOYENNE = { horizontale: ["centreV"], verticale: ["centreH"], deux: ["centreH", "centreV"] };
+
+export function op_noeuds_moyenne(doc, id, indices, axe) {
+  const modes = _MOYENNE[axe];
+  if (!modes) throw new Error(`moyenne : axe inconnu ${axe}`);
+  for (const m of modes) op_noeuds_aligner(doc, id, indices, m);
 }
