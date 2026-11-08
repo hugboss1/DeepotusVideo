@@ -15,6 +15,12 @@
     "groupe": "idgroupe"
    },
    {
+    "pos": 1138,
+    "avant": "import { initPanneaux } from \"./mod-panneaux.js\";",
+    "apres": "import { initPanneaux } from \"./mod-panneaux.js\";\r\nimport { initSections } from \"./mod-sections.js\";   // t459",
+    "groupe": "t459"
+   },
+   {
     "pos": 2099,
     "avant": "import { initOutils } from \"./mod-tools.js\";",
     "apres": "import { initOutils } from \"./mod-tools.js\";\r\nimport { dansPanneau } from \"./mod-flottant.js\";",
@@ -163,6 +169,12 @@
     "avant": "initExport(VL);",
     "apres": "initExport(VL);\r\ninitSchema(VL);    // t314 : Scanner un schéma…, Envoyer vers › Animation — après initExport (VL.svgCourant)",
     "groupe": "t314"
+   },
+   {
+    "pos": 37296,
+    "avant": "initPanneaux(VL);   // sections du panneau de droite : état ouvert / replié mémorisé (dz_vl_panneaux)",
+    "apres": "initPanneaux(VL);   // sections du panneau de droite : état ouvert / replié mémorisé (dz_vl_panneaux)\r\ninitSections(VL);   // t459 : les sections internes reconstruites gardent leur état ouvert / replié",
+    "groupe": "t459"
    }
   ],
   "js/mod-apparence2.js": [
