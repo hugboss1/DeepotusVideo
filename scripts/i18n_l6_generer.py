@@ -159,11 +159,16 @@ def resoudre(E, textes):
         for a, b in zip(lst, lst[1:]):
             if a[0] + len(a[1]) > b[0]:
                 erreurs.append(f"chevauchement {f} : {a[3]} {a[1][:40]!r} et {b[3]} {b[1][:40]!r}")
-    # clés utilisées par un S : chaque T("clé") écrit doit être au dico
+    # clés utilisées par un S : chaque T("clé") écrit doit être au dico — ou déjà dans un AUTRE dictionnaire partagé
+    # (ex. commun.envoi.refuse de commun.json, t421) : jamais recopiée dans celui du Vectorlab
+    autres = set()
+    for fj in (RACINE / "frontend" / "shared" / "i18n").glob("*.json"):
+        if fj.name != DICO_F.name:
+            autres.update(json.loads(fj.read_text("utf-8")))
     for e in E:
         if e["type"] == "S":
             for cle in re.findall(r'\bT\("([^"]+)"', e["apres"]):
-                if cle not in dico:
+                if cle not in dico and cle not in autres:
                     erreurs.append(f"{e['groupe']} : {e['fichier']}:{e['ligne']} : T({cle!r}) sans entrée au dico")
     # un même texte français n'a qu'UNE traduction dans tout le dictionnaire (test_i18n_l0 2.4)
     vu = {}
