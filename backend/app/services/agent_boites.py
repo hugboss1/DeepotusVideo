@@ -111,7 +111,7 @@ BOITES: dict[str, dict] = {
     "methodes": {
         "libelle": "agent.boites.methodes",
         "outils": ["methodes_lire"],
-        "agents": ["mcp", "monteur", "realisateur"],   # t435 : + le Monteur ; t436 : + le Réalisateur
+        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons"],   # t435 Monteur ; t436 Réalisateur ; t437 Retoucheur, Déclinaisons
         "mobile": False,
     },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
@@ -119,7 +119,7 @@ BOITES: dict[str, dict] = {
     "briques": {
         "libelle": "agent.boites.briques",
         "outils": ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"],
-        "agents": ["mcp", "monteur", "realisateur"],   # t435 : + le Monteur ; t436 : + le Réalisateur
+        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons"],   # t435 Monteur ; t436 Réalisateur ; t437 Retoucheur, Déclinaisons
         "mobile": False,
     },
     # t435 (08/11/2026, lot M2) : l'agent métier Monteur — temps forts d'une musique, coupes calées, titre gravé par
@@ -129,6 +129,14 @@ BOITES: dict[str, dict] = {
         "outils": ["temps_forts_musique", "caler_coupes", "poser_titre",
                    "chaines_lire", "deviser_etape_chaine"],   # t435b : la chaîne d'éditions (B4)
         "agents": ["monteur"],
+        "mobile": False,
+    },
+    # t437 (08/11/2026, lot M4) : la carte des différences (avant / après) du Retoucheur et des Déclinaisons produit ;
+    # elle écrit une image (la carte) : pas pour « mcp »
+    "retouche": {
+        "libelle": "agent.boites.retouche",
+        "outils": ["carte_differences"],
+        "agents": ["retoucheur", "declinaisons"],
         "mobile": False,
     },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)

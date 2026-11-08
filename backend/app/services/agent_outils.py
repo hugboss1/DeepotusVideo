@@ -741,6 +741,16 @@ async def deviser_etape_chaine(ctx: Ctx, consigne: str, chaine: str = "", source
                            "secondes_sortie": d["secondes_sortie"]}}
     return _res(True, f"étape {d['n']} proposée sur {d['parent']} : {d['usd']} $ ({d['resolution']}, "
                       f"{d['secondes_sortie']} s) ; l'utilisateur la lance d'un clic", {"chaine": chaine}, carte)
+# ---- t437 (08/11/2026, lot M4) : la carte des différences du Retoucheur et des Déclinaisons (boîte « retouche ») ---
+async def carte_differences(ctx: Ctx, avant: str, apres: str) -> dict:
+    """t437 : la part d'image changée entre deux images, la zone, la répartition par quart, et une carte PNG. Local."""
+    from app.services import briques as _BR
+    try:
+        c = await asyncio.to_thread(_BR.carte_differences, avant, apres)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    return _res(True, f"{round(c['part_changee'] * 100, 1)} % de l'image a changé ; zone {c['boite']} ; carte "
+                      f"{c['carte']}", c)
 # ---- t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (boîte « plateau ») -------------------
 # Lecture et PROPOSITION seulement : la légende de la previs (couleur par entité / matière, faisceaux exclus) et les
 # trois caméras de couverture CALCULÉES depuis la caméra du plan — rien n'est rangé, capturé ni créé (ces gestes
@@ -2348,6 +2358,14 @@ OUTILS: dict[str, dict] = {
                                                       "description": "ids d'ancres d'identité en référence"},
                                            "resolution": {"type": "string", "enum": ["480p", "720p"]}},
                                           ["consigne"])},
+    # t437 : la carte des différences (boîte « retouche »)
+    "carte_differences": {"nature": "ecriture", "fn": carte_differences,
+                          "description": "Compare deux images (avant / après une retouche ou une déclinaison) : part "
+                                         "de l'image changée, zone changée, répartition par quart, et une carte PNG "
+                                         "où ce qui a bougé est en rouge. Prouve qu'on n'a changé qu'une chose. "
+                                         "Local, gratuit.",
+                          "schema": _o({"avant": dict(_T, description="image de référence"),
+                                        "apres": dict(_T, description="image retouchée")}, ["avant", "apres"])},
     # t433 : le catalogue des méthodes (boîte « methodes », lecture)
     "methodes_lire": {"nature": "lecture", "fn": methodes_lire,
                       "description": "Les méthodes de l'application (fiches pas à pas : étapes, contrôles qualité, "

@@ -14554,5 +14554,9 @@
  "Une étape est déjà en cours sur cette chaîne.": {
   "fr": "Une étape est déjà en cours sur cette chaîne.",
   "en": "A step is already running on this chain."
+ },
+ "La carte des différences compare deux images.": {
+  "fr": "La carte des différences compare deux images.",
+  "en": "The difference map compares two images."
  }
 }

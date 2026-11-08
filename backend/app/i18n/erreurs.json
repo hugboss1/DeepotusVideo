@@ -2443,6 +2443,7 @@
   "erreur.a9797523da": {"fr": "OpenAI: HTTP {status_code} — {v}", "en": "OpenAI: HTTP {status_code} — {v}", "src": "fr"},
   "erreur.a97da078af": {"fr": "ce modèle n'a pas de squelette : pas de hitbox sur des os", "en": "this model has no skeleton: no hitbox on bones", "src": "fr"},
   "erreur.a97ddce51c": {"fr": "La proposition de DA a échoué — réessaie.", "en": "The art direction proposal failed — try again.", "src": "fr"},
+  "erreur.a97f6b90f9": {"fr": "La carte des différences compare deux images.", "en": "The difference map compares two images.", "src": "fr"},
   "erreur.a988bbd82f": {"fr": "{moteur} : réglage inconnu {k}", "en": "{moteur}: unknown setting {k}", "src": "fr"},
   "erreur.a99ccfb37a": {"fr": "aucun document ouvert à envoyer vers l'app native", "en": "no open document to send to the native app", "src": "fr"},
   "erreur.a99ef5c4b9": {"fr": "type de source inconnu", "en": "unknown source type", "src": "fr"},
