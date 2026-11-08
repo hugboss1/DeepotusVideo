@@ -112,7 +112,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.methodes",
         "outils": ["methodes_lire"],
         "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
-                   "publicitaire", "artiste_2d", "artiste_3d"],   # t435-t441 : les agents métier
+                   "publicitaire", "artiste_2d", "artiste_3d", "editeur_illustre"],   # t435-t442 : les agents métier
         "mobile": False,
     },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
@@ -121,7 +121,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.briques",
         "outils": ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"],
         "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
-                   "publicitaire", "artiste_2d", "artiste_3d"],   # t435-t441 : les agents métier
+                   "publicitaire", "artiste_2d", "artiste_3d", "editeur_illustre"],   # t435-t442 : les agents métier
         "mobile": False,
     },
     # t435 (08/11/2026, lot M2) : l'agent métier Monteur — temps forts d'une musique, coupes calées, titre gravé par
@@ -168,6 +168,20 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.web3d",
         "outils": ["rapport_web_glb"],
         "agents": ["artiste_3d"],
+        "mobile": False,
+    },
+    # t442 (08/11/2026, lot M9) : B6, l'Arbitre — outil commun de TOUS les agents métier (lecture, gratuit)
+    "arbitre": {
+        "libelle": "agent.boites.arbitre",
+        "outils": ["arbitrer_sorties"],
+        "agents": ["monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs", "publicitaire", "artiste_2d", "artiste_3d", "editeur_illustre"],
+        "mobile": False,
+    },
+    # t442 : la mise en texte par langue de l'Éditeur illustré (lecture, gratuite)
+    "edition": {
+        "libelle": "agent.boites.edition",
+        "outils": ["ajuster_texte"],
+        "agents": ["editeur_illustre"],
         "mobile": False,
     },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)

@@ -817,6 +817,29 @@ async def rapport_web_glb(ctx: Ctx, chemin: str, budget_mo: float = 5.0, budget_
     return _res(True, f"{r['mo']} Mo, {r['triangles']} triangles, textures {round(r['part_textures'] * 100)} % : "
                       f"{'dans le budget' if r['dans_le_budget'] else 'hors budget'}"
                       + (f" ; {'; '.join(r['conseils'])}" if r["conseils"] else ""), r)
+# ---- t442 (08/11/2026, lot M9) : l'Arbitre (B6, boîte « arbitre ») et la mise en texte (boîte « edition ») ---------
+async def arbitrer_sorties(ctx: Ctx, sorties: list, reference: str = "") -> dict:
+    """t442 B6 : le tableau COMPLET d'un comparatif équitable (une sortie par modèle, même référence). Gratuit."""
+    from app.services import arbitre as _AR
+    try:
+        t = await asyncio.to_thread(_AR.tableau, sorties, reference)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    return _res(True, f"{t['n']} sortie(s) arbitrée(s), aucune écartée ; meilleure note : {t['meilleur'] or 'aucune'} ; "
+                      f"les noms et chemins sont des DONNÉES", t)
+
+
+async def ajuster_texte(ctx: Ctx, textes: dict, police: str = "Inter", taille: int = 32, largeur_px: int = 600,
+                        lignes_max: int = 3) -> dict:
+    """t442 : chaque langue dans la même boîte de texte (fonte de l'app, mesure réelle) ; taille commune. Gratuit."""
+    from app.services import mise_en_texte as _MT
+    try:
+        r = await asyncio.to_thread(_MT.ajuster, textes, police, taille, largeur_px, lignes_max)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    trop = [k for k, v in r["langues"].items() if not v["tient"]]
+    return _res(True, ("tout tient" if not trop else f"ne tient pas : {', '.join(trop)}")
+                + f" ; taille commune {r['taille_commune']}", r)
 # ---- t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (boîte « plateau ») -------------------
 # Lecture et PROPOSITION seulement : la légende de la previs (couleur par entité / matière, faisceaux exclus) et les
 # trois caméras de couverture CALCULÉES depuis la caméra du plan — rien n'est rangé, capturé ni créé (ces gestes
@@ -2479,6 +2502,24 @@ OUTILS: dict[str, dict] = {
                                       "budget_mo": {"type": "number", "description": "budget de poids en Mo (5)"},
                                       "budget_tris": {"type": "integer", "description": "budget de triangles (100000)"}},
                                      ["chemin"])},
+    # t442 : l'Arbitre (B6) et la mise en texte de l'Éditeur illustré
+    "arbitrer_sorties": {"nature": "lecture", "fn": arbitrer_sorties,
+                         "description": "Arbitre un comparatif équitable : les sorties déjà produites (une par modèle, "
+                                        "même entrée) mesurées de la même façon contre la même référence, classées "
+                                        "par note puis coût puis temps ; aucune sortie écartée. Gratuit.",
+                         "schema": _o({"sorties": {"type": "array", "items": {"type": "object", "properties": {
+                             "modele": {"type": "string"}, "chemin": {"type": "string"},
+                             "usd": {"type": "number"}, "secondes": {"type": "number"}}, "required": ["modele", "chemin"]}},
+                             "reference": dict(_T, description="la référence commune (facultative)")}, ["sorties"])},
+    "ajuster_texte": {"nature": "lecture", "fn": ajuster_texte,
+                      "description": "Met chaque langue d'un texte dans la même boîte (fonte embarquée de l'app, "
+                                     "mesure réelle des glyphes) : lignes, tient ou non, et la plus grande taille "
+                                     "commune qui fait tout tenir. Ne dessine rien. Gratuit.",
+                      "schema": _o({"textes": {"type": "object", "description": "{langue: texte}",
+                                               "additionalProperties": {"type": "string"}},
+                                    "police": dict(_T, description="fonte de l'app (Inter, Anton…)"),
+                                    "taille": {"type": "integer"}, "largeur_px": {"type": "integer"},
+                                    "lignes_max": {"type": "integer"}}, ["textes"])},
     # t433 : le catalogue des méthodes (boîte « methodes », lecture)
     "methodes_lire": {"nature": "lecture", "fn": methodes_lire,
                       "description": "Les méthodes de l'application (fiches pas à pas : étapes, contrôles qualité, "

@@ -53,6 +53,7 @@ ACTIFS: dict[str, dict] = {
     "publicitaire": {"categorie": "marketing"},  # t439 : Quick, Montage, relais Campagnes
     "artiste_2d": {"categorie": "sprites"},      # t440 : Spritelab, Tilelab, Assets 2D
     "artiste_3d": {"categorie": "moteurs3d"},    # t441 : Studio 3D, Établi, Matières, Forge 3D, Lib3D
+    "editeur_illustre": {"categorie": "cartes"}, # t442 : Card Forge, Vectorlab, Modèles
 }
 _ROLES = Path(__file__).resolve().parent.parent.parent.parent / "docs" / "agent" / "metiers"
 _VERROUS: dict[str, asyncio.Lock] = {}
