@@ -188,7 +188,8 @@ def test_plateau_galerie_badge_et_filtre_dans_la_source_traduite():
     assert 'categorie: x.categorie === "plateau" ? "plateau" : ""' in CORE
     dessin = _fonction(CORE, "galDrawDecks")
     assert 'if (r.categorie === "plateau") meta.appendChild(galEl("i", "cf-gal-badge", dzT("cartes.plateau.badge")))' in dessin
-    assert 'toutes.filter((r) => r.categorie === "plateau")' in dessin
+    assert 'toutes.filter' not in dessin                      # le filtre est celui du SERVEUR
+    assert '"&categorie=plateau"' in _fonction(CORE, "galDecksList")
     assert 'const gf = el("#galFiltre");' in _fonction(CORE, "galEnsure")
 
 
@@ -208,6 +209,14 @@ def test_plateau_galerie_angles_vifs():
         blocs = re.findall(re.escape(sel) + r"[^{}]*\{([^}]*)\}", css)
         assert blocs, sel
         assert not any("radius" in b for b in blocs), sel
+
+
+@pytest.mark.skipif(not NODE, reason="node introuvable")
+def test_plateau_le_banc_node_joue_la_galerie_avec_son_filtre():
+    r = subprocess.run([NODE, str(CF_DIR / "qa" / "galerie_plateau.test.mjs")], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=120)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-600:]
+    assert "OK" in r.stdout
 
 
 if __name__ == "__main__":

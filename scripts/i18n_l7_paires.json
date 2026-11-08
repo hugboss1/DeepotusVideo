@@ -297,6 +297,18 @@
     "groupe": "coque"
    },
    {
+    "pos": 95414,
+    "avant": "GAL_DECKS_REQ = jsonNamed(\"GET\", \"/cards/decks?limit=\" + GAL_DECKS_MAX).then((d) => {",
+    "apres": "const filtre = GAL_FILTRE;\r\n      GAL_DECKS_REQ = jsonNamed(\"GET\", \"/cards/decks?limit=\" + GAL_DECKS_MAX + (filtre === \"plateau\" ? \"&categorie=plateau\" : \"\")).then((d) => {",
+    "groupe": "t421_plateau"
+   },
+   {
+    "pos": 95509,
+    "avant": "const rows = Array.isArray(d && d.decks) ? d.decks : [];",
+    "apres": "if (filtre !== GAL_FILTRE) return GAL_DECKS_REQ || GAL_DECKS || [];   /* réponse d'un filtre abandonné */\r\n        const rows = Array.isArray(d && d.decks) ? d.decks : [];",
+    "groupe": "t421_plateau"
+   },
+   {
     "pos": 95730,
     "avant": "updated: String(x.updated || \"\"),",
     "apres": "updated: String(x.updated || \"\"),\r\n          categorie: x.categorie === \"plateau\" ? \"plateau\" : \"\",",
@@ -455,7 +467,7 @@
    {
     "pos": 103731,
     "avant": "const rl = el(\"#galReload\");",
-    "apres": "const gf = el(\"#galFiltre\");\r\n    if (gf) gf.addEventListener(\"click\", (e) => {\r\n      const b = e && e.target && e.target.closest ? e.target.closest(\"button[data-filtre]\") : null;\r\n      if (!b) return;\r\n      GAL_FILTRE = b.dataset.filtre === \"plateau\" ? \"plateau\" : \"tous\";\r\n      if (GAL_DECKS) galDrawDecks(GAL_DECKS); else galSyncFiltre();\r\n    });\r\n    const rl = el(\"#galReload\");",
+    "apres": "const gf = el(\"#galFiltre\");\r\n    if (gf) gf.addEventListener(\"click\", (e) => {\r\n      const b = e && e.target && e.target.closest ? e.target.closest(\"button[data-filtre]\") : null;\r\n      if (!b) return;\r\n      GAL_FILTRE = b.dataset.filtre === \"plateau\" ? \"plateau\" : \"tous\";\r\n      galSyncFiltre();\r\n      /* le filtre est celui du SERVEUR (?categorie=) : la liste bornée aux plus récents ne dit pas où sont les plateaux */\r\n      GAL_DECKS = null; GAL_DECKS_REQ = null;\r\n      const gd = el(\"#galDecks\");\r\n      if (gd) galNote(gd, dzT(\"cartes.core.chargement_jeux\"));\r\n      galDecksList(true).then((l) => galDrawDecks(l),\r\n        (e) => { if (gd) galNote(gd, dzT(\"cartes.core.jeux_indispo\", { err: galMsg(e) }), true); });\r\n    });\r\n    const rl = el(\"#galReload\");",
     "groupe": "t421_plateau"
    },
    {
@@ -545,7 +557,7 @@
    {
     "pos": 107924,
     "avant": "const rows = Array.isArray(list) ? list : [];",
-    "apres": "const toutes = Array.isArray(list) ? list : [];\r\n    const rows = GAL_FILTRE === \"plateau\" ? toutes.filter((r) => r.categorie === \"plateau\") : toutes;\r\n    galSyncFiltre();\r\n    if (!rows.length && GAL_FILTRE === \"plateau\") { galNote(host, dzT(\"cartes.plateau.aucun\")); return; }",
+    "apres": "const rows = Array.isArray(list) ? list : [];\r\n    galSyncFiltre();\r\n    if (!rows.length && GAL_FILTRE === \"plateau\") { galNote(host, dzT(\"cartes.plateau.aucun\")); return; }",
     "groupe": "t421_plateau"
    },
    {
@@ -571,12 +583,6 @@
     "avant": "\"jeu courant\"",
     "apres": "dzT(\"cartes.core.jeu_courant\")",
     "groupe": "coque"
-   },
-   {
-    "pos": 109184,
-    "avant": "const montres = Math.min(rows.length, GAL_DECKS_MAX);",
-    "apres": "const montres = Math.min(toutes.length, GAL_DECKS_MAX);",
-    "groupe": "t421_plateau"
    },
    {
     "pos": 109335,

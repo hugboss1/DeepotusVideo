@@ -535,7 +535,7 @@ def _index_lu() -> tuple[dict, bool]:
             intact = False       # clé étrangère, ou entrée qui ne tient pas
             continue
         if e is not v:
-            intact = False       # il a fallu la ramener à cinq clés
+            intact = False       # il a fallu la ramener à six clés
         propres[k] = e
     return propres, intact
 
@@ -611,7 +611,7 @@ def _entree_normalisee(vieille) -> dict | None:
         v = vieille.get(k)
         if not isinstance(v, int) or isinstance(v, bool):
             return None
-    # DÉJÀ PROPRE : six clés présentes et bien typées, donc CES cinq-là. On
+    # DÉJÀ PROPRE : six clés présentes et bien typées, donc CES six-là. On
     # rend l'objet reçu — reconstruire 2 200 dictionnaires par listing pour
     # aboutir aux mêmes octets coûtait 14 ms mesurées, et le cas courant est
     # justement celui-là.
@@ -630,8 +630,8 @@ def _entree_a_jour(vieille, st) -> dict | None:
     veut pas avoir à défendre.
 
     LA GARDE DE FORME VIT UN CRAN PLUS HAUT : `_index_lu` ne rend que des
-    entrées à cinq clés bien typées. Il reste ici le contrôle des trois
-    chaînes — trois `isinstance`, pas un dictionnaire de plus — parce que
+    entrées à six clés bien typées. Il reste ici le contrôle des quatre
+    chaînes — quatre `isinstance`, pas un dictionnaire de plus — parce que
     c'est `_resume_d_entree` qui les indexera juste après, et qu'un `KeyError`
     dans un listing serait un 500 pour un cache abîmé."""
     if not isinstance(vieille, dict):
@@ -1018,7 +1018,7 @@ def borne_limite(val) -> int:
 
 
 @router.get("/decks")
-async def get_decks(limit: str | None = None):
+async def get_decks(limit: str | None = None, categorie: str | None = None):
     """Les jeux, plus récent d'abord, en RÉSUMÉS de quatre champs, BORNÉS.
 
     CHANGEMENT DE CONTRAT, ASSUMÉ ET DIT. La route servait tous les documents
@@ -1036,7 +1036,13 @@ async def get_decks(limit: str | None = None):
     d'affichage, pas une contrainte métier ; et la valeur RETENUE repart dans
     la réponse, pour que l'appelant sache ce qu'il a vraiment obtenu. Seule
     une valeur qui n'est pas un nombre est un 400 (phrase française, patron
-    `_q_num` — défini plus bas dans ce fichier, résolu à l'appel)."""
+    `_q_num` — défini plus bas dans ce fichier, résolu à l'appel).
+
+    `categorie` FILTRE AVANT LE PLAFOND, et `total` est celui du filtre : un
+    plateau ancien n'est pas hors de la liste des `limit` plus récents. Absent
+    ou vide : pas de filtre. Une valeur hors `CATEGORIES` rend une liste VIDE
+    (200, total 0) — une catégorie inconnue ne contient aucun jeu, ce n'est
+    pas une faute de l'appelant."""
     n = borne_limite(limit)
     try:
         rows = await asyncio.to_thread(list_deck_summaries)
@@ -1048,6 +1054,8 @@ async def get_decks(limit: str | None = None):
         logger.exception("cards: listing des jeux impossible")
         raise HTTPException(500, "Liste des jeux impossible : lecture refusée "
                                  f"({e.strerror or 'E/S'})")
+    if categorie:
+        rows = [r for r in rows if r.get("categorie") == categorie]
     return {"decks": rows[:n], "total": len(rows), "limit": n}
 
 

@@ -2097,7 +2097,9 @@
   function galDecksList(force) {
     if (!force && GAL_DECKS) return Promise.resolve(GAL_DECKS);
     if (!GAL_DECKS_REQ) {
-      GAL_DECKS_REQ = jsonNamed("GET", "/cards/decks?limit=" + GAL_DECKS_MAX).then((d) => {
+      const filtre = GAL_FILTRE;
+      GAL_DECKS_REQ = jsonNamed("GET", "/cards/decks?limit=" + GAL_DECKS_MAX + (filtre === "plateau" ? "&categorie=plateau" : "")).then((d) => {
+        if (filtre !== GAL_FILTRE) return GAL_DECKS_REQ || GAL_DECKS || [];   /* réponse d'un filtre abandonné */
         const rows = Array.isArray(d && d.decks) ? d.decks : [];
         GAL_DECKS = rows.filter(isPlain).map((x) => ({
           id: String(x.id || ""), name: String(x.name || ""),
@@ -2268,7 +2270,13 @@
       const b = e && e.target && e.target.closest ? e.target.closest("button[data-filtre]") : null;
       if (!b) return;
       GAL_FILTRE = b.dataset.filtre === "plateau" ? "plateau" : "tous";
-      if (GAL_DECKS) galDrawDecks(GAL_DECKS); else galSyncFiltre();
+      galSyncFiltre();
+      /* le filtre est celui du SERVEUR (?categorie=) : la liste bornée aux plus récents ne dit pas où sont les plateaux */
+      GAL_DECKS = null; GAL_DECKS_REQ = null;
+      const gd = el("#galDecks");
+      if (gd) galNote(gd, dzT("cartes.core.chargement_jeux"));
+      galDecksList(true).then((l) => galDrawDecks(l),
+        (e) => { if (gd) galNote(gd, dzT("cartes.core.jeux_indispo", { err: galMsg(e) }), true); });
     });
     const rl = el("#galReload");
     if (rl) rl.addEventListener("click", () => {
@@ -2373,8 +2381,7 @@
   function galDrawDecks(list) {
     const host = el("#galDecks");
     if (!host) return;
-    const toutes = Array.isArray(list) ? list : [];
-    const rows = GAL_FILTRE === "plateau" ? toutes.filter((r) => r.categorie === "plateau") : toutes;
+    const rows = Array.isArray(list) ? list : [];
     galSyncFiltre();
     if (!rows.length && GAL_FILTRE === "plateau") { galNote(host, dzT("cartes.plateau.aucun")); return; }
     host.innerHTML = "";
@@ -2403,7 +2410,7 @@
        `rows.length` ne compte plus les jeux : il compte les lignes montrees.
        Le dire ainsi ferait annoncer « 24 jeux au total » a un poste qui en a
        2195 — un chiffre faux, et le seul chiffre de cet ecran. */
-    const montres = Math.min(toutes.length, GAL_DECKS_MAX);
+    const montres = Math.min(rows.length, GAL_DECKS_MAX);
     if (GAL_DECKS_TOTAL > montres) {
       host.appendChild(galEl("p", "cf-gal-note",
         dzT("cartes.core.gal_total", { total: GAL_DECKS_TOTAL, n: montres })));

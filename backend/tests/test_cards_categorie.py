@@ -127,5 +127,50 @@ def test_index_v1_ignore_et_reconstruit():
         core.delete_deck(autre)
 
 
+def test_dupliquer_un_plateau_garde_la_categorie():
+    did = core.create_deck("plat")["id"]
+    core.poser_categorie(did, "plateau")
+    copie = core.duplicate_deck(did)
+    try:
+        assert copie["id"] != did and copie["categorie"] == "plateau"
+        assert core.read_deck(copie["id"])["categorie"] == "plateau"
+    finally:
+        core.delete_deck(did)
+        if copie:
+            core.delete_deck(copie["id"])
+
+
+def _trente_dont_deux_plateaux_anciens():
+    """30 jeux ; les DEUX plus anciens sont des plateaux (le filtre ne peut donc
+    pas se contenter de raboter la liste des 24 plus récents)."""
+    ids = [core.create_deck(f"j{i}")["id"] for i in range(30)]
+    for k, did in enumerate(ids[:2]):                      # les deux premiers créés
+        core.poser_categorie(did, "plateau")
+        doc = core.read_deck(did)
+        doc["updated"] = f"2000-01-0{k + 1}T00:00:00Z"      # plus anciens que tous
+        core.write_deck(doc)
+    return ids
+
+
+def test_route_filtre_categorie_avant_la_limite_froid_et_depuis_l_index():
+    ids = _trente_dont_deux_plateaux_anciens()
+    try:
+        for passe in ("froid", "index"):
+            r = _api("GET", "/api/cards/decks", params={"limit": 24, "categorie": "plateau"})
+            assert r.status_code == 200, r.text
+            d = r.json()
+            assert d["total"] == 2 and {x["id"] for x in d["decks"]} == set(ids[:2]), (passe, d)
+            assert all(x["categorie"] == "plateau" for x in d["decks"])
+        brut = _api("GET", "/api/cards/decks", params={"limit": 24}).json()
+        assert len(brut["decks"]) == 24 and brut["total"] >= 30
+        assert not ({x["id"] for x in brut["decks"]} & set(ids[:2]))   # sans filtre ils sont hors des 24
+        vide = _api("GET", "/api/cards/decks", params={"categorie": "pirate"}).json()
+        assert vide["decks"] == [] and vide["total"] == 0
+        assert _api("GET", "/api/cards/decks", params={"categorie": ""}).json()["total"] >= 30
+    finally:
+        for did in ids:
+            core.delete_deck(did)
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
