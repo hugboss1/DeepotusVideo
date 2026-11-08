@@ -773,6 +773,17 @@ async def segments_voix(ctx: Ctx, chemin: str, texte: str = "") -> dict:
     debit = f", {r['mots_par_minute']} mots/min" if r["mots_par_minute"] else ""
     return _res(True, f"{len(r['segments'])} passage(s) parlé(s), {r['parole_s']} s de parole sur {r['duree_s']} s, "
                       f"pause max {r['pause_max_s']} s{debit}", r)
+# ---- t439 (08/11/2026, lot M6) : le format d'une pub par réseau (boîte « publicite », lecture) --------------------
+async def verifier_format_pub(ctx: Ctx, chemin: str, reseaux: list | None = None) -> dict:
+    """t439 : une vidéo contre les formats courants des réseaux (ratio, durée, côté, taille, son). Local, gratuit."""
+    from app.services import formats_pub as _FP
+    try:
+        r = await asyncio.to_thread(_FP.verifier, chemin, [str(x) for x in reseaux] if reseaux else None)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    bons = [v["libelle"] for v in r["reseaux"].values() if v["ok"]]
+    return _res(True, f"conforme pour {len(bons)}/{len(r['reseaux'])} réseau(x) : {', '.join(bons) or 'aucun'} "
+                      f"(recommandations du {r['releve']})", r)
 # ---- t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (boîte « plateau ») -------------------
 # Lecture et PROPOSITION seulement : la légende de la previs (couleur par entité / matière, faisceaux exclus) et les
 # trois caméras de couverture CALCULÉES depuis la caméra du plan — rien n'est rangé, capturé ni créé (ces gestes
@@ -2403,6 +2414,15 @@ OUTILS: dict[str, dict] = {
                       "schema": _o({"chemin": dict(_T, description="son ou vidéo"),
                                     "texte": dict(_T, description="le texte dit (facultatif, pour le débit)")},
                                    ["chemin"])},
+    # t439 : le format d'une pub par réseau (boîte « publicite », lecture)
+    "verifier_format_pub": {"nature": "lecture", "fn": verifier_format_pub,
+                            "description": "Vérifie une vidéo publicitaire contre les formats courants des réseaux "
+                                           "(TikTok, Reels, Shorts, YouTube, fil Meta, Stories) : ratio, durée, petit "
+                                           "côté, taille, son ; dit ce qui bloque et pour quel réseau. Local, gratuit.",
+                            "schema": _o({"chemin": dict(_T, description="la vidéo"),
+                                          "reseaux": {"type": "array", "items": {"type": "string", "enum": [
+                                              "tiktok", "reels", "shorts", "youtube", "meta_feed", "stories"]}}},
+                                         ["chemin"])},
     # t433 : le catalogue des méthodes (boîte « methodes », lecture)
     "methodes_lire": {"nature": "lecture", "fn": methodes_lire,
                       "description": "Les méthodes de l'application (fiches pas à pas : étapes, contrôles qualité, "
