@@ -149,6 +149,20 @@ def test_angles_vifs_selecteurs_et_jetons():
         assert "." + c in corps, c
 
 
+def test_le_curseur_de_zoom_garde_le_style_fader_de_l_app():
+    """M-2 : le curseur n'est pas une case (fond, bordure, hauteur de .dz-dh-in) ni une seconde peau (accent-color) :
+    il reste sous la règle commune input[type=range] de dz-curseur.css (t373)."""
+    corps = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
+    assert "accent-color" not in corps
+    m = re.search(r'inZoom = marque\(el\("input"(?:, "([^"]*)")?\), "zoom"\)', CODE)
+    assert m, "le curseur de zoom doit être créé par marque(el(\"input\"), \"zoom\")"
+    assert "dz-dh-in" not in (m.group(1) or "")
+    assert 'inZoom.type = "range"' in CODE
+    for sel, decl in re.findall(r"([^{}]+)\{([^}]*)\}", corps):
+        if "range" in sel:           # une règle qui vise le curseur ne peint ni fond, ni bordure, ni hauteur
+            assert not re.search(r"background|border|height|appearance|padding", decl), (sel, decl)
+
+
 def test_la_feuille_est_posee_par_le_module():
     assert 'new URL("./dz-decoupe-hex.css", import.meta.url).href' in CODE
     assert 'document.getElementById("dz-dh-css")' in CODE

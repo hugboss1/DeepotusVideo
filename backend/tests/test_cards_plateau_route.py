@@ -264,6 +264,77 @@ def test_retour_en_arriere_incomplet_est_journalise(monkeypatch):
         vrai(p["id"]) if "Plateau" in p.get("name", "") else None
 
 
+def test_source_trop_grande_a_son_propre_message(monkeypatch):
+    """M-6 : une bombe de décompression n'est pas « illisible » : message à part (Mpx), 400, rien créé, traduit."""
+    avant, n = _tuiles_sur_disque(), _nb_decks()
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 100)          # 600 x 520 > 2 x 100 : DecompressionBombError
+    r = _post()
+    assert r.status_code == 400, r.text
+    assert r.json()["detail"].startswith("image source trop grande : fond.png dépasse la limite de ")
+    assert "illisible" not in r.json()["detail"]
+    r = _api("POST", "/api/cards/decks/plateau", headers={"Accept-Language": "en"},
+             json={"image": "fond.png", "format": "hex_p90", "colonnes": 6, "rangees": 4, "dpi": 72})
+    assert r.json()["detail"].startswith("source image too large: fond.png exceeds the "), r.text
+    assert _tuiles_sur_disque() == avant and _nb_decks() == n
+
+
+def test_erreur_inattendue_est_un_500_traduit_apres_retour_en_arriere(monkeypatch):
+    """M-7 : une exception qui n'est pas une E/S (ici RuntimeError) défait tout et répond par une phrase traduite,
+    pas par le « Internal Server Error » anglais de FastAPI ; l'exception est journalisée."""
+    from loguru import logger
+    avant, n = _tuiles_sur_disque(), _nb_decks()
+
+    def casse(did, cat):
+        raise RuntimeError("boum inattendu")
+    monkeypatch.setattr(core, "poser_categorie", casse)
+    messages = []
+    ident = logger.add(lambda m: messages.append(str(m)), level="ERROR")
+    try:
+        r = _post()
+        r_en = _api("POST", "/api/cards/decks/plateau", headers={"Accept-Language": "en"},
+                    json={"image": "fond.png", "format": "hex_p90", "colonnes": 6, "rangees": 4, "dpi": 72})
+    finally:
+        logger.remove(ident)
+    assert r.status_code == 500 and r.json()["detail"].startswith("Création du plateau impossible : erreur interne"), r.text
+    assert r_en.json()["detail"].startswith("Board creation failed: internal error"), r_en.text
+    assert "boum inattendu" in "".join(messages)
+    assert _tuiles_sur_disque() == avant and _nb_decks() == n
+
+
+def test_deux_coupes_simultanees_se_suivent_sans_se_chevaucher(monkeypatch):
+    """I-2 : le pic mémoire et la concurrence — une seule découpe à la fois ; la seconde ATTEND (elle réussit), et les
+    deux jeux sont distincts."""
+    import threading
+    import time
+    vrai = plateau._fabriquer_seul
+    etat = {"actives": 0, "max": 0}
+    garde = threading.Lock()
+
+    def observe(prep):
+        with garde:
+            etat["actives"] += 1
+            etat["max"] = max(etat["max"], etat["actives"])
+        try:
+            time.sleep(0.25)                      # laisse à l'autre requête le temps d'entrer, s'il n'y a pas de verrou
+            return vrai(prep)
+        finally:
+            with garde:
+                etat["actives"] -= 1
+    monkeypatch.setattr(plateau, "_fabriquer_seul", observe)
+
+    async def deux():
+        from app.main import app
+        corps = {"image": "fond.png", "format": "hex_p90", "colonnes": 2, "rangees": 2, "dpi": 72}
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            return await asyncio.gather(c.post("/api/cards/decks/plateau", json=corps),
+                                        c.post("/api/cards/decks/plateau", json=corps))
+    a, b = asyncio.run(deux())
+    assert a.status_code == 200 and b.status_code == 200, (a.text, b.text)
+    assert etat["max"] == 1, etat
+    assert a.json()["deck"]["id"] != b.json()["deck"]["id"]
+    assert not set(a.json()["tuiles"]) & set(b.json()["tuiles"])
+
+
 def test_impression_hex_du_jeu_plateau():
     d = _post(colonnes=2, rangees=2).json()
     r = _api("POST", f"/api/cards/{d['deck']['id']}/print/hex/plan", json={})

@@ -1,9 +1,9 @@
 // qa/decoupehex.test.mjs — plateau (lot 1) : Export › Découper en hexagones… du Vectorlab (échelle d'export, nom déposé,
 // export opaque, appel du dialogue partagé, bouton et libellés FR/EN).
 import { readFileSync } from "node:fs";
-import { echelleDecoupe, decouperHex, APERCU_MAX } from "../js/mod-decoupehex.js";
+import { echelleDecoupe, pppDecoupe, horodatage, decouperHex, APERCU_MAX } from "../js/mod-decoupehex.js";
 import { nomExportPNG, transparentExport } from "../js/mod-export.js";
-import { grille } from "../../shared/dz-decoupe-hex-logique.js";
+import { grille, cadrageCouvrant } from "../../shared/dz-decoupe-hex-logique.js";
 
 let ok = 0, ko = 0;
 function check(label, cond, detail = "") { if (cond) ok++; else { ko++; console.error("ECHEC :", label, JSON.stringify(detail)); } }
@@ -35,6 +35,11 @@ const source = readFileSync(new URL("../js/mod-export.js", import.meta.url), "ut
   check("2.4 plateau : k à deux décimales", nomExportPNG("abc", "_plateau", 3.3711, false) === "vector_abc_plateau_3.37x.png", nomExportPNG("abc", "_plateau", 3.3711, false));
   check("2.5 plateau : k entier sans décimales", nomExportPNG("abc", "_plateau", 4, false) === "vector_abc_plateau_4x.png");
   check("2.6 nom sans caractère interdit", /^[A-Za-z0-9._-]+$/.test(nomExportPNG("abc", "_plateau", 3.3711, false)));
+  // M-3 : l'horodatage évite qu'un second export au même k écrase le premier
+  check("2.7 horodatage AAAAMMJJ-HHMMSS", horodatage(new Date(2026, 10, 8, 9, 5, 7)) === "20261108-090507", horodatage(new Date(2026, 10, 8, 9, 5, 7)));
+  const n1 = nomExportPNG("abc", "_plateau_" + horodatage(new Date(2026, 10, 8, 9, 5, 7)), 3.3711, false);
+  const n2 = nomExportPNG("abc", "_plateau_" + horodatage(new Date(2026, 10, 8, 9, 5, 8)), 3.3711, false);
+  check("2.8 deux exports au même k : deux noms, préfixe vector_ et nom valide", n1 !== n2 && n1 === "vector_abc_plateau_20261108-090507_3.37x.png" && n1.startsWith("vector_") && /^[A-Za-z0-9._-]+$/.test(n1), [n1, n2]);
 }
 
 // 2bis. l'opacité : le plateau ne lit pas la case, les autres boutons la suivent
@@ -50,7 +55,7 @@ function fabrique({ taille = { w: 1000, h: 700 }, nom = "Mon plateau" } = {}) {
   const VL = {
     etat: { doc: { taille }, docId: "d1", meta: { name: nom } },
     rasteriser: async (k, transparent) => { j.apercus.push([k, transparent]); return { blob: true }; },
-    exporterPNG: async (k, opts) => { j.exports.push([k, opts]); return "vector_d1_plateau_" + k + "x.png"; },
+    exporterPNG: async (k, opts) => { j.exports.push([k, opts]); return "vector_d1" + opts.suffixe + "_" + k + "x.png"; },
   };
   const outils = {
     versCanvas: async (blob, k) => ({ canvas: true, k }),
@@ -66,10 +71,16 @@ function fabrique({ taille = { w: 1000, h: 700 }, nom = "Mon plateau" } = {}) {
   check("3.3 le résultat du dialogue est rendu", r && r.tuiles === 24);
   check("3.4 rien n'est exporté avant la création", j.exports.length === 0);
   const g = grille("hex_p90", 6, 4);
-  const nom = await j.ouvert.fournirImage({ largeurMm: g.largeurMm, hauteurMm: g.hauteurMm });
-  const attendu = echelleDecoupe(1000, 700, g.largeurMm);
-  check("3.5 fournirImage : export au k attendu, suffixe _plateau, OPAQUE", j.exports.length === 1 && j.exports[0][0] === attendu && j.exports[0][1].suffixe === "_plateau" && j.exports[0][1].opaque === true, j.exports);
-  check("3.6 le nom rendu est celui du serveur", nom === "vector_d1_plateau_" + attendu + "x.png", nom);
+  const neutre = { zoom: 1, x: 0.5, y: 0.5 };
+  const r0 = cadrageCouvrant(1000, 700, g.largeurMm, g.hauteurMm, 1, 0.5, 0.5);
+  const res = await j.ouvert.fournirImage({ largeurMm: g.largeurMm, hauteurMm: g.hauteurMm, cadrage: neutre });
+  const attendu = echelleDecoupe(r0.w, r0.h, g.largeurMm);
+  check("3.5 fournirImage : export au k de la RÉGION, suffixe _plateau_<horodatage>, OPAQUE, cadre = région",
+    j.exports.length === 1 && j.exports[0][0] === attendu && /^_plateau_\d{8}-\d{6}$/.test(j.exports[0][1].suffixe) && j.exports[0][1].opaque === true
+    && Math.abs(j.exports[0][1].cadre.w - r0.w) < 1e-9 && Math.abs(j.exports[0][1].cadre.h - r0.h) < 1e-9, j.exports);
+  check("3.6 le nom rendu est celui du serveur, avec le cadrage NEUTRE (la région est déjà la bonne)",
+    res.nom === "vector_d1" + j.exports[0][1].suffixe + "_" + attendu + "x.png" && JSON.stringify(res.cadrage) === JSON.stringify(neutre), res);
+  check("3.12 le dialogue reçoit le crochet ppp", typeof j.ouvert.ppp === "function" && j.ouvert.ppp === pppDecoupe);
 }
 {
   const { VL, j, outils } = fabrique({ taille: { w: 8000, h: 6000 } });
@@ -96,6 +107,37 @@ function fabrique({ taille = { w: 1000, h: 700 }, nom = "Mon plateau" } = {}) {
   VL.rasteriser = async () => { throw new Error("svg illisible"); };
   let err = null; try { await decouperHex(VL, (c) => c, outils); } catch (e) { err = e; }
   check("3.9 rastérisation impossible : l'erreur remonte (toast du garde), dialogue non ouvert", err && err.message === "svg illisible" && j.ouvert === null);
+}
+
+// 3bis. I-1 : le ppp réel d'un document 1920 × 1080, grille 6 × 4 hex_p90, au zoom 1 puis 2 ; la région seule est exportée
+{
+  const g = grille("hex_p90", 6, 4);
+  const w = 1920, h = 1080;
+  for (const zoom of [1, 2]) {
+    const { VL, j, outils } = fabrique({ taille: { w, h } });
+    await decouperHex(VL, (c) => c, outils);
+    const rect = cadrageCouvrant(w, h, g.largeurMm, g.hauteurMm, zoom, 0.3, 0.6);
+    const res = await j.ouvert.fournirImage({ largeurMm: g.largeurMm, hauteurMm: g.hauteurMm, cadrage: { zoom, x: 0.3, y: 0.6 } });
+    const [k, opts] = j.exports[0];
+    const px = Math.round(rect.w * k);
+    const ppi = px / (g.largeurMm / 25.4);
+    check(`3b.${zoom}.1 zoom ${zoom} : la région cadrée (pas le document) est rastérisée`,
+      Math.abs(opts.cadre.x - rect.x) < 1e-9 && Math.abs(opts.cadre.y - rect.y) < 1e-9 && Math.abs(opts.cadre.w - rect.w) < 1e-9 && opts.cadre.w < w + 1e-9, [opts.cadre, rect]);
+    check(`3b.${zoom}.2 zoom ${zoom} : l'image produite fait ≥ 300 ppp sur la grille (${ppi.toFixed(1)})`, ppi >= 299.5 && px <= 8192, [px, ppi]);
+    check(`3b.${zoom}.3 zoom ${zoom} : le crochet ppp annonce ce chiffre, sans avertissement`, Math.abs(j.ouvert.ppp(rect, g.largeurMm) - 300) < 0.5, j.ouvert.ppp(rect, g.largeurMm));
+    check(`3b.${zoom}.4 zoom ${zoom} : cadrage neutre rendu au dialogue`, JSON.stringify(res.cadrage) === JSON.stringify({ zoom: 1, x: 0.5, y: 0.5 }), res.cadrage);
+  }
+  // l'ancienne formule (k sur tout le document) donnait ici moins de 300 ppp : le rapport 1920/1080 diffère de celui de la grille
+  const rect1 = cadrageCouvrant(w, h, g.largeurMm, g.hauteurMm, 1, 0.5, 0.5);
+  const ancien = echelleDecoupe(w, h, g.largeurMm);
+  check("3b.5 sans le cadrage, la région exportée aurait été sous 300 ppp", rect1.w * ancien / (g.largeurMm / 25.4) < 299, rect1.w * ancien / (g.largeurMm / 25.4));
+  // la borne de 8192 px mord : le ppp annoncé est inférieur à 300 (avertissement du dialogue)
+  const gg = grille("hex_p90", 30, 16);
+  const rg = cadrageCouvrant(w, h, gg.largeurMm, gg.hauteurMm, 1, 0.5, 0.5);
+  const pg = pppDecoupe(rg, gg.largeurMm);
+  const kg = echelleDecoupe(rg.w, rg.h, gg.largeurMm);
+  check("3b.6 borne 8192 px : ppp annoncé < 300 et plus grand côté ≤ 8192", pg < 299 && Math.max(rg.w, rg.h) * kg <= 8192 + 1e-9, [pg, kg]);
+  check("3b.7 le ppp annoncé = pixels produits / largeur imprimée", Math.abs(pg - Math.round(rg.w * kg) / (gg.largeurMm / 25.4)) < 0.2, pg);
 }
 
 // 4. le bouton et le câblage

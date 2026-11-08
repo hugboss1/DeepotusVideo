@@ -36,10 +36,12 @@ ENTREES = [
       '  $("#expBible").addEventListener("click", garde(versBible));',
       {"vectorlab.export.plateau": ("Découper en hexagones…", "Cut into hexagons…"),
        "vectorlab.export.plateau_titre": (
-           "Découpe le document en tuiles hexagonales pour créer un jeu plateau du Card Forge — exporté en PNG, "
-           "300 ppp sur la grille choisie ; les zones sans fond deviennent blanches",
-           "Cuts the document into hexagonal tiles to create a Card Forge board deck — exported as a PNG, "
-           "300 ppi on the chosen grid; areas without a background become white")}),
+           "Découpe le document en tuiles hexagonales pour créer un jeu plateau du Card Forge — la région cadrée est "
+           "exportée en PNG à 300 ppp sur la grille choisie (8192 px au plus sur son grand côté : le dialogue prévient "
+           "si cette limite fait descendre sous 300 ppp) ; les zones sans fond deviennent blanches",
+           "Cuts the document into hexagonal tiles to create a Card Forge board deck — the framed region is exported "
+           "as a PNG at 300 ppi on the chosen grid (8192 px at most on its long side: the dialog warns if that limit "
+           "brings it below 300 ppi); areas without a background become white")}),
     S(EXPORT, 152, "  VL.exporterPNG = exporterPNG;      // la preuve et les phases suivantes",
       "  VL.exporterPNG = exporterPNG;      // la preuve et les phases suivantes\r\n"
       "  VL.rasteriser = rasteriser;        // plateau (lot 1) : l'aperçu du dialogue « Découper en hexagones »", {}),

@@ -1,7 +1,7 @@
 {
   "decoupehex.cadrage.apercu": {"fr": "Aperçu de la découpe : glisser ou flèches du clavier pour déplacer l'image, molette pour zoomer", "en": "Cut preview: drag or use the arrow keys to move the image, scroll to zoom"},
   "decoupehex.cadrage.ppp": {"fr": "Définition : {ppp} ppp", "en": "Resolution: {ppp} ppi"},
-  "decoupehex.cadrage.ppp_faible": {"fr": "Sous {min} ppp : l'impression sera moins nette. Prenez une image plus grande ou dézoomez.", "en": "Below {min} ppi: the print will be softer. Use a larger image or zoom out."},
+  "decoupehex.cadrage.ppp_faible": {"fr": "Sous {min} ppp : l'impression sera moins nette. Prenez une image plus grande, moins de tuiles ou un hexagone plus petit.", "en": "Below {min} ppi: the print will be softer. Use a larger image, fewer tiles or a smaller hexagon."},
   "decoupehex.cadrage.zoom": {"fr": "Zoom", "en": "Zoom"},
   "decoupehex.dialogue.creation": {"fr": "Création du jeu en cours…", "en": "Creating the deck…"},
   "decoupehex.dialogue.creer": {"fr": "Créer le jeu plateau", "en": "Create the board deck"},

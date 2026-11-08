@@ -14358,5 +14358,13 @@
  "image de travail trop grande : {mpx} Mpx pour {v} Mpx au plus ; réduisez le nombre de tuiles, la taille ou le dpi": {
   "fr": "image de travail trop grande : {mpx} Mpx pour {v} Mpx au plus ; réduisez le nombre de tuiles, la taille ou le dpi",
   "en": "working image too large: {mpx} MP for a {v} MP maximum; reduce the number of tiles, the size or the dpi"
+ },
+ "image source trop grande : {image} dépasse la limite de {mpx} Mpx": {
+  "fr": "image source trop grande : {image} dépasse la limite de {mpx} Mpx",
+  "en": "source image too large: {image} exceeds the {mpx} MP limit"
+ },
+ "Création du plateau impossible : erreur interne (rien n'a été créé)": {
+  "fr": "Création du plateau impossible : erreur interne (rien n'a été créé)",
+  "en": "Board creation failed: internal error (nothing was created)"
  }
 }

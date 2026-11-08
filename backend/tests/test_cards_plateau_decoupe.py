@@ -220,6 +220,33 @@ def test_source_a_moitie_transparente():
     assert couleurs <= {(255, 255, 255), (200, 0, 0)} and (255, 255, 255) in couleurs and (200, 0, 0) in couleurs
 
 
+def test_aplatir_apres_reduction_equivaut_a_aplatir_avant():
+    """I-2 : on réduit d'abord (LANCZOS prémultiplié sur RGBA), puis on aplatit sur le petit résultat. Même image
+    qu'aplatir la source en pleine taille avant de la réduire (à l'arrondi 8 bits près)."""
+    src = Image.new("RGBA", (500, 400), (0, 0, 0, 0))
+    src.paste((200, 20, 20, 255), (0, 0, 250, 400))                  # moitié opaque
+    src.paste((20, 20, 200, 128), (250, 0, 500, 200))                # quart à moitié transparent
+    g = P.grille("hex_p50", 3, 2)
+    nouveau = P._image_travail(src, g, {"zoom": 1.3, "x": 0.2, "y": 0.7}, DPI_TEST)
+    gauche, haut, w, h = P.cadrage_couvrant(500, 400, g.largeur_mm, g.hauteur_mm, 1.3, 0.2, 0.7)
+    ancien = Image.alpha_composite(Image.new("RGBA", src.size, (255, 255, 255, 255)), src).resize(
+        nouveau.size, Image.LANCZOS, box=(gauche, haut, gauche + w, haut + h))
+    assert nouveau.size == ancien.size and nouveau.getchannel("A").getextrema() == (255, 255)
+    # identiques à l'arrondi près partout, sauf sur quelques pixels de bord où les lobes négatifs de LANCZOS
+    # écrêtent autrement (couleur prémultipliée ou non) : moins de 0,5 % des pixels, jamais d'écart de zone
+    from PIL import ImageChops
+    diff = ImageChops.difference(nouveau, ancien).convert("L")
+    histo = diff.histogram()
+    loin = sum(histo[4:])
+    assert loin / (diff.width * diff.height) < 0.005, (loin, histo[:40])
+    assert diff.getextrema()[1] < 40
+
+
+def test_source_rgba_n_est_pas_copiee():
+    src = _mire(300, 200).convert("RGBA")
+    assert P._en_rgba(src) is src
+
+
 def test_source_opaque_inchangee():
     src = _mire(400, 300)
     assert P._sur_blanc(src.convert("RGBA")).tobytes() == src.convert("RGBA").tobytes()

@@ -67,7 +67,8 @@ def test_cablage():
     assert 'from "../../shared/dz-decoupe-hex.js"' in MODULE
     assert (VL / "js" / ".." / ".." / "shared" / "dz-decoupe-hex.js").resolve().is_file()
     # la lignée remonte au document par le nom vector_<docId>_…, sans route nouvelle
-    assert 'suffixe: "_plateau"' in MODULE and "opaque: true" in MODULE
+    assert 'suffixe: "_plateau_" + horodatage(' in MODULE and "opaque: true" in MODULE
+    assert "cadre: rect" in MODULE and "ppp: pppDecoupe" in MODULE          # la région cadrée seule, au ppp réel
     assert not re.search(r"fetch\(|/api/", MODULE)
 
 

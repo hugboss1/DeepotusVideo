@@ -22,7 +22,7 @@
 .dz-dh-champ > span { color: var(--ink-soft); font-size: var(--fs-2, 11px); }
 .dz-dh-in { box-sizing: border-box; width: 100%; height: 28px; padding: 0 8px; background: var(--bg-panel-3);
   border: 1px solid var(--stroke-strong); color: var(--ink-strong); font: inherit; }
-.dz-dh-in[type="range"] { padding: 0; accent-color: var(--accent); }
+.dz-dh-champ > input[type="range"] { width: 100%; }   /* le curseur garde le style fader de l'app (dz-curseur.css) */
 .dz-dh-in:focus-visible, .dz-dh-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
 .dz-dh-note { margin: 0; color: var(--ink-soft); font-size: var(--fs-2, 11px); }
 .dz-dh-alerte { color: var(--amber); }

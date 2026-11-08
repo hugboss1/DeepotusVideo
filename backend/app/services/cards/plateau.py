@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import math
 import os
+import threading
 from dataclasses import dataclass
 
 from fastapi import APIRouter, HTTPException
@@ -31,7 +32,7 @@ from .depuis_images import (IMAGES_MAX, _CADRE_NU, _PREFIXE_PHOTOLAB,
                             _images_dir, _nom_valide, _verifie_presente)
 
 __all__ = ["COTE_MAX", "TUILES_MAX", "Grille", "grille", "cadrage_couvrant",
-           "ppp_effectif", "decouper", "iter_tuiles", "router", "PIXELS_MAX"]
+           "ppp_effectif", "decouper", "iter_tuiles", "iter_tuiles_travail", "router", "PIXELS_MAX"]
 
 router = APIRouter()
 
@@ -134,9 +135,11 @@ def ppp_effectif(rect_w_px: float, largeur_mm: float) -> float:
 
 def _en_rgba(src: Image.Image) -> Image.Image:
     """RGBA quel que soit le mode d'entrée (P avec transparence, LA, L, CMYK…).
-    Renvoie toujours une copie : la source n'est jamais modifiée."""
+    Une source déjà RGBA est rendue TELLE QUELLE (aucune copie : la mémoire
+    d'une grande source est précieuse) ; les autres modes donnent une
+    conversion neuve. L'appelant ne la modifie jamais."""
     if src.mode == "RGBA":
-        return src.copy()
+        return src
     if src.mode == "P":
         return src.convert("RGBA")       # honore la transparence de palette
     if src.mode in ("LA", "La", "RGBa", "PA"):
@@ -159,16 +162,20 @@ def _image_travail(src: Image.Image, g: Grille, cadrage: dict,
     """Le cadrage couvrant de `src`, rééchantillonné UNE fois (LANCZOS) à
     l'étendue de la grille en pixels : toutes les tuiles en sont des
     fenêtres, donc le fond perdu d'une tuile est fait des pixels voisins.
-    La source est d'abord APLATIE sur du blanc opaque : l'alpha d'une tuile ne
-    vient ensuite que du masque coupe ∪ fond perdu."""
+    La source est APLATIE sur du blanc opaque APRÈS le rééchantillonnage, sur
+    le petit résultat : LANCZOS sur du RGBA est prémultiplié, donc le résultat
+    est celui d'un aplatissement préalable (à l'arrondi près) sans deux copies
+    pleine taille de la source. L'alpha d'une tuile ne vient ensuite que du
+    masque coupe ∪ fond perdu."""
     cadrage = cadrage or {}
     gauche, haut, w, h = cadrage_couvrant(
         src.width, src.height, g.largeur_mm, g.hauteur_mm,
         cadrage.get("zoom", 1.0), cadrage.get("x", 0.5), cadrage.get("y", 0.5))
     taille = (max(1, round(g.largeur_mm / 25.4 * dpi)),
               max(1, round(g.hauteur_mm / 25.4 * dpi)))
-    return _sur_blanc(_en_rgba(src)).resize(
+    reduit = _en_rgba(src).resize(
         taille, Image.LANCZOS, box=(gauche, haut, gauche + w, haut + h))
+    return _sur_blanc(reduit)
 
 
 def _origine_tuile(cx_mm: float, cy_mm: float, dpi: int,
@@ -238,8 +245,16 @@ def pixels_travail(g: Grille, dpi: int) -> int:
 
 
 def iter_tuiles(src: Image.Image, g: Grille, cadrage: dict, dpi: int = 300):
-    """Découpe `src` en tuiles RGBA (rang, colonne, image), ordre de lecture,
-    UNE à la fois (générateur) à partir de l'unique image de travail.
+    """`iter_tuiles_travail` sur l'image de travail de `src` (voir
+    `_image_travail`). Le générateur garde `src` vivante jusqu'à la fin de
+    l'appelant : la route, elle, bâtit l'image de travail, lâche la source,
+    puis appelle `iter_tuiles_travail`."""
+    return iter_tuiles_travail(_image_travail(src, g, cadrage, dpi), g, dpi)
+
+
+def iter_tuiles_travail(travail: Image.Image, g: Grille, dpi: int = 300):
+    """Découpe l'image de travail `travail` en tuiles RGBA (rang, colonne,
+    image), ordre de lecture, UNE à la fois (générateur).
 
     Chaque tuile est une fenêtre de l'image de travail à la taille de la toile
     du format (`geom(fmt, dpi, bleed).canvas_px`). Alpha 255 = COUPE (pixel
@@ -251,10 +266,9 @@ def iter_tuiles(src: Image.Image, g: Grille, cadrage: dict, dpi: int = 300):
     bornée à l'hexagone de coupe élargi d'un pixel (les tuiles du bord n'ont
     pas de cellule infinie). La source est aplatie sur du blanc (voir
     `_image_travail`) : un pixel de coupe est toujours opaque, même si la
-    source est transparente. Fonction pure : `src` n'est pas modifié."""
+    source est transparente. Fonction pure : `travail` n'est pas modifiée."""
     cg = geom(g.fmt, dpi, g.bleed_mm)
     canvas = cg.canvas_px
-    travail = _image_travail(src, g, cadrage, dpi)
     k = dpi / 25.4
     mm = 25.4 / dpi
     # centre de l'hexagone dans le repère toile (mm) et contours (repère toile)
@@ -369,10 +383,15 @@ def _ouvrir_source(prep: dict) -> Image.Image:
     """La source décodée, ouverte en LECTURE puis refermée. Toute erreur de
     décodage (fichier tronqué, corrompu, bombe) est un 400, avant tout effet."""
     try:
-        with Image.open(_images_dir() / prep["image"]) as im:
+        # le fichier est refermé par `with`, l'image décodée reste en mémoire ; une source RGBA n'est pas copiée
+        with open(_images_dir() / prep["image"], "rb") as f:
+            im = Image.open(f)
             im.load()
-            return im.copy() if im.mode == "RGBA" else im.convert("RGBA")
-    except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
+        return _en_rgba(im)
+    except Image.DecompressionBombError:
+        mpx = round(2 * (Image.MAX_IMAGE_PIXELS or 0) / 1e6)
+        raise HTTPException(400, f"image source trop grande : {prep['image']} dépasse la limite de {mpx} Mpx")
+    except (OSError, SyntaxError, ValueError):
         raise HTTPException(400, f"image illisible : {prep['image']}")
 
 
@@ -390,23 +409,36 @@ def _defaire(did: str, tuiles: list[str]) -> None:
                      not (core.deck_dir(did).exists()), restes)
 
 
+# Une seule découpe à la fois : l'image de travail pèse jusqu'à ~600 Mo et deux découpes
+# simultanées (Photolab + Vectorlab, deux onglets) doubleraient le pic. Une seconde
+# demande ATTEND son tour (elle n'est pas refusée).
+_VERROU = threading.Lock()
+
+
 def _fabriquer(prep: dict) -> tuple[dict, list[str], float]:
     """Lit la source, crée le jeu, écrit les tuiles UNE à UNE, ensemence.
     Toute exception après `create_deck` supprime les tuiles déjà écrites ET
-    le jeu avant de remonter."""
+    le jeu avant de remonter. Une seule découpe à la fois (`_VERROU`)."""
+    with _VERROU:
+        return _fabriquer_seul(prep)
+
+
+def _fabriquer_seul(prep: dict) -> tuple[dict, list[str], float]:
     src = _ouvrir_source(prep)
     g, cad = prep["grille"], prep["cadrage"]
     rect_w = cadrage_couvrant(src.width, src.height, g.largeur_mm,
                               g.hauteur_mm, cad.get("zoom", 1.0),
                               cad.get("x", 0.5), cad.get("y", 0.5))[2]
     ppp = round(ppp_effectif(rect_w, g.largeur_mm), 1)
+    travail = _image_travail(src, g, cad, prep["dpi"])
+    del src                      # la source (parfois énorme) n'est plus utile : on la lâche avant la boucle
     doc = core.create_deck(prep["name"])
     did, noms, rows = doc["id"], [], []
     largeur = 3 if len(g.centres_mm) > 99 else 2
     try:
         racine = _images_dir()
         for i, (rang, col, tuile) in enumerate(
-                iter_tuiles(src, g, cad, prep["dpi"]), 1):
+                iter_tuiles_travail(travail, g, prep["dpi"]), 1):
             nom = _nom_tuile(prep["base"], did, rang, col)
             noms.append(nom)         # avant l'écriture : un fichier partiel part aussi
             _ecrire_tuile(tuile, racine / nom, prep["dpi"])
@@ -436,10 +468,17 @@ async def post_plateau(body: dict | None = None):
     prep = await asyncio.to_thread(preparer, body)
     try:
         deck, noms, ppp = await asyncio.to_thread(_fabriquer, prep)
+    except HTTPException:
+        raise
     except OSError as e:
         logger.exception("cards: découpe du plateau impossible")
         raise HTTPException(500, "Création du plateau impossible : écriture "
                                  f"refusée ({e.strerror or 'E/S'})")
+    except Exception:
+        # tout ce qui n'est pas une E/S (mémoire, bug) : le retour en arrière a eu lieu dans _fabriquer
+        logger.exception("cards: découpe du plateau en échec")
+        raise HTTPException(500, "Création du plateau impossible : erreur interne "
+                                 "(rien n'a été créé)")
     from app.services import library_index
     await library_index.noter(noms, "cardforge", deck_id=deck["id"],
                               parent=prep["image"], relation="plateau")

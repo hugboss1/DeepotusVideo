@@ -431,6 +431,50 @@ const creer = () => champ("creer");
   await fermerTout();
 }
 
+// 14 un lab qui rogne lui-même l'image (Vectorlab) : { nom, cadrage } rendu, cadrage posté, cache par cadrage, crochet ppp
+{
+  const neutre = { zoom: 1, x: 0.5, y: 0.5 };
+  const b = banc({ largeur: 1920, hauteur: 1080, depart: { format: "hex_p90", colonnes: 6, rangees: 4, zoom: 2, x: 0.3, y: 0.6 } });
+  b.args.fournirImage = async (e) => { b.images.push(e); return { nom: "region_" + b.images.length + ".png", cadrage: neutre }; };
+  b.ouvrir(); await attendre();
+  creer().emet("click"); await attendre(); await attendre();
+  ok("14.1 fournirImage reçoit le cadrage courant", b.images.length === 1 && JSON.stringify(b.images[0].cadrage) === JSON.stringify({ zoom: 2, x: 0.3, y: 0.6 }), JSON.stringify(b.images[0]));
+  ok("14.2 le POST porte le cadrage NEUTRE rendu par le lab, pas celui du dialogue", b.posts.length === 1 && b.posts[0].corps.image === "region_1.png" && JSON.stringify(b.posts[0].corps.cadrage) === JSON.stringify(neutre), JSON.stringify(b.posts[0] && b.posts[0].corps));
+  await b.promesse;
+  await fermerTout();
+
+  // le cache est clé sur l'étendue ET le cadrage : même cadrage = même image, autre zoom = nouvelle image
+  const c = banc({ largeur: 1920, hauteur: 1080, depart: { format: "hex_p90", colonnes: 6, rangees: 4, zoom: 2, x: 0.3, y: 0.6 } });
+  c.args.fournirImage = async (e) => { c.images.push(e); return { nom: "region_" + c.images.length + ".png", cadrage: neutre }; };
+  c.reponse = (k) => (k <= 2 ? { ok: false, status: 400, json: async () => ({ detail: "non" }) } : { ok: true, status: 200, json: async () => ({ deck: { id: "deck_00000009" }, tuiles: [] }) });
+  c.ouvrir(); await attendre();
+  creer().emet("click"); await attendre(); await attendre();
+  creer().emet("click"); await attendre(); await attendre();
+  ok("14.3 même étendue, même cadrage : l'image rangée est réutilisée", c.images.length === 1 && c.posts[1].corps.image === "region_1.png", c.images.length);
+  saisir("zoom", 3);
+  creer().emet("click"); await attendre(); await attendre();
+  ok("14.4 autre zoom : le lab rastérise une autre région (nouvelle image)", c.images.length === 2 && c.posts[2].corps.image === "region_2.png" && c.images[1].cadrage.zoom === 3, JSON.stringify(c.images));
+  await c.promesse;
+  await fermerTout();
+
+  // le crochet ppp : le chiffre est celui du lab, l'avertissement n'apparaît que sous 300
+  const d = banc({ largeur: 1920, hauteur: 1080, depart: { format: "hex_p90", colonnes: 6, rangees: 4 } });
+  let appels = [];
+  d.args.ppp = (rect, largeurMm) => { appels.push([rect, largeurMm]); return 300; };
+  d.ouvrir(); await attendre();
+  const g = grille("hex_p90", 6, 4);
+  const r = cadrageCouvrant(1920, 1080, g.largeurMm, g.hauteurMm, 1, 0.5, 0.5);
+  ok("14.5 le crochet reçoit le cadre courant {x, y, w, h} et la largeur imprimée", appels.length >= 1 && proche(appels[0][0].w, r.w) && proche(appels[0][0].h, r.h) && proche(appels[0][1], g.largeurMm), JSON.stringify(appels[0]));
+  ok("14.6 300 ppp annoncés : pas d'avertissement (le chiffre de l'image du lab, 185, est ignoré)", champ("ppp").textContent === T("decoupehex.cadrage.ppp", { ppp: 300 }) && champ("alerte").hidden === true && champ("alerte").textContent === "", champ("ppp").textContent);
+  await fermerTout();
+  const e = banc({ largeur: 1920, hauteur: 1080, depart: { format: "hex_p90", colonnes: 6, rangees: 4 } });
+  e.args.ppp = () => 74.4;
+  e.ouvrir(); await attendre();
+  ok("14.7 la borne mord (74 ppp annoncés) : l'avertissement paraît", champ("ppp").textContent === T("decoupehex.cadrage.ppp", { ppp: 74 }) && champ("alerte").hidden === false && champ("alerte").textContent === T("decoupehex.cadrage.ppp_faible", { min: 300 }), champ("alerte").textContent);
+  ok("14.8 l'avertissement ne dit plus de dézoomer (impossible : zoom min 1)", !/dézoom/i.test(champ("alerte").textContent) && /moins de tuiles/.test(champ("alerte").textContent), champ("alerte").textContent);
+  await fermerTout();
+}
+
 if (echecs.length) {
   console.log("ÉCHECS (" + echecs.length + ") :\n- " + echecs.join("\n- "));
   console.log(n - echecs.length + "/" + n + " vérifications");

@@ -5,14 +5,18 @@
 // Au clic, le lab fournit l'image dans la Bibliothèque (`fournirImage`), la route POST /api/cards/decks/plateau
 // découpe et crée le jeu, et le Card Forge s'ouvre dessus.
 //
-//   ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fournirImage, T, fetch?, depart? })
+//   ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fournirImage, T, ppp?, fetch?, depart? })
 //     -> Promise<{ deck, tuiles } | null>   (null : fermé sans créer)
 //
 // `largeur`, `hauteur` : pixels de l'image du lab. `apercu` : canvas ou ImageBitmap dessinable (n'importe quelle
-// taille, même rapport). `fournirImage({ largeurMm, hauteurMm })` : rend le nom de l'image dans la Bibliothèque ;
-// appelé au clic sur « Créer » seulement, et pas deux fois pour la même étendue (un nouvel essai après une erreur du
-// serveur réutilise l'image déjà rangée). `T(clé, vars)` : le traducteur du lab. `depart` (facultatif) :
-// { format, colonnes, rangees, zoom, x, y } pour rouvrir avec les derniers réglages.
+// taille, même rapport). `fournirImage({ largeurMm, hauteurMm, cadrage })` : rend le nom de l'image dans la
+// Bibliothèque (une chaîne : le serveur applique alors le cadrage du dialogue), ou { nom, cadrage } quand le lab a
+// déjà rogné l'image au cadrage demandé (le Vectorlab ne rastérise que la région cadrée : le dialogue poste alors le
+// `cadrage` rendu, neutre). Appelé au clic sur « Créer » seulement, et pas deux fois pour la même étendue ET le même
+// cadrage (un nouvel essai après une erreur du serveur réutilise l'image déjà rangée). `ppp(rect, largeurMm)`
+// (facultatif) : les points par pouce que le lab produira réellement pour ce cadre ({x, y, w, h} en pixels du lab) ;
+// par défaut, ceux de l'image du lab (pixels du cadre / largeur imprimée). `T(clé, vars)` : le traducteur du lab.
+// `depart` (facultatif) : { format, colonnes, rangees, zoom, x, y } pour rouvrir avec les derniers réglages.
 //
 // Tout texte passe par T (clés decoupehex.*, frontend/shared/i18n/decoupehex.json, dans le dictionnaire assemblé que
 // chaque lab charge déjà). Le `detail` des refus du serveur arrive déjà traduit (L10) : il est affiché tel quel.
@@ -86,7 +90,7 @@ function sommets(cx, cy, r, pointe) {
   return pts;
 }
 
-export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fournirImage, T, fetch = (...a) => window.fetch(...a), depart } = {}) {
+export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fournirImage, T, ppp: pppLab, fetch = (...a) => window.fetch(...a), depart } = {}) {
   // une création en cours (image rangée, POST parti) ne se remplace pas : on rend la promesse du dialogue ouvert
   if (courant && courant.occupe()) return courant.promesse;
   if (courant) courant.fin(null);
@@ -104,7 +108,7 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
     occupe: false,
     cree: false,                 // le jeu existe : plus rien ne doit relancer la création
   };
-  const dejaRangees = {};        // étendue -> nom de l'image déjà rangée dans la Bibliothèque
+  const dejaRangees = {};        // étendue + cadrage -> { nom, cadrage } de l'image déjà rangée dans la Bibliothèque
 
   /* ── le DOM ── */
   const voile = el("div", "dz-dh");
@@ -165,7 +169,7 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
   };
   const inCol = nombre("colonnes", T("decoupehex.grille.colonnes"), S.colonnes);
   const inRan = nombre("rangees", T("decoupehex.grille.rangees"), S.rangees);
-  const inZoom = marque(el("input", "dz-dh-in"), "zoom");
+  const inZoom = marque(el("input"), "zoom");     // sans .dz-dh-in : le curseur garde le style fader de l'app (dz-curseur.css)
   inZoom.type = "range";
   inZoom.setAttribute("min", "1");
   inZoom.setAttribute("max", String(ZOOM_MAX));
@@ -263,7 +267,8 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
       return;
     }
     compteur.textContent = T("decoupehex.grille.tuiles", { n: v.g.centres.length });
-    const ppp = Math.round(pppEffectif(rectCourant(v.g).w, v.g.largeurMm));
+    const rect = rectCourant(v.g);
+    const ppp = Math.round(pppLab ? pppLab(rect, v.g.largeurMm) : pppEffectif(rect.w, v.g.largeurMm));
     infoPpp.textContent = T("decoupehex.cadrage.ppp", { ppp });
     const faible = ppp < PPP_MIN;
     alerte.textContent = faible ? T("decoupehex.cadrage.ppp_faible", { min: PPP_MIN }) : "";
@@ -356,11 +361,15 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
       message.className = "dz-dh-msg";
       rafraichir();
       try {
-        const cle = v.g.largeurMm + "x" + v.g.hauteurMm;
-        if (!dejaRangees[cle]) dejaRangees[cle] = await fournirImage({ largeurMm: v.g.largeurMm, hauteurMm: v.g.hauteurMm });
+        const cadrageVoulu = { zoom: S.zoom, x: S.x, y: S.y };
+        const cle = [v.g.largeurMm, v.g.hauteurMm, S.zoom, S.x, S.y].join("x");
+        if (!dejaRangees[cle]) {
+          const r = await fournirImage({ largeurMm: v.g.largeurMm, hauteurMm: v.g.hauteurMm, cadrage: { ...cadrageVoulu } });
+          dejaRangees[cle] = typeof r === "string" ? { nom: r, cadrage: cadrageVoulu } : { nom: r.nom, cadrage: r.cadrage || cadrageVoulu };
+        }
         const corpsPost = {
-          image: dejaRangees[cle], format: S.format, colonnes: S.colonnes, rangees: S.rangees,
-          cadrage: { zoom: S.zoom, x: S.x, y: S.y },
+          image: dejaRangees[cle].nom, format: S.format, colonnes: S.colonnes, rangees: S.rangees,
+          cadrage: dejaRangees[cle].cadrage,
         };
         const nom = inNom.value.trim();
         if (nom) corpsPost.name = nom;
