@@ -250,6 +250,25 @@ const actives = (A) => ACTIONS.filter((a) => A.action(a).peut()).join();
   ok("poignée : bouger sans début ne fait rien", (() => { A.poignee.bouger(100, 300); return r.etat.doc === doc2; })());
 }
 
+{
+  // le dessin des poignées dans l'overlay : repère + disques tirables aux libellés traduits, seulement à l'outil Sélection
+  const r = repetition();
+  r.etat.outil = "select";
+  const A = repeter_actions(r.VL);
+  const els = [];
+  const o = { appendChild: (e) => els.push(e) };
+  const ov = (nom, attrs) => ({ nom, attrs });
+  A.dessinerPoignees(o, ov, (x, y) => [x * 2, y * 2], 2);
+  const disques = els.filter((e) => e.attrs.class === "poignee-vivant");
+  ok("dessin : un cercle-repère (rayon × zoom) et deux poignées", els[0].nom === "circle" && els[0].attrs.r === 100 && disques.length === 2, JSON.stringify(els.map((e) => e.attrs)));
+  ok("dessin : rôles et libellés traduits", disques.map((e) => e.attrs["data-vivant"]).join() === "rayon,nombre"
+     && disques[0].attrs["aria-label"] === T("vectorlab.repeter.poignee_rayon") && !/^vectorlab\./.test(disques[1].attrs["aria-label"]));
+  ok("dessin : positions converties à l'écran", disques[0].attrs.cx === 200 && disques[0].attrs.cy === 300, JSON.stringify(disques[0].attrs));
+  r.etat.outil = "plume";
+  const avant = els.length;
+  A.dessinerPoignees(o, ov, (x, y) => [x, y], 1);
+  ok("dessin : rien hors de l'outil Sélection", els.length === avant);
+}
 /* ── init et menus ── */
 {
   const f = faux([rect("a", 0, 0)]);

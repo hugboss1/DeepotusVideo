@@ -42,6 +42,9 @@ export function champs_fusion(f) {
     { id: "orienter", type: "case", libelle: T("vectorlab.fusion.c_orienter"), valeur: f.orienter }];
 }
 const _TITRES = { radiale: "vectorlab.repeter.d_radiale", grille: "vectorlab.repeter.d_grille", miroir: "vectorlab.repeter.d_miroir" };
+// les libellés accessibles des poignées (T7), clés écrites en entier pour que le banc i18n les suive
+const _LIBELLES_POIGNEES = { rayon: "vectorlab.repeter.poignee_rayon", nombre: "vectorlab.repeter.poignee_nombre",
+                             ecart: "vectorlab.repeter.poignee_ecart", angle: "vectorlab.repeter.poignee_angle" };
 
 // la recette d'un objet vivant, en une phrase (onglet Apparence)
 export function resume_vivant(o) {
@@ -206,7 +209,7 @@ export function repeter_actions(VL) {
       const [ex, ey] = ecranPt(p.x, p.y);
       o.appendChild(ov("circle", { cx: ex, cy: ey, r: 6, fill: "#39b3d0", stroke: "#0d2a33", "stroke-width": 1.5,
         class: "poignee-vivant", "data-vivant": p.role, style: "pointer-events:auto;cursor:grab",
-        "aria-label": T("vectorlab.repeter.poignee_" + p.role) }));
+        "aria-label": T(_LIBELLES_POIGNEES[p.role]) }));
     }
   };
   // la section « vivant » de l'onglet Apparence (Détacher réutilise le bouton a2Detacher et son câblage)
