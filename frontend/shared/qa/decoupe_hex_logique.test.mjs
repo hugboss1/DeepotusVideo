@@ -61,7 +61,7 @@ for (const a of [["poker", 2, 2], ["hex_p50", 0, 2], ["hex_p50", 31, 1], ["hex_p
   try { L.grille(...a); } catch (e) { leve = e instanceof Error; }
   ok("5.1 refus " + a.join("/"), leve);
 }
-ok("5.2 constantes", L.COTE_MAX === 30 && L.TUILES_MAX === 500);
+ok("5.2 constantes", L.COTE_MAX === 30 && L.TUILES_MAX === 500 && L.PIXELS_MAX === 150000000);
 
 // 6 cadrage couvrant
 {

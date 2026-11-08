@@ -31,12 +31,15 @@ from .depuis_images import (IMAGES_MAX, _CADRE_NU, _PREFIXE_PHOTOLAB,
                             _images_dir, _nom_valide, _verifie_presente)
 
 __all__ = ["COTE_MAX", "TUILES_MAX", "Grille", "grille", "cadrage_couvrant",
-           "ppp_effectif", "decouper", "router"]
+           "ppp_effectif", "decouper", "iter_tuiles", "router", "PIXELS_MAX"]
 
 router = APIRouter()
 
 COTE_MAX = 30                 # colonnes ou rangées, au plus
 TUILES_MAX = IMAGES_MAX       # = 500, le plafond d'un deck depuis des images
+# Pixels de l'image de travail (étendue de la grille à `dpi`) : ~600 Mo en RGBA.
+# Miroir JS : PIXELS_MAX de frontend/shared/dz-decoupe-hex-logique.js.
+PIXELS_MAX = 150_000_000
 
 
 @dataclass(frozen=True)
@@ -53,9 +56,12 @@ class Grille:
 
 
 def _entier(valeur, nom: str) -> int:
-    if isinstance(valeur, bool) or int(valeur) != valeur:
+    try:
+        if isinstance(valeur, bool) or int(valeur) != valeur:
+            raise ValueError
+        return int(valeur)
+    except (TypeError, ValueError, OverflowError):
         raise ValueError(f"{nom} doit être un entier (reçu {valeur!r})")
-    return int(valeur)
 
 
 def grille(fmt: str, colonnes: int, rangees: int,
@@ -68,10 +74,7 @@ def grille(fmt: str, colonnes: int, rangees: int,
     cle = str(fmt or "").strip().lower()
     if not is_hex(cle):
         raise ValueError(f"Format non hexagonal : {fmt!r}")
-    try:
-        nc, nr = _entier(colonnes, "colonnes"), _entier(rangees, "rangées")
-    except (TypeError, ValueError, OverflowError) as e:
-        raise ValueError(str(e))
+    nc, nr = _entier(colonnes, "colonnes"), _entier(rangees, "rangées")
     if not (1 <= nc <= COTE_MAX and 1 <= nr <= COTE_MAX):
         raise ValueError(
             f"colonnes et rangées doivent tenir entre 1 et {COTE_MAX}")
@@ -212,7 +215,19 @@ def _masque_coupe(index: int, centres: list[tuple[int, int]],
 
 def decouper(src: Image.Image, g: Grille, cadrage: dict,
              dpi: int = 300) -> list[tuple[int, int, Image.Image]]:
-    """Découpe `src` en tuiles RGBA (rang, colonne, image), ordre de lecture.
+    """`iter_tuiles` rassemblé en liste (petites grilles, bancs)."""
+    return list(iter_tuiles(src, g, cadrage, dpi))
+
+
+def pixels_travail(g: Grille, dpi: int) -> int:
+    """Pixels de l'image de travail d'une grille à `dpi`."""
+    return (max(1, round(g.largeur_mm / 25.4 * dpi))
+            * max(1, round(g.hauteur_mm / 25.4 * dpi)))
+
+
+def iter_tuiles(src: Image.Image, g: Grille, cadrage: dict, dpi: int = 300):
+    """Découpe `src` en tuiles RGBA (rang, colonne, image), ordre de lecture,
+    UNE à la fois (générateur) à partir de l'unique image de travail.
 
     Chaque tuile est une fenêtre de l'image de travail à la taille de la toile
     du format (`geom(fmt, dpi, bleed).canvas_px`). Alpha 255 = COUPE (pixel
@@ -237,7 +252,6 @@ def decouper(src: Image.Image, g: Grille, cadrage: dict,
                    hexa.decale(cg.contour_mm, mm)]    # coupe élargie de 1 px
     centres_q = [(round(cx * k * _Q), round(cy * k * _Q))
                  for _, _, cx, cy in g.centres_mm]
-    sortie = []
     for i, (rang, col, cx, cy) in enumerate(g.centres_mm):
         origine = _origine_tuile(cx, cy, dpi, canvas)
         # position du vrai centre dans la toile de la tuile (px, flottant)
@@ -259,8 +273,7 @@ def decouper(src: Image.Image, g: Grille, cadrage: dict,
         alpha = Image.new("L", canvas, 0)
         alpha.paste(tuile.getchannel("A"), mask=masque)
         tuile.putalpha(alpha)
-        sortie.append((rang, col, tuile))
-    return sortie
+        yield (rang, col, tuile)
 
 
 # ── la route : POST /api/cards/decks/plateau ────────────────────────────────
@@ -313,6 +326,11 @@ def preparer(body) -> dict:
                    fmt.get("bleed_mm"))
     except ValueError as e:
         raise HTTPException(400, str(e))
+    mpx = round(pixels_travail(g, int(dpi)) / 1e6)
+    if pixels_travail(g, int(dpi)) > PIXELS_MAX:
+        raise HTTPException(
+            400, f"image de travail trop grande : {mpx} Mpx pour {PIXELS_MAX // 1_000_000} Mpx "
+                 "au plus ; réduisez le nombre de tuiles, la taille ou le dpi")
     commun = body.get("verso_commun")
     if commun is not None:
         _nom_valide(commun, "verso_commun")
@@ -333,41 +351,48 @@ def _ecrire_tuile(tuile: Image.Image, chemin, dpi: int) -> None:
     tuile.save(chemin, "PNG", dpi=(dpi, dpi))
 
 
-def _decouper_source(prep: dict) -> tuple[list, float]:
-    """Les tuiles et le ppp réel. La source est ouverte en LECTURE et
-    refermée ; rien n'est écrit."""
-    g, cad = prep["grille"], prep["cadrage"]
+def _ouvrir_source(prep: dict) -> Image.Image:
+    """La source décodée, ouverte en LECTURE puis refermée. Toute erreur de
+    décodage (fichier tronqué, corrompu, bombe) est un 400, avant tout effet."""
     try:
         with Image.open(_images_dir() / prep["image"]) as im:
             im.load()
-            rect_w = cadrage_couvrant(
-                im.width, im.height, g.largeur_mm, g.hauteur_mm,
-                cad.get("zoom", 1.0), cad.get("x", 0.5), cad.get("y", 0.5))[2]
-            return (decouper(im, g, cad, prep["dpi"]),
-                    round(ppp_effectif(rect_w, g.largeur_mm), 1))
-    except (Image.UnidentifiedImageError, Image.DecompressionBombError):
+            return im.copy() if im.mode == "RGBA" else im.convert("RGBA")
+    except (OSError, SyntaxError, ValueError, Image.DecompressionBombError):
         raise HTTPException(400, f"image illisible : {prep['image']}")
 
 
 def _defaire(did: str, tuiles: list[str]) -> None:
     racine = _images_dir()
+    restes = []
     for nom in tuiles:
         try:
             (racine / nom).unlink(missing_ok=True)
         except OSError:
-            logger.exception("cards: tuile {} non retirée", nom)
-    core.delete_deck(did)
+            restes.append(nom)
+    if not core.delete_deck(did) or restes:
+        logger.error("cards: retour en arrière du plateau incomplet : jeu {} "
+                     "(supprimé : {}), tuiles non retirées : {}", did,
+                     not (core.deck_dir(did).exists()), restes)
 
 
-def _fabriquer(prep: dict, tuiles: list) -> tuple[dict, list[str]]:
-    """Crée le jeu, écrit les tuiles, ensemence. Toute exception supprime les
-    tuiles déjà écrites ET le jeu avant de remonter."""
+def _fabriquer(prep: dict) -> tuple[dict, list[str], float]:
+    """Lit la source, crée le jeu, écrit les tuiles UNE à UNE, ensemence.
+    Toute exception après `create_deck` supprime les tuiles déjà écrites ET
+    le jeu avant de remonter."""
+    src = _ouvrir_source(prep)
+    g, cad = prep["grille"], prep["cadrage"]
+    rect_w = cadrage_couvrant(src.width, src.height, g.largeur_mm,
+                              g.hauteur_mm, cad.get("zoom", 1.0),
+                              cad.get("x", 0.5), cad.get("y", 0.5))[2]
+    ppp = round(ppp_effectif(rect_w, g.largeur_mm), 1)
     doc = core.create_deck(prep["name"])
     did, noms, rows = doc["id"], [], []
-    largeur = 3 if len(tuiles) > 99 else 2
+    largeur = 3 if len(g.centres_mm) > 99 else 2
     try:
         racine = _images_dir()
-        for i, (rang, col, tuile) in enumerate(tuiles, 1):
+        for i, (rang, col, tuile) in enumerate(
+                iter_tuiles(src, g, cad, prep["dpi"]), 1):
             nom = _nom_tuile(prep["base"], did, rang, col)
             noms.append(nom)         # avant l'écriture : un fichier partiel part aussi
             _ecrire_tuile(tuile, racine / nom, prep["dpi"])
@@ -386,7 +411,7 @@ def _fabriquer(prep: dict, tuiles: list) -> tuple[dict, list[str]]:
             out = core.poser_categorie(did, "plateau")
         if out is None:
             raise OSError("deck disparu après sa création")
-        return out, noms
+        return out, noms, ppp
     except BaseException:
         _defaire(did, noms)
         raise
@@ -396,8 +421,7 @@ def _fabriquer(prep: dict, tuiles: list) -> tuple[dict, list[str]]:
 async def post_plateau(body: dict | None = None):
     prep = await asyncio.to_thread(preparer, body)
     try:
-        tuiles, ppp = await asyncio.to_thread(_decouper_source, prep)
-        deck, noms = await asyncio.to_thread(_fabriquer, prep, tuiles)
+        deck, noms, ppp = await asyncio.to_thread(_fabriquer, prep)
     except OSError as e:
         logger.exception("cards: découpe du plateau impossible")
         raise HTTPException(500, "Création du plateau impossible : écriture "

@@ -14354,5 +14354,9 @@
  "Création du plateau impossible : écriture refusée ({v})": {
   "fr": "Création du plateau impossible : écriture refusée ({v})",
   "en": "Board creation failed: write refused ({v})"
+ },
+ "image de travail trop grande : {mpx} Mpx pour {v} Mpx au plus ; réduisez le nombre de tuiles, la taille ou le dpi": {
+  "fr": "image de travail trop grande : {mpx} Mpx pour {v} Mpx au plus ; réduisez le nombre de tuiles, la taille ou le dpi",
+  "en": "working image too large: {mpx} MP for a {v} MP maximum; reduce the number of tiles, the size or the dpi"
  }
 }

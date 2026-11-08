@@ -162,7 +162,7 @@ def test_echec_a_mi_chemin_ne_laisse_rien(monkeypatch):
 @pytest.mark.parametrize("corps,code", [
     ({"format": "poker"}, 400), ({"format": "poker_us"}, 400),
     ({"colonnes": 0}, 400), ({"colonnes": 30, "rangees": 17}, 400),
-    ({"colonnes": None}, 400), ({"dpi": 10}, 400), ({"dpi": True}, 400),
+    ({"colonnes": None}, 400), ({"colonnes": "abc"}, 400), ({"dpi": 10}, 400), ({"dpi": True}, 400),
     ({"image": "absente.png"}, 404), ({"image": "../x.png"}, 400),
     ({"verso_commun": "absent.png"}, 404), ({"cadrage": "x"}, 400),
     ({"cadrage": {"zoom": "gros"}}, 400)])
@@ -181,31 +181,87 @@ def test_image_illisible_ne_cree_rien():
     assert _tuiles_sur_disque() == avant and _nb_decks() == n
 
 
-def test_messages_refus_traduits():
-    """Chaque message neuf de plateau.py a son entrée fr + en au dictionnaire
-    (erreurs.json) ; rendus avec Accept-Language: en, les refus sont en anglais."""
-    from app.i18n import erreurs as ERR
-    sources = {e["fr"] for e in ERR.dico().values() if e["src"] == "fr"}
-    for fr in ("Format non hexagonal : {fmt}",
-               "colonnes et rangées doivent tenir entre 1 et {COTE_MAX}",
-               "{v} tuiles : {TUILES_MAX} au plus",
-               "{nom} doit être un entier (reçu {valeur})",
-               "{champ} : un nombre attendu",
-               "format non hexagonal : {fmt_id}",
-               "dpi : un entier attendu",
-               "cadrage : un objet {zoom, x, y} attendu",
-               "image illisible : {image}",
-               "Création du plateau impossible : écriture refusée ({v})"):
-        assert fr in sources, fr
+def test_refus_rendus_en_anglais():
+    """Les refus sont rendus dans la langue de la requête. L'existence d'une
+    entrée pour CHAQUE gabarit de plateau.py est garantie par test_i18n_l10.py
+    (check 1.1) : pas de liste en dur ici, juste la preuve de bout en bout."""
     en = {"Accept-Language": "en"}
-    r = _api("POST", "/api/cards/decks/plateau", headers=en, json={
-        "image": "fond.png", "format": "hex_p90", "colonnes": 0, "rangees": 4})
-    assert r.status_code == 400
+    base = {"image": "fond.png", "format": "hex_p90", "colonnes": 2, "rangees": 2}
+    r = _api("POST", "/api/cards/decks/plateau", headers=en,
+             json={**base, "colonnes": 0})
     assert r.json()["detail"].startswith("columns and rows must be between 1 and")
-    r = _api("POST", "/api/cards/decks/plateau", headers=en, json={
-        "image": "fond.png", "format": "hex_p90", "colonnes": 2, "rangees": 2,
-        "dpi": True})
+    r = _api("POST", "/api/cards/decks/plateau", headers=en,
+             json={**base, "dpi": True})
     assert r.json()["detail"] == "dpi: an integer is expected"
+    r = _api("POST", "/api/cards/decks/plateau", headers=en,
+             json={**base, "colonnes": "abc"})
+    assert r.json()["detail"].startswith("colonnes must be an integer")
+    r = _api("POST", "/api/cards/decks/plateau", headers=en,
+             json={**base, "colonnes": 30, "rangees": 16, "dpi": 300})
+    assert r.status_code == 400 and "working image too large" in r.json()["detail"]
+
+
+def test_plafond_de_pixels_refuse_sans_rien_creer():
+    avant, n = _tuiles_sur_disque(), _nb_decks()
+    r = _post(colonnes=30, rangees=12, dpi=300)       # ~ 390 Mpx
+    assert r.status_code == 400, r.text
+    d = r.json()["detail"]
+    assert "Mpx" in d and "150 Mpx" in d and "dpi" in d
+    assert _tuiles_sur_disque() == avant and _nb_decks() == n
+
+
+def test_6x4_hex_p90_a_300_dpi_passe():
+    g = plateau.grille("hex_p90", 6, 4)
+    assert plateau.pixels_travail(g, 300) <= plateau.PIXELS_MAX
+    r = _post(dpi=300)
+    assert r.status_code == 200, r.text
+
+
+def test_pixels_max_identique_en_js():
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" / "shared"
+          / "dz-decoupe-hex-logique.js").read_text(encoding="utf-8")
+    m = re.search(r"export const PIXELS_MAX = (\d+);", js)
+    assert m and int(m.group(1)) == plateau.PIXELS_MAX
+
+
+def test_png_tronque_est_un_400_sans_rien_creer():
+    brut = (IMAGES / "fond.png").read_bytes()
+    (IMAGES / "tronque.png").write_bytes(brut[:len(brut) // 2])
+    avant, n = _tuiles_sur_disque(), _nb_decks()
+    r = _post(image="tronque.png")
+    assert r.status_code == 400 and "tronque.png" in r.json()["detail"], r.text
+    assert _tuiles_sur_disque() == avant and _nb_decks() == n
+
+
+def test_ensemencement_en_echec_retire_tuiles_et_jeu(monkeypatch):
+    avant, n = _tuiles_sur_disque(), _nb_decks()
+
+    def casse(did, cat):
+        raise OSError(5, "boom")
+    monkeypatch.setattr(core, "poser_categorie", casse)
+    r = _post()
+    assert r.status_code == 500
+    assert _tuiles_sur_disque() == avant and _nb_decks() == n
+
+
+def test_retour_en_arriere_incomplet_est_journalise(monkeypatch):
+    from loguru import logger
+    messages = []
+    ident = logger.add(lambda m: messages.append(str(m)), level="ERROR")
+    vrai = core.delete_deck
+    monkeypatch.setattr(core, "delete_deck", lambda did: False)
+    monkeypatch.setattr(core, "poser_categorie",
+                        lambda did, cat: (_ for _ in ()).throw(OSError(5, "x")))
+    try:
+        r = _post(colonnes=1, rangees=1)
+    finally:
+        logger.remove(ident)
+    assert r.status_code == 500
+    journal = "".join(messages)
+    assert "retour en arrière du plateau incomplet" in journal
+    assert "deck_" in journal
+    for p in core.list_deck_summaries():       # ménage : le faux delete a laissé le jeu
+        vrai(p["id"]) if "Plateau" in p.get("name", "") else None
 
 
 def test_impression_hex_du_jeu_plateau():

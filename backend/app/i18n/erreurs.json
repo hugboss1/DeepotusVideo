@@ -3182,6 +3182,7 @@
   "erreur.df75a78f2d": {"fr": "option inconnue pour {label} : {v}", "en": "unknown option for {label}: {v}", "src": "fr"},
   "erreur.df9b25fdc5": {"fr": "Carte introuvable.", "en": "Card not found.", "src": "fr"},
   "erreur.dfa6a90867": {"fr": "FAL_KEY non configurée. Ajoutez-la dans backend/.env", "en": "FAL_KEY not configured. Add it to backend/.env", "src": "en"},
+  "erreur.dfb21d577e": {"fr": "image de travail trop grande : {mpx} Mpx pour {v} Mpx au plus ; réduisez le nombre de tuiles, la taille ou le dpi", "en": "working image too large: {mpx} MP for a {v} MP maximum; reduce the number of tiles, the size or the dpi", "src": "fr"},
   "erreur.dfda0f2ed7": {"fr": "Trop de lignes (limite {MAX_ROWS})", "en": "Too many rows (limit {MAX_ROWS})", "src": "fr"},
   "erreur.dfda19d62f": {"fr": "zoom : entier 1..19", "en": "zoom: integer 1..19", "src": "fr"},
   "erreur.dfe43340ad": {"fr": "svg requis (le document compilé du client)", "en": "svg required (the client's compiled document)", "src": "fr"},

@@ -17,6 +17,7 @@ export const FORMATS_HEX = {
 
 export const COTE_MAX = 30;
 export const TUILES_MAX = 500;
+export const PIXELS_MAX = 150000000;   // = plateau.PIXELS_MAX (image de travail, pixels)
 const FOND_PERDU_NATIF_MM = 3;   // = contract.BLEED_METRIC_MM (formats hexagonaux métriques)
 const FOND_PERDU_MAX_MM = 10;    // = contract.BLEED_MM_MAX
 
