@@ -8,8 +8,8 @@ Une tâche à la fois, chacune avec TDD, des bancs, une preuve à l'écran dans 
 
 | Tâche | Lot | Contenu | Dépend de |
 |---|---|---|---|
-| **t433** | M0 | catalogue `knowledge/methodes.json` (construit par `scripts/methodes_construire.py`), service `methodes`, routes `/api/methodes`, outil d'agent `methodes_lire` (boîte « methodes », agent `mcp`), écran `/methodes/` (galerie, filtres famille/agent/écran, fiche, exemples copiables), entrée de la barre (maillon de queue `dzmethodes`), i18n `methodes.json`, bancs `test_methodes` + `test_methodes_ecran` | — |
-| t434 | M1 | briques B1 revue chiffrée générique (extension de t337), B2 ancre d'identité, B3 conformer/comparer (volet avant/après, dérive), B7 registre coût/temps | t433 |
+| **t433** | M0 | FAITE, PR #526 fusionnée (70307bbe) : catalogue `knowledge/methodes.json` (construit par `scripts/methodes_construire.py`), service `methodes`, routes `/api/methodes`, outil d'agent `methodes_lire` (boîte « methodes », agent `mcp`), écran `/methodes/` (galerie, filtres famille/agent/écran, fiche, exemples copiables), entrée de la barre (maillon de queue `dzmethodes`), i18n `methodes.json`, bancs `test_methodes` + `test_methodes_ecran` | — |
+| **t434** | M1 | FAITE (PR suivante après #526) : `services/briques.py` (B1 `mesurer` local + `avis` Claude vision payant aux critères fournis ; B3 `conformer` vers taille/cadence/durée d'une source, `comparer` dérive image par image), `services/ancres.py` (B2, copie de l'image, `references`, `verifier` par identity_drift), `services/registre_taches.py` + table `etapes_registre` (B7), routes `/api/briques/*`, boîte « briques » (5 outils de lecture, agent `mcp`), banc `test_briques` | t433 |
 | t435 | M2 | agent **Monteur** + B4 chaîne vidéo→vidéo + B5 texte en code et calage sur la musique ; bouton « Méthodes » dans Montage et Quick (ouvre `/methodes/?ecran=montage`) ; « Lancer avec l'agent » sur ses fiches | t434 |
 | t436 | M3 | agent **Réalisateur** (Chapitres, Plateau, Scène Blender ; s'appuie sur t331-t338) | t434 |
 | t437 | M4 | agents **Retoucheur** + **Déclinaisons produit** (Studio, Photolab, Templates) | t434 |

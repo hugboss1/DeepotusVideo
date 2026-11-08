@@ -114,6 +114,14 @@ BOITES: dict[str, dict] = {
         "agents": ["mcp"],
         "mobile": False,
     },
+    # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
+    # en lecture et gratuites ; Claude Code (« mcp ») les lit ; les agents métier des lots M2-M9 les déclareront
+    "briques": {
+        "libelle": "agent.boites.briques",
+        "outils": ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"],
+        "agents": ["mcp"],
+        "mobile": False,
+    },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)
     "assets3d": {
         "libelle": "agent.boites.assets3d",

@@ -14370,5 +14370,101 @@
  "méthode inconnue": {
   "fr": "méthode inconnue",
   "en": "unknown method"
+ },
+ "Ancre inconnue.": {
+  "fr": "Ancre inconnue.",
+  "en": "Unknown anchor."
+ },
+ "Donne un nom à l'ancre.": {
+  "fr": "Donne un nom à l'ancre.",
+  "en": "Give the anchor a name."
+ },
+ "Nature d'ancre inconnue.": {
+  "fr": "Nature d'ancre inconnue.",
+  "en": "Unknown anchor type."
+ },
+ "Une ancre est une image.": {
+  "fr": "Une ancre est une image.",
+  "en": "An anchor must be an image."
+ },
+ "Ancre inconnue : {ancre_id}": {
+  "fr": "Ancre inconnue : {ancre_id}",
+  "en": "Unknown anchor: {ancre_id}"
+ },
+ "On vérifie une image ou une vidéo contre une ancre.": {
+  "fr": "On vérifie une image ou une vidéo contre une ancre.",
+  "en": "Only an image or a video can be checked against an anchor."
+ },
+ "Trop d'ancres : supprimes-en avant d'en poser une nouvelle.": {
+  "fr": "Trop d'ancres : supprimes-en avant d'en poser une nouvelle.",
+  "en": "Too many anchors: delete some before adding a new one."
+ },
+ "Ancre inconnue : {i}": {
+  "fr": "Ancre inconnue : {i}",
+  "en": "Unknown anchor: {i}"
+ },
+ "Chemin de fichier invalide.": {
+  "fr": "Chemin de fichier invalide.",
+  "en": "Invalid file path."
+ },
+ "Ce fichier est hors du dossier de données de l'application.": {
+  "fr": "Ce fichier est hors du dossier de données de l'application.",
+  "en": "This file is outside the app's data folder."
+ },
+ "Fichier introuvable.": {
+  "fr": "Fichier introuvable.",
+  "en": "File not found."
+ },
+ "Format de fichier non pris en charge.": {
+  "fr": "Format de fichier non pris en charge.",
+  "en": "Unsupported file format."
+ },
+ "La comparaison image par image demande deux vidéos.": {
+  "fr": "La comparaison image par image demande deux vidéos.",
+  "en": "A frame-by-frame comparison needs two videos."
+ },
+ "Une des vidéos ne donne aucune image lisible.": {
+  "fr": "Une des vidéos ne donne aucune image lisible.",
+  "en": "One of the videos has no readable frame."
+ },
+ "Conformer demande deux vidéos.": {
+  "fr": "Conformer demande deux vidéos.",
+  "en": "Conforming needs two videos."
+ },
+ "ffmpeg (conformer) : {v}": {
+  "fr": "ffmpeg (conformer) : {v}",
+  "en": "ffmpeg (conform): {v}"
+ },
+ "Donne au moins un critère à juger.": {
+  "fr": "Donne au moins un critère à juger.",
+  "en": "Give at least one criterion to judge."
+ },
+ "Donne au moins une image ou une vidéo à juger.": {
+  "fr": "Donne au moins une image ou une vidéo à juger.",
+  "en": "Give at least one image or video to judge."
+ },
+ "Catégorie de dépense inconnue.": {
+  "fr": "Catégorie de dépense inconnue.",
+  "en": "Unknown spending category."
+ },
+ "Infos vidéo illisibles : impossible de conformer.": {
+  "fr": "Infos vidéo illisibles : impossible de conformer.",
+  "en": "Unreadable video info: cannot conform."
+ },
+ "Cette paire de fichiers ne se compare pas (image contre son, par exemple).": {
+  "fr": "Cette paire de fichiers ne se compare pas (image contre son, par exemple).",
+  "en": "These two files cannot be compared (an image against a sound, for example)."
+ },
+ "L'avis ne juge que des images et des vidéos.": {
+  "fr": "L'avis ne juge que des images et des vidéos.",
+  "en": "The review only judges images and videos."
+ },
+ "Identifiant de tâche manquant.": {
+  "fr": "Identifiant de tâche manquant.",
+  "en": "Missing task id."
+ },
+ "Statut d'étape inconnu.": {
+  "fr": "Statut d'étape inconnu.",
+  "en": "Unknown step status."
  }
 }
