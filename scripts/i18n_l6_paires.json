@@ -3641,6 +3641,12 @@
     "groupe": "import"
    },
    {
+    "pos": 499,
+    "avant": "import { image_hrefs, image_rev_max } from \"./mod-image.js\";",
+    "apres": "import { image_hrefs, image_rev_max } from \"./mod-image.js\";\r\nimport { decouperHex } from \"./mod-decoupehex.js\";\r\n\r\n/** Nom déposé dans la Bibliothèque : vector_<docId><suffixe>_<k>x[_t].png. Un k non entier (plateau) est arrondi à\r\n    deux décimales : le nom reste sûr pour un fichier ; les exports 1×/2×/4× gardent leur nom. */\r\nexport function nomExportPNG(docId, suffixe, k, transparent) {\r\n  return `vector_${docId}${suffixe || \"\"}_${Math.round(k * 100) / 100}x${transparent ? \"_t\" : \"\"}.png`;\r\n}\r\n\r\n/** Fond transparent ou non : l'export plateau (`opts.opaque`) ne lit jamais la case, les autres la suivent. */\r\nexport function transparentExport(opts, caseCochee) {\r\n  return opts.opaque ? false : !!caseCochee;\r\n}",
+    "groupe": "plateau"
+   },
+   {
     "pos": 1425,
     "avant": "`image ${href} introuvable (${r.status})`",
     "apres": "T(\"vectorlab.export.image_introuvable\", { href, status: r.status })",
@@ -3671,9 +3677,21 @@
     "groupe": "export"
    },
    {
+    "pos": 3557,
+    "avant": "const transparent = $(\"#expTransparent\").checked;",
+    "apres": "const transparent = transparentExport(opts, $(\"#expTransparent\").checked);",
+    "groupe": "plateau"
+   },
+   {
+    "pos": 3826,
+    "avant": "const nom = `vector_${etat.docId}${opts.suffixe || \"\"}_${k}x${transparent ? \"_t\" : \"\"}.png`;",
+    "apres": "const nom = nomExportPNG(etat.docId, opts.suffixe, k, transparent);",
+    "groupe": "plateau"
+   },
+   {
     "pos": 4222,
     "avant": "`${d.filename} déposé dans la Library (${k}×)`",
-    "apres": "T(\"vectorlab.export.png_depose\", { f: d.filename, k })",
+    "apres": "T(\"vectorlab.export.png_depose\", { f: d.filename, k: Math.round(k * 100) / 100 })",
     "groupe": "export"
    },
    {
@@ -3723,6 +3741,18 @@
     "avant": "\"impression 3D indisponible (module non chargé)\"",
     "apres": "T(\"vectorlab.export.print3d_indispo\")",
     "groupe": "export"
+   },
+   {
+    "pos": 7030,
+    "avant": "  $(\"#expBible\").addEventListener(\"click\", garde(versBible));",
+    "apres": "  const btnPlateau = document.createElement(\"button\");   // créé ici : index.html reste intact (convention L6)\r\n  btnPlateau.id = \"expPlateau\";\r\n  btnPlateau.textContent = T(\"vectorlab.export.plateau\");\r\n  btnPlateau.title = T(\"vectorlab.export.plateau_titre\");\r\n  btnPlateau.addEventListener(\"click\", garde(() => decouperHex(VL, T)));\r\n  $(\"#expPng4\").after(btnPlateau);\r\n  $(\"#expBible\").addEventListener(\"click\", garde(versBible));",
+    "groupe": "plateau"
+   },
+   {
+    "pos": 7161,
+    "avant": "  VL.exporterPNG = exporterPNG;      // la preuve et les phases suivantes",
+    "apres": "  VL.exporterPNG = exporterPNG;      // la preuve et les phases suivantes\r\n  VL.rasteriser = rasteriser;        // plateau (lot 1) : l'aperçu du dialogue « Découper en hexagones »",
+    "groupe": "plateau"
    }
   ],
   "js/mod-exportplus.js": [

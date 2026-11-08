@@ -778,7 +778,7 @@ def test_un_jeu_ILLISIBLE_se_RE_DATE_a_chaque_lecture_et_squatte_la_tete():
         CC.delete_deck(sain)
 
 
-def test_un_jeu_liste_est_un_RESUME_de_quatre_champs():
+def test_un_jeu_liste_est_un_RESUME_de_cinq_champs():
     """Ce qui traverse le réseau, et rien de plus. Le pin porte sur les CLÉS —
     servir `type`, `frame` ou `data` en plus, c'est reservir les 13,4 Mo."""
     did = CC.create_deck("résumé")["id"]
@@ -794,7 +794,7 @@ def test_un_jeu_liste_est_un_RESUME_de_quatre_champs():
             for i in range(6)]}})
         d = _api("GET", "/api/cards/decks", params={"limit": 500}).json()
         ligne = [x for x in d["decks"] if x["id"] == did][0]
-        assert set(ligne) == {"id", "name", "created", "updated"}, ligne
+        assert set(ligne) == {"id", "name", "created", "updated", "categorie"}, ligne
         assert ligne["name"] == "résumé"
         # …et le document ENTIER, lui, existe toujours : la route par id le
         # sert, c'est elle qu'on ouvre quand on ouvre un jeu.
@@ -1251,7 +1251,7 @@ def test_des_LISTINGS_SIMULTANES_pendant_des_ECRITURES_ne_rendent_JAMAIS_un_500(
             assert set(faits) <= set(par_id), sorted(set(faits) - set(par_id))
             assert corps["total"] >= len(faits)
             for ligne in corps["decks"]:
-                assert set(ligne) == {"id", "name", "created", "updated"}, ligne
+                assert set(ligne) == {"id", "name", "created", "updated", "categorie"}, ligne
             # SERVI JUSTE S'ASSERTIONNE SUR LE NOM, pas sur la présence de la
             # ligne : la galerie servait « Mon jeu », fantôme daté de
             # maintenant, à la place du jeu bousculé — et ce test restait vert.
@@ -1401,7 +1401,7 @@ def test_l_IDENTIFIANT_SERVI_vient_du_DOSSIER_jamais_de_l_index():
         # qu'un seul test bronche.
         seul = CC._resume_d_entree("deck_a1b2c3d4",
                                    {"id": "deck_deadbeef", "name": "n",
-                                    "created": "c", "updated": "u",
+                                    "created": "c", "updated": "u", "categorie": "",
                                     "mtime": 1, "size": 1})
         assert seul["id"] == "deck_a1b2c3d4", seul
     finally:
@@ -1635,7 +1635,8 @@ def test_une_ENTREE_POLLUEE_est_PURGEE_au_listing_suivant():
 
         CC.list_deck_summaries()
         relu = json.loads(p.read_text(encoding="utf-8"))["decks"][cible]
-        assert set(relu) == {"name", "created", "updated", "mtime", "size"}, relu
+        assert set(relu) == {"name", "created", "updated", "categorie",
+                            "mtime", "size"}, relu
         assert p.stat().st_size < gros - 4000, (p.stat().st_size, gros)
     finally:
         p.unlink(missing_ok=True)

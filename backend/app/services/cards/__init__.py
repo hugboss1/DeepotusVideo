@@ -39,7 +39,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from . import core
 from . import face, frame, data, solid, texture, gltf, forge3d, capture, edition
-from . import models, depuis_images
+from . import models, depuis_images, plateau
 from . import type as type_mod
 from . import print as print_mod
 
@@ -56,6 +56,9 @@ router.include_router(models.router, tags=["cards:models"])
 # t421 : `/decks/depuis-images` doit lui aussi être apparié avant le joker
 # `/{did}` de core.
 router.include_router(depuis_images.router, tags=["cards:depuis-images"])
+
+# Lot 1 plateau : `/decks/plateau`, même raison.
+router.include_router(plateau.router, tags=["cards:plateau"])
 
 # CORE ensuite : /formats et /decks avant le joker /{did}.
 router.include_router(core.router, tags=["cards"])

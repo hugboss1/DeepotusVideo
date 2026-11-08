@@ -80,6 +80,8 @@ export const SOUS_MENU_CADRE = { nom: "Frame", cle: "photolab.menu.cadre_sous_me
   cles: { "pl.cadre.proprietes": "photolab.cadre.proprietes", "pl.cadre.contenu": "photolab.cadre.contenu", "pl.cadre.contenu_au_cadre": "photolab.cadre.contenu_au_cadre",
     "pl.cadre.cadre_au_contenu": "photolab.cadre.cadre_au_contenu", "pl.cadre.convertir": "photolab.cadre.convertir" } };
 export const INSERTIONS_N2 = [{ chemin: ["Type"], apres: "type.convertToPointText", id: "type.fillPath", cle: "photolab.commande.type.fill_path" }];
+// Plateau (lot 1) : Image › Découper en hexagones… (mod-plateau : dialogue partagé, jeu « plateau » du Card Forge), en fin de menu.
+export const INSERTIONS_PLATEAU = [{ chemin: ["Image"], apres: null, id: "pl.plateau.decouper", cle: "photolab.menu.decouper_hex" }];
 // t257 : entrées que l'écran sert par ses routes ou ses dialogues (mod-exports : /calques/fichiers, /jeux/fichiers,
 // /jeux/importer ; Image › Variables : dialogues sur mesure, commandes moteur vérifiées clé par clé par le pont).
 export const IDS_EXPORTS_M8 = ["file.export.layersToFiles", "file.export.dataSetsAsFiles", "file.import.variableDataSets",
@@ -113,7 +115,7 @@ const IDS_VERIF_TEXTE = ["type.resolveMissingFonts", "edit.checkSpelling"];
 // Entrées qui s'exécutent sans dialogue alors que le catalogue écrit « … » : l'écran retire les points de suspension.
 export const SANS_POINTS = new Set(["layer.new.artboardFromGroup"]);
 export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close", "file.save", "file.saveAs", "file.export.exportAs",
-  "pl.envoyer", "pl.natif.ouvrir", "pl.natif.reprendre",
+  "pl.envoyer", "pl.natif.ouvrir", "pl.natif.reprendre", "pl.plateau.decouper",
   // t191 : Calque › Nouveau calque IA… / Retirer le fond du calque (mod-iacalque : routes /calque/ia, /calque/detourer)
   ...IDS_IA,
   // t256 : Calque › Nouveau › Cadre…, Calque › Dupliquer vers un document… (mod-calques)
@@ -166,7 +168,7 @@ export const TRAITES_PAR_ECRAN = new Set(["file.new", "file.open", "file.close",
   // #415 : outils d'Image › Analyse, bascules du masque de calque
   ...Object.keys(OUTILS_ANALYSE), ...IDS_MASQUE_ECRAN, ...IDS_DIALOGUES_ECRAN, ...IDS_VERIF_TEXTE, "edit.toolbar"]);
 // … dont celles qui n'ont de sens qu'avec un document ouvert (grisées sur l'écran d'accueil).
-export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, ...IDS_OBJETS, ...SOUS_MENU_CADRE.ids, "type.fillPath", ...IDS_IA, ...IDS_CALQUES_M7, ...IDS_EXPORTS_M8, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.natif.ouvrir",
+export const NECESSITE_DOC = new Set([...IDS_DOCUMENTS, ...IDS_OBJETS, ...SOUS_MENU_CADRE.ids, "type.fillPath", ...IDS_IA, ...IDS_CALQUES_M7, ...IDS_EXPORTS_M8, "file.import.notes", "select.selectAndMask", "file.close", "file.save", "file.saveAs", "file.export.exportAs", "pl.envoyer", "pl.plateau.decouper", "pl.natif.ouvrir",
   // t152 : les zooms d'Affichage
   "view.zoomIn", "view.zoomOut", "view.fitOnScreen", "view.fitLayersOnScreen", "view.actualPixels", "view.twoHundredPercent", "view.printSize",
   // t154 : la transformation manuelle vise le calque actif
@@ -347,7 +349,7 @@ export function construireMenus(catalogue, registre, refuses, lang, t = (c) => c
   // t256 : les entrées de photocraft 0.10 (INSERTIONS_M7), dans l'ordre de la table : une insertion peut suivre la
   // précédente (Plan de travail voisin puis Cadre).
   // t257 : puis celles de M8 (Fichier › Ouvrir depuis l'ordinateur…).
-  for (const ins of [...INSERTIONS_M7, ...INSERTIONS_M8, ...INSERTIONS_N2]) {
+  for (const ins of [...INSERTIONS_M7, ...INSERTIONS_M8, ...INSERTIONS_N2, ...INSERTIONS_PLATEAU]) {
     let liste = (menus.find((m) => m.nom === ins.chemin[0]) || {}).entrees;
     for (const nom of ins.chemin.slice(1)) liste = liste && (liste.find((x) => x.type === "sous-menu" && x.nom === nom) || {}).entrees;
     if (!liste) continue;
