@@ -1021,6 +1021,12 @@
     "groupe": "outils_lab"
    },
    {
+    "pos": 1426,
+    "avant": "  const re = /rotate\\(\\s*(-?[\\d.]+)(?:[\\s,]+(-?[\\d.]+)[\\s,]+(-?[\\d.]+))?\\s*\\)/g;\r\n  let t;\r\n  while ((t = re.exec(transform)) !== null) {\r\n    const a = (+t[1]) * Math.PI / 180;\r\n    const cx = +(t[2] || 0), cy = +(t[3] || 0);\r\n    const cos = Math.cos(a), sin = Math.sin(a);\r\n    // rotate(a cx cy) = translate(cx cy) rotate(a) translate(-cx -cy)\r\n    const r = [cos, sin, -sin, cos,\r\n               cx - cos * cx + sin * cy, cy - sin * cx - cos * cy];\r\n    m = _mul(m, r);              // gauche → droite : le plus à droite s'applique en premier\r\n  }",
+    "apres": "  // t450 : toute la liste de transformations SVG (elle ne lisait que rotate) — les copies des répétitions\r\n  // vivantes portent translate et matrix, op_incliner pose skewX / skewY\r\n  const re = /(matrix|translate|scale|rotate|skewX|skewY)\\s*\\(([^)]*)\\)/g;\r\n  let t;\r\n  while ((t = re.exec(transform)) !== null) {\r\n    const v = t[2].trim().split(/[\\s,]+/).filter(Boolean).map(Number);\r\n    if (!v.length || v.some((x) => !Number.isFinite(x))) continue;\r\n    let r = null;\r\n    if (t[1] === \"matrix\") { if (v.length === 6) r = v; }\r\n    else if (t[1] === \"translate\") r = [1, 0, 0, 1, v[0], v.length > 1 ? v[1] : 0];\r\n    else if (t[1] === \"scale\") r = [v[0], 0, 0, v.length > 1 ? v[1] : v[0], 0, 0];\r\n    else if (t[1] === \"skewX\") r = [1, 0, Math.tan(v[0] * Math.PI / 180), 1, 0, 0];\r\n    else if (t[1] === \"skewY\") r = [1, Math.tan(v[0] * Math.PI / 180), 0, 1, 0, 0];\r\n    else {\r\n      const a = v[0] * Math.PI / 180;\r\n      const cx = v[1] || 0, cy = v[2] || 0;\r\n      const cos = Math.cos(a), sin = Math.sin(a);\r\n      // rotate(a cx cy) = translate(cx cy) rotate(a) translate(-cx -cy)\r\n      r = [cos, sin, -sin, cos,\r\n           cx - cos * cx + sin * cy, cy - sin * cx - cos * cy];\r\n    }\r\n    if (r) m = _mul(m, r);       // gauche → droite : le plus à droite s'applique en premier\r\n  }",
+    "groupe": "t450"
+   },
+   {
     "pos": 1996,
     "avant": "const _pt = (m, x, y) => [m[0] * x + m[2] * y + m[4],\r\n                          m[1] * x + m[3] * y + m[5]];",
     "apres": "const _net = (v) => Math.round(v * 1e9) / 1e9 + 0;   // t422 : 6e-15 → 0 (sinon martinez boucle)\r\nconst _pt = (m, x, y) => [_net(m[0] * x + m[2] * y + m[4]),\r\n                          _net(m[1] * x + m[3] * y + m[5])];",
@@ -11419,10 +11425,28 @@
     "groupe": "import"
    },
    {
+    "pos": 880,
+    "avant": "import { contour_d } from \"./mod-bool.js\";",
+    "apres": "import { contour_d } from \"./mod-bool.js\";\r\nimport { vivants_d2_rafraichir, repetition_decomposer } from \"./mod-repeter.js\";   // t450 : lot D2",
+    "groupe": "t450"
+   },
+   {
+    "pos": 2294,
+    "avant": "  return n;",
+    "apres": "  return n + vivants_d2_rafraichir(doc);   // t450 : les répétitions vivantes, après les dérivés qu'elles lisent",
+    "groupe": "t450"
+   },
+   {
     "pos": 2490,
     "avant": "`objet introuvable: ${id}`",
     "apres": "T(\"vectorlab.vivants.err_introuvable\", { id })",
     "groupe": "divers"
+   },
+   {
+    "pos": 2520,
+    "avant": "  if (o.derive) { delete o.derive; return; }",
+    "apres": "  if (o.derive) { delete o.derive; return; }\r\n  if (o.repetition) { repetition_decomposer(doc, o); return; }   // t450 : Décomposer",
+    "groupe": "t450"
    },
    {
     "pos": 2678,

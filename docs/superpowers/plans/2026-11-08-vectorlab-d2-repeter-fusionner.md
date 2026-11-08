@@ -69,10 +69,13 @@ un groupe ordinaire, dont les copies reçoivent des ids `o<n>` neufs (`_idLibre`
   - Réglages radiaux :
     - `nombre` : 2-100, 8 par défaut ;
     - `rayon` : par défaut, la demi-diagonale de la source ;
-    - `angle` de départ : 0 par défaut ;
     - `orienter` : vrai par défaut. Faux veut dire que chaque copie reste droite et ne fait que se déplacer.
-  - Le centre de la rosace est le centre de la source, décalé de `rayon` vers le haut, comme Illustrator.
+  - Le centre de la rosace est à `rayon` SOUS le centre de la source : la source est en haut du cercle, comme dans
+    Illustrator. Pas d'angle de départ (Illustrator n'en a pas) : tourner le groupe entier suffit.
 - `vivants_d2_rafraichir`, `op_repetition_regler(doc, id, params)`, et l'extension d'`op_derive_detacher`.
+- **Fait au passage** (édition de base dans `t450.py`) : la matrice des booléens (`_matriceDe`, `mod-bool.js`) ne lisait
+  que `rotate`. Elle lit maintenant toute la liste SVG (translate, scale, rotate, skewX, skewY, matrix) ; un objet
+  incliné était aplati sans son inclinaison.
 - Banc `qa/repeter.test.mjs`, **rouge d'abord** :
   - les 8 copies sont à 45° d'écart, sur un cercle de rayon r (± 0,01) ;
   - modifier la source par une op → les copies suivent dans la même étape, et l'annulation rend le document identique ;

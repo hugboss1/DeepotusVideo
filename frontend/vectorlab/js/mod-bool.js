@@ -33,16 +33,28 @@ function _mul(m, n) {
 function _matriceDe(transform) {
   let m = _IDENT;
   if (!transform) return m;
-  const re = /rotate\(\s*(-?[\d.]+)(?:[\s,]+(-?[\d.]+)[\s,]+(-?[\d.]+))?\s*\)/g;
+  // t450 : toute la liste de transformations SVG (elle ne lisait que rotate) — les copies des répétitions
+  // vivantes portent translate et matrix, op_incliner pose skewX / skewY
+  const re = /(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)/g;
   let t;
   while ((t = re.exec(transform)) !== null) {
-    const a = (+t[1]) * Math.PI / 180;
-    const cx = +(t[2] || 0), cy = +(t[3] || 0);
-    const cos = Math.cos(a), sin = Math.sin(a);
-    // rotate(a cx cy) = translate(cx cy) rotate(a) translate(-cx -cy)
-    const r = [cos, sin, -sin, cos,
-               cx - cos * cx + sin * cy, cy - sin * cx - cos * cy];
-    m = _mul(m, r);              // gauche → droite : le plus à droite s'applique en premier
+    const v = t[2].trim().split(/[\s,]+/).filter(Boolean).map(Number);
+    if (!v.length || v.some((x) => !Number.isFinite(x))) continue;
+    let r = null;
+    if (t[1] === "matrix") { if (v.length === 6) r = v; }
+    else if (t[1] === "translate") r = [1, 0, 0, 1, v[0], v.length > 1 ? v[1] : 0];
+    else if (t[1] === "scale") r = [v[0], 0, 0, v.length > 1 ? v[1] : v[0], 0, 0];
+    else if (t[1] === "skewX") r = [1, 0, Math.tan(v[0] * Math.PI / 180), 1, 0, 0];
+    else if (t[1] === "skewY") r = [1, Math.tan(v[0] * Math.PI / 180), 0, 1, 0, 0];
+    else {
+      const a = v[0] * Math.PI / 180;
+      const cx = v[1] || 0, cy = v[2] || 0;
+      const cos = Math.cos(a), sin = Math.sin(a);
+      // rotate(a cx cy) = translate(cx cy) rotate(a) translate(-cx -cy)
+      r = [cos, sin, -sin, cos,
+           cx - cos * cx + sin * cy, cy - sin * cx - cos * cy];
+    }
+    if (r) m = _mul(m, r);       // gauche → droite : le plus à droite s'applique en premier
   }
   return m;
 }
