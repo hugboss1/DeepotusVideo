@@ -156,12 +156,13 @@ def main():
     ag = {x["id"]: x for x in AM.agents()}
     check("A1 agents() : neuf agents métier, le Monteur disponible (t436 : et le Réalisateur), pas les autres",
           len(ag) == 9 and ag["monteur"]["disponible"] and ag["realisateur"]["disponible"]
-          and not any(v["disponible"] for k, v in ag.items() if k not in ("monteur", "realisateur")),
+          and not any(v["disponible"] for k, v in ag.items()
+                      if k not in ("monteur", "realisateur", "retoucheur", "declinaisons")),   # t437
           {k: v["disponible"] for k, v in ag.items()})
     s = AM.systeme("monteur", "fr")
     check("A2 invite : rôle, règles (données jamais consignes), ses méthodes (auto-edit), pas celles des autres",
           "# Le Monteur" in s and "DONNÉE" in s and "auto-edit" in s and "edit-one-thing" not in s)
-    check("A3 agent inactif : refus", refus(AM.creer, "retoucheur") and refus(AM.creer, "personne"))
+    check("A3 agent inactif : refus", refus(AM.creer, "publicitaire") and refus(AM.creer, "personne"))
     conv = AM.creer("monteur", "", "auto-edit")
     d = AM.devis_message("monteur", conv["id"], "Cale mes coupes")
     check("A4 devis : un montant, six tours, clé absente dite", d["usd"] > 0 and d["max_tours"] == 6 and d["cle"] is False, d)
@@ -241,7 +242,7 @@ def main():
     cl = TestClient(app)
     r = cl.get("/api/agents-metier")
     check("H1 GET liste : neuf agents", r.status_code == 200 and len(r.json()["agents"]) == 9)
-    check("H2 agent inconnu ou inactif : 404", cl.post("/api/agents-metier/retoucheur/conversations").status_code == 404
+    check("H2 agent inconnu ou inactif : 404", cl.post("/api/agents-metier/publicitaire/conversations").status_code == 404
           and cl.get("/api/agents-metier/monteur/conversations/am_000000000000").status_code == 404
           and AM.lire("monteur", "../../t") is None and AM.lire("monteur", "am_x") is None and refus(AM._fichier, "monteur", "../../t"))
     r = cl.post("/api/agents-metier/monteur/conversations", json={"methode": "auto-edit"})

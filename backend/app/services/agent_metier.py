@@ -47,6 +47,8 @@ _ID = re.compile(r"^am_[0-9a-f]{12}$")
 ACTIFS: dict[str, dict] = {
     "monteur": {"categorie": "montage"},
     "realisateur": {"categorie": "chapitres"},   # t436 : Chapitres, Plateau 3D, Scène Blender
+    "retoucheur": {"categorie": "studio"},       # t437 : Studio, Photolab
+    "declinaisons": {"categorie": "studio"},     # t437 : Studio, Modèles, Espaces de marque
 }
 _ROLES = Path(__file__).resolve().parent.parent.parent.parent / "docs" / "agent" / "metiers"
 _VERROUS: dict[str, asyncio.Lock] = {}

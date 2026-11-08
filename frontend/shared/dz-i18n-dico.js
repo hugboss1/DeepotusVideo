@@ -28,6 +28,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "agent.boites.plateau": {"fr": "Previs et couverture du Plateau", "en": "Stage previs and coverage"},
   "agent.boites.prospects": {"fr": "Prospects", "en": "Prospects"},
   "agent.boites.recette": {"fr": "Recette exportable", "en": "Exportable recipe"},
+  "agent.boites.retouche": {"fr": "Carte des différences", "en": "Difference map"},
   "agent.boites.scan": {"fr": "Scan", "en": "Scan"},
   "agent.boites.veille": {"fr": "Veille", "en": "Watch"},
   "agent.campagnes.espace": {"fr": "Espace de marque de la campagne", "en": "Campaign brand space"},

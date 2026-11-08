@@ -363,3 +363,49 @@ async def avis(chemins: list[str], criteres, *, max_usd, categorie: str, context
     r.update(moteur=MOTEUR, modele=modele, usd=cout, langue=langue, images=len(images),
              date=datetime.now(timezone.utc).isoformat(timespec="seconds"), avertissement=AVERTISSEMENT)
     return r
+
+
+# ─────────────────────────────── t437 : la carte des différences (Retoucheur, Déclinaisons produit) ───────────────────
+
+SEUIL_DIFF = 24          # écart (0-255) sur le canal le plus changé au-delà duquel un pixel a « changé »
+MAX_COTE_DIFF = 1024
+
+
+def carte_differences(avant: str, apres: str) -> dict:
+    """La CARTE DES DIFFÉRENCES de deux images (méthodes edit-one-thing, same-product-every-variation : « change une
+    chose, prouve que le reste n'a pas bougé »). `apres` est ramené à la taille d'`avant`, comparé pixel à pixel sur
+    le canal le plus changé (une teinte changée à luminance égale compte) ; rend {part_changee (0-1), boite (x0, y0, x1, y1) de la zone changée ou None, par_quart (haut-gauche,
+    haut-droit, bas-gauche, bas-droit), carte (PNG : l'image d'après assombrie, la zone changée en rouge)}.
+    Local, gratuit ; la carte est rangée dans <données>/briques/differences/."""
+    from PIL import Image, ImageChops
+    pa, pb = confiner(avant), confiner(apres)
+    if nature(pa) != "image" or nature(pb) != "image":
+        raise ValueError("La carte des différences compare deux images.")
+    with Image.open(pa) as ia, Image.open(pb) as ib:
+        a = ia.convert("RGB")
+        b = ib.convert("RGB")
+    a.thumbnail((MAX_COTE_DIFF, MAX_COTE_DIFF))
+    b = b.resize(a.size)
+    r_, g_, b_ = ImageChops.difference(a, b).split()   # le plus fort écart des trois canaux : un changement de teinte
+    ecart = ImageChops.lighter(ImageChops.lighter(r_, g_), b_)   # à luminance égale reste visible
+    d = ecart.point(lambda v: 255 if v > SEUIL_DIFF else 0)
+    w, h = d.size
+    hist = d.histogram()
+    part = hist[255] / float(w * h)
+    boite = d.getbbox()
+    quarts = {}
+    for nom, (x0, y0, x1, y1) in (("haut_gauche", (0, 0, w // 2, h // 2)), ("haut_droit", (w // 2, 0, w, h // 2)),
+                                  ("bas_gauche", (0, h // 2, w // 2, h)), ("bas_droit", (w // 2, h // 2, w, h))):
+        q = d.crop((x0, y0, x1, y1)).histogram()
+        quarts[nom] = round(q[255] / float(max(1, (x1 - x0) * (y1 - y0))), 4)
+    fond = Image.blend(b, Image.new("RGB", b.size, (0, 0, 0)), 0.55)
+    rouge = Image.new("RGB", b.size, (230, 40, 40))
+    carte = Image.composite(rouge, fond, d)
+    dossier = racine() / "briques" / "differences"
+    dossier.mkdir(parents=True, exist_ok=True)
+    dest = dossier / f"{pb.stem[:50]}_diff_{uuid4().hex[:6]}.png"
+    carte.save(dest)
+    return {"avant": str(pa.relative_to(racine())).replace("\\", "/"),
+            "apres": str(pb.relative_to(racine())).replace("\\", "/"), "taille": [w, h],
+            "part_changee": round(part, 4), "boite": list(boite) if boite else None, "par_quart": quarts,
+            "seuil": SEUIL_DIFF, "carte": str(dest.relative_to(racine())).replace("\\", "/")}
