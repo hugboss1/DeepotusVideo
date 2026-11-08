@@ -20394,6 +20394,8 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "vectorlab.trace.valider": {"fr": "Valider", "en": "Confirm"},
   "vectorlab.trace.valider_titre": {"fr": "Pose les chemins dans un calque neuf « vectorisé » (une commande, annulable)", "en": "Places the paths in a new “vectorisé” layer (one command, undoable)"},
   "vectorlab.trace.vendor_absent": {"fr": "imagetracerjs indisponible (vendor non chargé)", "en": "imagetracerjs unavailable (vendor not loaded)"},
+  "vectorlab.traces.diviser_couteau": {"fr": "Diviser les objets en dessous : sélectionnez UN tracé ou une forme posé au-dessus des objets à découper", "en": "Divide Objects Below: select ONE path or shape placed above the objects to cut"},
+  "vectorlab.traces.diviser_rien": {"fr": "Diviser les objets en dessous : ce tracé ne traverse aucun objet rempli déverrouillé placé sous lui", "en": "Divide Objects Below: this path does not cross any unlocked filled object below it"},
   "vectorlab.traces.nettoyer_rien": {"fr": "Rien à nettoyer : aucun point isolé, objet invisible ni texte vide", "en": "Nothing to clean up: no stray points, invisible objects or empty texts"},
   "vectorlab.traces.points_rien": {"fr": "Ajouter des points : sélectionnez un tracé ou une forme (pas un texte ni un groupe)", "en": "Add anchor points: select a path or a shape (not a text or a group)"},
   "vectorlab.traces.sans_contour": {"fr": "Vectoriser le contour : sélectionnez un tracé, une forme ou une ligne qui a un contour plein (épaisseur > 0, sans pointillés)", "en": "Outline Stroke: select a path, shape or line with a solid stroke (width > 0, not dashed)"},

@@ -22,7 +22,8 @@ ENTREES = [
       '// t422 : lus par mod-traces.js (lot D1 « Tracés ») — l\'écriture d\'un multipolygone et les cibles '
       'déverrouillées\r\n'
       'export const multi_vers_d = (mp) => _dDeMulti(mp);\r\n'
-      'export const cibles_b = (doc, ids) => _ciblesB(doc, ids);', {}),
+      'export const cibles_b = (doc, ids) => _ciblesB(doc, ids);\r\n'
+      'export const martinez = () => _martinez();   // t427 : intersection / diff de Diviser les objets en dessous', {}),
     H("vectorlab.traces.sans_contour",
       "Vectoriser le contour : sélectionnez un tracé, une forme ou une ligne qui a un contour plein (épaisseur > 0, "
       "sans pointillés)",
@@ -38,4 +39,9 @@ ENTREES = [
     # t426 Nettoyer
     H("vectorlab.traces.nettoyer_rien", "Rien à nettoyer : aucun point isolé, objet invisible ni texte vide",
       "Nothing to clean up: no stray points, invisible objects or empty texts"),
+    # t427 Diviser les objets en dessous
+    H("vectorlab.traces.diviser_couteau", "Diviser les objets en dessous : sélectionnez UN tracé ou une forme posé au-dessus des objets à découper",
+      "Divide Objects Below: select ONE path or shape placed above the objects to cut"),
+    H("vectorlab.traces.diviser_rien", "Diviser les objets en dessous : ce tracé ne traverse aucun objet rempli déverrouillé placé sous lui",
+      "Divide Objects Below: this path does not cross any unlocked filled object below it"),
 ]

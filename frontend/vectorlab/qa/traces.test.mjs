@@ -6,9 +6,10 @@
 // T3 (t424) Ajouter des points d'ancrage : un point au milieu de chaque segment, segment de fermeture compris ; forme identique.
 // T4 (t425) Moyenne : les nœuds choisis vont à leur position moyenne — horizontale (même y), verticale (même x) ou les deux.
 // T5 (t426) Nettoyer : points isolés, objets invisibles, textes vides retirés du document entier ; liens et masques protégés.
+// T6 (t427) Diviser les objets en dessous : le tracé du dessus découpe chaque objet rempli situé SOUS lui, puis disparaît.
 import { createRequire } from "node:module";
 import { fournirMartinez, aplatir_objet, versMulti, aire_multi } from "../js/mod-bool.js";
-import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres, op_noeuds_moyenne, op_nettoyer } from "../js/mod-traces.js";
+import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres, op_noeuds_moyenne, op_nettoyer, op_diviser_dessous } from "../js/mod-traces.js";
 import { chemin_parser } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
 
@@ -346,6 +347,72 @@ const finsDe = (d) => chemin_parser(d).filter((g) => g.c !== "Z").map((g) => g.p
   const avant = JSON.stringify(n);
   ok("T5 rien à nettoyer : refus traduit, document intact", refus(() => op_nettoyer(n, { isoles: true, invisibles: true, textesVides: true })) === T("vectorlab.traces.nettoyer_rien") && JSON.stringify(n) === avant);
   ok("T5 la clé existe", T("vectorlab.traces.nettoyer_rien") !== "vectorlab.traces.nettoyer_rien");
+}
+
+/* ── T6 : Diviser les objets en dessous ── */
+{
+  const R = (id, x, y, w, h, fond = "#0047AB", extra = {}) => ({ id, type: "rect", x, y, w, h, style: { fond }, ...extra });
+  const cercle = { id: "k", type: "ellipse", cx: 100, cy: 50, rx: 30, ry: 30, style: { fond: "#ff0000", contour: "#000", epaisseur: 1 } };
+  const d = { v: 1, taille: { w: 400, h: 400 }, calques: [
+    { id: "c0", nom: "bas", visible: true, verrou: false, objets: [R("B", 100, 0, 100, 100, "#00aa00")] },
+    { id: "c1", nom: "haut", visible: true, verrou: false, objets: [
+      R("A", 0, 0, 100, 100), R("loin", 300, 300, 50, 50), R("verr", 60, 40, 30, 20, "#999999", { verrou: true }),
+      R("dedans", 95, 45, 10, 10, "#777777"),
+      { ...cercle }, R("dessus", 120, 40, 30, 20, "#ffff00") ] },
+    { id: "c2", nom: "plus haut", visible: true, verrou: false, objets: [R("calqueHaut", 120, 60, 30, 20, "#ff00ff")] } ] };
+  const aireA = 10000, demi = Math.PI * 900 / 2;
+  const avantLoin = JSON.stringify(d.calques[1].objets[1]), avantVerr = JSON.stringify(d.calques[1].objets[2]), avantDessus = JSON.stringify(d.calques[1].objets[5]);
+  const avantDedans = JSON.stringify(d.calques[1].objets[3]), avantHaut = JSON.stringify(d.calques[2].objets[0]);
+  const ids = op_diviser_dessous(d, "k");
+  const tous = d.calques.flatMap((c) => c.objets);
+  const deA = tous.filter((o) => o.style.fond === "#0047AB" && o.id !== "loin"), deB = tous.filter((o) => o.style.fond === "#00aa00");
+  ok("T6 deux objets touchés → 4 morceaux rendus", ids.length === 4 && deA.length === 2 && deB.length === 2, JSON.stringify(ids));
+  ok("T6 le couteau a disparu", !tous.some((o) => o.id === "k"));
+  ok("T6 A : un demi-disque + le reste, aire totale conservée", deA.some((o) => pres(aire(o), demi, 1)) && pres(deA.reduce((t, o) => t + aire(o), 0), aireA, 0.2),
+     JSON.stringify(deA.map(aire)));
+  ok("T6 B (calque du dessous) : divisé aussi, aire conservée", pres(deB.reduce((t, o) => t + aire(o), 0), aireA, 0.2), JSON.stringify(deB.map(aire)));
+  ok("T6 les morceaux de B restent dans SON calque, à sa place", d.calques[0].objets.length === 2 && d.calques[0].objets.every((o) => o.style.fond === "#00aa00"));
+  ok("T6 objet non touché, objet verrouillé, objet AU-DESSUS : intacts",
+     tous.some((o) => JSON.stringify(o) === avantLoin) && tous.some((o) => JSON.stringify(o) === avantVerr) && tous.some((o) => JSON.stringify(o) === avantDessus));
+  ok("T6 objet ENTIÈREMENT dans le couteau : intact ; objet d'un calque AU-DESSUS : intact",
+     tous.some((o) => JSON.stringify(o) === avantDedans) && tous.some((o) => JSON.stringify(o) === avantHaut));
+  ok("T6 ordre de peinture : les morceaux de A sont sous l'objet verrouillé", d.calques[1].objets.findIndex((o) => o.id === "verr") > d.calques[1].objets.findIndex((o) => ids.includes(o.id)));
+  ok("T6 ids uniques", new Set(tousIdsDoc(d)).size === tousIdsDoc(d).length, tousIdsDoc(d));
+}
+{
+  // couteau OUVERT (une ligne) : coupe le long de la ligne, deux moitiés de 5000
+  const d = doc({ id: "r", type: "rect", x: 0, y: 0, w: 100, h: 100, style: { fond: "#0047AB" } },
+                { id: "l", type: "path", d: "M 50 -10 L 50 110", style: { fond: "none", contour: "#000", epaisseur: 4 } });
+  const ids = op_diviser_dessous(d, "l");
+  ok("T6 ligne : deux moitiés d'aire 5000 (± 0,1 %)", ids.length === 2 && objets(d).length === 2 && objets(d).every((o) => pres(aire(o), 5000, 0.1)),
+     JSON.stringify(objets(d).map(aire)));
+  // couteau tourné : la rotation compte
+  const t = doc({ id: "r", type: "rect", x: 0, y: 0, w: 100, h: 100, style: { fond: "#0047AB" } },
+                { id: "l", type: "path", d: "M -10 50 L 110 50", transform: "rotate(90 50 50)", style: { fond: "none", contour: "#000", epaisseur: 1 } });
+  op_diviser_dessous(t, "l");
+  const xs = objets(t).map((o) => bbox(o)[2]).sort((a, b) => a - b);
+  // objet du dessous TOURNÉ : sa rotation compte (rect 200 × 20 tourné de 90° autour de (50 50) = vertical, x de 40 à 60)
+  const u = doc({ id: "r", type: "rect", x: -50, y: 40, w: 200, h: 20, transform: "rotate(90 50 50)", style: { fond: "#0047AB" } },
+                { id: "l", type: "path", d: "M 0 50 L 100 50", style: { fond: "none", contour: "#000", epaisseur: 1 } });
+  op_diviser_dessous(u, "l");
+  ok("T6 objet tourné : coupé en deux moitiés de 2000 (sa rotation est appliquée)", objets(u).length === 2 && objets(u).every((o) => pres(aire(o), 2000, 0.2)), JSON.stringify(objets(u).map(aire)));
+  ok("T6 couteau tourné de 90° : coupe verticale (bords droits à 50 et 100)", objets(t).length === 2 && Math.abs(xs[0] - 50) < 0.1 && Math.abs(xs[1] - 100) < 0.1, JSON.stringify(xs));
+}
+{
+  // refus : rien dessous, couteau non traçable → message, document intact
+  const d = doc({ id: "r", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#eee" } },
+                { id: "k", type: "ellipse", cx: 200, cy: 200, rx: 5, ry: 5, style: { fond: "#f00" } });
+  const av = JSON.stringify(d);
+  // un trait qui entre dans l'objet sans le traverser ne le coupe pas
+  const m = doc({ id: "r", type: "rect", x: 0, y: 0, w: 100, h: 100, style: { fond: "#eee" } },
+                { id: "l", type: "path", d: "M 50 -10 L 50 40", style: { fond: "none", contour: "#000", epaisseur: 1 } });
+  const avM = JSON.stringify(m);
+  ok("T6 trait qui ne traverse pas : refus « ne traverse aucun objet », document intact", refus(() => op_diviser_dessous(m, "l")) === T("vectorlab.traces.diviser_rien") && JSON.stringify(m) === avM);
+  ok("T6 le couteau ne touche rien : refus traduit, document intact", refus(() => op_diviser_dessous(d, "k")) === T("vectorlab.traces.diviser_rien") && JSON.stringify(d) === av);
+  const e = doc({ id: "r", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#eee" } }, { id: "t", type: "texte", x: 0, y: 0, contenu: "A", style: { fond: "#000" } });
+  const av2 = JSON.stringify(e);
+  ok("T6 couteau = texte : refus traduit, document intact", refus(() => op_diviser_dessous(e, "t")) === T("vectorlab.traces.diviser_couteau") && JSON.stringify(e) === av2);
+  ok("T6 les clés existent", T("vectorlab.traces.diviser_rien") !== "vectorlab.traces.diviser_rien" && T("vectorlab.traces.diviser_couteau") !== "vectorlab.traces.diviser_couteau");
 }
 
 if (echecs.length) {

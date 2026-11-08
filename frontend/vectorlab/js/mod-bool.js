@@ -207,6 +207,7 @@ const _dDeMulti = (mp) => mp.map(_dDePoly).filter(Boolean).join(" ");
 // t422 : lus par mod-traces.js (lot D1 « Tracés ») — l'écriture d'un multipolygone et les cibles déverrouillées
 export const multi_vers_d = (mp) => _dDeMulti(mp);
 export const cibles_b = (doc, ids) => _ciblesB(doc, ids);
+export const martinez = () => _martinez();   // t427 : intersection / diff de Diviser les objets en dessous
 
 /* ── contour GONFLÉ d'un objet tracé (fond none) : union de
    quadrilatères par segment + disques aux sommets (joints/bouts ronds,

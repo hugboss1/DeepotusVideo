@@ -2,7 +2,8 @@
 // tracé reprises d'Illustrator, en opérations PURES sur le modèle. Règle de mod-bool : tout se CALCULE avant de
 // muter — un refus ne laisse aucune trace ; l'UI les appelle par VL.executer (annulation comprise).
 import { T } from "./mod-i18n.js";
-import { contour_en_multi, multi_vers_d, cibles_b, polylignes_objet } from "./mod-bool.js";
+import { contour_en_multi, multi_vers_d, cibles_b, polylignes_objet, aplatir_objet, versMulti, aire_multi, martinez }
+  from "./mod-bool.js";
 import { chemin_parser, chemin_serialiser } from "./mod-doc.js";
 import { forme_d } from "./mod-formes.js";
 import { simplifier } from "./mod-crayon.js";
@@ -315,4 +316,61 @@ export function op_nettoyer(doc, { isoles = true, invisibles = true, textesVides
   if (!compte.isoles && !compte.invisibles && !compte.textesVides) throw new Error(T("vectorlab.traces.nettoyer_rien"));
   doc.calques.forEach((c, k) => { if (neufs[k]) c.objets = neufs[k]; });
   return compte;
+}
+
+/* ── T6 (t427) Objet › Tracé › Diviser les objets en dessous ──
+   Le tracé idCouteau découpe chaque objet REMPLI (tracé ou forme, non verrouillé) peint SOUS lui — calques du
+   dessous compris — puis disparaît, comme dans Illustrator :
+     couteau fermé : chaque objet touché devient ses morceaux DEDANS et DEHORS (sans jour entre eux) ;
+     couteau ouvert : l'objet est coupé le long du trait (bande de 0,05 px, invisible).
+   Un objet que le couteau ne coupe pas (pas touché, ou entièrement dedans) reste tel quel. Les morceaux sont des
+   chemins en coordonnées du document (transform appliqué), au style de leur objet, à sa place dans la pile. Les
+   objets non remplis, textes, groupes et images ne sont pas découpés. -> ids des morceaux */
+const BANDE_COUTEAU = 0.05;
+const AIRE_MIN = 0.01;
+
+export function op_diviser_dessous(doc, idCouteau) {
+  let ci = -1, oi = -1;
+  doc.calques.forEach((c, k) => { if (ci < 0 && !c.verrou) { const i = c.objets.findIndex((o) => o.id === idCouteau); if (i >= 0) { ci = k; oi = i; } } });
+  const couteau = ci >= 0 ? doc.calques[ci].objets[oi] : null;
+  if (!couteau || couteau.verrou || !TYPES_SIMPLIFIABLES.has(couteau.type)) throw new Error(T("vectorlab.traces.diviser_couteau"));
+  const mz = martinez();
+  const lignes = polylignes_objet(couteau);
+  const ferme = lignes.length > 0 && lignes.every((l) => l.ferme);
+  const coupe = ferme ? versMulti(aplatir_objet(couteau))
+    : contour_en_multi({ ...couteau, style: { ...(couteau.style || {}), epaisseur: BANDE_COUTEAU } });
+  const polys = (mp) => (mp || []).filter((poly) => poly && poly.length && aire_multi([poly]) > AIRE_MIN);
+  // tout se calcule d'abord : [{ calque, objet, morceaux: [poly…] }]
+  const plan = [];
+  doc.calques.forEach((c, k) => {
+    if (k > ci || c.verrou) return;
+    const limite = k === ci ? oi : c.objets.length;
+    for (let i = 0; i < limite; i++) {
+      const o = c.objets[i];
+      const s = o.style || {};
+      if (o.verrou || !TYPES_SIMPLIFIABLES.has(o.type) || _sansCouleur(s.fond)) continue;
+      const mp = versMulti(aplatir_objet(o));
+      let morceaux;
+      if (ferme) {
+        const dedans = polys(mz.intersection(mp, coupe)), dehors = polys(mz.diff(mp, coupe));
+        if (!dedans.length || !dehors.length) continue;           // pas touché, ou entièrement dedans
+        morceaux = [...dedans, ...dehors];
+      } else {
+        morceaux = polys(mz.diff(mp, coupe));
+        if (morceaux.length < 2) continue;                          // le trait ne le traverse pas
+      }
+      plan.push({ calque: c, objet: o, morceaux });
+    }
+  });
+  if (!plan.length) throw new Error(T("vectorlab.traces.diviser_rien"));
+  const neuf = _idsNeufs(doc);
+  const poses = [];
+  for (const { calque, objet, morceaux } of plan) {
+    const nouveaux = morceaux.map((poly) => ({ id: neuf(), type: "path", d: multi_vers_d([poly]), style: { ...(objet.style || {}) } }));
+    calque.objets.splice(calque.objets.indexOf(objet), 1, ...nouveaux);
+    poses.push(...nouveaux.map((o) => o.id));
+  }
+  const cc = doc.calques[ci];
+  cc.objets.splice(cc.objets.indexOf(couteau), 1);
+  return poses;
 }

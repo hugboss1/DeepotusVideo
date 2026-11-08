@@ -1035,7 +1035,7 @@
    {
     "pos": 8088,
     "avant": "const _dDeMulti = (mp) => mp.map(_dDePoly).filter(Boolean).join(\" \");",
-    "apres": "const _dDeMulti = (mp) => mp.map(_dDePoly).filter(Boolean).join(\" \");\r\n// t422 : lus par mod-traces.js (lot D1 « Tracés ») — l'écriture d'un multipolygone et les cibles déverrouillées\r\nexport const multi_vers_d = (mp) => _dDeMulti(mp);\r\nexport const cibles_b = (doc, ids) => _ciblesB(doc, ids);",
+    "apres": "const _dDeMulti = (mp) => mp.map(_dDePoly).filter(Boolean).join(\" \");\r\n// t422 : lus par mod-traces.js (lot D1 « Tracés ») — l'écriture d'un multipolygone et les cibles déverrouillées\r\nexport const multi_vers_d = (mp) => _dDeMulti(mp);\r\nexport const cibles_b = (doc, ids) => _ciblesB(doc, ids);\r\nexport const martinez = () => _martinez();   // t427 : intersection / diff de Diviser les objets en dessous",
     "groupe": "t422"
    },
    {
