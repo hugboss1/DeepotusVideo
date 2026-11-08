@@ -171,3 +171,74 @@ export function op_simplifier(doc, ids, opts = {}) {
   }
   return calculs.map((c) => c.objet.id);
 }
+
+/* ── T3 (t424) Objet › Tracé › Ajouter des points d'ancrage ──
+   Un point au MILIEU de chaque segment (de Casteljau à t = 0,5 : la forme ne bouge pas), y compris le segment de
+   fermeture implicite d'un sous-chemin fermé ; un retour explicite au départ avant Z (segment nul) n'en reçoit pas.
+   Rectangle, ellipse et forme paramétrique deviennent d'abord des chemins (id, nom, style, transform gardés).
+   « Supprimer des points d'ancrage » n'est pas ici : c'est la suppression LISSE de l'outil Nœud (noeud_supprimer_lisse),
+   branchée au menu en T9. */
+const KAPPA = 0.5522847498;
+
+function _dDe(o) {
+  if (o.type === "path") return o.d;
+  if (o.type === "forme") return forme_d(o);
+  if (o.type === "rect") {
+    const { x, y, w, h } = o;
+    return chemin_serialiser([{ c: "M", p: [x, y] }, { c: "L", p: [x + w, y] }, { c: "L", p: [x + w, y + h] },
+                              { c: "L", p: [x, y + h] }, { c: "Z", p: [] }]);
+  }
+  if (o.type === "ellipse") {
+    const { cx, cy, rx, ry } = o, kx = rx * KAPPA, ky = ry * KAPPA;
+    return chemin_serialiser([{ c: "M", p: [cx + rx, cy] },
+      { c: "C", p: [cx + rx, cy + ky, cx + kx, cy + ry, cx, cy + ry] },
+      { c: "C", p: [cx - kx, cy + ry, cx - rx, cy + ky, cx - rx, cy] },
+      { c: "C", p: [cx - rx, cy - ky, cx - kx, cy - ry, cx, cy - ry] },
+      { c: "C", p: [cx + kx, cy - ry, cx + rx, cy - ky, cx + rx, cy] }, { c: "Z", p: [] }]);
+  }
+  return null;
+}
+
+// les segments d'un d, chacun coupé en son milieu
+export function points_ajouter_d(d) {
+  const segs = chemin_parser(d), out = [];
+  let depart = null, cur = null;
+  const m = (a, b) => (a + b) / 2;
+  for (const g of segs) {
+    if (g.c === "M") { out.push(g); depart = cur = g.p.slice(0, 2); continue; }
+    if (g.c === "Z") {
+      if (cur && depart && !_egaux(cur, depart)) out.push({ c: "L", p: [m(cur[0], depart[0]), m(cur[1], depart[1])] });
+      out.push(g); cur = depart; continue;
+    }
+    const [x0, y0] = cur;
+    if (g.c === "L") {
+      out.push({ c: "L", p: [m(x0, g.p[0]), m(y0, g.p[1])] }, g);
+    } else if (g.c === "C") {
+      const [x1, y1, x2, y2, x3, y3] = g.p;
+      const ax = m(x0, x1), ay = m(y0, y1), bx = m(x1, x2), by = m(y1, y2), cx = m(x2, x3), cy = m(y2, y3);
+      const dx = m(ax, bx), dy = m(ay, by), ex = m(bx, cx), ey = m(by, cy);
+      out.push({ c: "C", p: [ax, ay, dx, dy, m(dx, ex), m(dy, ey)] }, { c: "C", p: [ex, ey, cx, cy, x3, y3] });
+    } else if (g.c === "Q") {
+      const [x1, y1, x2, y2] = g.p;
+      const ax = m(x0, x1), ay = m(y0, y1), bx = m(x1, x2), by = m(y1, y2);
+      out.push({ c: "Q", p: [ax, ay, m(ax, bx), m(ay, by)] }, { c: "Q", p: [bx, by, x2, y2] });
+    }
+    cur = g.p.slice(-2);
+  }
+  return chemin_serialiser(out);
+}
+
+// -> ids modifiés ; refus traduit (aucune trace) si la sélection ne contient aucun tracé ni forme
+export function op_points_ajouter(doc, ids) {
+  const cibles = cibles_b(doc, ids).filter((c) => TYPES_SIMPLIFIABLES.has(c.objet.type));
+  if (!cibles.length) throw new Error(T("vectorlab.traces.points_rien"));
+  const calculs = cibles.map((c) => ({ ...c, d: points_ajouter_d(_dDe(c.objet)) }));
+  for (const c of calculs) {
+    const o = c.objet;
+    const neuf = o.type === "path" ? { ...o, d: c.d }
+      : { id: o.id, type: "path", d: c.d, style: { ...(o.style || {}) },
+          ...(o.nom ? { nom: o.nom } : {}), ...(o.transform ? { transform: o.transform } : {}) };
+    c.calque.objets.splice(c.calque.objets.indexOf(o), 1, neuf);
+  }
+  return calculs.map((c) => c.objet.id);
+}

@@ -3,9 +3,10 @@
 // T1 (t422) Vectoriser le contour : le trait devient une surface pleine de la couleur du trait ; un objet rempli
 // devient un groupe [fond sans contour, contour vectorisé] à la même place ; refus sans trace.
 // T2 (t423) Simplifier : moins de points, forme tenue, angles gardés, jamais plus de points que l'original.
+// T3 (t424) Ajouter des points d'ancrage : un point au milieu de chaque segment, segment de fermeture compris ; forme identique.
 import { createRequire } from "node:module";
 import { fournirMartinez, aplatir_objet, versMulti, aire_multi } from "../js/mod-bool.js";
-import { op_contour_vectoriser, op_simplifier, simplifier_apercu } from "../js/mod-traces.js";
+import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres } from "../js/mod-traces.js";
 import { chemin_parser } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
 
@@ -203,6 +204,72 @@ const bbox = (o) => { const p = aplatir_objet(o).flat(); const xs = p.map((q) =>
   const a = simplifier_apercu({ id: "x", type: "path", d: polyD(cercle(300), true), style: {} }, { precision: 20 });
   const b = simplifier_apercu({ id: "x", type: "path", d: polyD(cercle(300), true), style: {} }, { precision: 80 });
   ok("T2 précision 20 % donne moins de points que 80 %", a.apres < b.apres, JSON.stringify([a.apres, b.apres]));
+}
+
+/* ── T3 : Ajouter des points d'ancrage ── */
+// distance d'un point au tracé aplati (pour vérifier qu'un point neuf est SUR la forme d'origine)
+const surTrace = (o, pt) => Math.min(...aplatir_objet(o).map((ring) => Math.min(...ring.slice(0, -1).map((a, k) => {
+  const b = ring[k + 1], dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy;
+  const t = l2 ? Math.max(0, Math.min(1, ((pt[0] - a[0]) * dx + (pt[1] - a[1]) * dy) / l2)) : 0;
+  return Math.hypot(pt[0] - a[0] - t * dx, pt[1] - a[1] - t * dy); }))));
+const finsDe = (d) => chemin_parser(d).filter((g) => g.c !== "Z").map((g) => g.p.slice(-2));
+{
+  // rectangle : 4 → 8 points, aire identique, chaque milieu sur un côté ; devient un chemin, id / style / transform gardés
+  const d = doc({ id: "r", type: "rect", x: 10, y: 20, w: 100, h: 50, transform: "rotate(15 60 45)", nom: "R",
+                  style: { fond: "#0047AB", contour: "#000", epaisseur: 2 } });
+  const avant = { ...objets(d)[0] };
+  const ids = op_points_ajouter(d, ["r"]);
+  const o = objets(d)[0];
+  ok("T3 rectangle : 8 points", ids.length === 1 && o.type === "path" && compter_ancres(o.d) === 8, o.d);
+  ok("T3 rectangle : aire identique", pres(aire(o), aire(avant), 0.01), [aire(o), aire(avant)]);
+  ok("T3 rectangle : les milieux des 4 côtés, segment de fermeture compris",
+     JSON.stringify(finsDe(o.d)) === JSON.stringify([[10, 20], [60, 20], [110, 20], [110, 45], [110, 70], [60, 70], [10, 70], [10, 45]]), JSON.stringify(finsDe(o.d)));
+  ok("T3 id, nom, style et transform gardés", o.id === "r" && o.nom === "R" && o.style.fond === "#0047AB" && o.transform === "rotate(15 60 45)");
+}
+{
+  // cercle en 4 cubiques : 8 cubiques, chaque point neuf sur le cercle, aire identique
+  const k = 27.6142;
+  const d4 = `M 50 0 C 50 ${k} ${k} 50 0 50 C ${-k} 50 -50 ${k} -50 0 C -50 ${-k} ${-k} -50 0 -50 C ${k} -50 50 ${-k} 50 0 Z`;
+  const d = doc({ id: "c", type: "path", d: d4, style: { fond: "#eee" } });
+  const ref = { id: "x", type: "path", d: d4, style: {} };
+  op_points_ajouter(d, ["c"]);
+  const o = objets(d)[0];
+  ok("T3 cercle : 8 points, que des cubiques", compter_ancres(o.d) === 8 && chemin_parser(o.d).filter((g) => g.c === "C").length === 8, o.d);
+  ok("T3 cercle : chaque point est sur le cercle d'origine (≤ 0,3 px)", finsDe(o.d).every((pt) => surTrace(ref, pt) <= 0.3), JSON.stringify(finsDe(o.d)));
+  ok("T3 cercle : aire identique (± 0,05 %)", pres(aire(o), aire(ref), 0.05), [aire(o), aire(ref)]);
+  ok("T3 un point neuf est au milieu de son arc (45°)", finsDe(o.d).some((pt) => Math.hypot(pt[0] - 35.36, pt[1] - 35.36) < 0.2), JSON.stringify(finsDe(o.d)));
+}
+{
+  // tracé ouvert : pas de segment de fermeture ; quadratique coupée ; deux sous-chemins
+  const d = doc({ id: "o", type: "path", d: "M 0 0 L 100 0 Q 150 0 150 50", style: { fond: "none", contour: "#000", epaisseur: 1 } },
+                { id: "s", type: "path", d: "M 0 0 L 10 0 L 10 10 Z M 20 0 L 30 0 L 30 10 L 20 0 Z", style: { fond: "#eee" } });
+  op_points_ajouter(d, ["o", "s"]);
+  const o = objets(d)[0], s2 = objets(d)[1];
+  ok("T3 ouvert : 3 → 5 points, toujours ouvert", compter_ancres(o.d) === 5 && !/Z/.test(o.d), o.d);
+  ok("T3 quadratique coupée en deux quadratiques", chemin_parser(o.d).filter((g) => g.c === "Q").length === 2, o.d);
+  ok("T3 deux sous-chemins : 3 → 6 et 3 → 6 (un retour explicite au départ ne reçoit pas de point en plus)",
+     compter_ancres(s2.d) === 12 && chemin_parser(s2.d).filter((g) => g.c === "M").length === 2, s2.d);
+}
+{
+  // ellipse et forme deviennent des chemins ; texte et groupe ignorés ; rien à faire → refus, sans trace
+  const d = doc({ id: "e", type: "ellipse", cx: 0, cy: 0, rx: 40, ry: 20, style: { fond: "#eee" } },
+                { id: "t", type: "texte", x: 0, y: 0, texte: "A", style: { fond: "#000" } });
+  const ids = op_points_ajouter(d, ["e", "t"]);
+  ok("T3 ellipse : chemin de 8 points, aire π·40·20 (± 0,5 %)", ids.length === 1 && objets(d)[0].type === "path"
+     && compter_ancres(objets(d)[0].d) === 8 && pres(aire(objets(d)[0]), Math.PI * 800, 0.5), objets(d)[0].d);
+  ok("T3 le texte n'a pas bougé", objets(d)[1].type === "texte" && objets(d)[1].texte === "A");
+  const v = doc({ id: "t", type: "texte", x: 0, y: 0, texte: "A", style: { fond: "#000" } });
+  const avantV = JSON.stringify(v);
+  ok("T3 rien de traçable : refus traduit, document intact", refus(() => op_points_ajouter(v, ["t"])) === T("vectorlab.traces.points_rien") && JSON.stringify(v) === avantV);
+  ok("T3 la clé existe", T("vectorlab.traces.points_rien") !== "vectorlab.traces.points_rien");
+  // deux passes : 4 → 8 → 16
+  const r = doc({ id: "r", type: "rect", x: 0, y: 0, w: 80, h: 80, style: { fond: "#eee" } });
+  op_points_ajouter(r, ["r"]); op_points_ajouter(r, ["r"]);
+  ok("T3 deux passes : 16 points", compter_ancres(objets(r)[0].d) === 16, objets(r)[0].d);
+  // après Z, un segment repart du DÉPART du sous-chemin (règle SVG) : son milieu se calcule depuis là
+  const z = doc({ id: "z", type: "path", d: "M 0 0 L 10 0 L 10 10 Z L 0 10", style: { fond: "none", contour: "#000", epaisseur: 1 } });
+  op_points_ajouter(z, ["z"]);
+  ok("T3 segment après Z : son milieu part du départ (0 5)", finsDe(objets(z)[0].d).some((pt) => pt[0] === 0 && pt[1] === 5), objets(z)[0].d);
 }
 
 if (echecs.length) {

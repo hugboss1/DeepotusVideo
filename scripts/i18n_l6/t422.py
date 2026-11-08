@@ -32,4 +32,7 @@ ENTREES = [
       "Simplify: select a path or a shape (not a text or a group)"),
     H("vectorlab.traces.simplifier_deja", "Simplifier : ces tracés ont déjà le moins de points possible à cette précision",
       "Simplify: these paths already have the fewest points at this precision"),
+    # t424 Ajouter des points d'ancrage
+    H("vectorlab.traces.points_rien", "Ajouter des points : sélectionnez un tracé ou une forme (pas un texte ni un groupe)",
+      "Add anchor points: select a path or a shape (not a text or a group)"),
 ]
