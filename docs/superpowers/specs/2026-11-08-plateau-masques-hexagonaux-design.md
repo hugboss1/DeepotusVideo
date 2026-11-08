@@ -241,10 +241,11 @@ décidé. Chacun est un *choix de conception* corrigeable.
      avec avertissement si la borne fait passer sous 300 ppp), avec lignée vers le document.
    - Si la découpe échoue ensuite, cette image source reste dans la Bibliothèque : c'est un enregistrement légitime.
      Tuiles et jeu, eux, ne restent pas.
-4. **Résolution des tuiles.** Le serveur rééchantillonne **une seule fois** l'image cadrée pour que le pas de la grille
-   tombe sur un nombre entier de pixels à la résolution du jeu (300 ppp par défaut), puis découpe sans autre
-   rééchantillonnage. Agrandir est accepté, avec l'avertissement sous 300 ppp. Le test de joint vérifie la
-   recomposition sur cette image rééchantillonnée.
+4. **Résolution des tuiles.** Le serveur rééchantillonne **une seule fois** l'image cadrée à la taille de la grille à
+   la résolution du jeu (300 ppp par défaut), puis découpe sans autre rééchantillonnage. Chaque pixel de la zone utile
+   appartient à la tuile dont le centre est le plus proche (les cellules d'un réseau hexagonal sont exactement ses
+   hexagones) : la partition est exacte sans exiger un pas entier. Agrandir est accepté, avec l'avertissement sous
+   300 ppp. Le test de joint vérifie la recomposition sur cette image rééchantillonnée.
 5. **Même image découpée deux fois.** Le nom porte l'identifiant court du jeu : `tuile_<base>_<did court>_r01c01.png`.
    Rien n'est jamais écrasé.
 6. **Taille de dessin d'un masque.** « Nouveau masque hexagonal » ouvre la toile de la **plus grande taille** de
