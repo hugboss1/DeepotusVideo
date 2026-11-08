@@ -199,10 +199,24 @@ un groupe ordinaire, dont les copies reçoivent des ids `o<n>` neufs (`_idLibre`
   instances suivent, Ctrl+Alt+B, Remplacer la trajectoire au menu, Options… depuis Apparence avec aperçu 8 étapes
   puis Échap → 5, Ctrl+Z défait la trajectoire ; menus et Apparence en anglais.
 
-### T7 (t456) — Poignées sur la toile (ÉCARTÉE)
+### T7 (t456) — Poignées sur la toile (FAIT)
 
-- Sortie du lot par décision de l'utilisateur le 08/11 (« Passer à T8 ») : les dialogues à aperçu en direct règlent
-  tout. Reste en ligne de suivi : poignées rayon / nombre de la rosace, axe du miroir glissé et tourné.
+- D'abord écartée (« Passer à T8 »), puis relancée par l'utilisateur le 08/11 (« lance T7 puis lance t9 »).
+- `geometrie_vivant(g)` (`mod-repeter.js`) : rosace → S, C, r, n ; miroir → point d'axe A, direction u, normale n,
+  avancée de la source, demi-longueur montrée. `poignees_vivant` / `params_par_poignee` (`mod-repeterui.js`) :
+  - rosace : **rayon** en bas du cercle (rayon = moitié de la hauteur tirée sous le centre de la source, ≥ 0,5) ;
+    **nombre** sur la première copie (nombre = 360 / angle horaire depuis la source, 2 à 100) ;
+  - miroir : **écart** sur l'axe (écart = avancée le long de la normale − avancée de la source) ; **angle** au bout
+    de l'axe (degré entier, [0, 360)).
+- Dessin : greffé au crochet `VL.surOverlay` par un `queueMicrotask` (un module initialisé après le mien le pose sans
+  chaîner) — repère en pointillés (cercle ou axe) et disques tirables, libellés accessibles (`t456.py`).
+- Geste : `pointerdown` en capture sur le document (avant la machine à gestes de la scène) ; aperçu en direct sur une
+  copie du document d'avant ; à la fin le document d'avant est remis PUIS une seule exécution
+  d'`op_repetition_regler` (Ctrl+Z ramène au départ, pas à l'aperçu) ; un clic sans glisser n'exécute rien ; une
+  valeur impossible oublie l'aperçu.
+- Grille et fusion : pas de poignée (hors lot).
+- Banc : géométrie, réglages, geste complet ; 24/24 mutants (2 équivalents supprimés du code). Preuve 8799 au vrai
+  glisser : rayon 80 → 129, nombre 6 → 8, deux Ctrl+Z = deux gestes, miroir écart 0 → 40,55 puis axe à 45°.
 
 ### T8 (t457) — Connaissance, guide (FAIT)
 

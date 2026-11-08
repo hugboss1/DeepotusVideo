@@ -591,6 +591,26 @@ export function repetition_defauts(doc, ids, mode) {
   try { return _params(mode, {}, source); } catch (e) { return null; }
 }
 
+/* ══ T7 (t456) la géométrie d'une répétition, pour ses poignées sur la toile ══
+   radiale : S (centre de la source), C (centre de la rosace), r, n ; miroir : A (point de l'axe le plus proche du
+   centre de la source), u (direction de l'axe), n (normale, hors de la source), max (avancée de la source le long de
+   n), L (demi-longueur montrée de l'axe). null pour une grille, une fusion ou une source sans géométrie. */
+export function geometrie_vivant(g) {
+  if (!g || !g.repetition || !Array.isArray(g.enfants) || !g.enfants.length) return null;
+  const src = g.enfants[0], p = g.repetition.params, m = g.repetition.mode;
+  const b = _boite(src);
+  if (!b) return null;
+  const S = [b.x + b.w / 2, b.y + b.h / 2];
+  if (m === "radiale") return { mode: m, S, C: [S[0], S[1] + p.rayon], r: p.rayon, n: p.nombre };
+  if (m === "miroir") {
+    const a = p.angle * Math.PI / 180, n = [Math.sin(a), -Math.cos(a)], u = [Math.cos(a), Math.sin(a)];
+    const max = Math.max(..._points(src).map(([x, y]) => x * n[0] + y * n[1]));
+    const t = max + p.ecart - (S[0] * n[0] + S[1] * n[1]);
+    return { mode: m, A: [S[0] + t * n[0], S[1] + t * n[1]], u, n, max, L: Math.hypot(b.w, b.h) / 2 + 20 };
+  }
+  return null;
+}
+
 /* ── vivant : appelé par derives_rafraichir après chaque commande ── */
 export function vivants_d2_rafraichir(doc) {
   let n = 0;

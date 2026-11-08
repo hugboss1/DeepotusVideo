@@ -2,7 +2,9 @@
 // Un VL factice qui EXÉCUTE vraiment (clone, op, dérivés) et note chaque appel ; `demander` remplacé. Chaque action
 // a le bon grisage et appelle la bonne opération ; l'aperçu en direct montre l'essai sans toucher à l'historique et
 // rend toujours le document d'avant ; l'onglet Apparence résume la recette ; le menu Vecteur nomme ces actions.
-import { repeter_actions, initRepeterUI, resume_vivant, champs_repetition } from "../js/mod-repeterui.js";
+// T7 (t456) : poignées sur la toile — rosace (rayon, nombre), miroir (écart, angle de l'axe) ; un glisser = un aperçu en
+// direct puis UNE exécution d'op_repetition_regler.
+import { repeter_actions, initRepeterUI, resume_vivant, champs_repetition, poignees_vivant, params_par_poignee } from "../js/mod-repeterui.js";
 import { op_repeter, op_repetition_regler, op_fusionner, op_fusion_regler, op_fusion_annuler, op_fusion_trajectoire,
          op_fusion_inverser_trajectoire, op_fusion_inverser_ordre } from "../js/mod-repeter.js";
 import { derives_rafraichir, op_derive_detacher } from "../js/mod-vivants.js";
@@ -170,6 +172,84 @@ const actives = (A) => ACTIONS.filter((a) => A.action(a).peut()).join();
   ok("champs de grille : le décalage propose les hexagones", champs_repetition("grille", { lignes: 3, colonnes: 3, ecartX: 0, ecartY: 0, decalage: "aucun", miroirLignes: false, miroirColonnes: false })
      .find((c) => c.id === "decalage").options.map(([v]) => v).join() === "aucun,brique_lignes,brique_colonnes,hexagones");
 }
+/* ── T7 (t456) poignées sur la toile : rosace (rayon, nombre) et miroir (écart, angle de l'axe) ── */
+{
+  const pres = (a, b, e = 0.01) => Math.abs(a - b) <= e;
+  // rosace : source 20 × 20 de centre (100, 50), rayon 50 → centre de la rosace (100, 100)
+  const r = repetition();
+  const g = r.etat.doc.calques[0].objets[0];
+  const P = poignees_vivant(g);
+  const rayon = P.find((p) => p.role === "rayon"), nombre = P.find((p) => p.role === "nombre");
+  ok("rosace : deux poignées, rayon et nombre", P.length === 2 && rayon && nombre, JSON.stringify(P));
+  ok("rosace : la poignée de rayon est en bas du cercle (100, 150)", pres(rayon.x, 100) && pres(rayon.y, 150), JSON.stringify(rayon));
+  ok("rosace : la poignée de nombre est sur la première copie (150, 100 pour 4 instances)", pres(nombre.x, 150) && pres(nombre.y, 100), JSON.stringify(nombre));
+  ok("rayon : tirer la poignée à y = 210 → rayon 80", JSON.stringify(params_par_poignee(g, "rayon", 100, 210)) === '{"rayon":80}');
+  ok("rayon : au-dessus de la source → 0,5 au moins", params_par_poignee(g, "rayon", 100, 0).rayon === 0.5);
+  ok("nombre : la poignée à 60° du haut → 6 instances", params_par_poignee(g, "nombre", 100 + 50 * Math.sin(Math.PI / 3), 100 - 50 * Math.cos(Math.PI / 3)).nombre === 6);
+  ok("nombre : à 180° → 2", params_par_poignee(g, "nombre", 100, 150).nombre === 2);
+  ok("nombre : presque sur la source (1°) → plafonné à 100", params_par_poignee(g, "nombre", 100 + 50 * Math.sin(Math.PI / 180), 100 - 50 * Math.cos(Math.PI / 180)).nombre === 100);
+  ok("nombre : à 270° (à gauche) → 2 au moins", params_par_poignee(g, "nombre", 50, 100).nombre === 2);
+  ok("rôle inconnu : rien", params_par_poignee(g, "x", 0, 0) === null);
+  const r3 = faux([rect("a", 90, 40)]);
+  r3.VL.executer(op_repeter, ["a"], "radiale", { nombre: 3, rayon: 50 });
+  const n3 = poignees_vivant(r3.etat.doc.calques[0].objets[0]).find((p) => p.role === "nombre");
+  ok("rosace de 3 : la poignée de nombre à 120° (143,3 ; 125)", pres(n3.x, 100 + 50 * Math.sin(2 * Math.PI / 3)) && pres(n3.y, 125), JSON.stringify(n3));
+  // miroir vertical collé : axe x = 110, normale vers la droite
+  const m = faux([{ id: "a", type: "path", d: "M90 40 L110 40 L90 60 Z", style: { fond: "#c33" } }]);
+  m.VL.executer(op_repeter, ["a"], "miroir", {});
+  const mg = m.etat.doc.calques[0].objets[0];
+  const Q = poignees_vivant(mg);
+  const ecart = Q.find((p) => p.role === "ecart"), angle = Q.find((p) => p.role === "angle");
+  ok("miroir : deux poignées sur l'axe, écart et angle", Q.length === 2 && ecart && angle && pres(ecart.x, 110) && pres(angle.x, 110) && angle.y > ecart.y, JSON.stringify(Q));
+  ok("écart : tirer l'axe à x = 125 → écart 15", JSON.stringify(params_par_poignee(mg, "ecart", 125, 0)) === '{"ecart":15}');
+  ok("écart : à x = 100 (dans la source) → -10", params_par_poignee(mg, "ecart", 100, 77).ecart === -10);
+  ok("une poignée de rosace sur un miroir : rien", params_par_poignee(mg, "rayon", 0, 0) === null && params_par_poignee(g, "ecart", 0, 0) === null);
+  const m10 = faux([{ id: "a", type: "path", d: "M90 40 L110 40 L90 60 Z", style: { fond: "#c33" } }]);
+  m10.VL.executer(op_repeter, ["a"], "miroir", { ecart: 10 });
+  ok("miroir à écart 10 : la poignée d'écart est sur l'axe x = 120", pres(poignees_vivant(m10.etat.doc.calques[0].objets[0])[0].x, 120), JSON.stringify(poignees_vivant(m10.etat.doc.calques[0].objets[0])));
+  ok("angle : la poignée à droite de l'axe → 0°", params_par_poignee(mg, "angle", ecart.x + 30, ecart.y).angle === 0);
+  ok("angle : en bas à droite → 45°", params_par_poignee(mg, "angle", ecart.x + 30, ecart.y + 30).angle === 45);
+  ok("angle : en haut → 270°", params_par_poignee(mg, "angle", ecart.x, ecart.y - 30).angle === 270);
+  ok("une grille ou une fusion : pas de poignée", poignees_vivant({ repetition: { mode: "grille", params: {} }, enfants: [] }).length === 0 && poignees_vivant(fusion().etat.doc.calques[0].objets[0]).length === 0 && poignees_vivant(null).length === 0);
+}
+{
+  // le geste : début, déplacements en aperçu (sans historique), fin = UNE exécution d'op_repetition_regler
+  const r = repetition();
+  const A = repeter_actions(r.VL);
+  const avant = r.etat.doc;
+  ok("poignée : pas de geste sans répétition sélectionnée", (() => { const f = faux([rect("a", 0, 0)], ["a"]); return repeter_actions(f.VL).poignee.debut("rayon") === false; })());
+  ok("poignée : une poignée de miroir sur une rosace ne démarre pas", A.poignee.debut("ecart") === false);
+  ok("poignée : début du geste", A.poignee.debut("rayon") === true);
+  A.poignee.bouger(100, 210);
+  const pendant = r.etat.doc.calques[0].objets[0];
+  ok("poignée : aperçu en direct (rayon 80), sans exécution", pendant.repetition.params.rayon === 80 && r.appels.length === 0 && r.etat.doc !== avant);
+  A.poignee.bouger(100, 250);
+  const exec = r.VL.executer;
+  let docVu = null;
+  r.VL.executer = (fn, ...args) => { docVu = r.etat.doc; return exec(fn, ...args); };
+  A.poignee.fin();
+  r.VL.executer = exec;
+  ok("poignée : l'exécution part du document d'AVANT (Ctrl+Z ramène au départ, pas à l'aperçu)", docVu === avant);
+  ok("poignée : à la fin, UNE exécution avec le dernier réglage", r.appels.length === 1 && r.appels[0].fn === op_repetition_regler && JSON.stringify(r.appels[0].args) === JSON.stringify([r.gid, { rayon: 100 }]), JSON.stringify(r.appels.map((x) => x.args)));
+  ok("poignée : le document final porte le rayon 100", r.etat.doc.calques[0].objets[0].repetition.params.rayon === 100);
+  const docFin = r.etat.doc;
+  A.poignee.fin();
+  ok("poignée : une fin de trop ne fait rien", r.appels.length === 1 && r.etat.doc === docFin);
+  // un clic sans déplacement : rien n'est exécuté, le document d'avant est rendu
+  const doc2 = r.etat.doc;
+  A.poignee.debut("nombre");
+  A.poignee.fin();
+  ok("poignée : un clic sans glisser n'exécute rien", r.appels.length === 1 && r.etat.doc === doc2);
+  // un geste interrompu par une valeur impossible garde le document d'avant à l'écran
+  A.poignee.debut("rayon");
+  A.poignee.bouger(100, 210);
+  A.poignee.bouger(NaN, NaN);
+  ok("poignée : valeur impossible après un aperçu → document d'avant montré", r.etat.doc === doc2);
+  A.poignee.fin();
+  ok("poignée : et rien d'exécuté (le dernier réglage valable est oublié)", r.appels.length === 1);
+  ok("poignée : bouger sans début ne fait rien", (() => { A.poignee.bouger(100, 300); return r.etat.doc === doc2; })());
+}
+
 /* ── init et menus ── */
 {
   const f = faux([rect("a", 0, 0)]);
