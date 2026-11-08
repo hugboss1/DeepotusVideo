@@ -14578,5 +14578,25 @@
  "Réseau inconnu : {v}": {
   "fr": "Réseau inconnu : {v}",
   "en": "Unknown network: {v}"
+ },
+ "Ce contrôle porte sur une image.": {
+  "fr": "Ce contrôle porte sur une image.",
+  "en": "This check applies to an image."
+ },
+ "Colonnes et lignes : de 1 à 64.": {
+  "fr": "Colonnes et lignes : de 1 à 64.",
+  "en": "Columns and rows: from 1 to 64."
+ },
+ "La planche ({w}x{h}) ne se découpe pas en {colonnes}x{lignes} cases égales.": {
+  "fr": "La planche ({w}x{h}) ne se découpe pas en {colonnes}x{lignes} cases égales.",
+  "en": "The sheet ({w}x{h}) does not split into {colonnes}x{lignes} equal cells."
+ },
+ "Planche vide : aucune case n'a de pixel opaque (le fond doit être transparent).": {
+  "fr": "Planche vide : aucune case n'a de pixel opaque (le fond doit être transparent).",
+  "en": "Empty sheet: no cell has an opaque pixel (the background must be transparent)."
+ },
+ "Image trop grande pour ce contrôle (4096 px au plus).": {
+  "fr": "Image trop grande pour ce contrôle (4096 px au plus).",
+  "en": "Image too large for this check (4096 px at most)."
  }
 }

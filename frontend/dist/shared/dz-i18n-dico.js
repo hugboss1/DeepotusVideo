@@ -32,6 +32,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "agent.boites.recette": {"fr": "Recette exportable", "en": "Exportable recipe"},
   "agent.boites.retouche": {"fr": "Carte des différences", "en": "Difference map"},
   "agent.boites.scan": {"fr": "Scan", "en": "Scan"},
+  "agent.boites.sprites_qc": {"fr": "Contrôle des sprites", "en": "Sprite checks"},
   "agent.boites.veille": {"fr": "Veille", "en": "Watch"},
   "agent.campagnes.espace": {"fr": "Espace de marque de la campagne", "en": "Campaign brand space"},
   "agent.campagnes.indisponible": {"fr": "L'agent Campagnes n'est pas chargé sur cette page.", "en": "The Campaigns agent is not loaded on this page."},
