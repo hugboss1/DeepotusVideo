@@ -4,7 +4,7 @@ Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
 - 1148 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 58 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 51 chapitres dans le sommaire v3, en 6 familles.
+- 52 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -32,6 +32,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Montre-moi, Y aller, Guide** : Sous une réponse : un curseur lumineux montre le bouton (en changeant d'écran au besoin), ouvre l'écran ou le chapitre du guide. — *Boutons sous la réponse* (chantier agent-guide · A2-A4)
 - [x] **Regarder l'écran** **payant** : Quand aucun bouton connu ne convient, l'assistant propose de voir une capture de l'onglet ; accord et coût d'abord, moteurs qui voient seulement ; le curseur pointe l'endroit trouvé. — *Regarder l'écran → Capturer et envoyer* (chantier agent-guide · A5)
 - [x] **Dicter et écouter** **payant** : Le micro du tiroir dicte la question ; le haut-parleur lit la réponse avec la voix des Réglages (Voicebox gratuit, ElevenLabs sous le plafond « aide »). — *Micro à côté d'Envoyer ; haut-parleur sous la réponse* (chantier agent-guide · A6)
+
+### Suivre une méthode avec un agent métier (`methodes`, lot t443, reprend : nouveau) — 0 manques
+
 
 ### Installer, choisir sa langue, mettre à jour (`installer`, lot t171, reprend : c0) — 21 manques
 
@@ -1581,3 +1584,4 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t320 | 0 | 0 |
 | t360 | 9 | 9 |
 | t404 | 22 | 22 |
+| t443 | 0 | 0 |

@@ -140,13 +140,24 @@
     });
   }
 
+  // t443b : l'illustration de la fiche (générée à nous) si elle existe, sinon l'icône de la famille
+  function visuel(m, grand) {
+    var cls = "mt-carte-visuel" + (grand ? " mt-carte-visuel--grand" : "") + " mt-fam--" + m.famille;
+    if (m.visuel) {
+      return el("div", { cls: cls + " mt-carte-visuel--image" }, [
+        el("img", { a: { src: m.visuel, alt: "", loading: "lazy", decoding: "async", "data-dz-methode-visuel": m.slug } })
+      ]);
+    }
+    return el("div", { cls: cls }, [icone(GLYPHE[m.famille] || "dz-action-lancer-recette", grand ? 40 : 28)]);
+  }
+
   function badge(texte, cls) { return el("span", { cls: "mt-badge" + (cls ? " " + cls : ""), texte: texte }); }
 
   function carte(m) {
     return el("button", { cls: "mt-carte", type: "button",
       a: { "data-dz-methode": m.slug, "aria-label": T("methodes.carte.ouvrir", { titre: m.titre }) },
       on: { click: function () { S.slug = m.slug; ecrireAdresse(); ouvrir(m.slug); } } }, [
-      el("div", { cls: "mt-carte-visuel mt-fam--" + m.famille }, [icone(GLYPHE[m.famille] || "dz-action-lancer-recette", 28)]),
+      visuel(m, false),
       el("div", { cls: "mt-carte-corps" }, [
         el("div", { cls: "mt-carte-famille", texte: m.famille_libelle }),
         el("h3", { cls: "mt-carte-titre", texte: m.titre }),
@@ -236,7 +247,7 @@
     [
       boutonRetour(),
       el("div", { cls: "mt-fiche-tete" }, [
-        el("div", { cls: "mt-carte-visuel mt-carte-visuel--grand mt-fam--" + f.famille }, [icone(GLYPHE[f.famille] || "dz-action-lancer-recette", 40)]),
+        visuel(f, true),
         el("div", {}, [
           el("div", { cls: "mt-carte-famille", texte: f.famille_libelle }),
           el("h2", { cls: "mt-fiche-titre", texte: f.titre }),

@@ -14,6 +14,13 @@ from functools import lru_cache
 from pathlib import Path
 
 FICHIER = Path(__file__).resolve().parent.parent / "knowledge" / "methodes.json"
+# t443b : l'illustration de chaque fiche (générée à nous, WebP 640x400), servie par le montage /methodes
+ILLUSTRATIONS = Path(__file__).resolve().parents[3] / "frontend" / "methodes" / "illustrations"
+
+
+def visuel(slug: str) -> str | None:
+    """L'adresse de l'illustration d'une méthode (/methodes/illustrations/<slug>.webp), ou None si absente."""
+    return f"/methodes/illustrations/{slug}.webp" if (ILLUSTRATIONS / f"{slug}.webp").is_file() else None
 LANGUES = ("fr", "en")
 
 
@@ -49,7 +56,7 @@ def resume(m: dict, langue: str = "fr") -> dict:
     return {"slug": m["slug"], "titre": m["titre"][lg], "resume": m["resume"][lg], "famille": m["famille"],
             "famille_libelle": c["familles"][m["famille"]][lg], "agent": m["agent"], "agent_libelle": a[lg],
             "agent_lot": a["lot"], "ecrans": m["ecrans"], "filtre": m["filtre"], "valeur": m["valeur"],
-            "effort": m["effort"], "licence_skill": m["licence_skill"]}
+            "effort": m["effort"], "licence_skill": m["licence_skill"], "visuel": visuel(m["slug"])}
 
 
 def lister(*, famille: str = "", agent: str = "", ecran: str = "", q: str = "", langue: str = "fr") -> list[dict]:

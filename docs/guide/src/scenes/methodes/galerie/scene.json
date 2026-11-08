@@ -1,0 +1,96 @@
+{
+  "titre": {
+    "fr": "Trouver une méthode",
+    "en": "Find a method"
+  },
+  "legende": {
+    "fr": "Écran Méthodes : 94 recettes illustrées, une recherche et trois filtres.",
+    "en": "Methods screen: 94 illustrated recipes, a search and three filters."
+  },
+  "captures": [
+    {
+      "fr": "grille.fr.webp",
+      "en": "grille.en.webp"
+    },
+    {
+      "fr": "filtre.fr.webp",
+      "en": "filtre.en.webp"
+    }
+  ],
+  "taille": [
+    1280,
+    800
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        557,
+        4,
+        232,
+        40
+      ],
+      "bulle": {
+        "fr": "Cherchez par mots, en français ou en anglais",
+        "en": "Search by words, in French or English"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "curseur": [
+        137,
+        62
+      ],
+      "surligne": [
+        50,
+        42,
+        174,
+        40
+      ],
+      "bulle": {
+        "fr": "Filtrez par écran : ici les méthodes du Montage",
+        "en": "Filter by screen: here the Editing methods"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        372,
+        4,
+        232,
+        40
+      ],
+      "bulle": {
+        "fr": "Cherchez par mots, en français ou en anglais",
+        "en": "Search by words, in French or English"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "curseur": [
+        1194,
+        24
+      ],
+      "surligne": [
+        1117,
+        4,
+        153,
+        40
+      ],
+      "bulle": {
+        "fr": "Filtrez par écran : ici les méthodes du Montage",
+        "en": "Filter by screen: here the Editing methods"
+      }
+    }
+  ],
+  "taille_en": [
+    1280,
+    800
+  ]
+}
