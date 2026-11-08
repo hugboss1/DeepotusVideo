@@ -52,7 +52,8 @@
     "methodes.fiche.etapes",
     "methodes.fiche.controles",
     "methodes.fiche.pieges",
-    "methodes.fiche.exemples"
+    "methodes.fiche.exemples",
+    "vectorlab.deformer.poignee_coin"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"

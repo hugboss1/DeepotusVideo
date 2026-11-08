@@ -324,6 +324,7 @@ function _fonteAttrs(s) {
   return attrs;
 }
 function compilerObjet(o, ctx = {}) {
+  if (o && o.cache) return "";   // t460 : la source cachée d'une déformation vivante ne se dessine pas
   const s0 = o.style || {};
   // lot F : effets et contours multiples enveloppent l'objet dans <g data-objet>
   // (patron de l'image) ; les copies sont émises SANS id — un seul élément

@@ -94,6 +94,23 @@ export function params_par_poignee(g, role, x, y) {
   return null;
 }
 
+// l'aperçu en direct d'un dialogue (partagé avec mod-deformerui.js) : `appliquer(docEssai, valeurs)` sur une copie du
+// document d'avant ; une valeur refusée par l'opération montre le document d'avant. Rend les valeurs (ou null) ; le
+// document d'avant est TOUJOURS remis.
+export async function dialogue_apercu(VL, demander, spec, appliquer) {
+  const etat = VL.etat, avant = etat.doc;
+  const rendre = () => { if (VL.rendre) VL.rendre(); };
+  const montrer = (v) => {
+    try { const essai = JSON.parse(JSON.stringify(avant)); appliquer(essai, v); derives_rafraichir(essai); etat.doc = essai; }
+    catch (e) { etat.doc = avant; }
+    rendre();
+  };
+  let v = null;
+  try { v = await demander({ ...spec, surChange: montrer }); }
+  finally { etat.doc = avant; rendre(); }
+  return v;
+}
+
 // les actions, sans DOM : { action(arg) -> { peut, faire }, sectionApparence(o), demander, dialogue, poignee }
 export function repeter_actions(VL) {
   const etat = VL.etat;
@@ -105,18 +122,7 @@ export function repeter_actions(VL) {
   const A = { demander: (spec) => formulaire_dom(spec) };
   // l'aperçu en direct : `appliquer(docEssai, valeurs)` sur une copie du document d'avant ; une valeur refusée par
   // l'opération montre le document d'avant. Rend les valeurs (ou null) ; le document d'avant est TOUJOURS remis.
-  A.dialogue = async (spec, appliquer) => {
-    const avant = etat.doc;
-    const montrer = (v) => {
-      try { const essai = JSON.parse(JSON.stringify(avant)); appliquer(essai, v); derives_rafraichir(essai); etat.doc = essai; }
-      catch (e) { etat.doc = avant; }
-      rendre();
-    };
-    let v = null;
-    try { v = await A.demander({ ...spec, surChange: montrer }); }
-    finally { etat.doc = avant; rendre(); }
-    return v;
-  };
+  A.dialogue = (spec, appliquer) => dialogue_apercu(VL, A.demander, spec, appliquer);
   const repeter = (mode) => ({
     peut: () => sel().length >= 1,
     faire: async () => {
@@ -136,7 +142,8 @@ export function repeter_actions(VL) {
     const v = await A.dialogue({ titre: T("vectorlab.fusion.d_options"), champs: champs_fusion(g.fusion_vive) }, (d, x) => op_fusion_regler(d, g.id, x));
     if (v) VL.executer(op_fusion_regler, g.id, v);
   };
-  const fus = () => vivant("fusion_vive"), rep = () => vivant("repetition");
+  const fus = () => vivant("fusion_vive"), rep = () => vivant("repetition"), defo = () => vivant("deformation");
+  const D = () => VL.deformerUI;   // t465 : les déformations (D3) se branchent ici sans édition de base
   // Remplacer la trajectoire : deux objets, dont exactement une fusion
   const paireTrajectoire = () => {
     const s = sel();
@@ -148,8 +155,8 @@ export function repeter_actions(VL) {
   };
   const T_ = {
     radiale: repeter("radiale"), grille: repeter("grille"), miroir: repeter("miroir"),
-    options: { peut: () => !!(rep() || fus()), faire: () => (rep() ? optionsRepetition(rep()) : fus() ? optionsFusion(fus()) : undefined) },
-    decomposer: { peut: () => !!(rep() || fus()), faire: () => VL.executer(op_derive_detacher, sel()[0]) },
+    options: { peut: () => !!(rep() || fus() || (defo() && D())), faire: () => (rep() ? optionsRepetition(rep()) : fus() ? optionsFusion(fus()) : defo() && D() ? D().action("options").faire() : undefined) },
+    decomposer: { peut: () => !!(rep() || fus() || defo()), faire: () => VL.executer(op_derive_detacher, sel()[0]) },
     fusionner: { peut: () => sel().length === 2, faire: () => poser(VL.executer(op_fusionner, sel(), {})) },
     fusionOptions: { peut: () => !!fus(), faire: () => optionsFusion(fus()) },
     fusionAnnuler: { peut: () => !!fus(), faire: () => poser(VL.executer(op_fusion_annuler, sel()[0])) },
@@ -157,7 +164,8 @@ export function repeter_actions(VL) {
     inverserTrajectoire: { peut: () => !!fus(), faire: () => VL.executer(op_fusion_inverser_trajectoire, sel()[0]) },
     inverserOrdre: { peut: () => !!fus(), faire: () => VL.executer(op_fusion_inverser_ordre, sel()[0]) },
   };
-  A.action = (arg) => T_[arg] || { peut: () => false, faire: () => {} };
+  // « repeter:def-<x> » : les entrées du bloc Déformer, résolues par mod-deformerui.js
+  A.action = (arg) => (String(arg).startsWith("def-") && D() ? D().action(String(arg).slice(4)) : T_[arg]) || { peut: () => false, faire: () => {} };
   // T7 : le geste d'une poignée — aperçu en direct sur une copie du document d'avant (sans historique), puis UNE
   // exécution d'op_repetition_regler avec le dernier réglage accepté ; un clic sans glisser n'exécute rien
   let geste = null;
@@ -214,6 +222,7 @@ export function repeter_actions(VL) {
   };
   // la section « vivant » de l'onglet Apparence (Détacher réutilise le bouton a2Detacher et son câblage)
   A.sectionApparence = (o) => {
+    if (o && o.deformation && D()) return D().sectionApparence(o);
     if (!o || !(o.repetition || o.fusion_vive)) return "";
     const titre = T(o.repetition ? "vectorlab.repeter.a_titre" : "vectorlab.fusion.a_titre");
     return `<details open><summary class="px-tete">${_esc(titre)}</summary>
@@ -239,14 +248,17 @@ export function initRepeterUI(VL) {
         const SNS = "http://www.w3.org/2000/svg";
         const ov = (nom, attrs) => { const el = document.createElementNS(SNS, nom); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); return el; };
         A.dessinerPoignees(o, ov, VL.ecranPt, VL.etat.zoom || 1);
+        if (VL.deformerUI && VL.deformerUI.dessinerPoignees) VL.deformerUI.dessinerPoignees(o, ov, VL.ecranPt);   // t466 : coins D3
       };
     });
     document.addEventListener("pointerdown", (ev) => {
       const pg = ev.target && ev.target.closest && ev.target.closest(".poignee-vivant");
-      if (!pg || !A.poignee.debut(pg.dataset.vivant)) return;
+      // t466 : un coin de distorsion libre (D3) est un geste de mod-deformerui
+      const C = pg && /^coin/.test(pg.dataset.vivant) && VL.deformerUI && VL.deformerUI.poignee ? VL.deformerUI.poignee : A.poignee;
+      if (!pg || !C.debut(pg.dataset.vivant)) return;
       ev.preventDefault(); ev.stopPropagation();
-      const bouger = (e) => { const [x, y] = VL.docPt(e.clientX, e.clientY); A.poignee.bouger(x, y); };
-      const fin = () => { window.removeEventListener("pointermove", bouger, true); window.removeEventListener("pointerup", fin, true); A.poignee.fin(); };
+      const bouger = (e) => { const [x, y] = VL.docPt(e.clientX, e.clientY); C.bouger(x, y); };
+      const fin = () => { window.removeEventListener("pointermove", bouger, true); window.removeEventListener("pointerup", fin, true); C.fin(); };
       window.addEventListener("pointermove", bouger, true);
       window.addEventListener("pointerup", fin, true);
     }, true);

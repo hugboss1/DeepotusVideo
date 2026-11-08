@@ -27,14 +27,22 @@ _BLOC_MENU = NL.join([
     '    e("fusCreer", T("vectorlab.fusion.m_creer"), "repeter:fusionner", "ctrl+alt+b"), e("fusOptions", T("vectorlab.fusion.m_options"), "repeter:fusionOptions"), '
     'e("fusAnnuler", T("vectorlab.fusion.m_annuler"), "repeter:fusionAnnuler"), e("fusTrajectoire", T("vectorlab.fusion.m_trajectoire"), "repeter:trajectoire"),',
     '    e("fusInverserTrajectoire", T("vectorlab.fusion.m_inverser_trajectoire"), "repeter:inverserTrajectoire"), '
-    'e("fusInverserOrdre", T("vectorlab.fusion.m_inverser_ordre"), "repeter:inverserOrdre"),',
+    'e("fusInverserOrdre", T("vectorlab.fusion.m_inverser_ordre"), "repeter:inverserOrdre"), "-",',
+    # t465 (lot D3) : le bloc Déformer, résolu par mod-repeterui.js (« repeter:def-<x> ») qui délègue à mod-deformerui.js
+    '    e("defEnveloppe", T("vectorlab.deformer.m_enveloppe"), "repeter:def-enveloppe"), e("defDistorsion", T("vectorlab.deformer.m_distorsion"), "repeter:def-distorsion"), '
+    'e("defTorsion", T("vectorlab.deformer.m_torsion"), "repeter:def-torsion"), e("defRugosite", T("vectorlab.deformer.m_rugosite"), "repeter:def-rugosite"),',
+    '    e("defZigzag", T("vectorlab.deformer.m_zigzag"), "repeter:def-zigzag"), e("defGonfler", T("vectorlab.deformer.m_gonfler"), "repeter:def-gonfler"), '
+    'e("defPointes", T("vectorlab.deformer.m_pointes"), "repeter:def-pointes"),',
+    '    e("defEditer", T("vectorlab.deformer.m_editer"), "repeter:def-editer"), e("defAnnuler", T("vectorlab.deformer.m_annuler"), "repeter:def-annuler"),',
 ])
 
 ENTREES = [
     S(CORE, 43, 'import { initVitrail } from "./mod-vitrail.js";',
-      'import { initRepeterUI } from "./mod-repeterui.js";   // t455 : lot D2\r\nimport { initVitrail } from "./mod-vitrail.js";', {}),
+      'import { initRepeterUI } from "./mod-repeterui.js";   // t455 : lot D2\r\n'
+      'import { initDeformerUI } from "./mod-deformerui.js";   // t465 : lot D3\r\nimport { initVitrail } from "./mod-vitrail.js";', {}),
     S(CORE, 788, "initImage(VL);",
-      "initRepeterUI(VL);  // t455 : répétitions et fusions vivantes (menu Vecteur, Apparence, Ctrl+Alt+B)\r\ninitImage(VL);", {}),
+      "initRepeterUI(VL);  // t455 : répétitions et fusions vivantes (menu Vecteur, Apparence, Ctrl+Alt+B)\r\n"
+      "initDeformerUI(VL); // t465 : déformations vivantes (bloc Déformer, délégué par mod-repeterui)\r\ninitImage(VL);", {}),
     S(MENUS, 39, '"flyout:forme"),', _BLOC_MENU, {}),
     S(CHARPENTE, 83, 'if (pre === "ordre") return',
       'if (pre === "repeter") return VL.repeterUI ? VL.repeterUI.action(arg) : { peut: () => false, faire: () => {} };   // t455\r\n'

@@ -41,7 +41,7 @@
    {
     "pos": 2285,
     "avant": "import { initVitrail } from \"./mod-vitrail.js\";",
-    "apres": "import { initRepeterUI } from \"./mod-repeterui.js\";   // t455 : lot D2\r\nimport { initVitrail } from \"./mod-vitrail.js\";",
+    "apres": "import { initRepeterUI } from \"./mod-repeterui.js\";   // t455 : lot D2\r\nimport { initDeformerUI } from \"./mod-deformerui.js\";   // t465 : lot D3\r\nimport { initVitrail } from \"./mod-vitrail.js\";",
     "groupe": "t455"
    },
    {
@@ -161,7 +161,7 @@
    {
     "pos": 34011,
     "avant": "initImage(VL);",
-    "apres": "initRepeterUI(VL);  // t455 : répétitions et fusions vivantes (menu Vecteur, Apparence, Ctrl+Alt+B)\r\ninitImage(VL);",
+    "apres": "initRepeterUI(VL);  // t455 : répétitions et fusions vivantes (menu Vecteur, Apparence, Ctrl+Alt+B)\r\ninitDeformerUI(VL); // t465 : déformations vivantes (bloc Déformer, délégué par mod-repeterui)\r\ninitImage(VL);",
     "groupe": "t455"
    },
    {
@@ -1073,6 +1073,12 @@
     "avant": "\"chemin sans M initial\"",
     "apres": "T(\"vectorlab.bool.sans_m\")",
     "groupe": "outils_lab"
+   },
+   {
+    "pos": 5669,
+    "avant": "for (const e of objet.enfants || []) {",
+    "apres": "for (const e of objet.enfants || []) {\r\n        if (e.cache) continue;   // t460 : la source cachée d'une déformation ne compte pas",
+    "groupe": "t460"
    },
    {
     "pos": 5836,
@@ -2575,6 +2581,12 @@
     "avant": "`instance ${o.id}: symbole ${o.symbole} inconnu`",
     "apres": "T(\"vectorlab.doc.instance_symbole_inconnu\", { id: o.id, symbole: o.symbole })",
     "groupe": "doc"
+   },
+   {
+    "pos": 17623,
+    "avant": "function compilerObjet(o, ctx = {}) {",
+    "apres": "function compilerObjet(o, ctx = {}) {\r\n  if (o && o.cache) return \"\";   // t460 : la source cachée d'une déformation vivante ne se dessine pas",
+    "groupe": "t460"
    },
    {
     "pos": 25503,
@@ -6721,7 +6733,7 @@
    {
     "pos": 4367,
     "avant": "\"flyout:forme\"),",
-    "apres": "\"flyout:forme\"),\r\n    \"-\",\r\n    e(\"repRadiale\", T(\"vectorlab.repeter.m_radiale\"), \"repeter:radiale\"), e(\"repGrille\", T(\"vectorlab.repeter.m_grille\"), \"repeter:grille\"), e(\"repMiroir\", T(\"vectorlab.repeter.m_miroir\"), \"repeter:miroir\"), e(\"repOptions\", T(\"vectorlab.repeter.m_options\"), \"repeter:options\"), e(\"repDecomposer\", T(\"vectorlab.repeter.m_decomposer\"), \"repeter:decomposer\"), \"-\",\r\n    e(\"fusCreer\", T(\"vectorlab.fusion.m_creer\"), \"repeter:fusionner\", \"ctrl+alt+b\"), e(\"fusOptions\", T(\"vectorlab.fusion.m_options\"), \"repeter:fusionOptions\"), e(\"fusAnnuler\", T(\"vectorlab.fusion.m_annuler\"), \"repeter:fusionAnnuler\"), e(\"fusTrajectoire\", T(\"vectorlab.fusion.m_trajectoire\"), \"repeter:trajectoire\"),\r\n    e(\"fusInverserTrajectoire\", T(\"vectorlab.fusion.m_inverser_trajectoire\"), \"repeter:inverserTrajectoire\"), e(\"fusInverserOrdre\", T(\"vectorlab.fusion.m_inverser_ordre\"), \"repeter:inverserOrdre\"),",
+    "apres": "\"flyout:forme\"),\r\n    \"-\",\r\n    e(\"repRadiale\", T(\"vectorlab.repeter.m_radiale\"), \"repeter:radiale\"), e(\"repGrille\", T(\"vectorlab.repeter.m_grille\"), \"repeter:grille\"), e(\"repMiroir\", T(\"vectorlab.repeter.m_miroir\"), \"repeter:miroir\"), e(\"repOptions\", T(\"vectorlab.repeter.m_options\"), \"repeter:options\"), e(\"repDecomposer\", T(\"vectorlab.repeter.m_decomposer\"), \"repeter:decomposer\"), \"-\",\r\n    e(\"fusCreer\", T(\"vectorlab.fusion.m_creer\"), \"repeter:fusionner\", \"ctrl+alt+b\"), e(\"fusOptions\", T(\"vectorlab.fusion.m_options\"), \"repeter:fusionOptions\"), e(\"fusAnnuler\", T(\"vectorlab.fusion.m_annuler\"), \"repeter:fusionAnnuler\"), e(\"fusTrajectoire\", T(\"vectorlab.fusion.m_trajectoire\"), \"repeter:trajectoire\"),\r\n    e(\"fusInverserTrajectoire\", T(\"vectorlab.fusion.m_inverser_trajectoire\"), \"repeter:inverserTrajectoire\"), e(\"fusInverserOrdre\", T(\"vectorlab.fusion.m_inverser_ordre\"), \"repeter:inverserOrdre\"), \"-\",\r\n    e(\"defEnveloppe\", T(\"vectorlab.deformer.m_enveloppe\"), \"repeter:def-enveloppe\"), e(\"defDistorsion\", T(\"vectorlab.deformer.m_distorsion\"), \"repeter:def-distorsion\"), e(\"defTorsion\", T(\"vectorlab.deformer.m_torsion\"), \"repeter:def-torsion\"), e(\"defRugosite\", T(\"vectorlab.deformer.m_rugosite\"), \"repeter:def-rugosite\"),\r\n    e(\"defZigzag\", T(\"vectorlab.deformer.m_zigzag\"), \"repeter:def-zigzag\"), e(\"defGonfler\", T(\"vectorlab.deformer.m_gonfler\"), \"repeter:def-gonfler\"), e(\"defPointes\", T(\"vectorlab.deformer.m_pointes\"), \"repeter:def-pointes\"),\r\n    e(\"defEditer\", T(\"vectorlab.deformer.m_editer\"), \"repeter:def-editer\"), e(\"defAnnuler\", T(\"vectorlab.deformer.m_annuler\"), \"repeter:def-annuler\"),",
     "groupe": "t455"
    },
    {
@@ -11547,7 +11559,7 @@
    {
     "pos": 2520,
     "avant": "  if (o.derive) { delete o.derive; return; }",
-    "apres": "  if (o.derive) { delete o.derive; return; }\r\n  if (o.repetition || o.fusion_vive) { repetition_decomposer(doc, o); return; }   // t450-t453 : Décomposer",
+    "apres": "  if (o.derive) { delete o.derive; return; }\r\n  if (o.repetition || o.fusion_vive || o.deformation) { repetition_decomposer(doc, o); return; }   // t450-t453 : Décomposer",
     "groupe": "t450"
    },
    {

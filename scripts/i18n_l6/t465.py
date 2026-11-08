@@ -1,0 +1,76 @@
+"""t465 (08/11/2026) — lot D3, T6 : les déformations dans l'interface, module NEUF js/mod-deformerui.js (hors table).
+Les éditions de BASE (bloc Déformer du menu Vecteur, import et init dans core.js) étendent les entrées S de t455.py,
+qui portaient déjà le bloc et l'init de D2 sur les mêmes lignes. Ici, les libellés FR/EN, en entrées H."""
+from outils import L, S, X, H  # noqa: F401
+
+_S = lambda c, fr, en, ctx=False: H("vectorlab.deformer." + c, fr, en, contexte=ctx)
+
+ENTREES = [
+    # menu Vecteur, bloc Déformer
+    _S("m_enveloppe", "Enveloppe…", "Envelope Warp…"),
+    _S("m_distorsion", "Distorsion libre…", "Free Distort…"),
+    _S("m_torsion", "Torsion…", "Twist…"),
+    _S("m_rugosite", "Rugosité…", "Roughen…"),
+    _S("m_zigzag", "Zigzag…", "Zig Zag…"),
+    _S("m_gonfler", "Contraction et dilatation…", "Pucker & Bloat…"),
+    _S("m_pointes", "Pointes de flèche…", "Arrowheads…"),
+    _S("m_editer", "Modifier le contenu", "Edit Contents"),
+    _S("m_annuler", "Annuler la déformation", "Release Distortion"),
+    # titres des dialogues
+    _S("d_enveloppe", "Enveloppe", "Envelope Warp", True),
+    _S("d_distorsion", "Distorsion libre", "Free Distort"),
+    _S("d_torsion", "Torsion", "Twist", True),
+    _S("d_rugosite", "Rugosité", "Roughen", True),
+    _S("d_zigzag", "Zigzag", "Zig Zag", True),
+    _S("d_gonfler", "Contraction et dilatation", "Pucker & Bloat"),
+    _S("d_pointes", "Pointes de flèche", "Arrowheads"),
+    # les 15 styles d'enveloppe
+    _S("s_arc", "Arc", "Arc", True),
+    _S("s_arc_bas", "Arc inférieur", "Arc Lower"),
+    _S("s_arc_haut", "Arc supérieur", "Arc Upper"),
+    _S("s_arche", "Arche", "Arch", True),
+    _S("s_renflement", "Renflement", "Bulge", True),
+    _S("s_coquille_bas", "Coquille inférieure", "Shell Lower"),
+    _S("s_coquille_haut", "Coquille supérieure", "Shell Upper"),
+    _S("s_drapeau", "Drapeau", "Flag", True),
+    _S("s_vague", "Vague", "Wave", True),
+    _S("s_poisson", "Poisson", "Fish", True),
+    _S("s_montee", "Montée", "Rise", True),
+    _S("s_oeil", "Œil de poisson", "Fisheye"),
+    _S("s_gonflement", "Gonflement", "Inflate", True),
+    _S("s_pression", "Pression", "Squeeze", True),
+    _S("s_torsion", "Torsion", "Twist", True),
+    # pointes de flèche
+    _S("p_aucune", "Aucune", "None", True),
+    _S("p_triangle", "Triangle", "Triangle", True),
+    _S("p_ouverte", "Flèche ouverte", "Open arrow"),
+    _S("p_cercle", "Cercle", "Circle", True),
+    _S("p_carre", "Carré", "Square", True),
+    _S("p_barre", "Barre", "Bar", True),
+    # champs
+    _S("c_courbure", "Courbure (%)", "Bend (%)"),
+    _S("o_horizontale", "Horizontale", "Horizontal", True),
+    _S("o_verticale", "Verticale", "Vertical", True),
+    _S("c_dist_h", "Distorsion horizontale (%)", "Horizontal distortion (%)"),
+    _S("c_dist_v", "Distorsion verticale (%)", "Vertical distortion (%)"),
+    _S("c_hg", "Coin haut-gauche (x, y)", "Top-left corner (x, y)"),
+    _S("c_hd", "Coin haut-droit (x, y)", "Top-right corner (x, y)"),
+    _S("c_bd", "Coin bas-droit (x, y)", "Bottom-right corner (x, y)"),
+    _S("c_bg", "Coin bas-gauche (x, y)", "Bottom-left corner (x, y)"),
+    _S("c_angle", "Angle (°)", "Angle (°)", True),
+    _S("c_taille", "Taille (px)", "Size (px)"),
+    _S("c_details", "Détails (par 100 px)", "Detail (per 100 px)"),
+    _S("c_lisse", "Lisse (sinon pointes)", "Smooth (otherwise corners)"),
+    _S("c_graine", "Graine (un autre tirage)", "Seed (another draw)"),
+    _S("c_cretes", "Crêtes par segment", "Ridges per segment"),
+    _S("c_pourcent", "Contraction ← → dilatation (%)", "Pucker ← → bloat (%)"),
+    _S("c_echelle", "Échelle (%)", "Scale (%)", True),
+    # onglet Apparence
+    _S("a_titre", "Déformation vivante", "Live distortion"),
+    _S("a_editer_titre", "Montre l'objet d'origine pour le modifier ; encore une fois pour revenir à la déformation",
+       "Shows the original object to edit it; again to return to the distortion"),
+    _S("a_editer_fin", "Terminer", "Done", True),
+    _S("r_enveloppe", "Enveloppe : {style}, {courbure} %", "Envelope: {style}, {courbure}%"),
+    _S("r_torsion", "Torsion : {angle}°", "Twist: {angle}°"),
+    _S("r_gonfler", "Contraction et dilatation : {pourcent} %", "Pucker & Bloat: {pourcent}%"),
+]
