@@ -14558,5 +14558,17 @@
  "La carte des différences compare deux images.": {
   "fr": "La carte des différences compare deux images.",
   "en": "The difference map compares two images."
+ },
+ "Donne le texte attendu de la réplique.": {
+  "fr": "Donne le texte attendu de la réplique.",
+  "en": "Give the expected text of the line."
+ },
+ "On mesure la voix d'un son ou d'une vidéo.": {
+  "fr": "On mesure la voix d'un son ou d'une vidéo.",
+  "en": "Voice is measured on a sound or a video."
+ },
+ "Durée illisible.": {
+  "fr": "Durée illisible.",
+  "en": "Unreadable duration."
  }
 }

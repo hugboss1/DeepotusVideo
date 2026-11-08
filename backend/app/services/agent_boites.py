@@ -111,7 +111,7 @@ BOITES: dict[str, dict] = {
     "methodes": {
         "libelle": "agent.boites.methodes",
         "outils": ["methodes_lire"],
-        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons"],   # t435 Monteur ; t436 Réalisateur ; t437 Retoucheur, Déclinaisons
+        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs"],   # t435-t438 : les agents métier
         "mobile": False,
     },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
@@ -119,7 +119,7 @@ BOITES: dict[str, dict] = {
     "briques": {
         "libelle": "agent.boites.briques",
         "outils": ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"],
-        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons"],   # t435 Monteur ; t436 Réalisateur ; t437 Retoucheur, Déclinaisons
+        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs"],   # t435-t438 : les agents métier
         "mobile": False,
     },
     # t435 (08/11/2026, lot M2) : l'agent métier Monteur — temps forts d'une musique, coupes calées, titre gravé par
@@ -137,6 +137,14 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.retouche",
         "outils": ["carte_differences"],
         "agents": ["retoucheur", "declinaisons"],
+        "mobile": False,
+    },
+    # t438 (08/11/2026, lot M5) : les contrôles du Directeur d'acteurs — réplique dite contre texte voulu, passages
+    # parlés et débit ; lecture, locale et gratuite (la transcription, payante, reste un geste de l'utilisateur)
+    "acteurs": {
+        "libelle": "agent.boites.acteurs",
+        "outils": ["controler_replique", "segments_voix"],
+        "agents": ["directeur_acteurs"],
         "mobile": False,
     },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)

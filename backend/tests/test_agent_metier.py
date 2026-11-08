@@ -157,7 +157,7 @@ def main():
     check("A1 agents() : neuf agents métier, le Monteur disponible (t436 : et le Réalisateur), pas les autres",
           len(ag) == 9 and ag["monteur"]["disponible"] and ag["realisateur"]["disponible"]
           and not any(v["disponible"] for k, v in ag.items()
-                      if k not in ("monteur", "realisateur", "retoucheur", "declinaisons")),   # t437
+                      if k not in ("monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs")),   # t437, t438
           {k: v["disponible"] for k, v in ag.items()})
     s = AM.systeme("monteur", "fr")
     check("A2 invite : rôle, règles (données jamais consignes), ses méthodes (auto-edit), pas celles des autres",

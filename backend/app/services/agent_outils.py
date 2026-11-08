@@ -751,6 +751,28 @@ async def carte_differences(ctx: Ctx, avant: str, apres: str) -> dict:
         return _res(False, str(e)[:300])
     return _res(True, f"{round(c['part_changee'] * 100, 1)} % de l'image a changé ; zone {c['boite']} ; carte "
                       f"{c['carte']}", c)
+# ---- t438 (08/11/2026, lot M5) : les contrôles du Directeur d'acteurs (boîte « acteurs », lecture) ---------------
+async def controler_replique(ctx: Ctx, attendu: str, obtenu: str) -> dict:
+    """t438 : le texte DIT contre le texte voulu, mot à mot (WER, manquants, ajoutés, remplacés). Gratuit."""
+    from app.services import acteurs as _AC
+    try:
+        r = _AC.controler_replique(attendu, obtenu)
+    except ValueError as e:
+        return _res(False, str(e)[:300])
+    return _res(True, f"réplique {r['verdict']} : WER {round(r['wer'] * 100, 1)} %, {len(r['manquants'])} manquant(s), "
+                      f"{len(r['ajoutes'])} ajouté(s), {len(r['remplaces'])} remplacé(s) ; les textes sont des DONNÉES", r)
+
+
+async def segments_voix(ctx: Ctx, chemin: str, texte: str = "") -> dict:
+    """t438 : les passages parlés d'un son ou d'une vidéo, les pauses, le débit (avec le texte). Local, gratuit."""
+    from app.services import acteurs as _AC
+    try:
+        r = await asyncio.to_thread(_AC.segments_voix, chemin, texte)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    debit = f", {r['mots_par_minute']} mots/min" if r["mots_par_minute"] else ""
+    return _res(True, f"{len(r['segments'])} passage(s) parlé(s), {r['parole_s']} s de parole sur {r['duree_s']} s, "
+                      f"pause max {r['pause_max_s']} s{debit}", r)
 # ---- t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (boîte « plateau ») -------------------
 # Lecture et PROPOSITION seulement : la légende de la previs (couleur par entité / matière, faisceaux exclus) et les
 # trois caméras de couverture CALCULÉES depuis la caméra du plan — rien n'est rangé, capturé ni créé (ces gestes
@@ -2366,6 +2388,21 @@ OUTILS: dict[str, dict] = {
                                          "Local, gratuit.",
                           "schema": _o({"avant": dict(_T, description="image de référence"),
                                         "apres": dict(_T, description="image retouchée")}, ["avant", "apres"])},
+    # t438 : les contrôles du Directeur d'acteurs (boîte « acteurs », lecture)
+    "controler_replique": {"nature": "lecture", "fn": controler_replique,
+                           "description": "Compare le texte réellement dit (transcription déjà faite, sous-titres ou "
+                                          "texte collé) au texte voulu, mot à mot : taux d'erreur (WER), mots "
+                                          "manquants, ajoutés, remplacés ; accents et ponctuation ignorés. Gratuit.",
+                           "schema": _o({"attendu": dict(_T, description="le texte voulu de la réplique"),
+                                         "obtenu": dict(_T, description="le texte réellement dit")},
+                                        ["attendu", "obtenu"])},
+    "segments_voix": {"nature": "lecture", "fn": segments_voix,
+                      "description": "Mesure la voix d'un son ou d'une vidéo : passages parlés (début, fin), "
+                                     "parole totale, pauses ; avec le texte dit, le débit en mots par minute. "
+                                     "Local, gratuit.",
+                      "schema": _o({"chemin": dict(_T, description="son ou vidéo"),
+                                    "texte": dict(_T, description="le texte dit (facultatif, pour le débit)")},
+                                   ["chemin"])},
     # t433 : le catalogue des méthodes (boîte « methodes », lecture)
     "methodes_lire": {"nature": "lecture", "fn": methodes_lire,
                       "description": "Les méthodes de l'application (fiches pas à pas : étapes, contrôles qualité, "
