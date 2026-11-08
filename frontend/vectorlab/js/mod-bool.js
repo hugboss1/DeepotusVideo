@@ -147,6 +147,7 @@ export function polylignes_objet(objet, tol = TOL, mParent = _IDENT) {
     case "groupe": {
       const out = [];
       for (const e of objet.enfants || []) {
+        if (e.cache) continue;   // t460 : la source cachée d'une déformation ne compte pas
         out.push(...polylignes_objet(e, tol, m));
       }
       return out;

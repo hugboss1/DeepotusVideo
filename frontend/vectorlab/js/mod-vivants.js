@@ -60,7 +60,7 @@ export function op_derive_detacher(doc, id) {
   const o = _index(doc).get(id);
   if (!o) throw new Error(T("vectorlab.vivants.err_introuvable", { id }));
   if (o.derive) { delete o.derive; return; }
-  if (o.repetition || o.fusion_vive) { repetition_decomposer(doc, o); return; }   // t450-t453 : Décomposer
+  if (o.repetition || o.fusion_vive || o.deformation) { repetition_decomposer(doc, o); return; }   // t450-t453 : Décomposer
   if (o.type === "textechemin" && o.chemin) { delete o.chemin; delete o.empreinte; return; }
   throw new Error(T("vectorlab.vivants.err_detacher", { id }));
 }

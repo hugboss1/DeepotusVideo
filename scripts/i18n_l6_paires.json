@@ -1063,6 +1063,12 @@
     "groupe": "outils_lab"
    },
    {
+    "pos": 5669,
+    "avant": "for (const e of objet.enfants || []) {",
+    "apres": "for (const e of objet.enfants || []) {\r\n        if (e.cache) continue;   // t460 : la source cachée d'une déformation ne compte pas",
+    "groupe": "t460"
+   },
+   {
     "pos": 5836,
     "avant": "\"texte : vectorisation hors périmètre — retire le \"\r\n                      + \"texte de la sélection booléenne\"",
     "apres": "T(\"vectorlab.bool.texte_hors\")",
@@ -2563,6 +2569,12 @@
     "avant": "`instance ${o.id}: symbole ${o.symbole} inconnu`",
     "apres": "T(\"vectorlab.doc.instance_symbole_inconnu\", { id: o.id, symbole: o.symbole })",
     "groupe": "doc"
+   },
+   {
+    "pos": 17623,
+    "avant": "function compilerObjet(o, ctx = {}) {",
+    "apres": "function compilerObjet(o, ctx = {}) {\r\n  if (o && o.cache) return \"\";   // t460 : la source cachée d'une déformation vivante ne se dessine pas",
+    "groupe": "t460"
    },
    {
     "pos": 25503,
@@ -11535,7 +11547,7 @@
    {
     "pos": 2520,
     "avant": "  if (o.derive) { delete o.derive; return; }",
-    "apres": "  if (o.derive) { delete o.derive; return; }\r\n  if (o.repetition || o.fusion_vive) { repetition_decomposer(doc, o); return; }   // t450-t453 : Décomposer",
+    "apres": "  if (o.derive) { delete o.derive; return; }\r\n  if (o.repetition || o.fusion_vive || o.deformation) { repetition_decomposer(doc, o); return; }   // t450-t453 : Décomposer",
     "groupe": "t450"
    },
    {

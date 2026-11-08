@@ -31,10 +31,11 @@ enfants: [source, ...résultat] }`.
   - La source redevient visible et le résultat est caché ; on modifie la source par Ctrl+clic.
   - Refaire la commande revient au résultat, recalculé.
 - **Recalcul**
-  - Il se fait par empreinte (source et réglages), comme les répétitions, dans `vivants_d3_rafraichir`
-    (`mod-deformer.js`).
-  - `derives_rafraichir` l'appelle après `vivants_d2_rafraichir` : l'entrée S de `t450.py`, qui porte déjà cet appel
-    dans `mod-vivants.js`, est étendue, puisqu'une seconde édition sur la même ligne serait refusée (chevauchement).
+  - Il se fait par empreinte (source et réglages), comme les répétitions, dans `deformations_rafraichir`
+    (`mod-deformer.js`), appelée à la fin de `vivants_d2_rafraichir` (`mod-repeter.js`, module neuf) : aucune
+    nouvelle édition de `mod-vivants.js`. Seule la condition de Décomposer (`op_derive_detacher`), portée par l'entrée
+    S de `t450.py`, est étendue à `o.deformation`.
+  - (FAIT, T1) Pendant « Modifier le contenu », le recalcul continue mais le résultat reste caché.
   - Un recalcul impossible garde le dernier état.
 - **Décomposer**
   - Il ne reste que le résultat, en chemins ordinaires ; la source part.

@@ -11,6 +11,7 @@
 // Règle de mod-bool : tout se CALCULE avant de muter, un refus ne laisse aucune trace.
 import { T } from "./mod-i18n.js";
 import { polylignes_objet } from "./mod-bool.js";
+import { deformations_rafraichir } from "./mod-deformer.js";   // t460 : les déformations vivantes (D3)
 
 const MAX_COPIES = 200;
 const MODES = new Set(["radiale", "grille", "miroir"]);
@@ -643,7 +644,7 @@ export function vivants_d2_rafraichir(doc) {
     }
   };
   for (const c of doc.calques) v(c.objets);
-  return n;
+  return n + deformations_rafraichir(doc);   // t460 : D3, après les répétitions et fusions
 }
 
 // Décomposer : la répétition ou la fusion redevient un groupe ordinaire ; ses copies et intermédiaires reçoivent
@@ -657,6 +658,13 @@ export function repetition_decomposer(doc, g) {
       if (x.clip && x.enfants && x.enfants[0]) x.clip = x.enfants[0].id;
     }
   };
+  // t460 : une déformation décomposée ne garde que son résultat (la source cachée part)
+  if (g.deformation) {
+    g.enfants = g.enfants.filter((e) => e.genere).map((e) => { delete e.cache; return e; });
+    for (const e of g.enfants) { delete e.genere; renommer(e); }
+    delete g.deformation;
+    return;
+  }
   for (const e of g.enfants.slice(1)) { if (e.genere) { delete e.genere; renommer(e); } }
   // la trajectoire d'une fusion redevient visible, avec son style
   const f = g.fusion_vive;
