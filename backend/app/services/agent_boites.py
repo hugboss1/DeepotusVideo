@@ -112,7 +112,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.methodes",
         "outils": ["methodes_lire"],
         "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
-                   "publicitaire"],   # t435-t439 : les agents métier
+                   "publicitaire", "artiste_2d"],   # t435-t440 : les agents métier
         "mobile": False,
     },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
@@ -121,7 +121,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.briques",
         "outils": ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"],
         "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
-                   "publicitaire"],   # t435-t439 : les agents métier
+                   "publicitaire", "artiste_2d"],   # t435-t440 : les agents métier
         "mobile": False,
     },
     # t435 (08/11/2026, lot M2) : l'agent métier Monteur — temps forts d'une musique, coupes calées, titre gravé par
@@ -154,6 +154,13 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.publicite",
         "outils": ["verifier_format_pub"],
         "agents": ["publicitaire"],
+        "mobile": False,
+    },
+    # t440 (08/11/2026, lot M7) : les contrôles de l'Artiste 2D de jeu — grille du pixel art, planche de sprites
+    "sprites_qc": {
+        "libelle": "agent.boites.sprites_qc",
+        "outils": ["analyser_pixel_art", "verifier_planche"],
+        "agents": ["artiste_2d"],
         "mobile": False,
     },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)

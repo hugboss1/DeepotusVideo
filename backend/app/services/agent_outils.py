@@ -784,6 +784,28 @@ async def verifier_format_pub(ctx: Ctx, chemin: str, reseaux: list | None = None
     bons = [v["libelle"] for v in r["reseaux"].values() if v["ok"]]
     return _res(True, f"conforme pour {len(bons)}/{len(r['reseaux'])} réseau(x) : {', '.join(bons) or 'aucun'} "
                       f"(recommandations du {r['releve']})", r)
+# ---- t440 (08/11/2026, lot M7) : les contrôles de l'Artiste 2D de jeu (boîte « sprites_qc », lecture) ------------
+async def analyser_pixel_art(ctx: Ctx, chemin: str) -> dict:
+    """t440 : la grille réelle d'un pixel art, sa palette, sa transparence. Local, gratuit."""
+    from app.services import sprites_qc as _SQ
+    try:
+        r = await asyncio.to_thread(_SQ.analyser_pixel_art, chemin)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    return _res(True, f"bloc {r['bloc_px']} px (grille {r['grille_logique'][0]}x{r['grille_logique'][1]}), "
+                      f"{r['couleurs']} couleur(s) ; {'; '.join(r['conseils']) or 'propre'}", r)
+
+
+async def verifier_planche(ctx: Ctx, chemin: str, colonnes: int, lignes: int) -> dict:
+    """t440 : une planche de sprites, case par case : hauteur, ligne de sol, centre. Local, gratuit."""
+    from app.services import sprites_qc as _SQ
+    try:
+        r = await asyncio.to_thread(_SQ.verifier_planche, chemin, colonnes, lignes)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    return _res(True, f"planche {r['verdict']}" + (f" ({', '.join(r['problemes'])} bouge(nt) de plus de "
+                                                   f"{r['tolerance_px']} px)" if r["problemes"] else "")
+                + f", {r['vides']} case(s) vide(s)", r)
 # ---- t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (boîte « plateau ») -------------------
 # Lecture et PROPOSITION seulement : la légende de la previs (couleur par entité / matière, faisceaux exclus) et les
 # trois caméras de couverture CALCULÉES depuis la caméra du plan — rien n'est rangé, capturé ni créé (ces gestes
@@ -2423,6 +2445,20 @@ OUTILS: dict[str, dict] = {
                                           "reseaux": {"type": "array", "items": {"type": "string", "enum": [
                                               "tiktok", "reels", "shorts", "youtube", "meta_feed", "stories"]}}},
                                          ["chemin"])},
+    # t440 : les contrôles de l'Artiste 2D de jeu (boîte « sprites_qc », lecture)
+    "analyser_pixel_art": {"nature": "lecture", "fn": analyser_pixel_art,
+                           "description": "Analyse une image de pixel art : taille réelle du bloc de pixels (grille "
+                                          "nette ou non), nombre de couleurs, transparence, pixels semi-transparents ; "
+                                          "dit quoi corriger. Local, gratuit.",
+                           "schema": _o({"chemin": dict(_T, description="l'image")}, ["chemin"])},
+    "verifier_planche": {"nature": "lecture", "fn": verifier_planche,
+                         "description": "Vérifie une planche de sprites découpée en colonnes x lignes : pour chaque "
+                                        "case la boîte du sujet, puis la stabilité de la hauteur, de la ligne de sol et "
+                                        "du centre (un cycle qui saute ou grandit se voit). Local, gratuit.",
+                         "schema": _o({"chemin": dict(_T, description="la planche (fond transparent)"),
+                                       "colonnes": {"type": "integer", "minimum": 1, "maximum": 64},
+                                       "lignes": {"type": "integer", "minimum": 1, "maximum": 64}},
+                                      ["chemin", "colonnes", "lignes"])},
     # t433 : le catalogue des méthodes (boîte « methodes », lecture)
     "methodes_lire": {"nature": "lecture", "fn": methodes_lire,
                       "description": "Les méthodes de l'application (fiches pas à pas : étapes, contrôles qualité, "
