@@ -165,6 +165,11 @@ def normalize_format(raw, base: dict | None = None) -> dict:
     return out
 
 
+# Les catégories de jeu qu'un document peut porter. SEUL LE SERVEUR en pose une
+# (`poser_categorie`) : le corps d'un autosave ne la reprend jamais.
+CATEGORIES = ("plateau",)
+
+
 def default_doc(did: str, name: str = "Mon jeu") -> dict:
     """Le document neuf, partitionné (spec 2.3). Chaque pièce reçoit son
     sous-arbre VIDE : c'est elle qui décide de son contenu, CORE ne préjuge
@@ -201,6 +206,11 @@ def normalize_deck(raw: dict | None, did: str | None = None) -> dict:
     updated = raw.get("updated")
     if isinstance(updated, str) and updated:
         doc["updated"] = updated
+    # La clé n'existe QUE pour une catégorie connue : un jeu ordinaire n'en
+    # porte pas, et une valeur inconnue (ou d'un autre type) est jetée.
+    cat = raw.get("categorie")
+    if isinstance(cat, str) and cat in CATEGORIES:
+        doc["categorie"] = cat
     for mid in MODULE_IDS:
         sub = raw.get(mid)
         doc[mid] = sub if isinstance(sub, dict) else {}
@@ -406,11 +416,12 @@ def read_deck(did: str) -> dict | None:
     return _lit_meta(did)[0]
 
 
-DECK_SUMMARY_KEYS = ("id", "name", "created", "updated")
+DECK_SUMMARY_KEYS = ("id", "name", "created", "updated", "categorie")
 
 
 def deck_summary(doc: dict) -> dict:
-    """Les QUATRE champs qu'une liste de jeux affiche, et rien d'autre.
+    """Les CINQ champs qu'une liste de jeux affiche (dont `categorie`, « » pour
+    un jeu ordinaire), et rien d'autre.
 
     C'EST LA MOITIÉ MESURÉE DE LA DETTE « pagination /decks » : la route
     servait les documents COMPLETS — 13,4 Mo et 18 s sur un poste à 2 191 jeux
@@ -482,7 +493,7 @@ def deck_summary(doc: dict) -> dict:
 # (`^deck_[0-9a-f]{8}$`), et le balayage ne retient que des DOSSIERS. Deux
 # verrous, la doctrine de `deck_dir` — le motif PUIS le confinement.
 INDEX_NAME = "decks_index.json"
-INDEX_VERSION = 1
+INDEX_VERSION = 2   # v2 : l'entrée porte `categorie` ; un index v1 est ignoré
 
 # Drapeau de module : l'avertissement « index non posable » se dit UNE FOIS.
 _INDEX_PLAINTE_DITE = False
@@ -573,11 +584,11 @@ def _index_ecrit(entrees: dict) -> None:
             pass                   # le brouillon n'a peut-être jamais existé
 
 
-INDEX_CLES = ("name", "created", "updated", "mtime", "size")
+INDEX_CLES = ("name", "created", "updated", "categorie", "mtime", "size")
 
 
 def _entree_normalisee(vieille) -> dict | None:
-    """L'entrée d'index ramenée à CINQ clés, ou None si elle ne tient pas
+    """L'entrée d'index ramenée à SIX clés, ou None si elle ne tient pas
     debout. Rend l'objet REÇU quand il est déjà propre — l'appelant se sert de
     cette identité pour savoir s'il a fallu nettoyer.
 
@@ -594,13 +605,13 @@ def _entree_normalisee(vieille) -> dict | None:
     if not isinstance(vieille, dict):
         return None
     if not all(isinstance(vieille.get(k), str)
-               for k in ("name", "created", "updated")):
+               for k in ("name", "created", "updated", "categorie")):
         return None
     for k in ("mtime", "size"):
         v = vieille.get(k)
         if not isinstance(v, int) or isinstance(v, bool):
             return None
-    # DÉJÀ PROPRE : cinq clés présentes et bien typées, donc CES cinq-là. On
+    # DÉJÀ PROPRE : six clés présentes et bien typées, donc CES cinq-là. On
     # rend l'objet reçu — reconstruire 2 200 dictionnaires par listing pour
     # aboutir aux mêmes octets coûtait 14 ms mesurées, et le cas courant est
     # justement celui-là.
@@ -629,7 +640,7 @@ def _entree_a_jour(vieille, st) -> dict | None:
             or vieille.get("size") != st.st_size):
         return None
     if not all(isinstance(vieille.get(k), str)
-               for k in ("name", "created", "updated")):
+               for k in ("name", "created", "updated", "categorie")):
         return None
     return vieille
 
@@ -646,7 +657,7 @@ def _entree_de_document(doc: dict, st, lisible: bool) -> dict | None:
         return None
     r = deck_summary(doc)
     return {"name": r["name"], "created": r["created"],
-            "updated": r["updated"],
+            "updated": r["updated"], "categorie": r["categorie"],
             "mtime": st.st_mtime_ns, "size": st.st_size}
 
 
@@ -655,7 +666,8 @@ def _resume_d_entree(did: str, entree: dict) -> dict:
     l'entrée : un index qui se tromperait d'identifiant ne peut pas faire
     sortir le nom d'un jeu sous l'identifiant d'un autre."""
     return {"id": did, "name": entree["name"],
-            "created": entree["created"], "updated": entree["updated"]}
+            "created": entree["created"], "updated": entree["updated"],
+            "categorie": entree["categorie"]}
 
 
 # ── le balayage ─────────────────────────────────────────────────────────────
@@ -823,6 +835,22 @@ def patch_deck(did: str, body: dict | None) -> dict | None:
     for mid in MODULE_IDS:
         if mid in body and isinstance(body.get(mid), dict):
             doc[mid] = body[mid]
+    doc["updated"] = _now_iso()
+    return write_deck(doc)
+
+
+def poser_categorie(did: str, cat: str) -> dict | None:
+    """Pose la catégorie d'un jeu. Le document mis à jour, None si le jeu
+    n'existe pas, `ValueError` si la catégorie n'est pas dans `CATEGORIES`.
+
+    C'est la SEULE porte : `patch_deck` ne reprend jamais `categorie` du
+    corps client (un plateau ne se fabrique pas depuis l'autosave)."""
+    if cat not in CATEGORIES:
+        raise ValueError(f"catégorie inconnue : {cat!r}")
+    doc = read_deck(did)
+    if doc is None:
+        return None
+    doc["categorie"] = cat
     doc["updated"] = _now_iso()
     return write_deck(doc)
 

@@ -2102,6 +2102,7 @@
         GAL_DECKS = rows.filter(isPlain).map((x) => ({
           id: String(x.id || ""), name: String(x.name || ""),
           created: String(x.created || ""), updated: String(x.updated || ""),
+          categorie: x.categorie === "plateau" ? "plateau" : "",
         })).filter((x) => DID_RE.test(x.id));
         /* le total du SERVEUR quand il en donne un (et qu'il est credible :
            il ne peut pas etre plus PETIT que ce qu'on vient de recevoir),
@@ -2231,6 +2232,9 @@
     + '<div class="cf-gal-grid" id="galModels"></div></section>'
     + '<section class="cf-gal-sec"><h3>' + dzT("cartes.core.gal_reprendre") + ' '
     + '<button class="btn ghost sm" id="galReload" type="button">' + dzT("cartes.core.gal_recharger") + '</button></h3>'
+    + '<div class="cf-gal-filtre" id="galFiltre" role="group" aria-label="' + dzT("cartes.plateau.filtre") + '">'
+    + '<button class="btn sm" type="button" data-filtre="tous">' + dzT("cartes.plateau.filtre_tous") + '</button>'
+    + '<button class="btn sm" type="button" data-filtre="plateau">' + dzT("cartes.plateau.filtre_plateaux") + '</button></div>'
     + '<div class="cf-gal-decks" id="galDecks"></div></section>'
     + '</div></div>';
 
@@ -2258,6 +2262,13 @@
     if (sg) sg.addEventListener("click", () => { galSaveModel(sn ? sn.value : ""); });
     if (sn) sn.addEventListener("keydown", (e) => {
       if (e && e.key === "Enter") { e.preventDefault(); galSaveModel(sn.value); }
+    });
+    const gf = el("#galFiltre");
+    if (gf) gf.addEventListener("click", (e) => {
+      const b = e && e.target && e.target.closest ? e.target.closest("button[data-filtre]") : null;
+      if (!b) return;
+      GAL_FILTRE = b.dataset.filtre === "plateau" ? "plateau" : "tous";
+      if (GAL_DECKS) galDrawDecks(GAL_DECKS); else galSyncFiltre();
     });
     const rl = el("#galReload");
     if (rl) rl.addEventListener("click", () => {
@@ -2350,10 +2361,22 @@
     return p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear()
       + " " + p2(d.getHours()) + ":" + p2(d.getMinutes());
   }
+  /* t421 plateau : le filtre de la liste des jeux (« tous » | « plateau ») et son reflet sur les deux boutons */
+  let GAL_FILTRE = "tous";
+  function galSyncFiltre() {
+    document.querySelectorAll("#galFiltre button[data-filtre]").forEach((b) => {
+      const on = b.dataset.filtre === GAL_FILTRE;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
   function galDrawDecks(list) {
     const host = el("#galDecks");
     if (!host) return;
-    const rows = Array.isArray(list) ? list : [];
+    const toutes = Array.isArray(list) ? list : [];
+    const rows = GAL_FILTRE === "plateau" ? toutes.filter((r) => r.categorie === "plateau") : toutes;
+    galSyncFiltre();
+    if (!rows.length && GAL_FILTRE === "plateau") { galNote(host, dzT("cartes.plateau.aucun")); return; }
     host.innerHTML = "";
     if (!rows.length) {
       galNote(host, dzT("cartes.core.aucun_jeu"));
@@ -2369,6 +2392,7 @@
       const meta = galEl("span", "cf-gal-meta");
       const maj = galDate(r.updated);
       meta.appendChild(galEl("i", "mono", r.id));
+      if (r.categorie === "plateau") meta.appendChild(galEl("i", "cf-gal-badge", dzT("cartes.plateau.badge")));
       if (maj) meta.appendChild(galEl("i", null, dzT("cartes.core.modifie_le", { date: maj })));
       if (courant) meta.appendChild(galEl("i", "cf-gal-tag", dzT("cartes.core.jeu_courant")));
       b.appendChild(meta);
@@ -2379,7 +2403,7 @@
        `rows.length` ne compte plus les jeux : il compte les lignes montrees.
        Le dire ainsi ferait annoncer « 24 jeux au total » a un poste qui en a
        2195 — un chiffre faux, et le seul chiffre de cet ecran. */
-    const montres = Math.min(rows.length, GAL_DECKS_MAX);
+    const montres = Math.min(toutes.length, GAL_DECKS_MAX);
     if (GAL_DECKS_TOTAL > montres) {
       host.appendChild(galEl("p", "cf-gal-note",
         dzT("cartes.core.gal_total", { total: GAL_DECKS_TOTAL, n: montres })));

@@ -297,6 +297,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 95730,
+    "avant": "updated: String(x.updated || \"\"),",
+    "apres": "updated: String(x.updated || \"\"),\r\n          categorie: x.categorie === \"plateau\" ? \"plateau\" : \"\",",
+    "groupe": "t421_plateau"
+   },
+   {
     "pos": 99390,
     "avant": "c.globalAlpha = 0.5;\r\n    c.strokeStyle = galColor(pal.ink, \"#000000\");\r\n    c.lineWidth = 1;\r\n    c.strokeRect(0.5, 0.5, W - 1, H - 1);",
     "apres": "/* t421 : la vignette d'un hexagone en a la silhouette (decoupe, puis trait) */\r\n    const hexV = fmt.forme === \"hex\" ? hexSommets(fmt.trim_mm, fmt.orientation) : null;\r\n    if (hexV) {\r\n      c.globalCompositeOperation = \"destination-in\";\r\n      hexChemin(c, hexV, 0, k); c.fill();\r\n      c.globalCompositeOperation = \"source-over\";\r\n    }\r\n    c.globalAlpha = 0.5;\r\n    c.strokeStyle = galColor(pal.ink, \"#000000\");\r\n    c.lineWidth = 1;\r\n    if (hexV) { hexChemin(c, hexV, 0, k); c.stroke(); }\r\n    else c.strokeRect(0.5, 0.5, W - 1, H - 1);",
@@ -429,6 +435,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 102308,
+    "avant": "'<div class=\"cf-gal-decks\" id=\"galDecks\"></div></section>'",
+    "apres": "'<div class=\"cf-gal-filtre\" id=\"galFiltre\" role=\"group\" aria-label=\"' + dzT(\"cartes.plateau.filtre\") + '\">'\r\n    + '<button class=\"btn sm\" type=\"button\" data-filtre=\"tous\">' + dzT(\"cartes.plateau.filtre_tous\") + '</button>'\r\n    + '<button class=\"btn sm\" type=\"button\" data-filtre=\"plateau\">' + dzT(\"cartes.plateau.filtre_plateaux\") + '</button></div>'\r\n    + '<div class=\"cf-gal-decks\" id=\"galDecks\"></div></section>'",
+    "groupe": "t421_plateau"
+   },
+   {
     "pos": 102652,
     "avant": "root.innerHTML = GAL_SKELETON;",
     "apres": "root.innerHTML = GAL_SKELETON();",
@@ -439,6 +451,12 @@
     "avant": "if (i) i.addEventListener(\"click\", galImport);",
     "apres": "if (i) i.addEventListener(\"click\", galImport);\r\n    const gi = el(\"#galImages\"); if (gi) gi.addEventListener(\"click\", galImages);",
     "groupe": "t421_depuis"
+   },
+   {
+    "pos": 103731,
+    "avant": "const rl = el(\"#galReload\");",
+    "apres": "const gf = el(\"#galFiltre\");\r\n    if (gf) gf.addEventListener(\"click\", (e) => {\r\n      const b = e && e.target && e.target.closest ? e.target.closest(\"button[data-filtre]\") : null;\r\n      if (!b) return;\r\n      GAL_FILTRE = b.dataset.filtre === \"plateau\" ? \"plateau\" : \"tous\";\r\n      if (GAL_DECKS) galDrawDecks(GAL_DECKS); else galSyncFiltre();\r\n    });\r\n    const rl = el(\"#galReload\");",
+    "groupe": "t421_plateau"
    },
    {
     "pos": 103872,
@@ -519,10 +537,28 @@
     "groupe": "coque"
    },
    {
+    "pos": 107830,
+    "avant": "function galDrawDecks(list) {",
+    "apres": "/* t421 plateau : le filtre de la liste des jeux (« tous » | « plateau ») et son reflet sur les deux boutons */\r\n  let GAL_FILTRE = \"tous\";\r\n  function galSyncFiltre() {\r\n    document.querySelectorAll(\"#galFiltre button[data-filtre]\").forEach((b) => {\r\n      const on = b.dataset.filtre === GAL_FILTRE;\r\n      b.classList.toggle(\"on\", on);\r\n      b.setAttribute(\"aria-pressed\", on ? \"true\" : \"false\");\r\n    });\r\n  }\r\n  function galDrawDecks(list) {",
+    "groupe": "t421_plateau"
+   },
+   {
+    "pos": 107924,
+    "avant": "const rows = Array.isArray(list) ? list : [];",
+    "apres": "const toutes = Array.isArray(list) ? list : [];\r\n    const rows = GAL_FILTRE === \"plateau\" ? toutes.filter((r) => r.categorie === \"plateau\") : toutes;\r\n    galSyncFiltre();\r\n    if (!rows.length && GAL_FILTRE === \"plateau\") { galNote(host, dzT(\"cartes.plateau.aucun\")); return; }",
+    "groupe": "t421_plateau"
+   },
+   {
     "pos": 108042,
     "avant": "\"aucun jeu sur ce backend — le premier naîtra d'un modèle ci-dessus.\"",
     "apres": "dzT(\"cartes.core.aucun_jeu\")",
     "groupe": "coque"
+   },
+   {
+    "pos": 108538,
+    "avant": "meta.appendChild(galEl(\"i\", \"mono\", r.id));",
+    "apres": "meta.appendChild(galEl(\"i\", \"mono\", r.id));\r\n      if (r.categorie === \"plateau\") meta.appendChild(galEl(\"i\", \"cf-gal-badge\", dzT(\"cartes.plateau.badge\")));",
+    "groupe": "t421_plateau"
    },
    {
     "pos": 108632,
@@ -535,6 +571,12 @@
     "avant": "\"jeu courant\"",
     "apres": "dzT(\"cartes.core.jeu_courant\")",
     "groupe": "coque"
+   },
+   {
+    "pos": 109184,
+    "avant": "const montres = Math.min(rows.length, GAL_DECKS_MAX);",
+    "apres": "const montres = Math.min(toutes.length, GAL_DECKS_MAX);",
+    "groupe": "t421_plateau"
    },
    {
     "pos": 109335,

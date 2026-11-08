@@ -172,5 +172,43 @@ def test_le_banc_node_joue_la_logique_et_le_dialogue():
     assert m and m.group(1) == m.group(2) and int(m.group(2)) >= 50, r.stdout[-300:]
 
 
+
+# ── 7. plateau (lot 1, tâche 4) : badge « Plateau » et filtre « Tous / Plateaux » de la galerie ────────────────────
+CLES_PLATEAU = {"cartes.plateau.badge": ("Plateau", "Board"), "cartes.plateau.filtre_tous": ("Tous", "All"),
+                "cartes.plateau.filtre_plateaux": ("Plateaux", "Boards")}
+
+
+def test_plateau_galerie_badge_et_filtre_dans_la_source_traduite():
+    sq = CORE[CORE.find("const GAL_SKELETON"):CORE.find("function galEnsure(")]
+    # le filtre est AU-DESSUS de la grille des jeux, dans la section « Reprendre un jeu »
+    assert sq.find('id="galFiltre"') != -1 and sq.find('id="galFiltre"') < sq.find('id="galDecks"')
+    assert 'data-filtre="tous"' in sq and 'data-filtre="plateau"' in sq
+    assert 'dzT("cartes.plateau.filtre_tous")' in sq and 'dzT("cartes.plateau.filtre_plateaux")' in sq
+    # le résumé garde la catégorie, le badge n'apparaît que pour un plateau
+    assert 'categorie: x.categorie === "plateau" ? "plateau" : ""' in CORE
+    dessin = _fonction(CORE, "galDrawDecks")
+    assert 'if (r.categorie === "plateau") meta.appendChild(galEl("i", "cf-gal-badge", dzT("cartes.plateau.badge")))' in dessin
+    assert 'toutes.filter((r) => r.categorie === "plateau")' in dessin
+    assert 'const gf = el("#galFiltre");' in _fonction(CORE, "galEnsure")
+
+
+def test_plateau_cles_en_francais_et_en_anglais_sans_orpheline():
+    utilisees = set(re.findall(r'\bdzT\("(cartes\.plateau\.[a-z0-9_]+)"', CORE))
+    assert set(CLES_PLATEAU) <= utilisees, utilisees
+    for cle, (fr, en) in CLES_PLATEAU.items():
+        assert DICO[cle]["fr"] == fr and DICO[cle]["en"] == en, cle
+    for cle in utilisees:
+        assert DICO[cle].get("fr") and DICO[cle].get("en"), cle
+    assert not sorted(k for k in DICO if k.startswith("cartes.plateau.") and k not in utilisees)
+
+
+def test_plateau_galerie_angles_vifs():
+    css = (CF_DIR / "cardforge.css").read_bytes().decode("utf-8")
+    for sel in (".cf-gal-badge", ".cf-gal-filtre"):
+        blocs = re.findall(re.escape(sel) + r"[^{}]*\{([^}]*)\}", css)
+        assert blocs, sel
+        assert not any("radius" in b for b in blocs), sel
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
