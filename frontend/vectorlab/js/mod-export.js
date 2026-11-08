@@ -8,6 +8,18 @@
 import { T } from "./mod-i18n.js";
 import { compilerSVG } from "./mod-doc.js";
 import { image_hrefs, image_rev_max } from "./mod-image.js";
+import { decouperHex } from "./mod-decoupehex.js";
+
+/** Nom déposé dans la Bibliothèque : vector_<docId><suffixe>_<k>x[_t].png. Un k non entier (plateau) est arrondi à
+    deux décimales : le nom reste sûr pour un fichier ; les exports 1×/2×/4× gardent leur nom. */
+export function nomExportPNG(docId, suffixe, k, transparent) {
+  return `vector_${docId}${suffixe || ""}_${Math.round(k * 100) / 100}x${transparent ? "_t" : ""}.png`;
+}
+
+/** Fond transparent ou non : l'export plateau (`opts.opaque`) ne lit jamais la case, les autres la suivent. */
+export function transparentExport(opts, caseCochee) {
+  return opts.opaque ? false : !!caseCochee;
+}
 
 export function initExport(VL) {
   const { $, etat } = VL;
@@ -74,17 +86,17 @@ export function initExport(VL) {
   }
 
   async function exporterPNG(k, opts = {}) {
-    const transparent = $("#expTransparent").checked;
+    const transparent = transparentExport(opts, $("#expTransparent").checked);
     const png = await rasteriser(k, transparent, opts.cadre);
     // le transparent porte son suffixe : il n'écrase jamais l'opaque ; une
     // planche porte le sien (lot C) — l'export du document reste stable
-    const nom = `vector_${etat.docId}${opts.suffixe || ""}_${k}x${transparent ? "_t" : ""}.png`;
+    const nom = nomExportPNG(etat.docId, opts.suffixe, k, transparent);
     const fd = new FormData();
     fd.append("file", new File([png], nom, { type: "image/png" }));
     const r = await fetch("/api/images/upload", { method: "POST", body: fd });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
-    VL.toast(T("vectorlab.export.png_depose", { f: d.filename, k }));
+    VL.toast(T("vectorlab.export.png_depose", { f: d.filename, k: Math.round(k * 100) / 100 }));
     return d.filename;
   }
 
@@ -146,10 +158,17 @@ export function initExport(VL) {
   $("#expPng1").addEventListener("click", garde(() => exporterPNG(1)));
   $("#expPng2").addEventListener("click", garde(() => exporterPNG(2)));
   $("#expPng4").addEventListener("click", garde(() => exporterPNG(4)));
+  const btnPlateau = document.createElement("button");   // créé ici : index.html reste intact (convention L6)
+  btnPlateau.id = "expPlateau";
+  btnPlateau.textContent = T("vectorlab.export.plateau");
+  btnPlateau.title = T("vectorlab.export.plateau_titre");
+  btnPlateau.addEventListener("click", garde(() => decouperHex(VL, T)));
+  $("#expPng4").after(btnPlateau);
   $("#expBible").addEventListener("click", garde(versBible));
   $("#expPrint3d").addEventListener("click", garde(imprimer3D));
 
   VL.exporterPNG = exporterPNG;      // la preuve et les phases suivantes
+  VL.rasteriser = rasteriser;        // plateau (lot 1) : l'aperçu du dialogue « Découper en hexagones »
   VL.svgCourant = svgCourant;        // lot G : le persona Export rend ses tranches par ici
   VL.vignette = vignette;            // le save de core.js l'appelle
 }

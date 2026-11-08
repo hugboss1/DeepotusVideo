@@ -86,7 +86,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.chapitres",
         "outils": ["lire_revue_plan", "lire_bible", "lire_plans", "lire_passes_plan",   # t334 : + les passes Blender du plan
                    "modeles_video"],   # t408 : + les modèles vidéo des menus et leur prix
-        "agents": ["mcp"],
+        "agents": ["mcp", "realisateur"],   # t436 : + le Réalisateur
         "mobile": False,
     },
     # t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (lecture, proposition) ; aucun agent ne
@@ -94,7 +94,7 @@ BOITES: dict[str, dict] = {
     "plateau": {
         "libelle": "agent.boites.plateau",
         "outils": ["plateau_previs"],
-        "agents": [],
+        "agents": ["realisateur"],   # t436 : le Réalisateur (agent métier) la déclare
         "mobile": False,
     },
     # t331 (29/10/2026) : le Blender ouvert en LECTURE (scène, capture) par le pont MCP local ; aucun agent ne la déclare
@@ -103,7 +103,7 @@ BOITES: dict[str, dict] = {
     "blender": {
         "libelle": "agent.boites.blender",
         "outils": ["blender_scene", "blender_regarder", "blender_retour"],   # t332 : + le dernier retour d'un plan
-        "agents": [],
+        "agents": ["realisateur"],   # t436 : le Réalisateur lit la scène ouverte (lecture, local)
         "mobile": False,
     },
     # t433 (08/11/2026, lot M0) : le catalogue des méthodes (lecture, gratuit) ; Claude Code (« mcp ») le lit ; les agents
@@ -111,7 +111,63 @@ BOITES: dict[str, dict] = {
     "methodes": {
         "libelle": "agent.boites.methodes",
         "outils": ["methodes_lire"],
-        "agents": ["mcp"],
+        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
+                   "publicitaire", "artiste_2d", "artiste_3d"],   # t435-t441 : les agents métier
+        "mobile": False,
+    },
+    # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
+    # en lecture et gratuites ; Claude Code (« mcp ») les lit ; les agents métier des lots M2-M9 les déclareront
+    "briques": {
+        "libelle": "agent.boites.briques",
+        "outils": ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"],
+        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
+                   "publicitaire", "artiste_2d", "artiste_3d"],   # t435-t441 : les agents métier
+        "mobile": False,
+    },
+    # t435 (08/11/2026, lot M2) : l'agent métier Monteur — temps forts d'une musique, coupes calées, titre gravé par
+    # l'app ; locaux et gratuits ; seul le Monteur la déclare (poser_titre écrit une copie : pas pour « mcp »)
+    "monteur": {
+        "libelle": "agent.boites.monteur",
+        "outils": ["temps_forts_musique", "caler_coupes", "poser_titre",
+                   "chaines_lire", "deviser_etape_chaine"],   # t435b : la chaîne d'éditions (B4)
+        "agents": ["monteur", "publicitaire"],   # t439 : le Publicitaire monte aussi (coupes, titres, chaîne)
+        "mobile": False,
+    },
+    # t437 (08/11/2026, lot M4) : la carte des différences (avant / après) du Retoucheur et des Déclinaisons produit ;
+    # elle écrit une image (la carte) : pas pour « mcp »
+    "retouche": {
+        "libelle": "agent.boites.retouche",
+        "outils": ["carte_differences"],
+        "agents": ["retoucheur", "declinaisons"],
+        "mobile": False,
+    },
+    # t438 (08/11/2026, lot M5) : les contrôles du Directeur d'acteurs — réplique dite contre texte voulu, passages
+    # parlés et débit ; lecture, locale et gratuite (la transcription, payante, reste un geste de l'utilisateur)
+    "acteurs": {
+        "libelle": "agent.boites.acteurs",
+        "outils": ["controler_replique", "segments_voix"],
+        "agents": ["directeur_acteurs"],
+        "mobile": False,
+    },
+    # t439 (08/11/2026, lot M6) : le format d'une pub par réseau (lecture, local, gratuit)
+    "publicite": {
+        "libelle": "agent.boites.publicite",
+        "outils": ["verifier_format_pub"],
+        "agents": ["publicitaire"],
+        "mobile": False,
+    },
+    # t440 (08/11/2026, lot M7) : les contrôles de l'Artiste 2D de jeu — grille du pixel art, planche de sprites
+    "sprites_qc": {
+        "libelle": "agent.boites.sprites_qc",
+        "outils": ["analyser_pixel_art", "verifier_planche"],
+        "agents": ["artiste_2d"],
+        "mobile": False,
+    },
+    # t441 (08/11/2026, lot M8) : le rapport de poids web d'un GLB (lecture, local, gratuit)
+    "web3d": {
+        "libelle": "agent.boites.web3d",
+        "outils": ["rapport_web_glb"],
+        "agents": ["artiste_3d"],
         "mobile": False,
     },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)
@@ -119,7 +175,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.assets3d",
         "outils": ["pieces_analyser", "budgets_triangles", "comparatif3d_lire",   # t344 : + le tableau d'un comparatif
                    "mouvement_lire"],   # t343 : + le mouvement sur le rig (lecture)
-        "agents": ["mcp"],   # t345 : Claude Code lit pièces, budgets et comparatifs (lecture)
+        "agents": ["mcp", "artiste_3d"],   # t345 : Claude Code lit pièces, budgets et comparatifs ; t441 : + l'Artiste 3D
         "mobile": False,
     },
 }

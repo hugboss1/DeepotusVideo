@@ -97,3 +97,29 @@ select.mt-champ { max-width: 200px; }
 .mt-source a { color: var(--ink-soft); }
 .mt-source a:hover { color: var(--accent); }
 .mt-vide { color: var(--ink-soft); }
+
+/* ── t435 : la conversation avec un agent métier (panneau latéral) ── */
+.mt-btn--accent { border-color: var(--accent); color: var(--accent); align-self: flex-start; }
+.mt-btn--accent:disabled { opacity: .5; cursor: default; }
+.mt-conv {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); display: flex; flex-direction: column;
+  gap: 8px; padding: 10px 12px; box-sizing: border-box; background: var(--bg-panel); border-left: 1px solid var(--accent);
+  z-index: 50;
+}
+.mt-conv-tete { display: flex; align-items: center; gap: 8px; }
+.mt-conv-tete .mt-sous { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mt-fil { flex: 1; overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.mt-bulle { border: 1px solid var(--stroke); border-radius: var(--r); padding: 8px 10px; background: var(--bg-panel-2); }
+.mt-bulle p { margin: 0; white-space: pre-wrap; line-height: 1.5; }
+.mt-bulle--user { align-self: flex-end; max-width: 85%; border-color: var(--stroke-strong); }
+.mt-bulle--erreur { border-color: var(--danger, #c92a2a); color: var(--ink); }
+.mt-bulle-pied { margin-top: 6px; color: var(--ink-soft); font-size: 11px; }
+.mt-outils { margin: 6px 0 0; padding-left: 16px; font-size: 11px; color: var(--ink-soft); }
+.mt-outil--ko { opacity: .7; text-decoration: line-through; }
+.mt-suggestions { display: flex; flex-wrap: wrap; gap: 4px; }
+.mt-suggestions .mt-btn { white-space: normal; height: auto; min-height: 22px; text-align: left; }
+.mt-conv-saisie { display: flex; gap: 6px; align-items: flex-end; }
+.mt-champ--message { flex: 1; height: auto; padding: 6px 8px; resize: vertical; line-height: 1.45; }
+.mt-conv-note { margin: 0; color: var(--ink-soft); font-size: 11px; }
+.mt-carte-devis { margin-top: 8px; padding: 8px; border: 1px solid var(--accent); border-radius: var(--r); display: flex; flex-direction: column; gap: 6px; }
+.mt-carte-etat { margin: 0; color: var(--ink-soft); font-size: 11px; }

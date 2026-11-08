@@ -445,6 +445,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .cf-gal-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   font-size: 10.5px; color: var(--ink-muted); }
 .cf-gal-meta i { font-style: normal; }
+/* plateau (lot 1) : badge de categorie et filtre « Tous / Plateaux » — angles vifs, aucun rayon */
+.cf-gal-badge { font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; white-space: nowrap; }
+.cf-gal-filtre { display: flex; gap: 6px; margin: 0 0 8px; }
+.cf-gal-filtre button.on { border-color: var(--accent); color: var(--ink-strong); }
 
 /* ── fenetre etroite (iframe Game Assets sur petit ecran) ───────────────── */
 @media (max-width: 1180px) {

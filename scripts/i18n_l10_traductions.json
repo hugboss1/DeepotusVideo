@@ -14315,8 +14315,300 @@
   "fr": "La carte {v} mesure {v2}x{v3} px ; la géométrie du jeu impose {v4}x{v5} px",
   "en": "Card {v} measures {v2}x{v3} px; the deck geometry requires {v4}x{v5} px"
  },
+ "{nom} doit être un entier (reçu {valeur})": {
+  "fr": "{nom} doit être un entier (reçu {valeur})",
+  "en": "{nom} must be an integer (got {valeur})"
+ },
+ "Format non hexagonal : {fmt}": {
+  "fr": "Format non hexagonal : {fmt}",
+  "en": "Non-hexagonal format: {fmt}"
+ },
+ "colonnes et rangées doivent tenir entre 1 et {COTE_MAX}": {
+  "fr": "colonnes et rangées doivent tenir entre 1 et {COTE_MAX}",
+  "en": "columns and rows must be between 1 and {COTE_MAX}"
+ },
+ "{v} tuiles : {TUILES_MAX} au plus": {
+  "fr": "{v} tuiles : {TUILES_MAX} au plus",
+  "en": "{v} tiles: {TUILES_MAX} at most"
+ },
+ "{champ} : un nombre attendu": {
+  "fr": "{champ} : un nombre attendu",
+  "en": "{champ}: a number is expected"
+ },
+ "format non hexagonal : {fmt_id}": {
+  "fr": "format non hexagonal : {fmt_id}",
+  "en": "non-hexagonal format: {fmt_id}"
+ },
+ "dpi : un entier attendu": {
+  "fr": "dpi : un entier attendu",
+  "en": "dpi: an integer is expected"
+ },
+ "cadrage : un objet {zoom, x, y} attendu": {
+  "fr": "cadrage : un objet {zoom, x, y} attendu",
+  "en": "cadrage: an object {zoom, x, y} is expected"
+ },
+ "image illisible : {image}": {
+  "fr": "image illisible : {image}",
+  "en": "unreadable image: {image}"
+ },
+ "Création du plateau impossible : écriture refusée ({v})": {
+  "fr": "Création du plateau impossible : écriture refusée ({v})",
+  "en": "Board creation failed: write refused ({v})"
+ },
+ "image de travail trop grande : {mpx} Mpx pour {v} Mpx au plus ; réduisez le nombre de tuiles, la taille ou le dpi": {
+  "fr": "image de travail trop grande : {mpx} Mpx pour {v} Mpx au plus ; réduisez le nombre de tuiles, la taille ou le dpi",
+  "en": "working image too large: {mpx} MP for a {v} MP maximum; reduce the number of tiles, the size or the dpi"
+ },
+ "image source trop grande : {image} dépasse la limite de {mpx} Mpx": {
+  "fr": "image source trop grande : {image} dépasse la limite de {mpx} Mpx",
+  "en": "source image too large: {image} exceeds the {mpx} MP limit"
+ },
+ "Création du plateau impossible : erreur interne (rien n'a été créé)": {
+  "fr": "Création du plateau impossible : erreur interne (rien n'a été créé)",
+  "en": "Board creation failed: internal error (nothing was created)"
+ },
  "méthode inconnue": {
   "fr": "méthode inconnue",
   "en": "unknown method"
+ },
+ "Ancre inconnue.": {
+  "fr": "Ancre inconnue.",
+  "en": "Unknown anchor."
+ },
+ "Donne un nom à l'ancre.": {
+  "fr": "Donne un nom à l'ancre.",
+  "en": "Give the anchor a name."
+ },
+ "Nature d'ancre inconnue.": {
+  "fr": "Nature d'ancre inconnue.",
+  "en": "Unknown anchor type."
+ },
+ "Une ancre est une image.": {
+  "fr": "Une ancre est une image.",
+  "en": "An anchor must be an image."
+ },
+ "Ancre inconnue : {ancre_id}": {
+  "fr": "Ancre inconnue : {ancre_id}",
+  "en": "Unknown anchor: {ancre_id}"
+ },
+ "On vérifie une image ou une vidéo contre une ancre.": {
+  "fr": "On vérifie une image ou une vidéo contre une ancre.",
+  "en": "Only an image or a video can be checked against an anchor."
+ },
+ "Trop d'ancres : supprimes-en avant d'en poser une nouvelle.": {
+  "fr": "Trop d'ancres : supprimes-en avant d'en poser une nouvelle.",
+  "en": "Too many anchors: delete some before adding a new one."
+ },
+ "Ancre inconnue : {i}": {
+  "fr": "Ancre inconnue : {i}",
+  "en": "Unknown anchor: {i}"
+ },
+ "Chemin de fichier invalide.": {
+  "fr": "Chemin de fichier invalide.",
+  "en": "Invalid file path."
+ },
+ "Ce fichier est hors du dossier de données de l'application.": {
+  "fr": "Ce fichier est hors du dossier de données de l'application.",
+  "en": "This file is outside the app's data folder."
+ },
+ "Fichier introuvable.": {
+  "fr": "Fichier introuvable.",
+  "en": "File not found."
+ },
+ "Format de fichier non pris en charge.": {
+  "fr": "Format de fichier non pris en charge.",
+  "en": "Unsupported file format."
+ },
+ "La comparaison image par image demande deux vidéos.": {
+  "fr": "La comparaison image par image demande deux vidéos.",
+  "en": "A frame-by-frame comparison needs two videos."
+ },
+ "Une des vidéos ne donne aucune image lisible.": {
+  "fr": "Une des vidéos ne donne aucune image lisible.",
+  "en": "One of the videos has no readable frame."
+ },
+ "Conformer demande deux vidéos.": {
+  "fr": "Conformer demande deux vidéos.",
+  "en": "Conforming needs two videos."
+ },
+ "ffmpeg (conformer) : {v}": {
+  "fr": "ffmpeg (conformer) : {v}",
+  "en": "ffmpeg (conform): {v}"
+ },
+ "Donne au moins un critère à juger.": {
+  "fr": "Donne au moins un critère à juger.",
+  "en": "Give at least one criterion to judge."
+ },
+ "Donne au moins une image ou une vidéo à juger.": {
+  "fr": "Donne au moins une image ou une vidéo à juger.",
+  "en": "Give at least one image or video to judge."
+ },
+ "Catégorie de dépense inconnue.": {
+  "fr": "Catégorie de dépense inconnue.",
+  "en": "Unknown spending category."
+ },
+ "Infos vidéo illisibles : impossible de conformer.": {
+  "fr": "Infos vidéo illisibles : impossible de conformer.",
+  "en": "Unreadable video info: cannot conform."
+ },
+ "Cette paire de fichiers ne se compare pas (image contre son, par exemple).": {
+  "fr": "Cette paire de fichiers ne se compare pas (image contre son, par exemple).",
+  "en": "These two files cannot be compared (an image against a sound, for example)."
+ },
+ "L'avis ne juge que des images et des vidéos.": {
+  "fr": "L'avis ne juge que des images et des vidéos.",
+  "en": "The review only judges images and videos."
+ },
+ "Identifiant de tâche manquant.": {
+  "fr": "Identifiant de tâche manquant.",
+  "en": "Missing task id."
+ },
+ "Statut d'étape inconnu.": {
+  "fr": "Statut d'étape inconnu.",
+  "en": "Unknown step status."
+ },
+ "Cet agent métier n'est pas encore disponible.": {
+  "fr": "Cet agent métier n'est pas encore disponible.",
+  "en": "This specialist agent is not available yet."
+ },
+ "Conversation inconnue.": {
+  "fr": "Conversation inconnue.",
+  "en": "Unknown conversation."
+ },
+ "Message vide.": {
+  "fr": "Message vide.",
+  "en": "Empty message."
+ },
+ "L'agent répond déjà dans cette conversation.": {
+  "fr": "L'agent répond déjà dans cette conversation.",
+  "en": "The agent is already answering in this conversation."
+ },
+ "Les temps forts se mesurent sur un son ou une vidéo.": {
+  "fr": "Les temps forts se mesurent sur un son ou une vidéo.",
+  "en": "Beats are measured on a sound or a video."
+ },
+ "Les durées des plans sont des nombres de secondes.": {
+  "fr": "Les durées des plans sont des nombres de secondes.",
+  "en": "Shot durations are numbers of seconds."
+ },
+ "200 plans au plus.": {
+  "fr": "200 plans au plus.",
+  "en": "200 shots at most."
+ },
+ "Le titre se pose sur une vidéo.": {
+  "fr": "Le titre se pose sur une vidéo.",
+  "en": "A title goes on a video."
+ },
+ "Gabarit de titre inconnu.": {
+  "fr": "Gabarit de titre inconnu.",
+  "en": "Unknown title template."
+ },
+ "Titre vide ou horaires invalides (la fin doit suivre le début).": {
+  "fr": "Titre vide ou horaires invalides (la fin doit suivre le début).",
+  "en": "Empty title or invalid times (the end must follow the start)."
+ },
+ "Vidéo illisible.": {
+  "fr": "Vidéo illisible.",
+  "en": "Unreadable video."
+ },
+ "Le titre n'a pas pu être écrit.": {
+  "fr": "Le titre n'a pas pu être écrit.",
+  "en": "The title could not be written."
+ },
+ "ffmpeg (titre) : {v}": {
+  "fr": "ffmpeg (titre) : {v}",
+  "en": "ffmpeg (title): {v}"
+ },
+ "Aucune piste son lisible dans ce fichier.": {
+  "fr": "Aucune piste son lisible dans ce fichier.",
+  "en": "No readable sound track in this file."
+ },
+ "Musique vide : impossible de caler des coupes.": {
+  "fr": "Musique vide : impossible de caler des coupes.",
+  "en": "Empty music: cannot time cuts."
+ },
+ "Donne un nombre de plans ou leurs durées.": {
+  "fr": "Donne un nombre de plans ou leurs durées.",
+  "en": "Give a number of shots or their durations."
+ },
+ "Chaîne inconnue.": {
+  "fr": "Chaîne inconnue.",
+  "en": "Unknown chain."
+ },
+ "Ajoute une clé fal.ai (Réglages › Clés d'API) pour lancer une édition vidéo.": {
+  "fr": "Ajoute une clé fal.ai (Réglages › Clés d'API) pour lancer une édition vidéo.",
+  "en": "Add a fal.ai key (Settings › API keys) to launch a video edit."
+ },
+ "Une chaîne d'éditions part d'une vidéo.": {
+  "fr": "Une chaîne d'éditions part d'une vidéo.",
+  "en": "An edit chain starts from a video."
+ },
+ "Dis la seule chose à changer.": {
+  "fr": "Dis la seule chose à changer.",
+  "en": "Say the one thing to change."
+ },
+ "Résolution inconnue (480p ou 720p).": {
+  "fr": "Résolution inconnue (480p ou 720p).",
+  "en": "Unknown resolution (480p or 720p)."
+ },
+ "Une étape est déjà en cours sur cette chaîne.": {
+  "fr": "Une étape est déjà en cours sur cette chaîne.",
+  "en": "A step is already running on this chain."
+ },
+ "La carte des différences compare deux images.": {
+  "fr": "La carte des différences compare deux images.",
+  "en": "The difference map compares two images."
+ },
+ "Donne le texte attendu de la réplique.": {
+  "fr": "Donne le texte attendu de la réplique.",
+  "en": "Give the expected text of the line."
+ },
+ "On mesure la voix d'un son ou d'une vidéo.": {
+  "fr": "On mesure la voix d'un son ou d'une vidéo.",
+  "en": "Voice is measured on a sound or a video."
+ },
+ "Durée illisible.": {
+  "fr": "Durée illisible.",
+  "en": "Unreadable duration."
+ },
+ "Le format d'une pub se vérifie sur une vidéo.": {
+  "fr": "Le format d'une pub se vérifie sur une vidéo.",
+  "en": "An ad format is checked on a video."
+ },
+ "Réseau inconnu : {v}": {
+  "fr": "Réseau inconnu : {v}",
+  "en": "Unknown network: {v}"
+ },
+ "Ce contrôle porte sur une image.": {
+  "fr": "Ce contrôle porte sur une image.",
+  "en": "This check applies to an image."
+ },
+ "Colonnes et lignes : de 1 à 64.": {
+  "fr": "Colonnes et lignes : de 1 à 64.",
+  "en": "Columns and rows: from 1 to 64."
+ },
+ "La planche ({w}x{h}) ne se découpe pas en {colonnes}x{lignes} cases égales.": {
+  "fr": "La planche ({w}x{h}) ne se découpe pas en {colonnes}x{lignes} cases égales.",
+  "en": "The sheet ({w}x{h}) does not split into {colonnes}x{lignes} equal cells."
+ },
+ "Planche vide : aucune case n'a de pixel opaque (le fond doit être transparent).": {
+  "fr": "Planche vide : aucune case n'a de pixel opaque (le fond doit être transparent).",
+  "en": "Empty sheet: no cell has an opaque pixel (the background must be transparent)."
+ },
+ "Image trop grande pour ce contrôle (4096 px au plus).": {
+  "fr": "Image trop grande pour ce contrôle (4096 px au plus).",
+  "en": "Image too large for this check (4096 px at most)."
+ },
+ "Le rapport de poids lit un modèle .glb.": {
+  "fr": "Le rapport de poids lit un modèle .glb.",
+  "en": "The weight report reads a .glb model."
+ },
+ "Budget invalide.": {
+  "fr": "Budget invalide.",
+  "en": "Invalid budget."
+ },
+ "GLB illisible : {v}": {
+  "fr": "GLB illisible : {v}",
+  "en": "Unreadable GLB: {v}"
  }
 }

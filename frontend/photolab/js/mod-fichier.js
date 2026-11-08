@@ -620,6 +620,7 @@ export function initFichier(PL) {
   PL.actions["file.new"] = nouveau;
   PL.actions["file.open"] = ouvrir;
   PL.actions["file.save"] = enregistrer;
+  PL.enregistrerBibliotheque = enregistrer;     // plateau (lot 1) : mod-plateau enregistre le document avant de le découper
   PL.actions["file.saveAs"] = enregistrerSous;
   PL.actions["file.export.exportAs"] = exporter;
   PL.actions["pl.importer"] = importer;

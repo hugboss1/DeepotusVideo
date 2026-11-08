@@ -2269,6 +2269,8 @@
   "photolab.transformation.grille_4": {"fr": "4 × 4", "en": "4 × 4"},
   "photolab.transformation.grille_5": {"fr": "5 × 5", "en": "5 × 5"},
   "photolab.menu.importer": {"fr": "Ouvrir depuis l'ordinateur…", "en": "Open from computer…"},
+  "photolab.menu.decouper_hex": {"fr": "Découper en hexagones…", "en": "Cut into hexagons…"},
+  "photolab.plateau.erreur_enregistrement": {"fr": "Impossible d'enregistrer le document dans la Bibliothèque : la découpe est annulée.", "en": "Could not save the document to the Library: the cut is cancelled."},
   "photolab.export.tiff_calques": {"fr": "TIFF (avec calques)", "en": "TIFF (with layers)"},
   "photolab.export.pdf_page": {"fr": "PDF (une page, aplatie)", "en": "PDF (single page, flattened)"},
   "photolab.export.avert.aplati": {"fr": "Calques aplatis dans ce format.", "en": "Layers were flattened in this format."},
