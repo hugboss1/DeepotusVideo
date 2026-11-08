@@ -674,6 +674,37 @@ async def registre_lire(ctx: Ctx, tache: str) -> dict:
     t = r["totaux"]
     return _res(True, f"{t['n']} étape(s), estimé {t['estime_usd']} $, réel connu {t['reel_usd']} $, "
                       f"{t['duree_s']} s", r)
+# ---- t435 (08/11/2026, lot M2 « Méthodes ») : les gestes locaux de l'agent métier Monteur (boîte « monteur ») -----
+async def temps_forts_musique(ctx: Ctx, chemin: str) -> dict:
+    """t435 B5 : les temps forts mesurés d'une musique (tempo, temps, attaques, accents). Local, gratuit."""
+    from app.services import monteur as _MO
+    try:
+        a = await asyncio.to_thread(_MO.temps_forts, chemin)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    resume = (f"{a['duree_s']} s, {a['bpm'] or '?'} BPM, {len(a['temps_s'])} temps, {len(a['accents'])} accents")
+    return _res(True, resume, {**a, "attaques": a["attaques"][:200], "temps_s": a["temps_s"][:400]})
+
+
+async def caler_coupes(ctx: Ctx, chemin: str, n_plans: int = 0, durees: list | None = None) -> dict:
+    """t435 B5 : des plans dont les bords tombent sur les accents de la musique. Local, gratuit."""
+    from app.services import monteur as _MO
+    try:
+        c = await asyncio.to_thread(_MO.caler_coupes, chemin, n_plans, durees)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    return _res(True, f"{len(c['plans'])} plan(s), {c['sur_accent']} coupe(s) sur un accent", c)
+
+
+async def poser_titre(ctx: Ctx, video: str, texte: str, debut: float, fin: float, gabarit: str = "tiers_inferieur",
+                      sous_titre: str = "") -> dict:
+    """t435 B5 : grave un titre par l'APP (gabarits du Montage) sur une copie de la vidéo. Local, gratuit."""
+    from app.services import monteur as _MO
+    try:
+        t = await asyncio.to_thread(_MO.poser_titre, video, texte, debut, fin, gabarit, sous_titre)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    return _res(True, f"titre posé : {t['chemin']}", t)
 # ---- t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (boîte « plateau ») -------------------
 # Lecture et PROPOSITION seulement : la légende de la previs (couleur par entité / matière, faisceaux exclus) et les
 # trois caméras de couverture CALCULÉES depuis la caméra du plan — rien n'est rangé, capturé ni créé (ces gestes
@@ -2240,6 +2271,30 @@ OUTILS: dict[str, dict] = {
                       "description": "Lit le registre coût/temps d'une tâche : chaque étape, son devis, son coût "
                                      "réel connu et sa durée, avec les totaux. Gratuit.",
                       "schema": _o({"tache": dict(_T, description="identifiant de la tâche")}, ["tache"])},
+    # t435 : les gestes locaux de l'agent métier Monteur (boîte « monteur »)
+    "temps_forts_musique": {"nature": "lecture", "fn": temps_forts_musique,
+                            "description": "Mesure les temps forts d'une musique (ou de la piste son d'une vidéo) : "
+                                           "tempo en BPM, grille des temps, attaques et accents les plus forts, en "
+                                           "secondes. Local, gratuit.",
+                            "schema": _o({"chemin": dict(_T, description="son ou vidéo, relatif au dossier de données")},
+                                         ["chemin"])},
+    "caler_coupes": {"nature": "lecture", "fn": caler_coupes,
+                     "description": "Propose des plans dont les coupes tombent sur les accents d'une musique : soit "
+                                    "un nombre de plans, soit les durées voulues (chaque coupe tirée vers l'accent "
+                                    "ou le temps le plus proche). Local, gratuit.",
+                     "schema": _o({"chemin": dict(_T, description="la musique"),
+                                   "n_plans": {"type": "integer", "minimum": 2, "maximum": 200},
+                                   "durees": {"type": "array", "items": {"type": "number"},
+                                              "description": "durées voulues des plans, en secondes"}}, ["chemin"])},
+    "poser_titre": {"nature": "ecriture", "fn": poser_titre,
+                    "description": "Grave un titre composé par l'application (jamais par un modèle) sur une COPIE "
+                                   "d'une vidéo, avec un gabarit du Montage (plein_cadre, tiers_inferieur…) entre "
+                                   "deux instants. L'original n'est pas touché. Local, gratuit.",
+                    "schema": _o({"video": dict(_T, description="la vidéo"), "texte": dict(_T, description="le titre"),
+                                  "debut": {"type": "number"}, "fin": {"type": "number"},
+                                  "gabarit": dict(_T, description="gabarit des titres du Montage"),
+                                  "sous_titre": dict(_T, description="ligne secondaire (facultative)")},
+                                 ["video", "texte", "debut", "fin"])},
     # t433 : le catalogue des méthodes (boîte « methodes », lecture)
     "methodes_lire": {"nature": "lecture", "fn": methodes_lire,
                       "description": "Les méthodes de l'application (fiches pas à pas : étapes, contrôles qualité, "
