@@ -40,7 +40,8 @@ class FE {
   getAttribute(k) { return this.attrs[k]; }
   addEventListener(t, f) { (this.listeners[t] = this.listeners[t] || []).push(f); }
   removeEventListener(t, f) { this.listeners[t] = (this.listeners[t] || []).filter((x) => x !== f); }
-  focus() {}
+  focus() { globalThis.document.activeElement = this; }
+  querySelectorAll() { return tous(this, (e) => e !== this && (e.tag === "input" || e.tag === "select" || e.tag === "button" || e.tag === "a" || (e.tag === "canvas" && e.attrs.tabindex != null))); }
   setPointerCapture() {}
   releasePointerCapture() {}
   getBoundingClientRect() { return { width: this.width, height: this.height, left: 0, top: 0 }; }
@@ -66,7 +67,7 @@ globalThis.document = {
 let ouvertures = [];
 let retourOpen = {};
 globalThis.window = { open: (...a) => { ouvertures.push(a); return retourOpen; }, fetch: () => { throw new Error("fetch non injecté"); } };
-const touche = (key) => (docListeners.keydown || []).slice().forEach((f) => f({ key, preventDefault() {} }));
+const touche = (key, extra = {}) => { const e = { key, preventDefault() { this.vu = true; }, ...extra }; (docListeners.keydown || []).slice().forEach((f) => f(e)); return e; };
 
 const { ouvrirDecoupeHex } = await import("../dz-decoupe-hex.js");
 
@@ -143,7 +144,7 @@ const creer = () => champ("creer");
   const px = Math.round(g.largeurMm / 25.4 * 300) * Math.round(g.hauteurMm / 25.4 * 300);
   ok("3.0 le cas dépasse bien PIXELS_MAX", px > PIXELS_MAX, px);
   ok("3.1 30 x 16 : désactivé", creer().disabled === true);
-  ok("3.2 phrase des pixels", champ("borne").textContent === T("decoupehex.grille.pixels_max", { mpx: Math.round(px / 1e6), max: 150 }), champ("borne").textContent);
+  ok("3.2 phrase des pixels", champ("borne").textContent === T("decoupehex.grille.pixels_max", { mpx: Math.ceil(px / 1e6), max: 150 }), champ("borne").textContent);
   saisir("colonnes", 6); saisir("rangees", 4);
   ok("3.3 6 x 4 : actif", creer().disabled === false);
   await fermerTout();
@@ -349,6 +350,84 @@ const creer = () => champ("creer");
   await fermerTout();
   const c = banc(); c.ouvrir(); await attendre();
   ok("10.2 pas de doublon au second dialogue", tous(entete, (e) => e.tag === "link").length === 1);
+  await fermerTout();
+}
+
+// 11 après une ouverture bloquée, le jeu existe : plus rien ne relance la création
+{
+  const b = banc({ depart: { format: "hex_p90", colonnes: 6, rangees: 4 } });
+  retourOpen = null;
+  b.ouvrir(); await attendre();
+  creer().emet("click"); await attendre(); await attendre();
+  ok("11.1 « Créer » reste désactivé après la création", creer().disabled === true);
+  saisir("zoom", 1.3); saisir("colonnes", 5); saisir("nom", "autre"); saisir("format", "hex_p50");
+  ok("11.2 modifier un champ ne le réactive pas", creer().disabled === true);
+  creer().emet("click"); await attendre(); await attendre();
+  ok("11.3 un clic ne poste pas un second jeu", b.posts.length === 1 && b.images.length === 1, b.posts.length);
+  ok("11.4 les réglages sont inertes", ["format", "colonnes", "rangees", "zoom", "nom", "verso"].every((k) => champ(k).disabled === true));
+  champ("apercu").emet("wheel", { deltaY: -100 });
+  champ("apercu").emet("keydown", { key: "ArrowLeft" });
+  ok("11.5 molette et flèches inertes", Number(champ("zoom").value) === 1.3 && creer().disabled === true);
+  ok("11.6 le lien reste là", !!champ("lien"));
+  await fermerTout();
+}
+
+// 12 le focus : piégé dans le dialogue, rendu à la fermeture
+{
+  const avant = new FE("button");
+  avant.rendu = 0; avant.focus = function () { this.rendu++; globalThis.document.activeElement = this; };
+  globalThis.document.activeElement = avant;
+  const b = banc(); const p = b.ouvrir(); await attendre();
+  const cibles = tous(voile(), (e) => !e.disabled && (e.tag === "input" || e.tag === "select" || e.tag === "button" || e.tag === "a" || (e.tag === "canvas" && e.attrs.tabindex != null)));
+  ok("12.1 le focus part dans le dialogue", cibles.includes(globalThis.document.activeElement));
+  cibles[cibles.length - 1].focus();
+  const t1 = touche("Tab");
+  ok("12.2 Tab depuis le dernier revient au premier", t1.vu === true && globalThis.document.activeElement === cibles[0], String(globalThis.document.activeElement && globalThis.document.activeElement.tag));
+  const t2 = touche("Tab", { shiftKey: true });
+  ok("12.3 Maj+Tab depuis le premier va au dernier", t2.vu === true && globalThis.document.activeElement === cibles[cibles.length - 1]);
+  touche("Tab");
+  touche("Tab");
+  ok("12.4 Tab avance d'un champ", globalThis.document.activeElement === cibles[1]);
+  ok("12.5 le canvas est atteignable au clavier", cibles.some((e) => e.tag === "canvas"));
+  touche("Escape");
+  await p;
+  ok("12.6 le focus est rendu à l'élément d'avant", avant.rendu === 1 && globalThis.document.activeElement === avant, avant.rendu);
+  globalThis.document.activeElement = null;
+}
+
+// 13 réseau tombé, flèches, remplacement en cours de création
+{
+  const b = banc({ depart: { format: "hex_p90", colonnes: 6, rangees: 4 } });
+  b.args.fetch = async () => { throw new TypeError("Failed to fetch"); };
+  b.ouvrir(); await attendre();
+  creer().emet("click"); await attendre(); await attendre();
+  ok("13.1 fetch rejeté : phrase traduite, pas le texte du navigateur", champ("message").textContent === T("decoupehex.erreur.reseau") && !!voile(), champ("message").textContent);
+  ok("13.2 « Créer » de nouveau actif", creer().disabled === false);
+  await fermerTout();
+
+  const c = banc({ largeur: 8000, hauteur: 8000, depart: { format: "hex_p90", colonnes: 6, rangees: 4 } });
+  c.ouvrir(); await attendre();
+  const cv = champ("apercu");
+  ok("13.3 l'aria-label annonce les flèches", /fl[eè]ches/.test(cv.attrs["aria-label"]) && cv.attrs["aria-label"] === T("decoupehex.cadrage.apercu"));
+  const k1 = cv.emet("keydown", { key: "ArrowDown" });
+  cv.emet("keydown", { key: "ArrowRight" });
+  cv.emet("keydown", { key: "a" });
+  creer().emet("click"); await attendre(); await attendre();
+  const cad = c.posts[0].corps.cadrage;
+  ok("13.4 flèches : pas de 0,02, l'image suit la flèche", k1.vu === true && proche(cad.y, 0.48, 1e-9) && proche(cad.x, 0.48, 1e-9), JSON.stringify(cad));
+  await c.promesse;
+  await fermerTout();
+
+  let debloque; const attente = new Promise((rs) => { debloque = rs; });
+  const e = banc({ depart: { format: "hex_p90", colonnes: 6, rangees: 4 } });
+  e.args.fournirImage = async () => { await attente; return "fond.png"; };
+  const p1 = e.ouvrir(); await attendre();
+  creer().emet("click"); await attendre();
+  const f = banc(); const p2 = f.ouvrir(); await attendre();
+  ok("13.5 pas de second dialogue pendant une création", tous(racine, estVoile).length === 1);
+  debloque(); await attendre(); await attendre();
+  const [r1, r2] = [await p1, await p2];
+  ok("13.6 le dialogue en cours n'est pas résolu à null ; l'appel rend sa promesse", r1 && r1.deck.id === "deck_00000042" && r2 && r2.deck.id === r1.deck.id, JSON.stringify([r1, r2]));
   await fermerTout();
 }
 

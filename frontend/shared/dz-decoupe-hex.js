@@ -26,10 +26,11 @@ const PPP_MIN = 300;
 const ZOOM_MAX = 8;
 const APERCU_MAX = 480;         // plus grand côté du canvas d'aperçu, en pixels
 const VITESSE_MOLETTE = 0.002;
+const PAS_CLAVIER = 0.02;       // fraction de la course du cadre, par appui sur une flèche
 const ROUTE = "/api/cards/decks/plateau";
 const FEUILLE = new URL("./dz-decoupe-hex.css", import.meta.url).href;
 
-let fermerCourant = null;       // un seul dialogue à la fois
+let courant = null;             // un seul dialogue à la fois : { fin, occupe(), promesse }
 
 /** Pixels de l'image de travail d'une grille au dpi par défaut (même formule que plateau.pixels_travail). */
 function pixelsTravail(g) {
@@ -47,7 +48,7 @@ function verifier(S) {
   const g = grille(S.format, S.colonnes, S.rangees);
   const px = pixelsTravail(g);
   if (px > PIXELS_MAX) {
-    return { cle: "decoupehex.grille.pixels_max", vars: { mpx: Math.round(px / 1e6), max: Math.round(PIXELS_MAX / 1e6) } };
+    return { cle: "decoupehex.grille.pixels_max", vars: { mpx: Math.ceil(px / 1e6), max: Math.floor(PIXELS_MAX / 1e6) } };
   }
   return { g };
 }
@@ -86,8 +87,11 @@ function sommets(cx, cy, r, pointe) {
 }
 
 export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fournirImage, T, fetch = (...a) => window.fetch(...a), depart } = {}) {
-  if (fermerCourant) fermerCourant(null);
+  // une création en cours (image rangée, POST parti) ne se remplace pas : on rend la promesse du dialogue ouvert
+  if (courant && courant.occupe()) return courant.promesse;
+  if (courant) courant.fin(null);
   poserFeuille();
+  const avant = document.activeElement;      // rendu à la fermeture
 
   const d = depart || {};
   const S = {
@@ -98,6 +102,7 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
     x: borner(d.x == null ? 0.5 : Number(d.x), 0, 1),
     y: borner(d.y == null ? 0.5 : Number(d.y), 0, 1),
     occupe: false,
+    cree: false,                 // le jeu existe : plus rien ne doit relancer la création
   };
   const dejaRangees = {};        // étendue -> nom de l'image déjà rangée dans la Bibliothèque
 
@@ -123,6 +128,7 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
   const canvas = marque(el("canvas", "dz-dh-apercu"), "apercu");
   canvas.setAttribute("role", "img");
   canvas.setAttribute("aria-label", T("decoupehex.cadrage.apercu"));
+  canvas.setAttribute("tabindex", "0");
   canvas.title = T("decoupehex.cadrage.apercu");
   const compteur = marque(el("div", "dz-dh-note"), "tuiles");
   gauche.appendChild(canvas);
@@ -209,6 +215,8 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
   const etendue = () => { const v = verifier(S); return v.g || null; };
   const rectCourant = (g) => cadrageCouvrant(largeur, hauteur, g.largeurMm, g.hauteurMm, S.zoom, S.x, S.y);
 
+  let accent = null;             // lu une fois (jeton de la charte)
+
   function dessiner(g) {
     const k = Math.min(APERCU_MAX / g.largeurMm, APERCU_MAX / g.hauteurMm);
     canvas.width = Math.max(1, Math.round(g.largeurMm * k));
@@ -222,8 +230,9 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
     const f = FORMATS_HEX[S.format];
     const rayon = f.p / Math.sqrt(3) * (canvas.width / g.largeurMm);
     const pxMm = canvas.width / g.largeurMm;
-    let accent = "";
-    try { accent = String(window.getComputedStyle(voile).getPropertyValue("--accent") || "").trim(); } catch (e) { accent = ""; }
+    if (accent === null) {
+      try { accent = String(window.getComputedStyle(voile).getPropertyValue("--accent") || "").trim(); } catch (e) { accent = ""; }
+    }
     // chaque contour, plein : un trait sombre sous le trait clair (lisible sur toute image) ; le fond perdu n'est pas dessiné
     const trait = accent || "#ffffff";
     if (ctx.setLineDash) ctx.setLineDash([]);
@@ -245,7 +254,7 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
   function rafraichir() {
     const v = verifier(S);
     borneMsg.textContent = v.g ? "" : T(v.cle, v.vars);
-    creer.disabled = !v.g || S.occupe;
+    creer.disabled = !v.g || S.occupe || S.cree;
     if (!v.g) {
       compteur.textContent = "";
       infoPpp.textContent = "";
@@ -275,12 +284,13 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
   ["input", "change"].forEach((t) => inZoom.addEventListener(t, () => poserZoom(Number(inZoom.value))));
   canvas.addEventListener("wheel", (ev) => {
     ev.preventDefault();
+    if (S.cree) return;
     poserZoom(S.zoom * Math.exp(-ev.deltaY * VITESSE_MOLETTE));
   });
   let prise = null;
   canvas.addEventListener("pointerdown", (ev) => {
     const g = etendue();
-    if (!g) return;
+    if (!g || S.cree) return;
     prise = { px: ev.clientX, py: ev.clientY, r: rectCourant(g), x: S.x, y: S.y };
     if (canvas.setPointerCapture && ev.pointerId != null) { try { canvas.setPointerCapture(ev.pointerId); } catch (e) { /* capture refusée : le glisser continue dans le canvas */ } }
   });
@@ -299,27 +309,48 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
   });
   const lacher = () => { prise = null; };
   canvas.addEventListener("pointerup", lacher);
+  // clavier : les flèches déplacent le cadre d'un petit pas (même sens que le glisser : l'image suit la flèche)
+  canvas.addEventListener("keydown", (ev) => {
+    const pas = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[ev.key];
+    if (!pas || S.cree) return;
+    ev.preventDefault();
+    S.x = borner(S.x - pas[0] * PAS_CLAVIER, 0, 1);
+    S.y = borner(S.y - pas[1] * PAS_CLAVIER, 0, 1);
+    rafraichir();
+  });
   canvas.addEventListener("pointercancel", lacher);
 
-  return new Promise((resoudre) => {
+  const promesse = new Promise((resoudre) => {
     let clos = false;
     const fin = (valeur) => {
       if (clos) return;
       clos = true;
       document.removeEventListener("keydown", surTouche);
       voile.remove();
-      if (fermerCourant === fin) fermerCourant = null;
+      if (courant && courant.fin === fin) courant = null;
+      try { if (avant && avant.focus) avant.focus(); } catch (e) { /* l'élément n'existe plus : rien à rendre */ }
       resoudre(valeur);
     };
-    function surTouche(ev) { if (ev && ev.key === "Escape" && !S.occupe) { ev.preventDefault(); fin(null); } }
-    fermerCourant = fin;
+    function surTouche(ev) {
+      if (!ev) return;
+      if (ev.key === "Escape" && !S.occupe) { ev.preventDefault(); fin(null); }
+      else if (ev.key === "Tab") {                       // le Tab reste dans le dialogue (aria-modal)
+        const f = Array.prototype.slice.call(voile.querySelectorAll("input, select, button, a, canvas[tabindex]"))
+          .filter((x) => !x.disabled && !x.hidden);
+        if (!f.length) return;
+        ev.preventDefault();
+        const i = f.indexOf(document.activeElement);
+        f[((ev.shiftKey ? (i < 0 ? 0 : i - 1) : i + 1) + f.length) % f.length].focus();
+      }
+    }
+    courant = { fin, occupe: () => S.occupe, promesse: null };
     document.addEventListener("keydown", surTouche);
     croix.addEventListener("click", () => { if (!S.occupe) fin(null); });
     annuler.addEventListener("click", () => { if (!S.occupe) fin(null); });
 
     async function lancer() {
       const v = verifier(S);
-      if (!v.g || S.occupe) return;
+      if (!v.g || S.occupe || S.cree) return;
       S.occupe = true;
       message.textContent = T("decoupehex.dialogue.creation");
       message.className = "dz-dh-msg";
@@ -335,7 +366,12 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
         if (nom) corpsPost.name = nom;
         const verso = inVerso.value.trim();
         if (verso) corpsPost.verso_commun = verso;
-        const rep = await fetch(ROUTE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpsPost) });
+        let rep;
+        try {
+          rep = await fetch(ROUTE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpsPost) });
+        } catch (e) {
+          throw new Error(T("decoupehex.erreur.reseau"));     // le texte du navigateur est en anglais : on donne le nôtre
+        }
         const j = await rep.json().catch(() => ({}));
         if (!rep.ok) throw new Error(detailDe(j) || T("decoupehex.erreur.http", { code: rep.status }));
         const adresse = "/cardforge/?deck=" + encodeURIComponent(j.deck.id);
@@ -350,7 +386,9 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
         lien.textContent = T("decoupehex.dialogue.ouvrir_lien");
         message.appendChild(lien);
         S.occupe = false;
-        creer.disabled = true;
+        S.cree = true;
+        [selFormat, inCol, inRan, inZoom, inNom, inVerso].forEach((c) => { c.disabled = true; });
+        rafraichir();
         resoudre({ deck: j.deck, tuiles: j.tuiles });
       } catch (e) {
         S.occupe = false;
@@ -363,4 +401,6 @@ export async function ouvrirDecoupeHex({ largeur, hauteur, apercu, nomImage, fou
     rafraichir();
     try { selFormat.focus(); } catch (e) { /* pas de focus : le dialogue reste utilisable */ }
   });
+  courant.promesse = promesse;
+  return promesse;
 }

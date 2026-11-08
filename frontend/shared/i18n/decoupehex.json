@@ -1,5 +1,5 @@
 {
-  "decoupehex.cadrage.apercu": {"fr": "Aperçu de la découpe : glisser pour déplacer l'image, molette pour zoomer", "en": "Cut preview: drag to move the image, scroll to zoom"},
+  "decoupehex.cadrage.apercu": {"fr": "Aperçu de la découpe : glisser ou flèches du clavier pour déplacer l'image, molette pour zoomer", "en": "Cut preview: drag or use the arrow keys to move the image, scroll to zoom"},
   "decoupehex.cadrage.ppp": {"fr": "Définition : {ppp} ppp", "en": "Resolution: {ppp} ppi"},
   "decoupehex.cadrage.ppp_faible": {"fr": "Sous {min} ppp : l'impression sera moins nette. Prenez une image plus grande ou dézoomez.", "en": "Below {min} ppi: the print will be softer. Use a larger image or zoom out."},
   "decoupehex.cadrage.zoom": {"fr": "Zoom", "en": "Zoom"},
@@ -10,6 +10,7 @@
   "decoupehex.dialogue.ouvrir_lien": {"fr": "Ouvrir le jeu", "en": "Open the deck"},
   "decoupehex.dialogue.titre": {"fr": "Découper en hexagones", "en": "Cut into hexagons"},
   "decoupehex.erreur.http": {"fr": "La création a échoué (code {code}).", "en": "Creation failed (code {code})."},
+  "decoupehex.erreur.reseau": {"fr": "Le serveur ne répond pas : la création n'a pas pu partir.", "en": "The server is not responding: the creation could not be sent."},
   "decoupehex.format.hex_f50": {"fr": "50 mm, côté plat en haut", "en": "50 mm, flat side up"},
   "decoupehex.format.hex_f635": {"fr": "63,5 mm, côté plat en haut", "en": "63.5 mm, flat side up"},
   "decoupehex.format.hex_f75": {"fr": "75 mm, côté plat en haut", "en": "75 mm, flat side up"},

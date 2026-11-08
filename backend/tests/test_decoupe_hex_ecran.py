@@ -104,7 +104,7 @@ def test_aucune_chaine_en_dur_dans_le_module():
     code = re.sub(r"console\.\w+\([^;]*\);", "", CODE)
     lits = re.findall(r'"((?:[^"\\\n]|\\.)*)"|\'((?:[^\'\\\n]|\\.)*)\'|`((?:[^`\\]|\\.)*)`', code)
     lits = [a or b or c for a, b, c in lits]
-    valeurs = {"Escape", "Content-Type", "application/json", "POST"}        # comparées ou protocolaires, jamais affichées
+    valeurs = {"Escape", "Tab", "Content-Type", "application/json", "POST"}        # comparées ou protocolaires, jamais affichées
     durs = [t for t in lits if not t.startswith(("decoupehex.", "commun.")) and t not in valeurs
             and (re.search(r"[À-ÖØ-öø-ÿ«»’…—]", t) or re.search(r"\b[A-Z][a-z]{2,}", t)
                  or re.search(r"[a-z]{3,} [a-z]{3,} [a-z]{3,}", t))]
