@@ -9,13 +9,15 @@
 // (couleurs, épaisseur, opacité ; le reste bascule à mi-chemin), modes étapes / distance / couleur lissée.
 // T5 (t454) Fusion : remplacer la trajectoire (chemin vivant, invisible, protégé), inverser trajectoire et ordre,
 // orienter selon la tangente, régler.
+// T6 (t455) Briques de l'interface : annuler la fusion, cible protégée d'un Ctrl+clic, réglages par défaut des
+// dialogues ; une copie générée n'est jamais une cible des opérations.
 import { createRequire } from "node:module";
 import { polylignes_objet, fournirMartinez, martinez, versMulti, aplatir_objet, aire_multi } from "../js/mod-bool.js";
 import { op_repeter, op_repetition_regler, op_fusionner, op_fusion_trajectoire, op_fusion_inverser_trajectoire, op_fusion_inverser_ordre,
-         op_fusion_regler } from "../js/mod-repeter.js";
+         op_fusion_regler, op_fusion_annuler, id_non_genere, repetition_defauts } from "../js/mod-repeter.js";
 import { op_nettoyer } from "../js/mod-traces.js";
 import { derives_rafraichir, op_derive_detacher } from "../js/mod-vivants.js";
-import { parserDoc } from "../js/mod-doc.js";
+import { parserDoc, op_supprimer } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
 
 fournirMartinez(createRequire(import.meta.url)("../vendor/martinez.umd.js"));
@@ -799,6 +801,67 @@ const parId = (g, id) => g.enfants.find((e) => e.id === id);
   const v = fusionAvecChemin();
   v.d.calques.push({ id: "c2", nom: "v", visible: true, verrou: true, objets: [{ id: "tv", type: "path", d: "M0 0 L50 0", style: {} }] });
   ok("trajectoire sur un calque verrouillé : refus", refus(() => op_fusion_trajectoire(v.d, v.gid, "tv")) === T("vectorlab.repeter.verrou"));
+}
+
+/* ── T6 (t455) briques de l'interface : annuler la fusion, cible protégée, réglages par défaut ── */
+{
+  const { d, gid } = fusionAvecChemin();
+  op_fusion_trajectoire(d, gid, "t");
+  op_fusion_inverser_ordre(d, gid);
+  const avant = objets(d).map((o) => o.id);
+  const ids = op_fusion_annuler(d, gid);
+  ok("annuler la fusion : le groupe disparaît, trajectoire puis B puis A à sa place (ordre de la fusion)", objets(d).map((o) => o.id).join() === avant.join().replace(gid, "t,b,a"), objets(d).map((o) => o.id).join());
+  ok("annuler la fusion : rend les ids de A et B", JSON.stringify(ids) === '["b","a"]', JSON.stringify(ids));
+  ok("annuler la fusion : la trajectoire retrouve son style", objets(d).find((o) => o.id === "t").style.contour === "#123456");
+  ok("annuler la fusion : plus aucun intermédiaire", !tousIds(d).some((i) => i.includes("_f")));
+  ok("annuler la fusion : A et B gardent leur place sur la trajectoire", procheDe(centre(objets(d).find((o) => o.id === "a")), 0, 100));
+  ok("annuler une non-fusion : refus", refus(() => op_fusion_annuler(doc(carre("q")), "q")) === T("vectorlab.fusion.pas_fusion", { id: "q" }));
+  const v = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  const vg = op_fusionner(v, ["a", "b"], {});
+  v.calques[0].verrou = true;
+  const av = JSON.stringify(v);
+  ok("annuler la fusion sur un calque verrouillé : refus sans trace", refus(() => op_fusion_annuler(v, vg)) === T("vectorlab.repeter.verrou") && JSON.stringify(v) === av);
+  // une fusion DANS un groupe : A et B restent dans le groupe
+  const n = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20), carre("z", 0, 200));
+  const ng = op_fusionner(n, ["a", "b"], {});
+  objets(n).splice(0, 2, { id: "G", type: "groupe", style: {}, enfants: [objets(n)[0], objets(n)[1]] });
+  op_fusion_annuler(n, ng);
+  ok("annuler une fusion groupée : A et B restent dans le groupe", objets(n)[0].enfants.map((e) => e.id).join() === "a,b,z", objets(n)[0].enfants.map((e) => e.id).join());
+}
+{
+  const d = doc(carre("a"), carre("b", 120, 40));
+  const gid = op_repeter(d, ["a", "b"], "radiale", { nombre: 3, rayon: 50 });
+  const src = objets(d)[0].enfants[0].id;
+  ok("cible protégée : une copie → le groupe vivant", id_non_genere(d, `${gid}_r1`) === gid);
+  ok("cible protégée : l'intérieur d'une copie → le groupe vivant", id_non_genere(d, `${gid}_r1_2`) === gid);
+  ok("cible protégée : la source reste ciblable", id_non_genere(d, src) === src && id_non_genere(d, "a") === "a");
+  ok("cible protégée : le groupe lui-même et un id inconnu restent", id_non_genere(d, gid) === gid && id_non_genere(d, "nope") === "nope");
+  const e = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  const eg = op_fusionner(e, ["a", "b"], {});
+  ok("cible protégée : un intermédiaire de fusion → la fusion", id_non_genere(e, `${eg}_f2`) === eg);
+  // une répétition rangée dans un groupe : le Ctrl+clic vise la répétition, pas le groupe du dessus
+  const n = doc(carre("a"));
+  const ng = op_repeter(n, ["a"], "radiale", { nombre: 3, rayon: 40 });
+  n.calques[0].objets = [{ id: "G", type: "groupe", style: {}, enfants: n.calques[0].objets }];
+  ok("cible protégée dans un groupe : la répétition, pas le groupe", id_non_genere(n, `${ng}_r2`) === ng, id_non_genere(n, `${ng}_r2`));
+}
+{
+  const d = doc(carre("a"), carre("b", 300, 300), { id: "t", type: "texte", x: 0, y: 0, texte: "x", style: {} });
+  const r = repetition_defauts(d, ["a"], "radiale");
+  ok("réglages par défaut : radiale", r && r.nombre === 8 && pres(r.rayon, 10 * Math.SQRT2) && r.orienter === true, JSON.stringify(r));
+  ok("réglages par défaut : grille", JSON.stringify(repetition_defauts(d, ["a"], "grille")) === JSON.stringify({ lignes: 3, colonnes: 3, ecartX: 0, ecartY: 0, decalage: "aucun", miroirLignes: false, miroirColonnes: false }));
+  ok("réglages par défaut : plusieurs objets groupés (demi-diagonale de l'ensemble)", pres(repetition_defauts(d, ["a", "b"], "radiale").rayon, Math.hypot(230, 280) / 2), repetition_defauts(d, ["a", "b"], "radiale").rayon);
+  ok("réglages par défaut : rien, un texte ou un mode inconnu → null", repetition_defauts(d, [], "radiale") === null && repetition_defauts(d, ["t"], "radiale") === null && repetition_defauts(d, ["a"], "spirale") === null);
+}
+{
+  // une copie générée n'est jamais une cible des opérations (_objetsCibles), ni son intérieur
+  const d = doc(carre("a"), carre("b", 120, 40));
+  const gid = op_repeter(d, ["a", "b"], "radiale", { nombre: 3, rayon: 50 });
+  const avant = JSON.stringify(d);
+  op_supprimer(d, [`${gid}_r1`, `${gid}_r1_1`]);
+  ok("supprimer une copie générée (ou son intérieur) : rien ne bouge", JSON.stringify(d) === avant);
+  op_supprimer(d, ["a"]);
+  ok("la source, elle, reste une cible (Ctrl+clic)", !JSON.stringify(objets(d)[0].enfants[0]).includes('"id":"a"'));
 }
 
 if (echecs.length) {

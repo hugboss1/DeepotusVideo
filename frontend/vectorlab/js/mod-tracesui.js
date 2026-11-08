@@ -15,8 +15,9 @@ export const PATHFINDER = [
 const _esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 // le formulaire dans la page : { titre, champs: [{ id, type: curseur | case | nombre | choix, libelle, valeur, min, max,
-// pas, options: [[valeur, libelle]] }], apercu?: (valeurs) => texte } -> Promise(valeurs | null)
-function _formulaireDom(spec) {
+// pas, options: [[valeur, libelle]] }], apercu?: (valeurs) => texte, surChange?: (valeurs) => void } -> Promise(valeurs | null)
+// t455 : exporté pour les dialogues de mod-repeterui.js ; surChange sert leur aperçu en direct sur le document
+export function formulaire_dom(spec) {
   return new Promise((resoudre) => {
     let hote = document.querySelector("#vlTracesDlg");
     if (!hote) { hote = document.createElement("div"); hote.id = "vlTracesDlg"; hote.className = "vl-dlg hidden"; document.body.appendChild(hote); }
@@ -43,6 +44,7 @@ function _formulaireDom(spec) {
     const majApercu = () => {
       for (const o of hote.querySelectorAll("output[data-sortie]")) o.textContent = hote.querySelector(`[data-id="${o.dataset.sortie}"]`).value;
       const p = hote.querySelector(".trc-apercu"); if (p) p.textContent = spec.apercu(lire());
+      if (spec.surChange) spec.surChange(lire());
     };
     const fin = (ok) => { const v = ok ? lire() : null; hote.classList.add("hidden"); hote.innerHTML = ""; document.removeEventListener("keydown", touche, true); resoudre(v); };
     const touche = (ev) => { if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); fin(false); } else if (ev.key === "Enter") { ev.preventDefault(); ev.stopPropagation(); fin(true); } };
@@ -64,7 +66,7 @@ export function traces_actions(VL) {
   const poser = (ids) => { if (Array.isArray(ids) && ids.length) VL.setSelection(ids); };
   let dernier = null;                                  // { mode } Pathfinder, ou { bool } booléen d'origine
   const A = {
-    demander: (spec) => _formulaireDom(spec),
+    demander: (spec) => formulaire_dom(spec),
     dernier: () => dernier,
     noterBooleen: (op) => { dernier = { bool: op }; },
     pathfinder: (mode) => { dernier = { mode }; poser(VL.executer(op_pathfinder, sel(), mode)); },

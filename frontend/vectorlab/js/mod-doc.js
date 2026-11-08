@@ -501,8 +501,8 @@ function* _objetsCibles(doc, ids, { ignorerVerrouilles = true } = {}) {
   function* dans(c, liste) {
     for (let i = liste.length - 1; i >= 0; i--) {
       const o = liste[i];
-      if (voulu.has(o.id) && !o.verrou) yield { calque: liste === c.objets ? c : { id: c.id, nom: c.nom, verrou: c.verrou, objets: liste }, objet: o, i };
-      if (o.type === "groupe" && Array.isArray(o.enfants)) yield* dans(c, o.enfants);
+      if (voulu.has(o.id) && !o.verrou && !o.genere) yield { calque: liste === c.objets ? c : { id: c.id, nom: c.nom, verrou: c.verrou, objets: liste }, objet: o, i };
+      if (o.type === "groupe" && Array.isArray(o.enfants) && !o.genere) yield* dans(c, o.enfants);   // t455 : une copie générée n'est jamais une cible
     }
   }
   for (const c of doc.calques) {

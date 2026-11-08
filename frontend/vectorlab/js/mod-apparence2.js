@@ -187,6 +187,7 @@ export function initApparence2(VL) {
       ${o1 && o1.derive && sel === 1 ? `<details open><summary class="px-tete">${T("vectorlab.apparence.vivant")}</summary>
         <div class="ap-ligne"><i class="px-note" style="flex:1">${o1.derive.decalage > 0 ? "+" : ""}${T("vectorlab.apparence.vivant_note", { d: esc(o1.derive.decalage), source: esc(o1.derive.source) })}</i><button id="a2Detacher" title="${T("vectorlab.apparence.vivant_detacher_titre")}">${dzi("dz-edit-detacher", 16)}${T("vectorlab.apparence.detacher")}</button></div>
       </details>` : ""}
+      ${o1 && sel === 1 && VL.repeterUI ? VL.repeterUI.sectionApparence(o1) : ""}
       <details ${etat.outil === "pinceauv" ? "open" : ""}><summary class="px-tete">${T("vectorlab.apparence.pinceauv")}</summary>
         <div class="ap-ligne"><span>${T("vectorlab.apparence.largeur")}</span><input type="number" id="a2PvL" min="0.5" step="0.5" value="${etat.pinceauv.largeur}"/><select id="a2PvP">${PROFILS.map((p) => `<option value="${p.id}"${etat.pinceauv.profil === p.id ? " selected" : ""}>${p.libelle}</option>`).join("")}</select></div>
         <div class="ap-ligne"><span>Angle</span><input type="number" id="a2PvA" step="5" value="${etat.pinceauv.angle}" title="${T("vectorlab.apparence.angle_plume")}"/></div>
@@ -263,6 +264,7 @@ export function initApparence2(VL) {
     on("a2Decalage", "input", (ev) => { $("#a2DecalageVal").textContent = ev.target.value + " %"; });
     on("a2Decalage", "change", (ev) => VL.executer(op_textechemin_decalage, etat.selection[0], +ev.target.value));
     on("a2Detacher", "click", () => VL.executer(op_derive_detacher, etat.selection[0]));
+    on("a2VivantOptions", "click", () => VL.repeterUI && VL.repeterUI.action("options").faire());   // t455
     on("a2SymFin", "click", () => VL.actions.symboles.terminer());
     on("a2SymAnnule", "click", () => VL.actions.symboles.abandonner());
     // pinceau vectoriel

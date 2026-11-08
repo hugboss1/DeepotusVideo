@@ -172,31 +172,32 @@ un groupe ordinaire, dont les copies reçoivent des ids `o<n>` neufs (`_idLibre`
   trajectoire disparue, inversions avec et sans chemin, ordre (couleurs et places), orienter (angles, centres,
   aires), régler, refus traduits. 30/30 mutants tués ; jeux T1-T4 réajustés et repassés.
 
-### T6 (t455) — Copies protégées et câblage UI
+### T6 (t455) — Copies protégées et câblage UI (FAIT)
 
 - **Protection** :
-  - l'itérateur des cibles (R11) saute les enfants `genere` ;
-  - un clic sur une copie sélectionne le groupe vivant ;
-  - les ops qui reçoivent un id généré refusent.
-  - Ces règles ont leur banc.
-- **Menus** (`mod-menus.js`), menu Objet :
-  - bloc « Répétition » : Radiale, Grille, Miroir, Options de répétition…, Décomposer ;
-  - bloc « Fusion » : Créer (**Ctrl+Alt+B**, raccourci à vérifier libre), Options de fusion…, Annuler la fusion,
-    Décomposer, Remplacer la trajectoire, Inverser la trajectoire, Inverser l'ordre.
-  - Chaque entrée a son `peut()` exact dans `mod-charpente.js`. « Annuler la fusion » rend A et B seuls.
-- **Dialogues** (`VL.demander`, sur le modèle de `mod-tracesui.js`) :
-  - Options de répétition : réglages du mode, préréglage « Hexagones » ;
-  - Options de fusion : mode, étapes ou pas, orienter.
-  - Tous les deux ont un **aperçu en direct** sur le document : chaque changement passe par l'op de réglage, et
-    Annuler revient en arrière.
-- **Onglet Apparence**, section « vivant » :
-  - un objet répété ou fondu y montre sa recette en une ligne, avec un bouton « Options… » et le bouton
-    « Détacher » existant (qui décompose) ;
-  - c'est une édition de base, consignée dans `t450.py`.
-- Clés FR/EN `vectorlab.repeter.*` et `vectorlab.fusion.*`. Les phrases d'aide de la barre d'état ne s'appliquent
-  pas : elles décrivent les outils, pas les commandes, comme décidé en D1.
-- Banc `qa/repeterui.test.mjs`, avec un VL factice comme `tracesui` : grisage, appels, annulation d'un dialogue,
-  libellés traduits.
+  - `_objetsCibles` (`mod-doc.js`) ne rend jamais une copie générée ni son intérieur : aucune opération ne la vise ;
+  - un Ctrl+clic sur une copie (ou l'intérieur d'une copie, ou un intermédiaire) vise le groupe vivant le plus proche
+    (`id_non_genere`, câblé dans `mod-tools.js`) ; la source reste ciblable. Un clic simple remontait déjà au sommet.
+- **Menu Vecteur** (il n'y a pas de menu Objet au Vectorlab), après « Formes paramétriques… » : Répétition radiale…,
+  en grille…, en miroir…, Options de répétition ou de fusion…, Décomposer (une entrée pour les deux) ; Créer une
+  fusion (**Ctrl+Alt+B**, libre, écouté par `initRepeterUI` comme Ctrl+4), Options de fusion…, Annuler la fusion
+  (`op_fusion_annuler` : A, B et la trajectoire visible reviennent à la place du groupe), Remplacer la trajectoire
+  (une fusion + un chemin sélectionnés), Inverser la trajectoire, Inverser l'ordre de superposition. `peut()` exacts.
+- **Dialogues** (`mod-repeterui.js`, formulaire de `mod-tracesui.js` exporté en `formulaire_dom` avec un `surChange`) :
+  pré-remplis (`repetition_defauts`, ou la recette) ; **aperçu en direct** : chaque changement rejoue l'op sur une
+  copie du document d'avant, sans historique ; Annuler / Échap rend le document d'avant ; Appliquer = UNE exécution.
+- **Onglet Apparence** : section « Répétition vivante » / « Fusion vivante » avec la recette en une phrase, Options…
+  et Décomposer (le bouton `a2Detacher` existant).
+- Clés FR/EN `vectorlab.repeter.*` et `vectorlab.fusion.*` (`t455.py`), éditions de base positionnelles sur des
+  fragments qui ne recouvrent aucun libellé traduit.
+- **Écart** : la trajectoire d'une fusion est invisible, donc pas cliquable sur la toile ; pour la modifier, Annuler la
+  fusion (elle redevient visible) ou Décomposer. Pas d'icônes pour les nouvelles entrées (glyphes à dessiner).
+- Bancs : `qa/repeterui.test.mjs` (VL factice qui exécute vraiment : grisage, dialogues, aperçu, annulation, appels,
+  Apparence, menus, Ctrl+Alt+B unique) 31/32 mutants (1 équivalent) ; briques moteur dans `qa/repeter.test.mjs`
+  11/11. Preuve 8799 au vrai clic et clavier : menu Vecteur grisé, grille hexagonale 4 × 5 avec aperçu (historique
+  vide pendant l'aperçu), Ctrl+clic sur une copie → le groupe, sur la source → la source, la source change → 20
+  instances suivent, Ctrl+Alt+B, Remplacer la trajectoire au menu, Options… depuis Apparence avec aperçu 8 étapes
+  puis Échap → 5, Ctrl+Z défait la trajectoire ; menus et Apparence en anglais.
 
 ### T7 (t456) — Poignées sur la toile (petite tâche, à confirmer en revue)
 

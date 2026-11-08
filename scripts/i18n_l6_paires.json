@@ -33,6 +33,12 @@
     "groupe": "t314"
    },
    {
+    "pos": 2285,
+    "avant": "import { initVitrail } from \"./mod-vitrail.js\";",
+    "apres": "import { initRepeterUI } from \"./mod-repeterui.js\";   // t455 : lot D2\r\nimport { initVitrail } from \"./mod-vitrail.js\";",
+    "groupe": "t455"
+   },
+   {
     "pos": 15459,
     "avant": "\"Grille d'aimantation et repère visuel (G) — \"",
     "apres": "T(\"vectorlab.core.grille_titre\")",
@@ -145,6 +151,12 @@
     "avant": "initStyle(VL);",
     "apres": "initStyle(VL);\r\ninitTracesUI(VL);   // t430 : commandes de tracé (menu Vecteur, Pathfinder, Ctrl+4) — après initStyle",
     "groupe": "t422"
+   },
+   {
+    "pos": 34011,
+    "avant": "initImage(VL);",
+    "apres": "initRepeterUI(VL);  // t455 : répétitions et fusions vivantes (menu Vecteur, Apparence, Ctrl+Alt+B)\r\ninitImage(VL);",
+    "groupe": "t455"
    },
    {
     "pos": 34568,
@@ -647,6 +659,12 @@
     "groupe": "apparence"
    },
    {
+    "pos": 17305,
+    "avant": "      </details>` : \"\"}",
+    "apres": "      </details>` : \"\"}\r\n      ${o1 && sel === 1 && VL.repeterUI ? VL.repeterUI.sectionApparence(o1) : \"\"}",
+    "groupe": "t455"
+   },
+   {
     "pos": 17387,
     "avant": "><summary class=\"px-tete\">Pinceau vectoriel (J)</summary>\r\n        <div class=\"ap-ligne\"><span>Largeur</span>",
     "apres": "><summary class=\"px-tete\">${T(\"vectorlab.apparence.pinceauv\")}</summary>\r\n        <div class=\"ap-ligne\"><span>${T(\"vectorlab.apparence.largeur\")}</span>",
@@ -675,6 +693,12 @@
     "avant": "\"nom de style requis\"",
     "apres": "T(\"vectorlab.apparence.st_nom_requis\")",
     "groupe": "apparence"
+   },
+   {
+    "pos": 24790,
+    "avant": "on(\"a2Detacher\", \"click\", () => VL.executer(op_derive_detacher, etat.selection[0]));",
+    "apres": "on(\"a2Detacher\", \"click\", () => VL.executer(op_derive_detacher, etat.selection[0]));\r\n    on(\"a2VivantOptions\", \"click\", () => VL.repeterUI && VL.repeterUI.action(\"options\").faire());   // t455",
+    "groupe": "t455"
    },
    {
     "pos": 26505,
@@ -1427,6 +1451,12 @@
     "avant": "if (pre === \"bool\") return",
     "apres": "if (pre === \"traces\") return VL.traces ? VL.traces.action(arg) : { peut: () => false, faire: () => {} };   // t430\r\n    if (pre === \"bool\") return",
     "groupe": "t422"
+   },
+   {
+    "pos": 7984,
+    "avant": "if (pre === \"ordre\") return",
+    "apres": "if (pre === \"repeter\") return VL.repeterUI ? VL.repeterUI.action(arg) : { peut: () => false, faire: () => {} };   // t455\r\n    if (pre === \"ordre\") return",
+    "groupe": "t455"
    },
    {
     "pos": 11541,
@@ -2563,6 +2593,18 @@
     "avant": "`calque inconnu: ${calqueId}`",
     "apres": "T(\"vectorlab.doc.calque_inconnu\", { id: calqueId })",
     "groupe": "doc"
+   },
+   {
+    "pos": 27415,
+    "avant": "if (voulu.has(o.id) && !o.verrou) yield",
+    "apres": "if (voulu.has(o.id) && !o.verrou && !o.genere) yield",
+    "groupe": "t455"
+   },
+   {
+    "pos": 27571,
+    "avant": "if (o.type === \"groupe\" && Array.isArray(o.enfants)) yield* dans(c, o.enfants);",
+    "apres": "if (o.type === \"groupe\" && Array.isArray(o.enfants) && !o.genere) yield* dans(c, o.enfants);   // t455 : une copie générée n'est jamais une cible",
+    "groupe": "t455"
    },
    {
     "pos": 27843,
@@ -6635,6 +6677,12 @@
     "groupe": "menus"
    },
    {
+    "pos": 4367,
+    "avant": "\"flyout:forme\"),",
+    "apres": "\"flyout:forme\"),\r\n    \"-\",\r\n    e(\"repRadiale\", T(\"vectorlab.repeter.m_radiale\"), \"repeter:radiale\"), e(\"repGrille\", T(\"vectorlab.repeter.m_grille\"), \"repeter:grille\"), e(\"repMiroir\", T(\"vectorlab.repeter.m_miroir\"), \"repeter:miroir\"), e(\"repOptions\", T(\"vectorlab.repeter.m_options\"), \"repeter:options\"), e(\"repDecomposer\", T(\"vectorlab.repeter.m_decomposer\"), \"repeter:decomposer\"), \"-\",\r\n    e(\"fusCreer\", T(\"vectorlab.fusion.m_creer\"), \"repeter:fusionner\", \"ctrl+alt+b\"), e(\"fusOptions\", T(\"vectorlab.fusion.m_options\"), \"repeter:fusionOptions\"), e(\"fusAnnuler\", T(\"vectorlab.fusion.m_annuler\"), \"repeter:fusionAnnuler\"), e(\"fusTrajectoire\", T(\"vectorlab.fusion.m_trajectoire\"), \"repeter:trajectoire\"),\r\n    e(\"fusInverserTrajectoire\", T(\"vectorlab.fusion.m_inverser_trajectoire\"), \"repeter:inverserTrajectoire\"), e(\"fusInverserOrdre\", T(\"vectorlab.fusion.m_inverser_ordre\"), \"repeter:inverserOrdre\"),",
+    "groupe": "t455"
+   },
+   {
     "pos": 4385,
     "avant": "  ] },",
     "apres": "    \"-\",\r\n    e(\"tracesContour\", T(\"vectorlab.traces.m_contour\"), \"traces:contour\"), e(\"tracesSimplifier\", T(\"vectorlab.traces.m_simplifier\"), \"traces:simplifier\"), e(\"tracesAjouter\", T(\"vectorlab.traces.m_ajouter\"), \"traces:ajouter\"), e(\"tracesSupprimer\", T(\"vectorlab.traces.m_supprimer\"), \"traces:supprimer\"),\r\n    e(\"tracesMoyenne\", T(\"vectorlab.traces.m_moyenne\"), \"traces:moyenne\"), e(\"tracesNettoyer\", T(\"vectorlab.traces.m_nettoyer\"), \"traces:nettoyer\"), e(\"tracesDiviser\", T(\"vectorlab.traces.m_diviser\"), \"traces:diviser\"), e(\"tracesLignes\", T(\"vectorlab.traces.m_lignes\"), \"traces:lignes\"), \"-\",\r\n    e(\"pfExclusion\", T(\"vectorlab.traces.pf_exclusion\"), \"traces:pf-exclusion\"), e(\"pfSoustractionArriere\", T(\"vectorlab.traces.pf_soustraction_arriere\"), \"traces:pf-soustraction_arriere\"), e(\"pfDecoupage\", T(\"vectorlab.traces.pf_decoupage\"), \"traces:pf-decoupage\"),\r\n    e(\"pfFusion\", T(\"vectorlab.traces.pf_fusion\"), \"traces:pf-fusion\"), e(\"pfRecadrage\", T(\"vectorlab.traces.pf_recadrage\"), \"traces:pf-recadrage\"), e(\"pfContour\", T(\"vectorlab.traces.pf_contour\"), \"traces:pf-contour\"), e(\"pfRepeter\", T(\"vectorlab.traces.m_repeter\"), \"traces:repeter\", \"ctrl+4\"),\r\n  ] },",
@@ -10359,10 +10407,22 @@
     "groupe": "import"
    },
    {
+    "pos": 676,
+    "avant": "import { noeuds_deplacer_segs } from \"./mod-noeuds.js\";",
+    "apres": "import { noeuds_deplacer_segs } from \"./mod-noeuds.js\";\r\nimport { id_non_genere } from \"./mod-repeter.js\";   // t455",
+    "groupe": "t455"
+   },
+   {
     "pos": 3072,
     "avant": "stage.addEventListener(\"pointerdown\", (ev) => {",
     "apres": "stage.addEventListener(\"pointerdown\", (ev) => {\r\n    if (VL.dansPanneau(ev)) return;  // t190-bis : un panneau flottant garde ses gestes (mod-flottant)",
     "groupe": "panneaux"
+   },
+   {
+    "pos": 5402,
+    "avant": "ev.ctrlKey && etat.outil === \"select\" ? idBrut :",
+    "apres": "ev.ctrlKey && etat.outil === \"select\" ? id_non_genere(etat.doc, idBrut) :",
+    "groupe": "t455"
    },
    {
     "pos": 6233,

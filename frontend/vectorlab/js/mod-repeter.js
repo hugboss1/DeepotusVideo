@@ -547,6 +547,50 @@ export function op_fusion_inverser_ordre(doc, id) {
   _rejouer(g, (e) => { e.fusion_vive.ordreInverse = !e.fusion_vive.ordreInverse; });
 }
 
+/* ══ T6 (t455) les briques de l'interface ══ */
+// Annuler la fusion : le groupe disparaît, A et B reviennent seuls à sa place (dans l'ordre de superposition de la
+// fusion), la trajectoire aussi, visible avec son style ; les intermédiaires partent
+export function op_fusion_annuler(doc, id) {
+  const g = _fusion(doc, id);
+  const t = _trouver(doc, id);
+  const liste = t.parent ? t.parent.enfants : t.calque.objets;
+  if (!t.parent && t.calque.verrou) throw new Error(T("vectorlab.repeter.verrou"));
+  const f = g.fusion_vive;
+  const restes = g.enfants.filter((e) => !e.genere).map((e) => {
+    if (e.id !== f.trajectoire) return e;
+    return { ...e, style: _cloner(f.styleTrajectoire || {}) };
+  });
+  liste.splice(liste.indexOf(g), 1, ...restes);
+  return restes.filter((e) => e.id !== f.trajectoire).map((e) => e.id);
+}
+
+// la cible d'un Ctrl+clic : jamais une copie générée (ni l'intérieur d'une copie) — on remonte au premier ancêtre
+// qui n'en est pas une, le groupe vivant. Un id inconnu est rendu tel quel.
+export function id_non_genere(doc, id) {
+  for (const c of doc.calques) {
+    const chemin = (function v(objs, haut) {
+      for (const o of objs || []) {
+        const ici = [...haut, o];
+        if (o.id === id) return ici;
+        if (o.type === "groupe") { const r = v(o.enfants, ici); if (r) return r; }
+      }
+      return null;
+    })(c.objets, []);
+    if (!chemin) continue;
+    const k = chemin.findIndex((o) => o.genere);
+    return k < 0 ? id : (k > 0 ? chemin[k - 1].id : id);
+  }
+  return id;
+}
+
+// les réglages par défaut d'une répétition sur ces objets (pour pré-remplir le dialogue) ; null si impossible
+export function repetition_defauts(doc, ids, mode) {
+  const objs = [];
+  for (const c of doc.calques) for (const o of c.objets) if ((ids || []).includes(o.id)) objs.push(o);
+  const source = objs.length === 1 ? objs[0] : { id: "_", type: "groupe", style: {}, enfants: objs };
+  try { return _params(mode, {}, source); } catch (e) { return null; }
+}
+
 /* ── vivant : appelé par derives_rafraichir après chaque commande ── */
 export function vivants_d2_rafraichir(doc) {
   let n = 0;
