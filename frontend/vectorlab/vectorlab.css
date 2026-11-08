@@ -1074,3 +1074,29 @@ button.actif, .cb button.actif, .onglet.actif, .outils button.actif, .fo-item.ac
 .sch-etiquette .sch-nature { color: var(--amber); }
 .sch-etat { font-size: 12px; color: var(--aff-muet); margin: 0; }
 .sch-etat.sch-erreur { color: var(--red); }
+/* ── t459 : Apparence + — rangées alignées et proportionnées ──
+   Chaque rangée va du bord gauche au bord droit : un libellé sur la colonne fixe (--pan-libelle) puis des champs qui
+   se partagent le reste ; les boutons « + » sont des carrés ; une rangée trop chargée passe à la ligne au lieu de
+   tronquer ses libellés ; une note (section vivante, édition de symbole) prend sa propre ligne. */
+#panneauApparence2 .ap-ligne { flex-wrap: wrap; row-gap: var(--pan-gap); }
+/* ici, aucune rangée n'a de « ? » d'aide : la réserve de 16 px du dernier champ (règle des rangées) est rendue au champ */
+#panneauCalques #panneauApparence2 .ap-ligne > select,
+#panneauCalques #panneauApparence2 .ap-ligne > input[type="number"],
+#panneauCalques #panneauApparence2 .ap-ligne > input[type="text"] { flex: 1 1 0; min-width: 0; width: auto; margin: 0; }
+#panneauApparence2 #a2FxPlus, #panneauApparence2 #a2GlobPlus, #panneauApparence2 #a2StPlus {
+  flex: 0 0 var(--pan-champ-h); width: var(--pan-champ-h); min-width: var(--pan-champ-h); padding: 0; }
+/* la note porte un style en ligne « flex:1 » posé par le gabarit : seul !important la met sur sa propre ligne */
+#panneauApparence2 .ap-ligne > i.px-note { flex: 1 1 100% !important; min-height: 0; line-height: 1.35; }
+#panneauCalques #panneauApparence2 #a2MotifType { flex: 1 1 100%; }
+#panneauApparence2 #a2Motif { flex: 1 1 auto; }
+/* un bouton à libellé à côté d'une liste (Harmonie) garde sa taille naturelle, la liste prend le reste */
+#panneauApparence2 #a2HarmGen { flex: 0 0 auto; }
+#panneauApparence2 .vl-rangee { display: flex; flex-wrap: wrap; gap: var(--pan-gap); }
+#panneauApparence2 .vl-rangee > button:not(.vl-didact-q) {
+  flex: 1 1 auto; min-width: max-content; height: var(--pan-champ-h); padding: 0 10px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+#panneauApparence2 .vl-rangee > button:not(.vl-didact-q) .dzi-lib { display: inline; overflow: visible; }
+/* le « ? » d'aide n'enlève plus de place aux boutons : la fiche s'ouvre au survol long, comme dans les barres d'outils */
+#panneauApparence2 .vl-rangee > .vl-didact-q { display: none; }
+/* une rangée « libellé vide + bouton » (+ contour) : le bouton prend toute la largeur restante */
+#panneauApparence2 .ap-ligne > span:first-child:empty + button { flex: 1 1 0; }
