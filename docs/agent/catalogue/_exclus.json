@@ -48,7 +48,11 @@
     "vectorlab.traces.simplifier_titre",
     "vectorlab.traces.moyenne_titre",
     "vectorlab.traces.nettoyer_titre",
-    "vectorlab.traces.lignes_titre"
+    "vectorlab.traces.lignes_titre",
+    "methodes.fiche.etapes",
+    "methodes.fiche.controles",
+    "methodes.fiche.pieges",
+    "methodes.fiche.exemples"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"

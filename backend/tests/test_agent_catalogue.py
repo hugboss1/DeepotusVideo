@@ -1303,7 +1303,8 @@ def test_menus_photolab_empreinte_suit_le_chemin():
 import catalogue_commun as CC                                              # noqa: E402
 
 VUES = ("quick", "studio", "episodes", "sonvfx", "montage", "scheduler", "templates", "news", "library", "assets3d",
-        "vectorlab", "photolab", "avatarlive", "whatsapp", "settings", "commun")
+        "vectorlab", "photolab", "avatarlive", "whatsapp", "settings", "commun",
+        "methodes")   # t443 : l'écran Méthodes
 CADRES = {None, *CC.CADRE_DE_ZONE.values(), *(c for _, c in S.LABS.values())}
 TYPES = {"bouton", "champ", "outil", "reglage", "onglet", "menu", "icone", "raccourci", "panneau"}
 

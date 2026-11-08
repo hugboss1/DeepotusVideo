@@ -20,6 +20,7 @@ ECRAN_DE_ZONE = {
     "reglages": "settings", "espaces": "settings", "transfert": "settings",
     "projets": "library",                # t307 (25/10/2026) : les canaux d'un projet de la Bibliothèque
     "whatsapp": "whatsapp",              # t311 (27/10/2026) : la page WhatsApp (cadre /whatsapp/, voir catalogue_sources.LABS)
+    "methodes": "methodes",              # t443 (08/11/2026) : l'écran Méthodes (cadre /methodes/, voir catalogue_sources.LABS)
     "pose3d": "assets3d",                # t376 (29/10/2026) : le choix de pose de Game Assets 3D (/shared/dz-pose3d.js)
     "ga3d": "assets3d",                  # t376 : l'écran Game Assets 3D traduit (maillon dzga3d)
     "a2d": "assets3d",                   # t377 (30/10/2026) : les cartes de l'onglet Assets 2D (maillon dza2d)
@@ -31,7 +32,8 @@ ECRAN_DE_ZONE = {
 }
 # préfixe « zone.objet » rattaché à un autre écran que sa zone (consulté AVANT ECRAN_DE_ZONE)
 ECRAN_DE_PREFIXE = {"avatar.noeud": "studio",           # titres des nœuds avatar du graphe du Studio
-                    "whatsapp.espace": "settings"}      # t311 : le panneau « Agent WhatsApp » de Réglages › Espaces
+                    "whatsapp.espace": "settings",      # t311 : le panneau « Agent WhatsApp » de Réglages › Espaces
+                    "methodes.pont": "commun"}          # t443 : la pastille « Méthodes » posée sur les écrans
 # zone → lab affiché dans un cadre intégré (les iframes que monte la SPA)
 CADRE_DE_ZONE = {"vectorlab": "/vectorlab/", "photolab": "/photolab/", "sprites": "/spritelab/",
                  "tuiles": "/tilelab/", "cartes": "/cardforge/", "matiere": "/materialforge/",
