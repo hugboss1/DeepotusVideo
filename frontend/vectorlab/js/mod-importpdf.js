@@ -10,8 +10,12 @@
 // OPÉRATEURS. État (q Q cm gs), tracés (m l c v y h re), peintures (f F f* S s B B* b b* n), couleurs (g rg k et leurs
 // majuscules, cs sc scn : Gray, RGB, CMYK, ICCBased, Cal*, Separation, Indexed), trait (w d j). Un `sh` dans un
 // écrêtage remplit la forme écrêtée de la PREMIÈRE couleur du dégradé (l'écart est compté) ; un motif devient gris.
-// Les Form XObjects sont parcourus ; les images, les textes (BT … ET) et les écrêtages seuls sont comptés et ignorés.
+// Les Form XObjects sont parcourus ; les images et les textes (BT … ET) sont comptés et ignorés.
+// DÉCOUPES (W, W*). Elles s'empilent avec l'état ; un REMPLISSAGE est intersecté avec toutes celles qui sont actives
+// (rectangle rogné directement, sinon par les booléens de mod-bool) : une forme hors découpe disparaît, une forme
+// entièrement dedans garde ses courbes. Un TRAIT qu'une découpe coupe est gardé entier, et compté.
 import { T } from "./mod-i18n.js";
+import { aplatir_objet, versMulti, aire_multi, multi_vers_d, martinez } from "./mod-bool.js";
 
 const OBJETS_MAX = 50000;
 const K = 96 / 72;
@@ -375,6 +379,62 @@ const mul = (m, n) => [m[0] * n[0] + m[2] * n[1], m[1] * n[0] + m[3] * n[1], m[0
   m[0] * n[4] + m[2] * n[5] + m[4], m[1] * n[4] + m[3] * n[5] + m[5]];
 const app = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
 
+/* ── découpes rectangulaires : boîte d'un tracé (points de contrôle compris), rectangle aligné, intersection ── */
+function _nombresSegs(segs) {
+  return segs.join(" ").replace(/[MLCZ]/g, " ").trim().split(/\s+/).filter(Boolean).map(Number);
+}
+function _boite(segs) {
+  const v = _nombresSegs(segs), xs = v.filter((_, k) => k % 2 === 0), ys = v.filter((_, k) => k % 2 === 1);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+function _rectDe(segs) {
+  const lettres = segs.map((s) => s[0]).join("");
+  if (!/^MLLLL?Z?$/.test(lettres)) return null;
+  const v = _nombresSegs(segs), P = [];
+  for (let k = 0; k + 1 < v.length; k += 2) P.push([v[k], v[k + 1]]);
+  if (P.length === 5 && (Math.abs(P[4][0] - P[0][0]) > 1e-3 || Math.abs(P[4][1] - P[0][1]) > 1e-3)) return null;
+  const Q = P.slice(0, 4);
+  for (let k = 0; k < 4; k++) {
+    const a = Q[k], b = Q[(k + 1) % 4];
+    if (Math.abs(a[0] - b[0]) > 1e-3 && Math.abs(a[1] - b[1]) > 1e-3) return null;
+  }
+  const xs = Q.map((p) => p[0]), ys = Q.map((p) => p[1]);
+  const r = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  return r[2] > r[0] && r[3] > r[1] ? r : null;
+}
+const _rectSegs = (i) => [`M${nb(i[0])} ${nb(i[1])}`, `L${nb(i[2])} ${nb(i[1])}`, `L${nb(i[2])} ${nb(i[3])}`, `L${nb(i[0])} ${nb(i[3])}`, "Z"];
+const _disjoints = (b, c) => c[2] <= c[0] || c[3] <= c[1] || b[0] >= c[2] || b[2] <= c[0] || b[1] >= c[3] || b[3] <= c[1];   // une découpe vide masque tout
+const _contient = (c, b) => b[0] >= c[0] - 1e-6 && b[1] >= c[1] - 1e-6 && b[2] <= c[2] + 1e-6 && b[3] <= c[3] + 1e-6;
+const _multi = (d) => versMulti(aplatir_objet({ type: "path", d }));
+// un remplissage dans les découpes actives → { d, eo } (d inchangé s'il est entièrement dedans), null s'il est
+// invisible, ou { …, approx } si les booléens manquent (la forme est gardée entière)
+function _decouper(segs, eo, clips) {
+  const d0 = segs.join(" ");
+  if (!clips.length) return { d: d0, eo };
+  const b = _boite(segs);
+  let rc = null;
+  for (const c of clips) rc = rc ? _inter(rc, c.rect || c.boite) : (c.rect || c.boite);
+  if (_disjoints(b, rc)) return null;
+  const autres = clips.filter((c) => !c.rect);
+  if (!autres.length) {
+    if (_contient(rc, b)) return { d: d0, eo };
+    const r = _rectDe(segs);
+    if (r) return { d: _rectSegs(_inter(r, rc)).join(" "), eo: false };
+  }
+  let mz;
+  try { mz = martinez(); } catch { return { d: d0, eo, approx: true }; }
+  const p0 = _multi(d0), a0 = aire_multi(p0);
+  let p = p0;
+  for (const c of clips) p = mz.intersection(p, c.rect ? _multi(_rectSegs(c.rect).join(" ")) : _multi(c.d));
+  const a = aire_multi(p);
+  if (!(a > 1e-6)) return null;
+  if (a >= a0 * 0.999) return { d: d0, eo };
+  return { d: multi_vers_d(p), eo: false };
+}
+function _inter(a, b) {
+  return [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.min(a[3], b[3])];   // vide si disjoints (_disjoints le voit)
+}
+
 /* ── couleurs ── */
 const hex2 = (v) => Math.max(0, Math.min(255, Math.round(v * 255))).toString(16).padStart(2, "0");
 const rvb = (r, g, b) => "#" + hex2(r) + hex2(g) + hex2(b);
@@ -518,15 +578,34 @@ export async function pdf_vers_objets(octets) {
     const pt = (x, y) => app(M(), x, y);
     const fin = () => { segs = []; courant = null; debut = null; };
     const peindre = (remplir, tracer, eo) => {
-      if (clipEnAttente) { gs.clip = { d: segs.join(" "), eo: clipEnAttente === "W*", compte: true }; ignores.decoupe++; clipEnAttente = null; }
-      if (!segs.some((s) => s[0] !== "M") || (!remplir && !tracer)) { fin(); return; }
+      if (clipEnAttente) {
+        if (segs.some((x) => x[0] !== "M")) gs.clips = [...gs.clips, { segs: segs.slice(), d: segs.join(" "), eo: clipEnAttente === "W*", rect: _rectDe(segs), boite: _boite(segs) }];
+        clipEnAttente = null;
+      }
+      if (!segs.some((x) => x[0] !== "M") || (!remplir && !tracer)) { fin(); return; }
+      const s = echelle(M());
+      let d = segs.join(" ");
+      if (gs.clips.length) {
+        if (remplir && !tracer) {
+          const r = _decouper(segs, eo, gs.clips);
+          if (!r) { fin(); return; }                           // hors découpe : invisible
+          d = r.d; eo = r.eo;
+          if (r.approx) ignores.decoupe++;
+        } else {
+          // un trait (ou fond + trait) : écarté s'il est hors découpe, sinon gardé entier ; compté s'il est coupé
+          const demi = tracer ? (gs.lw > 0 ? gs.lw * s : 1) / 2 : 0, b0 = _boite(segs), b = [b0[0] - demi, b0[1] - demi, b0[2] + demi, b0[3] + demi];
+          let rc = null;
+          for (const c of gs.clips) rc = rc ? _inter(rc, c.rect || c.boite) : (c.rect || c.boite);
+          if (_disjoints(b, rc)) { fin(); return; }
+          if (!_contient(rc, b) || gs.clips.some((c) => !c.rect)) ignores.decoupe++;
+        }
+      }
       const st = { fond: "none", contour: "none" };
       if (remplir) {
         st.fond = gs.fill.c;
         if (gs.fill.raison) ignores[gs.fill.raison]++;
         if (eo) st.regle = "evenodd";
       }
-      const s = echelle(M());
       st.epaisseur = Math.round((gs.lw > 0 ? gs.lw * s : 1) * 1e4) / 1e4;
       if (tracer) {
         st.contour = gs.stroke.c;
@@ -537,7 +616,7 @@ export async function pdf_vers_objets(octets) {
       const op = remplir ? gs.ca * mulF : gs.CA * mulS;
       if (op < 1) st.opacite = Math.max(0, Math.round(op * 1e4) / 1e4);
       if (objets.length >= OBJETS_MAX) throw refus("vectorlab.importer.trop_grand", { n: OBJETS_MAX });
-      objets.push({ id: "p" + (objets.length + 1), type: "path", d: segs.join(" "), style: st });
+      objets.push({ id: "p" + (objets.length + 1), type: "path", d, style: st });
       fin();
     };
     const fermer = () => { if (courant && debut) { segs.push("Z"); courant = debut.slice(); } };
@@ -559,6 +638,10 @@ export async function pdf_vers_objets(octets) {
       if (!(t instanceof Mot)) { pile2.push(L.valeur(false, t)); continue; }
       const a = pile2;
       pile2 = [];
+      // un opérateur de tracé à qui il manque des nombres est ignoré (jamais de NaN dans un chemin)
+      const ARITE = { m: 2, l: 2, c: 6, v: 4, y: 4, re: 4 };
+      if (ARITE[t.m] && (a.length < ARITE[t.m] || a.slice(-ARITE[t.m]).some((x) => typeof x !== "number"))) continue;
+      if (ARITE[t.m]) a.splice(0, a.length - ARITE[t.m]);
       switch (t.m) {
         case "q": pile.push({ ...gs, dash: gs.dash && gs.dash.slice() }); break;
         case "Q": if (pile.length) gs = pile.pop(); break;
@@ -623,14 +706,16 @@ export async function pdf_vers_objets(octets) {
         }
         case "sh": {
           ignores.degrade++;
-          if (!gs.clip) break;                                 // sans écrêtage, il peindrait toute la page
+          if (!gs.clips.length) break;                         // sans découpe, il peindrait toute la page
           const shs = await pdf.dictDe(ressources && ressources.get("Shading"));
           const c = (a[0] instanceof Nom && shs && (await couleurShading(shs.get(a[0].n)))) || "#808080";
-          if (gs.clip.compte) { ignores.decoupe--; gs.clip.compte = false; }
+          // la forme peinte : la dernière découpe, dans les précédentes
+          const der = gs.clips[gs.clips.length - 1], r = _decouper(der.segs, der.eo, gs.clips.slice(0, -1));
+          if (!r) break;
           const st = { fond: c, contour: "none", epaisseur: 1 };
-          if (gs.clip.eo) st.regle = "evenodd";
+          if (r.eo) st.regle = "evenodd";
           if (gs.ca * mulF < 1) st.opacite = Math.round(gs.ca * mulF * 1e4) / 1e4;
-          objets.push({ id: "p" + (objets.length + 1), type: "path", d: gs.clip.d, style: st });
+          objets.push({ id: "p" + (objets.length + 1), type: "path", d: r.d, style: st });
           break;
         }
         case "Do": {
@@ -666,6 +751,6 @@ export async function pdf_vers_objets(octets) {
 
   const ressources = await pdf.dictDe(herite.Resources);
   await interpreter(contenu, ressources, { ctm: [1, 0, 0, 1, 0, 0], fill: { c: "#000000" }, stroke: { c: "#000000" }, espF: GRIS, espS: GRIS,
-    lw: 1, dash: null, joint: 0, ca: 1, CA: 1, clip: null }, 0);
+    lw: 1, dash: null, joint: 0, ca: 1, CA: 1, clips: [] }, 0);
   return { objets, taille, stats: { importes: objets.length, pages: typeof nPages === "number" ? nPages : 1, ignores } };
 }

@@ -2,11 +2,14 @@
 // (js/mod-importpdf.js). Trois sources : un PDF écrit par mod-pdf.js lui-même (aller-retour), des PDF écrits À LA MAIN
 // ici (table xref classique, puis flux xref à prédicteur PNG + flux d'objets compressés), et des fichiers refusés.
 import { deflateSync } from "node:zlib";
+import { createRequire } from "node:module";
 import { pdf_vers_objets } from "../js/mod-importpdf.js";
 import { pdf_page, pdf_assembler } from "../js/mod-pdf.js";
-import { polylignes_objet } from "../js/mod-bool.js";
+import { polylignes_objet, fournirMartinez, versMulti, aplatir_objet, aire_multi } from "../js/mod-bool.js";
 import { T } from "../js/mod-i18n.js";
 
+fournirMartinez(createRequire(import.meta.url)("../vendor/martinez.umd.js"));
+const aire = (o) => aire_multi(versMulti(aplatir_objet(o)));
 const echecs = [];
 const ok = (nom, cond, detail = "") => {
   if (!cond) echecs.push(nom + (detail ? " — " + String(detail).slice(0, 300) : ""));
@@ -115,14 +118,14 @@ const CONTENU = [
   "q 2 0 0 2 10 10 cm 0 0 1 rg 0 0 10 10 re f Q",                 // carré bleu 20 pt en (10, 10)
   "1 0 0 RG 3 w [4 2] 0 d 1 j 50 50 m 100 50 l S",                 // trait rouge
   "0 1 1 0 k 0 1 1 0 K 0.5 w 20 60 m 40 60 l 40 80 l h B",          // CMJN → rouge, fermé, fond + contour
-  "/GS1 gs 0.5 g 120 10 m 130 10 l 130 20 v 120 20 y h f*",         // gris, ca 0,5, v et y, evenodd
+  "/GS1 gs 0.5 g 120 10 m 130 10 l 135 15 130 20 v 125 25 120 20 y h f*",         // gris, ca 0,5, v et y, evenodd
   "BT /F1 12 Tf 10 90 Td (Bonjour) Tj ET",                          // texte : compté
   "q /Im1 Do Q",                                                     // image : comptée
   "/Fm1 Do",                                                         // Form : lu, avec sa matrice
   "q 150 60 m 190 60 l 190 90 l W n /Sh1 sh Q",                      // dégradé dans un écrêtage
   "BI /W 2 /H 1 /CS /G /BPC 8 ID \x00\xff EI",                       // image en ligne : comptée, sautée
   "/Cs1 cs 0.2 0.4 0.6 scn 160 10 m 170 10 l 170 20 l f",            // espace nommé (ICCBased, N 3)
-  "0 0 m 5 5 l W n",                                                 // découpe seule : comptée
+  "0 0 m 5 5 l W n",                                                 // découpe seule : rien de peint après
 ].join("\n");
 const RESS = "<< /ExtGState << /GS1 << /ca 0.5 >> >> /XObject << /Im1 6 0 R /Fm1 7 0 R >> /Shading << /Sh1 << /ShadingType 2 /ColorSpace /DeviceRGB "
   + "/Coords [0 0 1 0] /Function << /FunctionType 3 /Domain [0 1] /Functions [<< /FunctionType 2 /Domain [0 1] /C0 [0 0.5 1] /C1 [1 1 1] /N 1 >>] /Bounds [] /Encode [0 1] >> >> >> "
@@ -150,12 +153,12 @@ const PAGE_CORPS = (contenus) => [
   ok("cm + re : carré bleu, repère retourné", pres(bc.x, x0) && pres(bc.y, y0) && pres(bc.w, 20 * K) && pres(bc.h, 20 * K) && carre.style.fond === "#0000ff" && carre.style.contour === "none", JSON.stringify([bc, carre.style]));
   ok("trait : RG, w, d, j", trait.style.fond === "none" && trait.style.contour === "#ff0000" && pres(trait.style.epaisseur, 3 * K) && trait.style.pointilles === nbs([4 * K, 2 * K]) && trait.style.joint === "round", JSON.stringify(trait.style));
   ok("k / K : CMJN → RVB ; h ferme ; B = fond + contour", cmjn.style.fond === "#ff0000" && cmjn.style.contour === "#ff0000" && /Z$/.test(cmjn.d), JSON.stringify(cmjn));
-  ok("gs (ca), g, v et y, f* → evenodd", gris.style.fond === "#808080" && pres(gris.style.opacite, 0.5) && gris.style.regle === "evenodd" && (gris.d.match(/C/g) || []).length === 2, JSON.stringify(gris));
+  ok("gs (ca), g, v et y, f* → evenodd", gris.style.fond === "#808080" && pres(gris.style.opacite, 0.5) && gris.style.regle === "evenodd" && (gris.d.match(/C/g) || []).length === 2 && gris.d.includes("C173.3333 120 180 113.3333 173.3333 106.6667") && gris.d.includes("C166.6667 100 160 106.6667 160 106.6667"), JSON.stringify(gris));
   const bf = boite(form);
   ok("Form XObject : sa /Matrix appliquée", pres(bf.x, 100 * K) && pres(bf.y, (100 - 40) * K) && form.style.fond === "#0000ff", JSON.stringify(bf));
   ok("sh dans un écrêtage : la forme de l'écrêtage, couleur C0", pres(boite(deg).x, 150 * K) && deg.style.fond === "#0080ff", JSON.stringify(deg));
   ok("espace nommé ICCBased à 3 composantes", iccb.style.fond === "#336699", JSON.stringify(iccb.style));
-  ok("comptés : textes, images (XObject + en ligne), découpe, dégradé", a.stats.ignores.texte === 1 && a.stats.ignores.image === 2 && a.stats.ignores.decoupe === 1 && a.stats.ignores.degrade === 1, JSON.stringify(a.stats));
+  ok("comptés : textes, images (XObject + en ligne), dégradé ; aucune découpe inappliquée", a.stats.ignores.texte === 1 && a.stats.ignores.image === 2 && a.stats.ignores.decoupe === 0 && a.stats.ignores.degrade === 1, JSON.stringify(a.stats));
   ok("importés = objets dessinés", a.stats.importes === 7);
   // plusieurs flux de contenu, dans l'ordre
   const b = await pdf_vers_objets(classique(PAGE_CORPS("[5 0 R 10 0 R]"), "/Root 1 0 R"));
@@ -196,6 +199,50 @@ const unePage = (contenu, ress = "", extra = []) => classique([
   a = await pdf_vers_objets(unePage("/G gs /F Do", "/ExtGState << /G << /ca 0.5 >> >> /XObject << /F 5 0 R >>",
     [["/Type /XObject /Subtype /Form /BBox [0 0 50 50] /Resources << /ExtGState << /G << /ca 0.5 >> >> >>", enc("/G gs 0 0 10 10 re f")]]));
   ok("opacités imbriquées : celle du Form multiplie celle de ses objets", a.objets.length === 1 && pres(a.objets[0].style.opacite, 0.25), JSON.stringify(a.objets));
+  // découpe rectangulaire : un rectangle qui dépasse est rogné, une forme hors découpe disparaît, une forme contenue reste
+  a = await pdf_vers_objets(unePage("q 0 0 50 50 re W n 20 20 60 60 re f 60 60 10 10 re f 5 5 10 10 re f 5 30 m 10 40 l 15 30 l f Q 70 70 10 10 re f"));
+  const bx = a.objets.map(boite);
+  ok("découpe rectangulaire appliquée (rogner, écarter, garder), non comptée", a.objets.length === 4 && pres(bx[0].w, 30 * K) && pres(bx[0].x, 20 * K) && pres(bx[0].y, 50 * K)
+     && pres(bx[1].w, 10 * K) && pres(bx[3].x, 70 * K) && a.stats.ignores.decoupe === 0, JSON.stringify([bx, a.stats]));
+  // deux découpes rectangulaires s'intersectent ; Q les retire
+  a = await pdf_vers_objets(unePage("q 0 0 50 50 re W n q 30 30 50 50 re W n 0 0 100 100 re f Q 0 0 100 100 re f Q 0 0 100 100 re f"));
+  const b2 = a.objets.map(boite);
+  ok("découpes imbriquées : intersection, puis levées par Q", a.objets.length === 3 && pres(b2[0].w, 20 * K) && pres(b2[0].x, 30 * K) && pres(b2[1].w, 50 * K) && pres(b2[2].w, 100 * K), JSON.stringify(b2));
+  // découpe non rectangulaire (triangle) : le remplissage est intersecté (booléens) ; dedans, les courbes restent
+  a = await pdf_vers_objets(unePage("q 0 0 m 40 0 l 0 40 l h W n 0 0 40 40 re f 2 2 m 6 2 l 6 6 2 6 v h f 60 60 10 10 re f Q"));
+  ok("découpe triangulaire : le carré devient le triangle, la forme dedans garde sa courbe, la forme dehors disparaît",
+     a.objets.length === 2 && pres(aire(a.objets[0]), 800 * K * K, 1) && /C/.test(a.objets[1].d) && a.stats.ignores.decoupe === 0, JSON.stringify([a.objets.map((o) => o.d), a.stats]));
+  // découpe en anneau (W*) : Chrome dessine ainsi les bordures arrondies
+  a = await pdf_vers_objets(unePage("q 0 0 m 50 0 l 50 50 l 0 50 l h 10 10 m 40 10 l 40 40 l 10 40 l h W* n 0 0 100 100 re f Q"));
+  ok("découpe en anneau (evenodd) : il ne reste que l'anneau", a.objets.length === 1 && pres(aire(a.objets[0]), (2500 - 900) * K * K, 1), JSON.stringify(a.objets));
+  // un trait coupé par une découpe : gardé entier, compté ; un trait hors découpe : écarté
+  a = await pdf_vers_objets(unePage("q 0 0 m 40 0 l 0 40 l h W n 5 5 m 60 5 l S 80 80 m 90 90 l S Q"));
+  ok("trait coupé par une découpe : gardé, compté ; trait dehors : écarté", a.objets.length === 1 && a.stats.ignores.decoupe === 1, JSON.stringify(a.stats));
+  // sh dans deux découpes : la dernière, dans la précédente
+  a = await pdf_vers_objets(unePage("q 0 0 50 50 re W n 25 0 50 50 re W n /S sh Q", SH));
+  ok("sh dans deux découpes : leur intersection", a.objets.length === 1 && pres(boite(a.objets[0]).w, 25 * K) && a.objets[0].style.fond === "#ff0000", JSON.stringify(a.objets));
+  a = await pdf_vers_objets(unePage("0 0 m 6 6 v 10 l 1 2 3 c 0 0 10 10 re f"));
+  ok("opérateurs incomplets ignorés (aucun NaN)", a.objets.length === 1 && !/NaN/.test(a.objets[0].d) && /^M0 133/.test(a.objets[0].d), JSON.stringify(a.objets));
+  // découpes : cas limites
+  a = await pdf_vers_objets(unePage("q 0 0 20 100 re W n 0 0 m 40 0 l 0 40 l h W n 0 0 40 40 re f Q"));
+  ok("rectangle + triangle : le remplissage est dans les deux", a.objets.length === 1 && pres(aire(a.objets[0]), 600 * K * K, 1), JSON.stringify(a.objets));
+  a = await pdf_vers_objets(unePage("q 0 0 m 40 0 l 0 40 l h W n 30 30 8 8 re f Q"));
+  ok("dans la boîte du triangle mais hors du triangle : écarté", a.objets.length === 0, JSON.stringify(a.objets));
+  a = await pdf_vers_objets(unePage("q 20 0 m 40 20 l 20 40 l 0 20 l h W n 0 0 40 40 re f Q"));
+  ok("un losange n'est pas un rectangle", a.objets.length === 1 && pres(aire(a.objets[0]), 800 * K * K, 1), JSON.stringify(a.objets));
+  a = await pdf_vers_objets(unePage("q 0 0 10 10 re W n 20 20 10 10 re W n 0 0 100 100 re f Q"));
+  ok("deux découpes disjointes : rien de visible", a.objets.length === 0, JSON.stringify(a.objets));
+  a = await pdf_vers_objets(unePage("9 0 0 m 10 0 l 10 10 l f"));
+  ok("opérandes en trop : seuls les derniers comptent", a.objets.length === 1 && /^M0 133/.test(a.objets[0].d), JSON.stringify(a.objets));
+  // sans les booléens (martinez absent) : les découpes RECTANGULAIRES s'appliquent quand même, exactement
+  fournirMartinez(null);
+  a = await pdf_vers_objets(unePage("q 0 0 50 50 re W n 20 20 60 60 re f 5 5 m 15 5 l 15 15 10 20 5 15 c h f Q"));
+  ok("sans booléens : rectangle rogné, courbe dedans gardée, rien de compté", a.objets.length === 2 && pres(boite(a.objets[0]).w, 30 * K) && /C/.test(a.objets[1].d) && a.stats.ignores.decoupe === 0, JSON.stringify([a.objets, a.stats]));
+  a = await pdf_vers_objets(unePage("q 0 0 m 40 0 l 0 40 l h W n 0 0 40 40 re f Q"));
+  ok("sans booléens : découpe non rectangulaire non appliquée, comptée", a.objets.length === 1 && pres(boite(a.objets[0]).w, 40 * K) && pres(boite(a.objets[0]).h, 40 * K) && a.stats.ignores.decoupe === 1, JSON.stringify(a.stats));
+  fournirMartinez(createRequire(import.meta.url)("../vendor/martinez.umd.js"));
+  a = await pdf_vers_objets(unePage("q 0 0 10 10 re W n 20 20 10 10 re W n /S sh Q", SH));
+  ok("sh dans deux découpes disjointes : rien", a.objets.length === 0 && a.stats.ignores.degrade === 1);
   // du bruit AVANT l'en-tête (plus d'1 Ko) : le PDF reste lisible
   const bruit = concat(enc("x".repeat(2000) + "\n"), unePage("0 0 10 10 re f"));
   a = await pdf_vers_objets(bruit);

@@ -6,6 +6,7 @@ import { importer_actions, bilan_import, est_svg, type_fichier, svg_du_presse_pa
 import { T } from "../js/mod-i18n.js";
 import { compilerSVG } from "../js/mod-doc.js";
 import { polylignes_objet } from "../js/mod-bool.js";
+import { pdf_page, pdf_assembler } from "../js/mod-pdf.js";
 
 const echecs = [];
 const ok = (nom, cond, detail = "") => {
@@ -113,17 +114,34 @@ const vlFactice = (d = doc()) => {
   ok("fichier SVG : importé", (await A.fichier(fic("Logo.svg", "", SVG))) !== undefined && VL.etat.doc.calques[0].objets.length === n0 + 1);
   ok("fichier d'un autre type : refus dit", (await A.fichier(fic("a.png", "image/png", ""))) === undefined
      && VL.toasts.at(-1)[0] === T("vectorlab.importer.type_inconnu") && VL.toasts.at(-1)[1]);
-  ok("fichier PDF sans lecteur PDF : refus dit", (await A.fichier(fic("a.pdf", "application/pdf", ""))) === undefined && VL.toasts.at(-1)[1]);
-  ok("fichier PDF : confié au lecteur PDF s'il existe", await (async () => {
-    let vu = null; VL.importerPdf = async (f, pos) => { vu = [f.name, pos]; return "oX"; };
-    const r = await A.fichier(fic("a.pdf", "application/pdf", ""), { x: 1, y: 2 });
-    delete VL.importerPdf; return r === "oX" && vu[0] === "a.pdf" && vu[1].x === 1;
-  })());
+  // un PDF : lu (asynchrone), « Lecture… » dit d'abord, puis le bilan avec le nombre de pages
+  const docPdf = { v: 1, nom: "P", taille: { w: 300, h: 200 }, calques: [{ id: "c1", nom: "c", visible: true, verrou: false, objets: [
+    { id: "r", type: "rect", x: 10, y: 20, w: 50, h: 30, style: { fond: "#ff0000" } },
+    { id: "e", type: "ellipse", cx: 150, cy: 100, rx: 40, ry: 20, style: { fond: "#00ff00" } }] }] };
+  const page = pdf_page(docPdf, { x: 0, y: 0, w: 300, h: 200 }, { dpi: 96 });
+  const octets = await pdf_assembler([page, page]);
+  const ficPdf = (name, o) => ({ name, type: "application/pdf", arrayBuffer: async () => o.buffer.slice(o.byteOffset, o.byteOffset + o.byteLength) });
+  const nAvant = VL.toasts.length, objAvant = VL.etat.doc.calques[0].objets.length;
+  const idp = await A.fichier(ficPdf("plan.pdf", octets), { x: 150, y: 100 });
+  const gp = VL.etat.doc.calques[0].objets.at(-1);
+  ok("PDF : importé en un groupe au point voulu, sélectionné", idp && gp.id === idp && VL.etat.doc.calques[0].objets.length === objAvant + 1
+     && gp.enfants.length === 2 && gp.transform === "translate(0 0)" && VL.etat.selection[0] === idp, JSON.stringify(gp && gp.transform));
+  ok("PDF : « Lecture… » d'abord, puis le bilan et les pages", VL.toasts[nAvant][0] === T("vectorlab.importer.pdf_lecture", { nom: "plan.pdf" })
+     && VL.toasts.at(-1)[0] === T("vectorlab.importer.bilan", { n: 2 }) + " " + T("vectorlab.importer.pdf_pages", { n: 2 }), JSON.stringify(VL.toasts.slice(nAvant)));
+  ok("PDF illisible : refus dit, rien posé", (await A.fichier(ficPdf("x.pdf", new TextEncoder().encode("bonjour")))) === undefined
+     && VL.toasts.at(-1)[0] === T("vectorlab.importer.pdf_invalide") && VL.toasts.at(-1)[1] && VL.etat.doc.calques[0].objets.length === objAvant + 1);
+  ok("bilan : textes et motifs d'un PDF ; une page → pas de mention", bilan_import({ importes: 4, pages: 1, ignores: { texte: 3, motif: 1 } })
+     === T("vectorlab.importer.non_repris", { bilan: T("vectorlab.importer.bilan", { n: 4 }), liste: T("vectorlab.importer.r_texte") + " (3), " + T("vectorlab.importer.r_motif") + " (1)" }));
   // l'action de menu
   ok("action importer : possible avec un document", A.action("importer").peut() === true);
   const VL0 = vlFactice(); VL0.etat.doc = null;
   ok("action importer : impossible sans document", importer_actions(VL0).action("importer").peut() === false);
   ok("sans document : l'import est refusé et dit", (await importer_actions(VL0).texte(SVG, "x.svg")) === undefined && VL0.toasts.at(-1)[0] === T("vectorlab.importer.aucun_doc"));
+  ok("sans document : un PDF est refusé et dit, sans « Lecture… »", await (async () => {
+    const V = vlFactice(); V.etat.doc = null;
+    const o = await pdf_assembler([pdf_page(docPdf, { x: 0, y: 0, w: 300, h: 200 }, { dpi: 96 })]);
+    return (await importer_actions(V).fichier(ficPdf("a.pdf", o))) === undefined && V.toasts.length === 1 && V.toasts[0][0] === T("vectorlab.importer.aucun_doc");
+  })());
   ok("action inconnue : jamais possible", A.action("zzz").peut() === false);
 }
 

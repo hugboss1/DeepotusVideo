@@ -3,23 +3,26 @@
 //   * Fichier › Importer (SVG, PDF)… : un sélecteur de fichier (action « importer » de mod-charpente) ;
 //   * un SVG COLLÉ (copie d'Illustrator, de Figma, d'un éditeur de texte) : image/svg+xml ou texte qui commence par <svg ;
 //   * un fichier SVG DÉPOSÉ sur la toile, posé au point de dépôt.
-// Les images data: du SVG entrent au magasin du document (VL.deposerBlob) avant l'opération, qui reste pure ; un PDF
-// est confié à VL.importerPdf (T4). Le bilan tient en une ligne : objets importés, puis ce qui n'est pas repris.
+// Les images data: du SVG entrent au magasin du document (VL.deposerBlob) avant l'opération, qui reste pure. Un PDF
+// (T4, t472) est lu par mod-importpdf.js, de façon asynchrone : « Lecture… » est dit d'abord. Le bilan tient en une ligne : objets importés, puis ce qui n'est pas repris.
 import { T } from "./mod-i18n.js";
 import { svg_vers_objets, op_importer_svg } from "./mod-importsvg.js";
+import { pdf_vers_objets } from "./mod-importpdf.js";
 
 // les raisons, dans l'ordre du bilan (clés écrites en entier : le banc i18n suit chaque clé T())
 const RAISONS = {
   cache: "vectorlab.importer.r_cache", image: "vectorlab.importer.r_image", inconnu: "vectorlab.importer.r_inconnu",
   filtre: "vectorlab.importer.r_filtre", decoupe: "vectorlab.importer.r_decoupe", masque: "vectorlab.importer.r_masque",
   degrade: "vectorlab.importer.r_degrade", use: "vectorlab.importer.r_use", chemin: "vectorlab.importer.r_chemin",
+  texte: "vectorlab.importer.r_texte", motif: "vectorlab.importer.r_motif",
 };
 
 export function bilan_import(stats) {
   const ign = (stats && stats.ignores) || {};
   const liste = Object.keys(RAISONS).filter((r) => ign[r] > 0).map((r) => `${T(RAISONS[r])} (${ign[r]})`);
   const tete = T("vectorlab.importer.bilan", { n: (stats && stats.importes) || 0 });
-  return liste.length ? T("vectorlab.importer.non_repris", { bilan: tete, liste: liste.join(", ") }) : tete;
+  const pages = stats && stats.pages > 1 ? " " + T("vectorlab.importer.pdf_pages", { n: stats.pages }) : "";
+  return (liste.length ? T("vectorlab.importer.non_repris", { bilan: tete, liste: liste.join(", ") }) : tete) + pages;
 }
 
 // un texte est un SVG s'il COMMENCE par <svg, une fois retirés BOM, blancs, déclaration XML, commentaires et DOCTYPE
@@ -69,19 +72,31 @@ export function importer_actions(VL) {
       if (!etat.doc) throw new Error(T("vectorlab.importer.aucun_doc"));
       const a = svg_vers_objets(svg);
       await deposerImages(a.objets);
-      const id = VL.executer(op_importer_svg, a, { calque: etat.calqueActif, x: pos.x, y: pos.y });
-      if (!id) return undefined;                     // executer a déjà dit l'erreur (calque verrouillé…)
-      VL.setOutil("select");
-      VL.setSelection([id]);
-      VL.toast(bilan_import(a.stats));
-      return id;
+      return poser(a, pos);
+    } catch (e) { return dire(e); }
+  }
+
+  function poser(a, pos) {
+    const id = VL.executer(op_importer_svg, a, { calque: etat.calqueActif, x: pos.x, y: pos.y });
+    if (!id) return undefined;                       // executer a déjà dit l'erreur (calque verrouillé…)
+    VL.setOutil("select");
+    VL.setSelection([id]);
+    VL.toast(bilan_import(a.stats));
+    return id;
+  }
+
+  async function pdf(f, pos = {}) {
+    try {
+      if (!etat.doc) throw new Error(T("vectorlab.importer.aucun_doc"));
+      VL.toast(T("vectorlab.importer.pdf_lecture", { nom: f.name }));
+      return poser(await pdf_vers_objets(new Uint8Array(await f.arrayBuffer())), pos);
     } catch (e) { return dire(e); }
   }
 
   async function fichier(f, pos) {
     const genre = type_fichier(f && f.name, f && f.type);
     if (genre === "svg") return texte(await f.text(), f.name, pos);
-    if (genre === "pdf" && VL.importerPdf) return VL.importerPdf(f, pos || {});
+    if (genre === "pdf") return pdf(f, pos);
     return dire(new Error(T("vectorlab.importer.type_inconnu")));
   }
 
@@ -89,7 +104,7 @@ export function importer_actions(VL) {
     importer: { peut: () => !!etat.doc, faire: () => A.ouvrir() },
   };
   const A = {
-    texte, fichier,
+    texte, fichier, pdf,
     ouvrir() { if (A.entree) A.entree.click(); },
     action: (nom) => ACTIONS[nom] || { peut: () => false, faire: () => {} },
   };
