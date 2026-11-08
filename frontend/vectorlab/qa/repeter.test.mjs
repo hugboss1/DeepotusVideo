@@ -2,12 +2,16 @@
 // T1 (t450) Répétition radiale : un groupe vivant [source, ...copies générées] ; les copies suivent la source dans
 // la même étape (derives_rafraichir), seule une empreinte changée coûte un recalcul ; régler, décomposer, refus sans
 // trace. Au passage : la matrice des booléens lit translate / scale / matrix / skew (les copies en dépendent).
-import { polylignes_objet } from "../js/mod-bool.js";
+// T2 (t451) Répétition en grille : lignes × colonnes au pas de la boîte de la source (+ écart), briques, miroirs
+// alternés, pavage hexagonal sans jour ni recouvrement.
+import { createRequire } from "node:module";
+import { polylignes_objet, fournirMartinez, martinez, versMulti, aplatir_objet, aire_multi } from "../js/mod-bool.js";
 import { op_repeter, op_repetition_regler } from "../js/mod-repeter.js";
 import { derives_rafraichir, op_derive_detacher } from "../js/mod-vivants.js";
 import { parserDoc } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
 
+fournirMartinez(createRequire(import.meta.url)("../vendor/martinez.umd.js"));
 const echecs = [];
 const ok = (nom, cond, detail = "") => {
   if (!cond) echecs.push(nom + (detail ? " — " + String(detail).slice(0, 200) : ""));
@@ -225,6 +229,128 @@ const tousIds = (d) => { const out = []; (function v(l) { for (const o of l) { o
   const gid = op_repeter(r, ["a"], "radiale", { nombre: 3, rayon: 40 });
   ok("répéter une copie générée : refus", !!refus(() => op_repeter(r, [`${gid}_r1`], "radiale", {})));
   ok("le groupe vivant entier se répète, lui (répétition de répétition)", !refus(() => op_repeter(r, [gid], "radiale", { nombre: 2, rayon: 100 })));
+}
+
+/* ── T2 (t451) répétition en grille : pas = boîte de la source + écart, briques, miroirs alternés, hexagones ── */
+const pts = (o) => polylignes_objet(o).flatMap((l) => l.points.map(([x, y]) => `${Math.round(x * 100) / 100},${Math.round(y * 100) / 100}`));
+{
+  const d = doc(carre("a"));
+  const gid = op_repeter(d, ["a"], "grille", { lignes: 3, colonnes: 4 });
+  const g = objets(d)[0];
+  ok("grille 3 × 4 : 12 instances, la source d'abord", g.enfants.length === 12 && g.enfants[0].id === "a"
+     && g.enfants.slice(1).every((c, k) => c.id === `${gid}_r${k + 1}` && c.genere), JSON.stringify(g.enfants.map((e) => e.id)));
+  ok("grille : réglages par défaut posés", JSON.stringify(g.repetition.params) === JSON.stringify(
+     { lignes: 3, colonnes: 4, ecartX: 0, ecartY: 0, decalage: "aucun", miroirLignes: false, miroirColonnes: false }), JSON.stringify(g.repetition.params));
+  // ordre ligne par ligne : la 7e copie (k = 7) est en ligne 1, colonne 3
+  const b = boite(g.enfants[7]);
+  ok("grille : pas = la boîte de la source, lignes puis colonnes", pres(b.x, 90 + 3 * 20) && pres(b.y, 40 + 20), JSON.stringify(b));
+  ok("grille : les copies sont collées, sans recouvrement", pres(boite(g.enfants[1]).x, 110) && pres(boite(g.enfants[4]).y, 60));
+  ok("grille : le document reste valide", !refus(() => parserDoc(d)));
+  // la source grandit : le pas suit (il se relit à chaque recalcul, l'écart reste)
+  g.enfants[0].w = 30;
+  derives_rafraichir(d);
+  ok("grille : la source s'élargit, le pas suit", pres(boite(objets(d)[0].enfants[1]).x, 120), boite(objets(d)[0].enfants[1]).x);
+}
+{
+  const d = doc(carre("a"));
+  op_repeter(d, ["a"], "grille", {});
+  ok("grille par défaut : 3 × 3", objets(d)[0].enfants.length === 9 && objets(d)[0].repetition.params.lignes === 3);
+}
+{
+  const d = doc(carre("a"));
+  op_repeter(d, ["a"], "grille", { lignes: 2, colonnes: 2, ecartX: 10, ecartY: -5 });
+  const e = objets(d)[0].enfants.map(boite);
+  ok("écarts : 10 entre colonnes, -5 entre lignes (recouvrement voulu)", pres(e[1].x, 120) && pres(e[2].y, 55) && pres(e[3].x, 120) && pres(e[3].y, 55), JSON.stringify(e));
+}
+{
+  const d = doc(carre("a"));
+  op_repeter(d, ["a"], "grille", { lignes: 3, colonnes: 2, decalage: "brique_lignes" });
+  const e = objets(d)[0].enfants.map(boite);
+  ok("brique par lignes : une ligne sur deux décalée d'un demi-pas", pres(e[2].x, 100) && pres(e[3].x, 120) && pres(e[4].x, 90) && pres(e[2].y, 60), JSON.stringify(e.map((b) => [b.x, b.y])));
+}
+{
+  const d = doc(carre("a"));
+  op_repeter(d, ["a"], "grille", { lignes: 2, colonnes: 3, decalage: "brique_colonnes" });
+  const e = objets(d)[0].enfants.map(boite);
+  ok("brique par colonnes : une colonne sur deux décalée d'un demi-pas", pres(e[1].y, 50) && pres(e[2].y, 40) && pres(e[1].x, 110) && pres(e[4].y, 70), JSON.stringify(e.map((b) => [b.x, b.y])));
+}
+{
+  // un triangle rectangle à angle droit en haut à gauche : un miroir se voit
+  const tri = { id: "a", type: "path", d: "M90 40 L110 40 L90 60 Z", style: { fond: "#c33" } };
+  const d = doc(tri);
+  op_repeter(d, ["a"], "grille", { lignes: 2, colonnes: 2, miroirColonnes: true });
+  const g = objets(d)[0];
+  const c1 = pts(g.enfants[1]);
+  ok("miroir des colonnes : la colonne 1 est retournée de gauche à droite", c1.includes("130,60") && !c1.includes("110,60"), c1.join(" "));
+  const c2 = pts(g.enfants[2]);
+  ok("miroir des colonnes : la colonne 0 ne l'est pas", c2.includes("90,80") && !c2.includes("110,80"), c2.join(" "));
+  const d2 = doc({ ...tri });
+  op_repeter(d2, ["a"], "grille", { lignes: 2, colonnes: 2, miroirLignes: true });
+  const l1 = pts(objets(d2)[0].enfants[2]);
+  ok("miroir des lignes : la ligne 1 est retournée de haut en bas", l1.includes("110,80") && l1.includes("90,80") && !l1.includes("110,60"), l1.join(" "));
+  ok("miroir des lignes : la ligne 0 ne l'est pas", pts(objets(d2)[0].enfants[1]).includes("110,60"), pts(objets(d2)[0].enfants[1]).join(" "));
+  const d3 = doc({ ...tri });
+  op_repeter(d3, ["a"], "grille", { lignes: 2, colonnes: 2, miroirLignes: true, miroirColonnes: true });
+  const lc = pts(objets(d3)[0].enfants[3]);
+  ok("les deux miroirs : la case (1, 1) est retournée deux fois", lc.includes("110,80") && lc.includes("130,80") && lc.includes("130,60") && !lc.includes("110,60"), lc.join(" "));
+}
+{
+  // hexagones : pavage sans jour ni recouvrement, à plat (flat-top) puis en pointe (pointy-top)
+  const M = martinez();
+  const hex = (id, cx, cy, r, plat) => {
+    const p = [];
+    for (let k = 0; k < 6; k++) { const a = (plat ? 0 : 30) + 60 * k; p.push([cx + r * Math.cos(a * Math.PI / 180), cy + r * Math.sin(a * Math.PI / 180)]); }
+    return { id, type: "path", d: "M" + p.map(([x, y]) => `${x} ${y}`).join(" L") + " Z", style: { fond: "#4a8" } };
+  };
+  for (const plat of [true, false]) {
+    const d = doc(hex("h", 100, 100, 20, plat));
+    op_repeter(d, ["h"], "grille", { lignes: 3, colonnes: 3, decalage: "hexagones" });
+    const g = objets(d)[0];
+    const multis = g.enfants.map((e) => versMulti(aplatir_objet(e)));
+    let u = multis[0];
+    for (const m of multis.slice(1)) u = M.union(u, m);
+    const somme = multis.reduce((s, m) => s + aire_multi(m), 0);
+    const nom = plat ? "hexagones à plat" : "hexagones en pointe";
+    ok(`${nom} : 9 instances`, g.enfants.length === 9);
+    ok(`${nom} : aucun recouvrement (aire de l'union = somme)`, Math.abs(aire_multi(u) - somme) <= somme * 0.001, `${aire_multi(u)} / ${somme}`);
+    ok(`${nom} : aucun jour (un seul polygone, sans trou)`, u.length === 1 && u[0].length === 1, `${u.length} polygones, ${u[0] && u[0].length} anneaux`);
+    // le pas exact (√3 r) : arrondi au centième, il ouvrirait un jour de 0,001 px par rangée
+    const c = boite(g.enfants[3]), attendu = plat ? 100 + Math.sqrt(3) * 20 : 100 + 30;
+    ok(`${nom} : pas exact au millionième`, Math.abs((plat ? c.cy : c.cy) - attendu) < 1e-5, `${c.cy} / ${attendu}`);
+  }
+  {
+    // un écart s'ajoute au pas hexagonal (des hexagones espacés, pour un plateau à joints)
+    const d = doc(hex("h", 100, 100, 20, true));
+    op_repeter(d, ["h"], "grille", { lignes: 1, colonnes: 2, decalage: "hexagones", ecartX: 5, ecartY: 3 });
+    const c = boite(objets(d)[0].enfants[1]);
+    ok("hexagones espacés : 30 + 5 entre colonnes, demi-pas vertical avec l'écart", pres(c.cx, 135) && pres(c.cy, 100 + (Math.sqrt(3) * 20 + 3) / 2), JSON.stringify(c));
+  }
+}
+{
+  // régler la grille : les réglages fournis remplacent, les autres restent
+  const d = doc(carre("a"));
+  const gid = op_repeter(d, ["a"], "grille", { lignes: 2, colonnes: 2, ecartX: 4 });
+  op_repetition_regler(d, gid, { colonnes: 5 });
+  const g = objets(d)[0];
+  ok("régler la grille : 2 × 5", g.enfants.length === 10 && g.repetition.params.ecartX === 4 && g.repetition.params.lignes === 2);
+  // un réglage d'un autre mode n'a pas de sens ici : il est ignoré
+  op_repetition_regler(d, gid, { nombre: 3 });
+  ok("régler la grille avec un réglage radial : ignoré", objets(d)[0].enfants.length === 10 && !("nombre" in objets(d)[0].repetition.params));
+}
+{
+  // refus sans trace
+  const d = doc(carre("a"));
+  const avant = JSON.stringify(d);
+  ok("grille 0 ligne : refus traduit", refus(() => op_repeter(d, ["a"], "grille", { lignes: 0 })) === T("vectorlab.repeter.lignes", { min: 1, max: 50 }));
+  ok("grille 51 colonnes : refus", !!refus(() => op_repeter(d, ["a"], "grille", { colonnes: 51 })));
+  ok("grille 1 × 1 : refus (une seule instance)", refus(() => op_repeter(d, ["a"], "grille", { lignes: 1, colonnes: 1 })) === T("vectorlab.repeter.une_seule"));
+  ok("grille 1 × 2 : accepté (essai)", !refus(() => op_repeter(JSON.parse(avant), ["a"], "grille", { lignes: 1, colonnes: 2 })));
+  ok("grille 15 × 15 : refus (plus de 200)", refus(() => op_repeter(d, ["a"], "grille", { lignes: 15, colonnes: 15 })) === T("vectorlab.repeter.trop", { max: 200 }));
+  ok("grille 10 × 20 = 200 : accepté (essai)", !refus(() => op_repeter(JSON.parse(avant), ["a"], "grille", { lignes: 10, colonnes: 20 })));
+  ok("décalage inconnu : refus", !!refus(() => op_repeter(d, ["a"], "grille", { decalage: "spirale" })));
+  ok("écart qui annule le pas : refus", refus(() => op_repeter(d, ["a"], "grille", { ecartX: -20 })) === T("vectorlab.repeter.ecart"));
+  ok("écart non numérique : refus traduit", refus(() => op_repeter(d, ["a"], "grille", { ecartY: "x" })) === T("vectorlab.repeter.ecart_invalide"));
+  ok("aucune trace après les refus", JSON.stringify(d) === avant);
 }
 
 if (echecs.length) {

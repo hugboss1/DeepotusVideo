@@ -13,8 +13,10 @@ import { T } from "./mod-i18n.js";
 import { polylignes_objet } from "./mod-bool.js";
 
 const MAX_COPIES = 200;
-const MODES = new Set(["radiale"]);
-const nbc = (x) => String(Math.round(Number((x * 100).toPrecision(12))) / 100);
+const MODES = new Set(["radiale", "grille"]);
+const DECALAGES = new Set(["aucun", "brique_lignes", "brique_colonnes", "hexagones"]);
+// au millionième : un pas arrondi au centième (34,64 pour √3 × 20) ouvrirait des jours dans un pavage
+const nbc = (x) => String(Math.round(x * 1e6) / 1e6 + 0);
 
 /* ── la boîte d'un objet, transform compris (la géométrie des booléens) ── */
 function _boite(o) {
@@ -43,6 +45,20 @@ function _positif(v, cle) {
   if (!Number.isFinite(n) || n <= 0 || n > 1e5) throw new Error(T(cle));
   return n;
 }
+function _fini(v, cle) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || Math.abs(n) > 1e5) throw new Error(T(cle));
+  return n;
+}
+// le pas de la grille, relu sur la boîte COURANTE de la source (elle peut grandir) : boîte + écart ; hexagones :
+// à plat (plus large que haut) les colonnes se recouvrent d'un quart, en pointe ce sont les lignes
+function _pas(p, b) {
+  const plat = b.w >= b.h;
+  let px = b.w + p.ecartX, py = b.h + p.ecartY;
+  if (p.decalage === "hexagones") { if (plat) px = 0.75 * b.w + p.ecartX; else py = 0.75 * b.h + p.ecartY; }
+  if (!(px > 0) || !(py > 0)) throw new Error(T("vectorlab.repeter.ecart"));
+  return { px, py, plat };
+}
 function _params(mode, p, source, base = {}) {
   const v = { ...base, ...(p || {}) };
   if (mode === "radiale") {
@@ -52,6 +68,21 @@ function _params(mode, p, source, base = {}) {
       rayon: _positif(v.rayon === undefined ? Math.hypot(b.w, b.h) / 2 : v.rayon, "vectorlab.repeter.rayon"),
       orienter: v.orienter === undefined ? true : !!v.orienter,
     };
+  }
+  if (mode === "grille") {
+    const lignes = _entier(v.lignes === undefined ? 3 : v.lignes, 1, 50, "vectorlab.repeter.lignes");
+    const colonnes = _entier(v.colonnes === undefined ? 3 : v.colonnes, 1, 50, "vectorlab.repeter.colonnes");
+    if (lignes * colonnes < 2) throw new Error(T("vectorlab.repeter.une_seule"));
+    if (lignes * colonnes > MAX_COPIES) throw new Error(T("vectorlab.repeter.trop", { max: MAX_COPIES }));
+    const decalage = v.decalage === undefined ? "aucun" : v.decalage;
+    if (!DECALAGES.has(decalage)) throw new Error(T("vectorlab.repeter.decalage", { decalage }));
+    const g = {
+      lignes, colonnes,
+      ecartX: _fini(v.ecartX === undefined ? 0 : v.ecartX, "vectorlab.repeter.ecart_invalide"),
+      ecartY: _fini(v.ecartY === undefined ? 0 : v.ecartY, "vectorlab.repeter.ecart_invalide"),
+      decalage, miroirLignes: !!v.miroirLignes, miroirColonnes: !!v.miroirColonnes,
+    };
+    return g;                                   // le pas se vérifie à la construction (_pas)
   }
   throw new Error(T("vectorlab.repeter.mode", { mode }));
 }
@@ -98,6 +129,26 @@ function _copies(gid, mode, p, source) {
       }
       out.push(c);
     }
+  } else if (mode === "grille") {
+    const b = _boite(source);
+    if (!b) throw new Error(T("vectorlab.repeter.source_type"));
+    const { px, py, plat } = _pas(p, b);
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    const briqueL = p.decalage === "brique_lignes" || (p.decalage === "hexagones" && !plat);
+    const briqueC = p.decalage === "brique_colonnes" || (p.decalage === "hexagones" && plat);
+    let k = 0;
+    for (let i = 0; i < p.lignes; i++) {
+      for (let j = 0; j < p.colonnes; j++) {
+        if (!i && !j) continue;                    // la case (0, 0) est la source
+        const dx = j * px + (briqueL && i % 2 ? px / 2 : 0), dy = i * py + (briqueC && j % 2 ? py / 2 : 0);
+        const c = _copier(source, `${gid}_r${++k}`);
+        const mx = p.miroirColonnes && j % 2, my = p.miroirLignes && i % 2;
+        // le miroir autour du centre de la source PUIS le déplacement (le préfixe le plus à gauche s'applique en dernier)
+        if (mx || my) _prefixer(c, `matrix(${mx ? -1 : 1} 0 0 ${my ? -1 : 1} ${nbc(mx ? 2 * cx : 0)} ${nbc(my ? 2 * cy : 0)})`);
+        if (dx || dy) _prefixer(c, `translate(${nbc(dx)} ${nbc(dy)})`);
+        out.push(c);
+      }
+    }
   }
   if (out.length + 1 > MAX_COPIES) throw new Error(T("vectorlab.repeter.trop", { max: MAX_COPIES }));
   return out;
@@ -137,7 +188,7 @@ function _source_ids(doc) {
   return () => { while (pris.has("o" + n)) n++; pris.add("o" + n); return "o" + n; };
 }
 
-/* ── T1 (t450) Objet › Répétition › Radiale ──
+/* ── T1 (t450) Objet › Répétition › Radiale ; T2 (t451) › Grille ──
    La sélection (objets du premier niveau d'un calque déverrouillé) devient la SOURCE — plusieurs objets sont
    d'abord groupés — et le groupe vivant prend la place du plus haut d'entre eux. -> id du groupe vivant */
 export function op_repeter(doc, ids, mode, params = {}) {

@@ -89,20 +89,26 @@ un groupe ordinaire, dont les copies reçoivent des ids `o<n>` neufs (`_idLibre`
 ### T2 (t451) — Répétition en grille, dont les pavages en brique et en hexagone
 
 - Mode `"grille"` :
-  - `lignes` et `colonnes` : 1-50 chacun, ≤ 200 copies au total ;
-  - `pasX` et `pasY` : par défaut, la boîte de la source, sans espace ;
-  - `decalage`, le type de grille d'Illustrator : `"aucun"`, `"brique_lignes"` (une ligne sur deux décalée de
-    `pasX/2`) ou `"brique_colonnes"` ;
-  - `miroirLignes` et `miroirColonnes` : une rangée sur deux retournée.
-- **Pavage hexagonal** : `brique_colonnes` avec `pasX = 1,5 r` et `pasY = √3 r` pave sans jour un hexagone à
-  sommet plat de rayon r. Un préréglage « Hexagones » du dialogue le pose à partir de la boîte de la source. C'est
-  l'usage des plateaux.
-- Banc :
-  - grille 3 × 4 → 12 objets aux bons pas ;
-  - brique : décalage d'une ligne sur deux ;
-  - miroir alterné : `scale(-1 1)` sur les colonnes impaires ;
-  - hexagones : 7 hexagones collés → aire de l'union = somme des aires (± 0,1 %), donc pas de recouvrement ni de jour ;
-  - plus de 200 copies → refus.
+  - `lignes` et `colonnes` : 1-50 chacun, 3 × 3 par défaut, au moins 2 cases, ≤ 200 au total ;
+  - `ecartX` et `ecartY` : l'espace entre deux cases, 0 par défaut, négatif pour un recouvrement. Le pas vaut la
+    boîte **courante** de la source plus l'écart : il se relit à chaque recalcul, donc une source agrandie ne se
+    recouvre pas. (Le plan disait `pasX` / `pasY` fixes : ils auraient cassé le pavage dès que la source change.)
+  - `decalage` : `"aucun"`, `"brique_lignes"` (une ligne sur deux décalée d'un demi-pas), `"brique_colonnes"` ou
+    `"hexagones"` ;
+  - `miroirLignes` et `miroirColonnes` : une rangée sur deux retournée autour du centre de la source.
+- **Pavage hexagonal** (`decalage: "hexagones"`), lu sur la boîte de la source :
+  - plus large que haute (sommet plat) : les colonnes se recouvrent d'un quart (pas = 0,75 × largeur), une colonne
+    sur deux descend d'un demi-pas ;
+  - plus haute que large (en pointe) : même chose avec les lignes.
+  - L'écart s'ajoute (plateau à joints). Les transformations sont écrites au millionième : arrondi au centième,
+    le pas √3 r ouvrirait un jour d'un millième de pixel par rangée.
+- Banc (fait) :
+  - grille 3 × 4 → 12 objets aux bons pas, ordre ligne par ligne ; la source s'élargit → le pas suit ;
+  - écarts positifs et négatifs ; briques par lignes et par colonnes ;
+  - miroirs sur un triangle rectangle (sommets relus), lignes, colonnes, et les deux ;
+  - hexagones à plat et en pointe, 3 × 3 : aire de l'union = somme (± 0,1 %) ET un seul polygone sans trou ;
+  - refus traduits : 0 ligne, 51 colonnes, 1 × 1, 15 × 15, décalage inconnu, écart qui annule le pas, écart non
+    numérique ; aucune trace.
 
 ### T3 (t452) — Répétition en miroir
 
