@@ -2355,6 +2355,31 @@
      rectangulaire), versos compris en recto verso, puis POST hex/pdf. Le
      plan est redemandé d'abord : un refus du serveur arrive avec SA phrase,
      avant le moindre rendu. */
+  /* M.api.blob ne garde d'un refus que « 400 Bad Request » : la PHRASE du
+     serveur (taille de carte, recto verso sans verso, PDF impossible…) est
+     relue sur la MÊME demande par M.api.raw. Le fichier, lui, ne part que par
+     M.api.blob : c'est le seul blob que CF.download accepte (provenance). */
+  async function blobHex(sub, corps) {
+    try { return await M.api.blob("POST", sub, corps); } catch (e) {
+      if (e && e.missing) throw e;
+      let detail = "";
+      try {
+        const r = await M.api.raw("POST", sub, corps);
+        if (!r.ok) {
+          const d = await r.json();
+          const x = d && (d.detail != null ? d.detail : d.error);
+          detail = x == null ? "" : (typeof x === "string" ? x : JSON.stringify(x));
+        }
+      } catch (e2) { /* pas de JSON : on garde le code HTTP */ }
+      throw new Error(detail || String((e && e.message) || e));
+    }
+  }
+  /* un export refusé : la phrase, encadrée par l'action, dans le panneau ET le toast */
+  function refusHex(cle, e) {
+    HEXERR = dzT(cle, { e: String((e && e.message) || e) });
+    paintHex();
+    CF.toast(HEXERR, true);
+  }
   async function exportHexPdf() {
     if (HEXBUSY) return;
     HEXBUSY = true;
@@ -2364,12 +2389,12 @@
       const corps = hexCorps();
       const r = await renderAll(!!corps.duplex);
       CF.busy(true, dzT("cartes.print.busy_pdf"));
-      const out = await M.api.blob("POST", "hex/pdf", formData(corps, r.fronts, r.backs));
+      const out = await blobHex("hex/pdf", formData(corps, r.fronts, r.backs));
       const name = deckSlug() + "_planches_hex.pdf";
       CF.download(out, name);
       logLine(name, out.size, dzT("cartes.print.hex_log_pdf", { n: r.fronts.length, p: p.out_pages, pp: p.par_page }));
       CF.toast(dzT("cartes.print.hex_toast_pdf", { n: r.fronts.length, p: p.out_pages }));
-    } catch (e) { CF.toast(String((e && e.message) || e), true); }
+    } catch (e) { refusHex("cartes.print.hex_err_pdf", e); }
     finally { CF.busy(false); HEXBUSY = false; }
   }
   /* LE FICHIER DE COUPE : un ZIP (page-01.svg, page-01.dxf…), en mm, qui
@@ -2381,12 +2406,12 @@
       const p = await planHex();
       if (!p) { CF.toast(HEXERR || dzT("cartes.print.hex_attente"), true); return; }
       CF.busy(true, dzT("cartes.print.hex_busy_coupe"));
-      const out = await M.api.blob("POST", "hex/coupe", hexCorps());
+      const out = await blobHex("hex/coupe", hexCorps());
       const name = deckSlug() + "_coupe.zip";
       CF.download(out, name);
       logLine(name, out.size, dzT("cartes.print.hex_log_coupe", { p: p.pages }));
       CF.toast(dzT("cartes.print.hex_toast_coupe", { p: p.pages }));
-    } catch (e) { CF.toast(String((e && e.message) || e), true); }
+    } catch (e) { refusHex("cartes.print.hex_err_coupe", e); }
     finally { CF.busy(false); HEXBUSY = false; }
   }
 

@@ -2440,6 +2440,8 @@
   "cartes.print.hex_btn_pdf": {"fr": "PDF d'impression", "en": "Print PDF"},
   "cartes.print.hex_busy_coupe": {"fr": "écriture du fichier de coupe…", "en": "writing the cut file…"},
   "cartes.print.hex_cartes": {"fr": "cartes du jeu", "en": "deck cards"},
+  "cartes.print.hex_err_coupe": {"fr": "Fichier de coupe refusé : {e}", "en": "Cut file refused: {e}"},
+  "cartes.print.hex_err_pdf": {"fr": "PDF d'impression refusé : {e}", "en": "Print PDF refused: {e}"},
   "cartes.print.hex_feuille": {"fr": "feuille", "en": "sheet", "contexte": true},
   "cartes.print.hex_format": {"fr": "{format} · fond perdu {b} mm · gouttière minimale {g} mm", "en": "{format} · bleed {b} mm · minimum gutter {g} mm"},
   "cartes.print.hex_log_coupe": {"fr": "{p} pages recto · SVG + DXF", "en": "{p} front pages · SVG + DXF"},

@@ -126,7 +126,7 @@ let GEOM = CONF.geom;
 const DOC = { name: "Mon jeu", format: CONF.format, print: {} };
 const EV = {};
 const etat = (o) => JSON.parse(JSON.stringify(o));
-let PLAN_ERR = null;
+let PLAN_ERR = null, BLOB_ERR = null;
 function api(m, sub, b) {
   const corps = b == null ? null : (typeof FormData !== "undefined" && b instanceof FormData)
     ? { spec: JSON.parse(b.get("spec")), fronts: b.getAll("fronts").length, backs: b.getAll("backs").length } : etat(b);
@@ -141,7 +141,17 @@ const M = {
       if (sub === "preflight") return { rows: [], errors: 0, warnings: 0 };
       return {};
     },
-    blob: async (m, sub, b) => { api(m, sub, b); const o = { size: 1234, sub: sub }; BLOBS.push(o); return o; },
+    blob: async (m, sub, b) => {
+      api(m, sub, b);
+      if (BLOB_ERR && BLOB_ERR.sub === sub) throw new Error(BLOB_ERR.status + " " + BLOB_ERR.texte);
+      const o = { size: 1234, sub: sub }; BLOBS.push(o); return o;
+    },
+    raw: async (m, sub, b) => {
+      api("RAW " + m, sub, b);
+      if (BLOB_ERR && BLOB_ERR.sub === sub)
+        return { ok: false, status: BLOB_ERR.status, json: async () => ({ detail: BLOB_ERR.detail }) };
+      return { ok: true, status: 200, json: async () => ({}) };
+    },
     del: async (sub) => { api("DELETE", sub); return {}; },
   },
   patch(o) { PATCHS.push(etat(o)); Object.keys(o).forEach((k) => { DOC.print[k] = etat(o[k]); }); emit("core:doc", { id: "print" }); },
@@ -194,6 +204,7 @@ function role(r) { const e = HOST.querySelector('[data-role="' + r + '"]'); retu
   for (const pas of CONF.scenario || []) {
     APPELS.length = 0; TRACE.length = 0; TOASTS.length = 0; DL.length = 0; PATCHS.length = 0; DESSIN.length = 0;
     if (pas.erreur !== undefined) PLAN_ERR = pas.erreur;
+    if (pas.blobErr !== undefined) BLOB_ERR = pas.blobErr;
     if (pas.geom) { GEOM = pas.geom; DOC.format = pas.format; emit("core:geom", {}); }
     if (pas.clic) clic(pas.clic);
     if (pas.seg) clicSeg(pas.seg[0], pas.seg[1]);
@@ -368,6 +379,29 @@ def test_hexagone_pdf_et_coupe(tmp_path):
         s = _subs(R[k]["appels"])
         assert "layout" not in s and "preflight" not in s and "pdf" not in s and "sheet" not in s, (k, s)
         assert "layoutOf" not in R[k]["trace"], k
+
+
+def test_hexagone_refus_des_exports_avec_la_phrase_du_serveur(tmp_path):
+    """Fix 1 : M.api.blob ne garde que « 400 Bad Request » ; la phrase du serveur est relue par M.api.raw et
+    montrée ÉCHAPPÉE, encadrée par l'action, dans le panneau et le toast."""
+    d400 = "recto: la carte mesure 600x700, la géométrie impose 661x753 <b>"
+    d409 = "Recto-verso demandé sans aucun verso reçu"
+    R = _node(tmp_path, _source(None), "hex_p50", [
+        {"nom": "pdf", "blobErr": {"sub": "hex/pdf", "status": 400, "texte": "Bad Request", "detail": d400},
+         "clic": "hexpdf"},
+        {"nom": "coupe", "blobErr": {"sub": "hex/coupe", "status": 409, "texte": "Conflict", "detail": d409},
+         "clic": "hexcoupe"},
+    ])
+    p, c = R["pdf"], R["coupe"]
+    assert "RAW POST" in [a["m"] for a in p["appels"] if a["sub"] == "hex/pdf"]
+    assert ("PDF d'impression refusé : recto: la carte mesure 600x700, la géométrie impose 661x753 &lt;b&gt;"
+            in p["hexerr"]["html"]), p["hexerr"]
+    assert "<b>" not in p["hexerr"]["html"]
+    assert any(t[1] and t[0] == "PDF d'impression refusé : " + d400 for t in p["toasts"]), p["toasts"]
+    assert not p["dl"] and "Bad Request" not in p["hexerr"]["html"]
+    assert "Fichier de coupe refusé : " + d409 in c["hexerr"]["html"], c["hexerr"]
+    assert any(t[1] and t[0] == "Fichier de coupe refusé : " + d409 for t in c["toasts"]), c["toasts"]
+    assert not c["dl"] and "Conflict" not in c["hexerr"]["html"]
 
 
 # ── le rectangle : le panneau d'avant ──────────────────────────────────────────────────────────────────────────────
