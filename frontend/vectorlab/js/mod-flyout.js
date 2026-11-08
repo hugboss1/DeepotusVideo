@@ -94,6 +94,7 @@ export const MENUS = {
       ...ORDRE.map(([k, l, ic]) => e("or-" + k, l, p.n >= 1, () => A.ordre(k), ic)),
       e("grouper", T("vectorlab.flyout.grouper"), p.n >= 2, () => A.grouper(), "dz-edit-grouper"), e("degrouper", T("vectorlab.flyout.degrouper"), !!p.groupe, () => A.degrouper(), "dz-edit-degrouper"),
       ...BOOL.map(([k, l, ic]) => e("bo-" + k, l, p.n >= 2, () => A.booleen(k), ic)),
+      ...(c.actions && c.actions.traces ? c.actions.traces.flyoutBool(e, p) : []),   // t430 : les six Pathfinder
     ], choisir: (x) => x.fn && x.fn() };
   },
   noeuds: (c) => {
