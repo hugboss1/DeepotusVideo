@@ -38,6 +38,11 @@ export const MENUS_BARRE = [
     e("grouper", T("vectorlab.menus.grouper"), "grouper", "ctrl+g"), e("degrouper", T("vectorlab.menus.degrouper"), "degrouper", "ctrl+shift+g"), "-",
     e("joindre", T("vectorlab.menus.joindre"), "noeuds:joindre"), e("inverser", T("vectorlab.menus.inverser"), "noeuds:inverser"), e("diviser", T("vectorlab.menus.diviser"), "noeuds:diviser"), e("coins", T("vectorlab.menus.coins"), "noeuds:coins"), "-",
     e("tracerImage", T("vectorlab.menus.tracer_image"), "imageVectoriser"), e("formes", T("vectorlab.menus.formes"), "flyout:forme"),
+    "-",
+    e("tracesContour", T("vectorlab.traces.m_contour"), "traces:contour"), e("tracesSimplifier", T("vectorlab.traces.m_simplifier"), "traces:simplifier"), e("tracesAjouter", T("vectorlab.traces.m_ajouter"), "traces:ajouter"), e("tracesSupprimer", T("vectorlab.traces.m_supprimer"), "traces:supprimer"),
+    e("tracesMoyenne", T("vectorlab.traces.m_moyenne"), "traces:moyenne"), e("tracesNettoyer", T("vectorlab.traces.m_nettoyer"), "traces:nettoyer"), e("tracesDiviser", T("vectorlab.traces.m_diviser"), "traces:diviser"), e("tracesLignes", T("vectorlab.traces.m_lignes"), "traces:lignes"), "-",
+    e("pfExclusion", T("vectorlab.traces.pf_exclusion"), "traces:pf-exclusion"), e("pfSoustractionArriere", T("vectorlab.traces.pf_soustraction_arriere"), "traces:pf-soustraction_arriere"), e("pfDecoupage", T("vectorlab.traces.pf_decoupage"), "traces:pf-decoupage"),
+    e("pfFusion", T("vectorlab.traces.pf_fusion"), "traces:pf-fusion"), e("pfRecadrage", T("vectorlab.traces.pf_recadrage"), "traces:pf-recadrage"), e("pfContour", T("vectorlab.traces.pf_contour"), "traces:pf-contour"), e("pfRepeter", T("vectorlab.traces.m_repeter"), "traces:repeter", "ctrl+4"),
   ] },
   { titre: "Pixel", entrees: [
     e("pxCalque", T("vectorlab.menus.px_calque"), "imageBiblio", "ctrl+shift+n"), e("pxEditer", T("vectorlab.menus.px_editer"), "pxEditer"), "-",

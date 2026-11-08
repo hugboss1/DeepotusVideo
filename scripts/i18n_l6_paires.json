@@ -21,6 +21,12 @@
     "groupe": "panneaux"
    },
    {
+    "pos": 2193,
+    "avant": "import { initStyle } from \"./mod-style.js\";",
+    "apres": "import { initStyle } from \"./mod-style.js\";\r\nimport { initTracesUI } from \"./mod-tracesui.js\";",
+    "groupe": "t422"
+   },
+   {
     "pos": 2238,
     "avant": "import { initExport } from \"./mod-export.js\";",
     "apres": "import { initExport } from \"./mod-export.js\";\r\nimport { initSchema } from \"./mod-schema.js\";",
@@ -133,6 +139,12 @@
     "avant": "initCalques(VL);",
     "apres": "// t146 : les <option> statiques de index.html (rôles…) — la surcouche n'entre pas dans un <select>\r\nfor (const o of document.querySelectorAll(\"select option\")) { const t = window.__dzI18n && window.__dzI18n.traduire(o.textContent); if (t) o.textContent = t; }\r\ninitCalques(VL);",
     "groupe": "integration"
+   },
+   {
+    "pos": 33995,
+    "avant": "initStyle(VL);",
+    "apres": "initStyle(VL);\r\ninitTracesUI(VL);   // t430 : commandes de tracé (menu Vecteur, Pathfinder, Ctrl+4) — après initStyle",
+    "groupe": "t422"
    },
    {
     "pos": 34568,
@@ -1009,6 +1021,12 @@
     "groupe": "outils_lab"
    },
    {
+    "pos": 1996,
+    "avant": "const _pt = (m, x, y) => [m[0] * x + m[2] * y + m[4],\r\n                          m[1] * x + m[3] * y + m[5]];",
+    "apres": "const _net = (v) => Math.round(v * 1e9) / 1e9 + 0;   // t422 : 6e-15 → 0 (sinon martinez boucle)\r\nconst _pt = (m, x, y) => [_net(m[0] * x + m[2] * y + m[4]),\r\n                          _net(m[1] * x + m[3] * y + m[5])];",
+    "groupe": "t422"
+   },
+   {
     "pos": 3256,
     "avant": "\"chemin sans M initial\"",
     "apres": "T(\"vectorlab.bool.sans_m\")",
@@ -1025,6 +1043,12 @@
     "avant": "`type non aplatissable: ${objet.type}`",
     "apres": "T(\"vectorlab.bool.non_aplatissable\", { type: objet.type })",
     "groupe": "outils_lab"
+   },
+   {
+    "pos": 8088,
+    "avant": "const _dDeMulti = (mp) => mp.map(_dDePoly).filter(Boolean).join(\" \");",
+    "apres": "const _dDeMulti = (mp) => mp.map(_dDePoly).filter(Boolean).join(\" \");\r\n// t422 : lus par mod-traces.js (lot D1 « Tracés ») — l'écriture d'un multipolygone et les cibles déverrouillées\r\nexport const multi_vers_d = (mp) => _dDeMulti(mp);\r\nexport const cibles_b = (doc, ids) => _ciblesB(doc, ids);\r\nexport const martinez = () => _martinez();   // t427 : intersection / diff de Diviser les objets en dessous",
+    "groupe": "t422"
    },
    {
     "pos": 10489,
@@ -1391,6 +1415,12 @@
     "avant": "\"Vectorlab — Deepotus Video Gen : éditeur vectoriel et raster, charpente Affinity\"",
     "apres": "vlT(\"vectorlab.charpente.apropos\")",
     "groupe": "outils_lab"
+   },
+   {
+    "pos": 7884,
+    "avant": "if (pre === \"bool\") return",
+    "apres": "if (pre === \"traces\") return VL.traces ? VL.traces.action(arg) : { peut: () => false, faire: () => {} };   // t430\r\n    if (pre === \"bool\") return",
+    "groupe": "t422"
    },
    {
     "pos": 11541,
@@ -2075,6 +2105,18 @@
     "avant": "export function didact_html(f, aide = \"aide/\") {",
     "apres": "// la vue d'une fiche dans la langue de l'interface : titre_en / phrase_en / fichier_en quand la fiche les porte\r\nexport function fiche_langue(f, langue) {\r\n  if (!f || langue !== \"en\" || !f.titre_en || !f.phrase_en || !f.fichier_en) return f;\r\n  return { ...f, titre: f.titre_en, phrase: f.phrase_en, fichier: f.fichier_en };\r\n}\r\nconst langue_page = () => (typeof window !== \"undefined\" && typeof window.dzLang === \"function\" ? window.dzLang() : \"fr\");\r\n\r\nexport function didact_html(f, aide = \"aide/\") {",
     "groupe": "fiches"
+   },
+   {
+    "pos": 2571,
+    "avant": "/* ── DOM ── */",
+    "apres": "// t259 : la position de l'encart. Une option DANS un menu (flyout du Photolab) le reçoit à CÔTÉ du menu — dessous, il\r\n// couvrirait les lignes suivantes que l'utilisateur veut encore survoler ; ailleurs, la position de la bulle courte.\r\nexport function didact_position(el, menu, taille, fenetre, marge = 8) {\r\n  if (!menu) return bulle_position(el, taille, fenetre, marge);\r\n  let x = menu.x + menu.w + marge;\r\n  if (x + taille.w > fenetre.w - marge) x = Math.max(marge, menu.x - marge - taille.w);\r\n  const y = Math.max(marge, Math.min(fenetre.h - marge - taille.h, el.y));\r\n  return { x, y, dessous: false };\r\n}\r\n\r\n/* ── DOM ── */",
+    "groupe": "posterieures_t259_t421"
+   },
+   {
+    "pos": 3142,
+    "avant": "const r = el.getBoundingClientRect();\r\n    const p = bulle_position({ x: r.left, y: r.top, w: r.width, h: r.height }, { w: encart.offsetWidth, h: encart.offsetHeight },\r\n                             { w: window.innerWidth, h: window.innerHeight }, 8);",
+    "apres": "const r = el.getBoundingClientRect(), m = el.closest('[role=\"menu\"]'), rm = m ? m.getBoundingClientRect() : null;\r\n    const p = didact_position({ x: r.left, y: r.top, w: r.width, h: r.height }, rm && { x: rm.left, y: rm.top, w: rm.width, h: rm.height },\r\n                              { w: encart.offsetWidth, h: encart.offsetHeight }, { w: window.innerWidth, h: window.innerHeight }, 8);",
+    "groupe": "posterieures_t259_t421"
    },
    {
     "pos": 7502,
@@ -3573,10 +3615,22 @@
     "groupe": "export"
    },
    {
+    "pos": 2183,
+    "avant": "if (!r) return false;",
+    "apres": "if (!r) return false;\r\n    if (r.refus) { VL.toast(T(\"commun.envoi.refuse\", { nom: r.refus }), true); return false; }     // t421 : dit, n'ouvre rien",
+    "groupe": "posterieures_t259_t421"
+   },
+   {
     "pos": 2730,
     "avant": "`Envoi vers le Vectorlab : ${e.message}`",
     "apres": "T(\"vectorlab.envoi.echec\", { m: e.message })",
     "groupe": "export"
+   },
+   {
+    "pos": 2969,
+    "avant": "if (!r) return;",
+    "apres": "if (!r) return;\r\n    if (r.refus) { VL.toast(T(\"commun.envoi.refuse\", { nom: r.refus }), true); return; }",
+    "groupe": "posterieures_t259_t421"
    }
   ],
   "js/mod-export.js": [
@@ -4565,6 +4619,12 @@
     "avant": "\"Dégrouper\"",
     "apres": "T(\"vectorlab.flyout.degrouper\")",
     "groupe": "flyout"
+   },
+   {
+    "pos": 8212,
+    "avant": "...BOOL.map(([k, l, ic]) => e(\"bo-\" + k, l, p.n >= 2, () => A.booleen(k), ic)),",
+    "apres": "...BOOL.map(([k, l, ic]) => e(\"bo-\" + k, l, p.n >= 2, () => A.booleen(k), ic)),\r\n      ...(c.actions && c.actions.traces ? c.actions.traces.flyoutBool(e, p) : []),   // t430 : les six Pathfinder",
+    "groupe": "t422"
    },
    {
     "pos": 8556,
@@ -6597,6 +6657,12 @@
     "avant": "\"Formes paramétriques…\"",
     "apres": "T(\"vectorlab.menus.formes\")",
     "groupe": "menus"
+   },
+   {
+    "pos": 4385,
+    "avant": "  ] },",
+    "apres": "    \"-\",\r\n    e(\"tracesContour\", T(\"vectorlab.traces.m_contour\"), \"traces:contour\"), e(\"tracesSimplifier\", T(\"vectorlab.traces.m_simplifier\"), \"traces:simplifier\"), e(\"tracesAjouter\", T(\"vectorlab.traces.m_ajouter\"), \"traces:ajouter\"), e(\"tracesSupprimer\", T(\"vectorlab.traces.m_supprimer\"), \"traces:supprimer\"),\r\n    e(\"tracesMoyenne\", T(\"vectorlab.traces.m_moyenne\"), \"traces:moyenne\"), e(\"tracesNettoyer\", T(\"vectorlab.traces.m_nettoyer\"), \"traces:nettoyer\"), e(\"tracesDiviser\", T(\"vectorlab.traces.m_diviser\"), \"traces:diviser\"), e(\"tracesLignes\", T(\"vectorlab.traces.m_lignes\"), \"traces:lignes\"), \"-\",\r\n    e(\"pfExclusion\", T(\"vectorlab.traces.pf_exclusion\"), \"traces:pf-exclusion\"), e(\"pfSoustractionArriere\", T(\"vectorlab.traces.pf_soustraction_arriere\"), \"traces:pf-soustraction_arriere\"), e(\"pfDecoupage\", T(\"vectorlab.traces.pf_decoupage\"), \"traces:pf-decoupage\"),\r\n    e(\"pfFusion\", T(\"vectorlab.traces.pf_fusion\"), \"traces:pf-fusion\"), e(\"pfRecadrage\", T(\"vectorlab.traces.pf_recadrage\"), \"traces:pf-recadrage\"), e(\"pfContour\", T(\"vectorlab.traces.pf_contour\"), \"traces:pf-contour\"), e(\"pfRepeter\", T(\"vectorlab.traces.m_repeter\"), \"traces:repeter\", \"ctrl+4\"),\r\n  ] },",
+    "groupe": "t422"
    },
    {
     "pos": 4443,

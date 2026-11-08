@@ -14366,5 +14366,9 @@
  "Création du plateau impossible : erreur interne (rien n'a été créé)": {
   "fr": "Création du plateau impossible : erreur interne (rien n'a été créé)",
   "en": "Board creation failed: internal error (nothing was created)"
+ },
+ "méthode inconnue": {
+  "fr": "méthode inconnue",
+  "en": "unknown method"
  }
 }

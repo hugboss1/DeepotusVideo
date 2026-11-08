@@ -1,0 +1,2526 @@
+{
+  "a-cast-of-one": {
+    "methode_en": [
+      "Shoot every role as an identical locked-off shot (tripod, mid-chest, plain wall, 24 fps, locked exposure and focus), 10-15 s takes, clean voice peaking below -3 dBFS",
+      "Prepare one sheet per character (mouth closed, face unobstructed) and an empty background plate, with a shared style block",
+      "Body track for human or stylised roles: reference-driven video model (take = performance, sheet + background = reference images)",
+      "Body track for cartoon roles: motion control from an image of the character already placed in the set at the take's framing",
+      "Voice track in parallel: isolate the voice from the take, then convert it to a preset voice, never cloning a real person",
+      "Run a lip-sync pass only if the body track lost the lips",
+      "Conform each output to the take's size, frame rate and duration before any before/after comparison"
+    ],
+    "controles_en": [
+      "Compare face, preserved performance and mouth on key words for each method",
+      "Check size, fps and frame count match the take (outputs come back at 25/30 fps and truncated)",
+      "Respect the input limits read from the model schema (file < 10 MB, lip-sync audio ≤ 15 s)"
+    ],
+    "pieges_en": [
+      "Prompt reduced to \"turn her into a knight\": you must say the take only provides performance, framing and rhythm",
+      "Full profile or hands in front of the mouth: keep head turns within three-quarter view",
+      "The video-replacement track softens big movements and keeps the original wall"
+    ],
+    "exemples_en": [
+      "I play all three roles in the scene, make them a dwarf, an elf and a dragon",
+      "Keep my words but give the pirate an old sailor's voice",
+      "Show me the before/after of take 2"
+    ],
+    "illustration_en": "Split screen: grey filmed silhouette on the left, painted knight on the right, vertical slider in the middle."
+  },
+  "auto-edit": {
+    "methode_en": [
+      "Convert HDR (HLG) to SDR before any processing",
+      "Transcribe with word-level timestamps, cut false starts and pauses while snapping each cut to the real voice onset, then re-transcribe to prove no word is clipped",
+      "Extract a per-frame person matte, plus face and hand tracking",
+      "Write a beats file (which word triggers which effect): sub-pixel zooms hiding jump cuts, titles behind the head, word-by-word captions",
+      "Generate a sound-effects kit and sectioned music, then measure where the drop actually lands and align it with the key word",
+      "Optional, after a quote: a video-to-video pass that rebuilds the set while keeping face and lips, switched in on a chosen word",
+      "Mix: music ~18 dB under the voice before the drop, ~15 dB after, ducking, master at -14 LUFS, export H.264 BT.709 24 fps with motion blur"
+    ],
+    "controles_en": [
+      "Re-transcription of the cut matches the expected text word for word",
+      "Logo on screen for at least 2.5 s, never straddling a cut",
+      "Final loudness -14 LUFS; motion blur never crosses a cut"
+    ],
+    "pieges_en": [
+      "Whisper word endings are unreliable: follow the audio decay",
+      "Requested music section lengths are not respected: measure the drop",
+      "iPhone HDR video read as SDR: blown-out skin"
+    ],
+    "exemples_en": [
+      "Edit my selfie video: cut the silences, add captions",
+      "Put the word \"free\" big behind me and make the music drop on it",
+      "Make a horizontal version of this reel"
+    ],
+    "illustration_en": "Vertical 9:16 timeline with cut words in red and a big title passing behind the head."
+  },
+  "block-or-build": {
+    "methode_en": [
+      "List every element in the shot: character, creature, prop, set",
+      "Characters and animals: legless capsule (with two or three distinctive marks) so the model invents a natural gait",
+      "Only rig a character if you have a clean cycle of the exact motion wanted",
+      "Props seen in the look image: a two-tone block is enough; products and set pieces approximated after image 1: generated 3D model",
+      "Send the video model the playblast (blocking, motion) + one finished image (look), with a prompt forcing it to follow the camera frame by frame",
+      "When in doubt, A/B test over a 4-8 s window, one parameterised scene per variant, same shared look image"
+    ],
+    "controles_en": [
+      "Contact sheet: clay row above the render row at six equal instants per variant",
+      "Counting clause in the prompt (the object changes hands exactly once)",
+      "Report counts (seen in 2 takes out of 2): a single take is only a hint"
+    ],
+    "pieges_en": [
+      "Frozen legs: the character slides; sped-up walk cycle: stays a walk",
+      "Braziers as blocks: replaced by lanterns or gone",
+      "Copying then hand-editing a scene for the A/B: bias"
+    ],
+    "exemples_en": [
+      "My hero runs with his dog: capsule or model?",
+      "Run an A/B test on the jump over the log",
+      "Which props in my scene do I really need to model?"
+    ],
+    "illustration_en": "The same wolf in three versions: grey capsule, rigged model, final galloping render."
+  },
+  "celestial-orrery": {
+    "methode_en": [
+      "Define the subject, the real data and the controls (crank, sliders, top view, date)",
+      "Style rounds: 3 to 6 distinct concept images at 1536x1024, iterate to a pick, then lock a summary image",
+      "Equirectangular 2:1 sphere textures with a shared prefix and a per-piece suffix, edge seam blended locally",
+      "PBR materials tileable on both axes; illustrated rather than photoreal panoramic background",
+      "Hero object: concept on white, then 2 or 3 image-to-3D models compared on render and weight, decimated",
+      "Mechanism as a Blender script (lathed profiles, gears with real tooth counts), compressed GLB export",
+      "Looping music per mode (same tempo and key), crossfaded onto itself; three.js assembly with an anti-NaN pass before bloom"
+    ],
+    "controles_en": [
+      "Compare candidate GLBs on render and size before keeping one",
+      "Music loops joined with a 4 s crossfade",
+      "Captures at a fixed buffer size, panel visible"
+    ],
+    "pieges_en": [
+      "Generating the whole mechanism with image-to-3D: welded mesh, nothing moves",
+      "Naming artists or composers in a music prompt: refused",
+      "Trusting price estimates: always a dry-run quote per setting",
+      "Restyling without a backup copy of the project"
+    ],
+    "exemples_en": [
+      "Make a marquetry mechanical clock that shows the real time",
+      "Create embroidered planet textures for my solar system",
+      "Compare three 3D models for this base and keep the lightest"
+    ],
+    "illustration_en": "Embroidered wool planets on brass rods above a walnut base, dark engraved background."
+  },
+  "change-only-x-product": {
+    "methode_en": [
+      "Draw the label flat (brand, flavour, one line), then a product sheet: front, left and right three-quarter, back, top",
+      "Create one still per step, each an edit of the previous one, approved before any video",
+      "Shoot the source from reference images (no forced first frame): a single continuous move described over time, real-time pace, no jerks or cuts",
+      "Approve the source, then never regenerate it",
+      "Each following step = a video-to-video edit of an earlier clip: \"keep everything as in video 1, only change…\", with the sheet and the step image",
+      "Trim the same number of frames from the start of every output so they overlay"
+    ],
+    "controles_en": [
+      "Same resolution, frame count and frame rate for every step (e.g. 185 frames at 24 fps)",
+      "Frame-jump detection (scores ~0.15 tolerated on whole seconds, isolated spikes to inspect)",
+      "Inspect the edges of anything added (fingertips)"
+    ],
+    "pieges_en": [
+      "Regenerating instead of editing: the camera move changes",
+      "Fast moves (whip pan, crash zoom) that break the chain",
+      "Product that bends or melts: specify \"rigid object\""
+    ],
+    "exemples_en": [
+      "Keep my packshot but switch the bottle to the pink version",
+      "Add a hand holding the bottle without changing the camera",
+      "Make three sets for the same product spin"
+    ],
+    "illustration_en": "The same can across six thumbnails in a row: blue background, citrus, paper, new flavour, hand, neon street."
+  },
+  "coral-halo": {
+    "methode_en": [
+      "Generate a turnaround sheet (front, side, back), crop the views and build a multi-view mesh; redo the head alone, then reduce it (~8,000 triangles)",
+      "Read the character's rig and the reference mannequin's: if positions match to the millimetre, the skeleton was never fitted",
+      "Measure landmarks on the mesh (crotch, base of neck, chin, half shoulder width) where clothing fools detection",
+      "Find the real wrists (glove edge by colour or material), place the joint ~1.5 cm towards the fingertips, refit the fingers",
+      "Move each joint to the same relative spot as on the mannequin, keeping bone orientations",
+      "Redo skin weights once, fix the knees, then check with a front and side overlay"
+    ],
+    "controles_en": [
+      "Joint overlay on the body, front and side",
+      "Side-by-side comparison with the reference mannequin",
+      "Arms too long: check the rig before the mesh (5% gap found)"
+    ],
+    "pieges_en": [
+      "Bending the mesh to fit the mannequin's hand",
+      "Moving twist bones by hand: they follow their two joints",
+      "Believing the tool is perfect: a manual touch-up is still needed"
+    ],
+    "exemples_en": [
+      "My character's hands stretch in Unreal, fix the rig",
+      "Check whether the skeleton was actually fitted to my model",
+      "Show me the joints on the body from the front and side"
+    ],
+    "illustration_en": "Three silhouettes: mannequin, auto rig with shoulders inside the torso, corrected rig."
+  },
+  "edit-one-thing": {
+    "methode_en": [
+      "One change per request, stated precisely (\"only the middle lantern in red\")",
+      "Add a list of what must stay: face and identity, other objects, lighting, framing",
+      "For a pair of objects, explicitly name the one that stays",
+      "Keep the original aspect ratio; cost the plan (edits × models × attempts) before launching",
+      "Stacked edits: start from the previous step and repeat the full keep list, adding every edit already made",
+      "Compare two or three models when fidelity matters"
+    ],
+    "controles_en": [
+      "Difference map: only pixels in the requested area should light up",
+      "Original/result overlay: a doubled face signals a shift",
+      "Size measured against the original (\"30% smaller\" rendered as 10%)",
+      "Skin texture at 100% after each stacked step"
+    ],
+    "pieges_en": [
+      "Colour bleeding onto neighbouring objects",
+      "Both items of a pair removed instead of one",
+      "Skin turning blotchy after nine successive edits"
+    ],
+    "exemples_en": [
+      "Change only the dress colour, nothing else",
+      "Remove the left sign, keep the right one",
+      "Which model damages my portrait the least?"
+    ],
+    "illustration_en": "Original photo on the left, black map on the right where only a small lantern glows white."
+  },
+  "fan-cam": {
+    "methode_en": [
+      "Generate a very wide, very large stand plate (telephoto, a dozen rows, no text)",
+      "For each fan: crop a 512 px square centred one face below the face to replace, edit only the person in the centre with a prop readable from afar, two variants",
+      "Realign the edit on the crop, match colours, paste it back through a mask of what changed",
+      "Run OCR on the final plate to erase any lettering on clothes and scarves",
+      "Redo each fan as a 16:9 TV close-up (~2K), neighbours blurred",
+      "Animate ~8 s with sound: indifferent, sees themselves on screen, reacts; \"a single continuous take\"",
+      "Cut to 16:9 and 9:16 and edit a reel with lower thirds in post"
+    ],
+    "controles_en": [
+      "Frames every 0.5 s: identity, no cut, no floating screen, no readable text",
+      "The mask covers the whole fan, props included, with no halo",
+      "Restart from the close-up, never from a clip that has drifted"
+    ],
+    "pieges_en": [
+      "Single difference threshold: a dark coat on a dark crowd falls out of the mask",
+      "Planting celebrities or strangers: only the user, consenting or invented people",
+      "Lower thirds drawn into the video instead of in HTML"
+    ],
+    "exemples_en": [
+      "Hide my team in a stadium photo for a giveaway",
+      "Make each person react when they see themselves on the screen",
+      "Output a 9:16 reel of the twelve reactions"
+    ],
+    "illustration_en": "Night-time stand with a camera viewfinder framing a fan in an orange beanie."
+  },
+  "fully-rigged": {
+    "methode_en": [
+      "Generate head, body, hand and props as separate 3D models, each from a plain-background image with no text",
+      "Assemble in Blender without silently moving approved parts",
+      "Rigged low-res rebuild: triangle budget (more on the face), details baked into PBR maps, humanoid skeleton with finger chains, T-pose, max 4 weights per vertex",
+      "Face: if the mouth is closed at rest, redo a head with parted lips, clean retopology, then 52 ARKit shapes with exact names including jaw, teeth, tongue",
+      "Motion: generated 5-10 s video, full body, plain background, static camera, converted to a skeleton then retargeted (time resampling, feet on the ground every frame)",
+      "Secondary motion: short bone chains for hair, damped spring on head rotation, clamped to a few degrees"
+    ],
+    "controles_en": [
+      "Count bones and shape keys in the file (e.g. 78 bones, 3 segments per finger, 52 shapes)",
+      "Textured and wireframe render of the same frame",
+      "Check for sliding feet, flipped fingers, hair torn off the scalp"
+    ],
+    "pieges_en": [
+      "Changing the frame rate instead of resampling: slower motion",
+      "Feet pointing toes-up after retargeting",
+      "Launching costly jobs without a quote first"
+    ],
+    "exemples_en": [
+      "Rig my character with fingers and face",
+      "Make it wave using a generated video",
+      "Add hair that follows the head movements"
+    ],
+    "illustration_en": "Low-poly character in T-pose, skeleton visible down to the finger bones, grid of 52 expressions beside it."
+  },
+  "give-each-picture-a-job": {
+    "methode_en": [
+      "Gather 4 or 5 images, each showing a single idea on a neutral background",
+      "Give each image a role: subject, location, pose, style, lighting, palette, material, angle, expression, outfit, layout",
+      "For each image, write what must not be borrowed from it (\"pose only, don't show the mannequin\")",
+      "Strict palette only if you name the allowed and banned inks; text quoted exactly with \"no other words\"",
+      "Generate the image (1536x1024), then look for leaks",
+      "Use the image as the first frame of a 6 s clip whose prompt describes only motion, camera and sound"
+    ],
+    "controles_en": [
+      "Leak check: an object, colour or face from a reference appearing where it shouldn't",
+      "Count the named elements in the final image"
+    ],
+    "pieges_en": [
+      "Without the second half (\"don't take…\"), the object from the style reference enters the image",
+      "References with real logos or shop signs are refused",
+      "An overloaded card leaks more"
+    ],
+    "exemples_en": [
+      "Take the style from this image and the pose from that one, without the set",
+      "My character in this place with only these colours",
+      "Why does the raccoon from my reference appear in the image?"
+    ],
+    "illustration_en": "Five small numbered cards linked by arrows to a final image of a samurai cat."
+  },
+  "green-screen-to-any-scene": {
+    "methode_en": [
+      "Generate two images: empty green studio and the subject in its final pose in that studio, real floor with a taped grid",
+      "Animate between first and last frame to get the green-screen shot",
+      "Key the video with an alpha channel (try several tools on the same clip)",
+      "Composite the key over a generated background: at this stage it looks pasted on",
+      "Integration pass: a video-editing model gets the composite and a short instruction (\"integrate the subject as if it were filmed here, keep the rest\")",
+      "Reuse the same green-screen shot to spin off several sets"
+    ],
+    "controles_en": [
+      "Comparison sheet of several clips at the same instants",
+      "Key present from the first frame, with no leaking tape line",
+      "Same instruction for every model compared, at most one sentence for a named flaw"
+    ],
+    "pieges_en": [
+      "Composite with no contact shadow or location reflections",
+      "Green visible through a visor or a window",
+      "A model that regenerates a new clip instead of editing the input"
+    ],
+    "exemples_en": [
+      "Put my astronaut in a red hangar and make it believable",
+      "Compare three keyers on this clip",
+      "Spin this product shot off into six sets"
+    ],
+    "illustration_en": "Chrome car on a green screen, then the same car in a desert at sunset with orange reflections."
+  },
+  "hold-on": {
+    "methode_en": [
+      "Story: a true behaviour as the payoff, 20 to 30 shots of 4-6 s, never two identical compositions in a row",
+      "One style image, then one sheet per character (four views, held pose, four expressions) with visible distinctive marks",
+      "Blender guides in saturated colours (each colour = one material or character), bumpy organic shapes, one camera per wide or crowded shot",
+      "Start frame: guide as reference 1, sheets after; end frame = an edit of the start frame",
+      "Animate between the two (4-6 s), sound off, then keep every other frame (12 unique frames/s at 24 fps)",
+      "Music cut to the edits, spot sound effects, master at -16 LUFS, -3 dB peak"
+    ],
+    "controles_en": [
+      "Frame-by-frame review: melting faces, extra legs, objects popping in",
+      "Counts checked on group shots (e.g. seven otters in the right order)",
+      "Final mix -16 LUFS, peak ≤ -3 dB, loudest section on the key moment"
+    ],
+    "pieges_en": [
+      "Rocks as boxes in the guide: rendered square",
+      "Identity mark too small (ear notch never rendered)",
+      "More than two characters per shot without a placement guide"
+    ],
+    "exemples_en": [
+      "Make a two-minute claymation short with no dialogue",
+      "Create the sheet for my felt fox with four expressions",
+      "Switch this shot to animation on twos"
+    ],
+    "illustration_en": "Two felt otters holding paws on a resin sea, paper moon."
+  },
+  "impossible-rides": {
+    "methode_en": [
+      "Blender: a vehicle crossing a fixed set, stand-in passengers in distinct colours, cameras tied to markers",
+      "Fixed breakdown over 20 s at 24 fps: 6 s of continuous motion, then cuts at 6, 9, 13 and 16 s",
+      "Extract nine frames spread across the shots (at least one per shot)",
+      "Master identity image made from the 2 s frame alone",
+      "Each other view = its Blender frame + the master, never a derived view fed back in",
+      "Video edit of the native film with the views listed on a timeline; dialogue and ambience without music",
+      "Original music generated separately; conform picture and sound together before the mix"
+    ],
+    "controles_en": [
+      "Inspect the first consecutive frames: the grey previs can survive for 1 s",
+      "Check the rendered duration (20 s rendered as 19.708 s)",
+      "Vehicle and passenger orientation consistent view by view"
+    ],
+    "pieges_en": [
+      "Appearance references made outside the Blender frames: views that don't exist in the scene",
+      "Splitting the film in two for a short-reference model: camera and set change",
+      "Mirroring only the bodywork without flipping the passengers"
+    ],
+    "exemples_en": [
+      "Turn my helicopter previs into a realistic film",
+      "Make a cel-shaded version of the same bus ride",
+      "The vehicle changes shape between shots, fix it"
+    ],
+    "illustration_en": "Alpine train in three strips: grey Blender render, realistic version, paper cut-out version."
+  },
+  "iso-cycles": {
+    "methode_en": [
+      "Draw the hero in two poses in one image (front three-quarter SE, back three-quarter NE) on a key colour absent from the character, same size, same ground line",
+      "Add E, S and N via a turnaround sheet from that design",
+      "Crop each first frame: character at 58% of a 960 square, feet at 82%, key check < 1%",
+      "Animate each direction and cycle as square image-to-video, 3 or 5 s, no audio, last frame pinned only when useful",
+      "Locally: key, seamless loop search, size and speed matched across directions",
+      "Pixelate on a per-character palette, then create SW, W, NW by mirroring; 8 rows × 8 frames sheet"
+    ],
+    "controles_en": [
+      "Each clip holds its direction end to end (diagonals never in profile)",
+      "Identical size and speed across directions",
+      "Reject any clip that changes design, palette or pixel size"
+    ],
+    "pieges_en": [
+      "Character filling the frame: raised weapon cropped in attacks",
+      "Last frame pinned on a 3 s walk: the step starts and stops within the clip",
+      "Back view turning to profile or walking backwards"
+    ],
+    "exemples_en": [
+      "Make my character walk in all eight directions",
+      "Add a sword attack seen from behind",
+      "My directions aren't the same size, match them"
+    ],
+    "illustration_en": "Compass rose of eight small walking pixel knights."
+  },
+  "lamplight-deep": {
+    "methode_en": [
+      "Shot plan: one line per shot with a hook image and a resolution image",
+      "Concepts on plain grey, image-to-3D, imported at real scale; all lights that switch on in a single group",
+      "Time-capped Cycles render, then histogram-checked grading; look at every image yourself",
+      "Finish each key image with an edit using the Blender image as reference: finishing changes surfaces, never layout",
+      "Game UI drawn as a transparent image, every word proofread, composited last",
+      "Animated shot: clean EEVEE previs with a 0.5 s handle, video edit with the finished image as look reference; three takes max per problem",
+      "Plan the full film based on what the proof taught you"
+    ],
+    "controles_en": [
+      "Review score per image (e.g. render 6/10, finish 8/10)",
+      "Reject any finish that moves, adds or removes an element",
+      "Spot \"pass-through\" takes (good layout score but 3.5 s left as grey previs)"
+    ],
+    "pieges_en": [
+      "Letting the model redraw the UI: unreadable text",
+      "Launching the full render without a proof",
+      "Piling up takes on the same flaw"
+    ],
+    "exemples_en": [
+      "Prove my game film in five images before rendering everything",
+      "Add the UI on top without the AI redrawing it",
+      "Finish this Blender render without moving the camera"
+    ],
+    "illustration_en": "Round submarine lighting a sunken street, orb counter overlaid."
+  },
+  "last-repair-shop": {
+    "methode_en": [
+      "Three matching concepts on the same background: machine with an empty open bay, the part alone, a set element",
+      "3D rebuild with named, separate parts, maximum effort, prompt listing the parts to isolate",
+      "Fit the part: capture the attachment point in Blender, edit the part image, rebuild again",
+      "Worn and new PBR materials applied in Blender",
+      "One timeline split into steps (inspect, open, remove, replace, restart, leave), exported as one animated GLB",
+      "Viewer that plays each time range; Blender render < 30 s used as motion reference for day/night video-to-video versions, plus sound effects"
+    ],
+    "controles_en": [
+      "Parts separate and named in the mesh before animation",
+      "The remade film keeps the Blender render's motion",
+      "Video playback with byte ranges for scrubbing"
+    ],
+    "pieges_en": [
+      "Generating the repair directly as video: parts that melt, duplicate or swap",
+      "Replacement part that doesn't fit the bay"
+    ],
+    "exemples_en": [
+      "Show how to replace my robot's battery in six steps",
+      "Make a night version of the repair film",
+      "The new part doesn't fit the bay, adjust it"
+    ],
+    "illustration_en": "Ivory rover on a workbench, hood open, copper cartridge floating above its bay."
+  },
+  "maison-vespree": {
+    "methode_en": [
+      "Write a short bible: accented name, founding facts, range, hex palette, typefaces, signature hour; every prompt cites it",
+      "Emblem: four written directions across two or three models, scored, then upscaled and vectorised",
+      "Labels typeset in layout; the AI only generates ornaments and materials (paper, gilding, cork)",
+      "Model the product once and render packshots per variant, the references for every later image",
+      "Scenes generated with a blank-label product, then the exact label applied",
+      "Master image of the place at the signature hour; other lighting = edits that change only light and sky",
+      "Reframe each approved visual to 4:5 and 9:16 with the packshot as second reference, never cropping the product"
+    ],
+    "controles_en": [
+      "Relighting drift: edge correlation outside the sky above a threshold (roofs, windows, vine rows fixed)",
+      "Seamless 360 panorama joins",
+      "Score against a written brief for each hero visual: below the bar, redo it"
+    ],
+    "pieges_en": [
+      "Brand name misspelled by the generator",
+      "Bottle looking pasted onto the key visual",
+      "Video loop that jumps on the last frame",
+      "Two simultaneous voices in the tour"
+    ],
+    "exemples_en": [
+      "Invent a perfume house with its brand guide and bottle",
+      "Put my bottle in this living room without damaging the label",
+      "Adapt this visual to 4:5 and 9:16"
+    ],
+    "illustration_en": "The same dark bottle with a gold label in three lights: afternoon, golden hour, night."
+  },
+  "mirage-house": {
+    "methode_en": [
+      "Render a flat-colour tour: exterior, entrance then rooms, 1920x1080, 24 fps, ~26 s",
+      "Extract two frames from the same path: exterior with the full silhouette, one key room",
+      "Exterior style image: the still is a layout reference only (silhouette, openings, angle), materials and set fully redone, two options",
+      "Interior style image only for styles that fall back to the raw interior",
+      "Restyle the base video with these images as appearance references; same video for every style",
+      "Test each style at low resolution, 1080p only for approved looks"
+    ],
+    "controles_en": [
+      "Frame-by-frame alignment between styles for the comparison wipe",
+      "Check the interior doesn't fall back to the untextured render"
+    ],
+    "pieges_en": [
+      "Restyling by prompt alone: raw render simply recoloured",
+      "Audio filter refusing a clean job: rerun without audio generation"
+    ],
+    "exemples_en": [
+      "Make my house tour in pixel art and pencil drawing",
+      "Keep exactly the same camera for all four versions",
+      "The interior turns grey again in the clay version, fix it"
+    ],
+    "illustration_en": "Villa split into four vertical strips: flat, voxel, pencil, clay."
+  },
+  "neon-drift": {
+    "methode_en": [
+      "Shot table (frames, focal length, what the viewer must see) and driving described in numbers, single source for cameras, sparks and sounds",
+      "Mock-up: road ribbon, swept walls, stand-in car, cameras locked to the choreography, cuts on markers",
+      "Vehicle: concept, image re-read by description before any 3D spend, PBR image-to-3D, segmented into seven parts so the wheels spin",
+      "Liveries and signs on transparent backgrounds, every word spelled out, invented brands; 360 sky and tileable road/rock materials",
+      "Effects (trails, sparks) computed from scene time; wheels at 0.34 of the real angle to avoid the strobe effect",
+      "Review: watch every test render, then automatic analysis, each note ends with a change or \"no change\"",
+      "One instrumental music track and one sound per event, synced to the choreography, then mix and encode"
+    ],
+    "controles_en": [
+      "Automatic description of the concept before image-to-3D",
+      "Every review note followed by a logged action",
+      "Compare two colour transforms (AgX / Standard)"
+    ],
+    "pieges_en": [
+      "Fly-by too early: car reduced to a dot at 90 m",
+      "Top-ranked 3D model too slow (32 min) for the session",
+      "Wheels strobing at 24 fps"
+    ],
+    "exemples_en": [
+      "Make a 15 s clip of a motorbike drifting through a neon city",
+      "Separate my 3D car's wheels so they spin",
+      "Sync the tyre screech with the drift"
+    ],
+    "illustration_en": "White racer drifting through a neon canyon, shower of sparks, striped sun on the horizon."
+  },
+  "one-more-take": {
+    "methode_en": [
+      "Lock the casting portrait, a preset voice and a tight script with its gag written in, once",
+      "Pivot take: talking avatar (portrait, script, voice and acting direction), two seeds, 10 s or less",
+      "Each note = a small route: rewrite the voice direction, translate, dub the pivot audio, sing, edit the portrait into a new identity",
+      "Era: era key image by editing the first frame, video restyle, then retiming and period sound in post",
+      "Two combined notes = two chained routes",
+      "Finish: cut 0.4 s after the last sound above -45 dB, normalise each take to -16 LUFS"
+    ],
+    "controles_en": [
+      "Transcription compared with the expected line",
+      "Grid of mouth frames at fixed instants",
+      "Retiming computed on the mouth for each take (restyled takes ~3% too fast)"
+    ],
+    "pieges_en": [
+      "Ellipses in the script: 14 s take to re-trim",
+      "Applying one fixed retiming factor to every take",
+      "Cloning a real voice or imitating a famous singer"
+    ],
+    "exemples_en": [
+      "Make her say \"I forgot my lines\" in a whisper, then in Spanish",
+      "Redo the take as a 90s VHS tape",
+      "Check she says the exact line"
+    ],
+    "illustration_en": "Film clapperboard and four thumbnails of the same actress: normal, whisper, marble, camcorder."
+  },
+  "open-house": {
+    "methode_en": [
+      "Describe the photo and list only isolated movable objects (lamp, cushion, bowl), with box, support, size and materials; keep two or three",
+      "Erase-only edit to get an empty plate",
+      "One edit per object on the original photo: object alone on white, centred, tightly cropped",
+      "World model on the plate (fixed seed, prompt describing the room without the objects)",
+      "Image-to-3D per object (~50,000 faces), then web simplification to 15-20,000 triangles and 1024 px textures",
+      "Calibrate the world: floor via robust plane fit, scale via estimated sizes, collision field, place each object by its box depth",
+      "Impact sounds: 2 to 4 hits per object, played only when the object arrived moving"
+    ],
+    "controles_en": [
+      "Plate compared with the photo: only the targeted objects are gone",
+      "Camera height measured against object sizes",
+      "A sound never replays twice in a row"
+    ],
+    "pieges_en": [
+      "Treating the world as metric: it isn't",
+      "Picking sofas, rugs, curtains or fixed elements",
+      "Same force threshold for sound and contact: a resting object sounds on loop"
+    ],
+    "exemples_en": [
+      "Make this living-room photo explorable in 3D",
+      "Do the same room in Japanese and 70s styles",
+      "Make the lamp and the vase grabbable"
+    ],
+    "illustration_en": "Empty living room with oak floors, a lamp floating in mid-air as if thrown."
+  },
+  "park-atlas": {
+    "methode_en": [
+      "Define a geographic box and a centre origin, converted to local metres",
+      "Fetch building footprints, paths and named places from open mapping data, plus a 256x256 elevation grid",
+      "Extrude buildings: tagged height, else levels × 3.2 m, else by area; count measured vs estimated",
+      "Figures and sculptures: head-to-toe reference image on a plain background, then image-to-3D, one mesh per figure",
+      "Two to four generated hero PBR materials, the rest from free libraries, tiling calibrated in metres",
+      "Delivery: GLB with 4K/2K WebP textures, startup copy at ~20% of the triangles, gzip; orbit, 1.7 m walk and night modes"
+    ],
+    "controles_en": [
+      "Share of buildings with measured vs estimated height displayed",
+      "Map source attribution preserved",
+      "Result labelled as an artistic interpretation"
+    ],
+    "pieges_en": [
+      "Asking a 3D model for \"the whole park\": welded block with no scale",
+      "Retrying a moderation-blocked reference in a loop",
+      "Using third-party brands and characters without rights"
+    ],
+    "exemples_en": [
+      "Make a 3D model of my campus from the map",
+      "Add a giant statue at the park entrance",
+      "Plan a night mode with lit windows"
+    ],
+    "illustration_en": "Bird's-eye view of a neighbourhood model, small extruded buildings and colourful figures."
+  },
+  "pit-tactics": {
+    "methode_en": [
+      "Unit table: side, role, height in pixels (64 to 100), movement and attack, required cycles, mechanics to illustrate",
+      "Each unit drawn twice in one image (SE front, NE back) on plain magenta; the first approved unit of each side is the style reference",
+      "Variants (zombies, corrupted versions) = edits of the approved image, same poses",
+      "Square clips without audio: idle and attack 3 s first = last frame, walk 3 s first frame only, death 5 s in SE, back walk 5 s",
+      "Loop, key out, pixelate, mirror SW/NW; death keeps two rows",
+      "Effects as 16-frame sheets from a pixel animation model (64 or 96 px, fixed seed); props in intact/destroyed pairs at a shared scale",
+      "Loopable instrumental music (fixed tempo and key) and one short 1-4 s effect per action"
+    ],
+    "controles_en": [
+      "The unit keeps its diagonal and stays centred",
+      "Death ends on the ground before the clip ends",
+      "Effect sheets on a transparent background, effect only"
+    ],
+    "pieges_en": [
+      "Flames or smoke cut at the frame edge in attacks: crop at 58%",
+      "Mechanical bipeds crossing their legs: describe the step mechanically",
+      "Creature gaining limbs mid-clip"
+    ],
+    "exemples_en": [
+      "Create eight units for my tactics game with walk and attack",
+      "Make a zombie version of each soldier",
+      "Generate an explosion as a 16-frame sheet"
+    ],
+    "illustration_en": "Isometric mine-pit board, pixel soldiers behind sandbags, burning barrel."
+  },
+  "previs-to-picture": {
+    "methode_en": [
+      "Previs in bold colours per material, never grey, hero object close to its real look",
+      "Camera written as functions of time, subjects projected into frame before rendering, two takes compared",
+      "Have two or three previs frames reviewed by analysis: what could be misread?",
+      "One style image per part of the shot, an edit of the previs frame where each coloured shape is named",
+      "One video-to-video pass guided by the style images",
+      "Check the picture against the previs, then conform; mix matched to the shot's camera distances"
+    ],
+    "controles_en": [
+      "Layout/camera fidelity ≥ 9/10 on scored frames (1, 100, 220, 340)",
+      "Style images overlaid at 50% on the previs",
+      "Drift measured (up to 1 frame) and exact frame count",
+      "Mix ~-16 LUFS integrated, peak ≤ -1 dBFS; known flaws logged"
+    ],
+    "pieges_en": [
+      "Grey previs: read as concrete or fog",
+      "Focal length too long: the car spills out of frame",
+      "Light modelled as geometry left visible"
+    ],
+    "exemples_en": [
+      "Turn my chase previs into a realistic shot",
+      "Score the render's fidelity to the previs",
+      "Which colours in my previs are likely to be misread?"
+    ],
+    "illustration_en": "Cliffside road, half coloured blocks, half photo at dusk, lighthouse in the distance."
+  },
+  "saint-seiya": {
+    "methode_en": [
+      "Reference of the character in armour, full body, A-pose, neutral 2:3 background, then an edit removing the armour in the same pose",
+      "Image-to-3D with PBR on both (e.g. 120k faces armoured, 80k body)",
+      "Semantic segmentation of the armoured mesh; compare two models, keep the one that preserves the look",
+      "Restore the original textures after cutting, then group regions by anatomy (boots, greaves, bracers, breastplate, helmet… 13 groups)",
+      "Scroll-driven page: per piece a start, duration, offset and rotation, smooth interpolation to the saved position",
+      "Optional finale: rig + motion clip, each plate rigidly bound to a single bone; short locking sound, pitch varied per piece"
+    ],
+    "controles_en": [
+      "Clean plate edges after segmentation",
+      "Plates never deform during animation",
+      "Textures ≤ 2048 px WebP, compressed GLB, finale loaded on demand"
+    ],
+    "pieges_en": [
+      "Generating each piece separately: they don't fit the body",
+      "Cutting the mesh by texture colour: torn edges",
+      "Third-party character with no tribute credit or rights check"
+    ],
+    "exemples_en": [
+      "Cut my knight's armour into separate pieces",
+      "Make an animation where the armour lands on him",
+      "The plates twist during animation, make them rigid"
+    ],
+    "illustration_en": "Silver armour plates orbiting a body, ready to lock into place."
+  },
+  "scroll-courier": {
+    "methode_en": [
+      "Compare several routes (native pixel models vs general models) on the same brief, measuring block size, colours, stray pixels",
+      "Approve a head-to-toe sprite, neutral pose, plain grey background, then snap it with a pixelation tool to 256 art pixels tall",
+      "Pose key images by editing the sprite, re-pixelated; one series per direction",
+      "Animate between first and last frame (the same pose twice for a loop), square, static camera, 4 to 8 s",
+      "Rebuild each kept frame on the sprite's grid and palette (mode per 4x4 cell), then key out without eating light areas",
+      "Backgrounds: one wide painting per level, split into sky, far, mid, near; far layers at 0-50% of the walking plane's speed",
+      "Background characters in 4-8 s loops, same pipeline; behaviours handled by the game code"
+    ],
+    "controles_en": [
+      "Every frame checked against the approved sprite's palette",
+      "Frame picking at full frame rate: measure the stride and match starts, stops and turnarounds",
+      "Display at integer scale, never resampled"
+    ],
+    "pieges_en": [
+      "Asking for a canvas size in the prompt: ignored",
+      "Shrinking a finished sprite to 128 px: blurry; add margins before pixelation",
+      "Naive pixelation of a video: boiling pixels"
+    ],
+    "exemples_en": [
+      "Make a small platformer with my character",
+      "My run cycle boils once pixelated, fix it",
+      "Split this background into parallax layers"
+    ],
+    "illustration_en": "Pixel courier running past a village in three parallax layers, satchel of scrolls."
+  },
+  "sleeping-giant": {
+    "methode_en": [
+      "Stage the key encounter once in Blender: relative scale, cameras, approach, contact, moving part (raw motion is only a guide)",
+      "One sheet per character, the identity reference for every later image",
+      "Two nine-panel storyboards with layout images and sheets as references",
+      "Generate the reveal shot first; extract a real approved frame from it that becomes the anchor",
+      "Each later key image = an edit of the anchor changing only pose, position or prop state (closed, open, seated)",
+      "4-6 s shots between start and end frames, low resolution while iterating",
+      "Add inserts and reverse shots, trim each clip to an exact frame count, normalise to 24 fps and assemble"
+    ],
+    "controles_en": [
+      "Review at cut points: scale, ground, light, prop state identical",
+      "Trim repeated entrance or settling moves",
+      "Ambience levels matched between clips"
+    ],
+    "pieges_en": [
+      "Generating each shot from its storyboard panel: the robot changes size",
+      "Copying the raw previs walk as acting",
+      "Broken glass or inconsistent lid carried into the animation"
+    ],
+    "exemples_en": [
+      "My set changes between shots, stabilise it",
+      "Do a reverse shot on her face from the cockpit",
+      "The lid must be open from shot 5 on"
+    ],
+    "illustration_en": "Little girl with a lamp facing a sleeping giant robot, canopy ajar."
+  },
+  "the-corridor": {
+    "methode_en": [
+      "Character: concept sheets, headless body and separate head via image-to-3D, mannequin-compatible body rig and 52 facial shapes",
+      "Blocking in the engine: camera plan, retargeted animations, lip curves pulled from the voice recording, lamps and set varying over time",
+      "Direction clips: animatic split into shots, converted to greyscale with raised gamma so engine lighting doesn't leak",
+      "One or two finished images per shot, the animatic frame being authoritative for geometry",
+      "One creative pass with animatic, finished images, sheets and voice, prompt listing what stays and what is finished",
+      "Repairs: edit mode for geometry fixes, or animatic as motion reference + finished images of a single corridor; shared set bible",
+      "Lip-sync only where the mouth is visible; total duration < 30 s (≈ 29.8 s)"
+    ],
+    "controles_en": [
+      "Lip offset measured take by take (0.2 to 0.6 s found)",
+      "Framing compared with the animatic (shots came back tighter)",
+      "Walls described once in the bible and never changed"
+    ],
+    "pieges_en": [
+      "Reference video of exactly 30.000 s refused",
+      "Edit mode refused under 4 s: stretch, then retime",
+      "Lip-sync on a profile or a turned-away head",
+      "Stained walls and pale skin after a single pass"
+    ],
+    "exemples_en": [
+      "I blocked my scene in Blender, finish it without changing the acting",
+      "The walls change between shots 3 and 4, fix it",
+      "Measure whether the lips follow the voice"
+    ],
+    "illustration_en": "Corridor half grey 3D engine, half dark hospital corridor, man in a burgundy shirt."
+  },
+  "the-picture-book": {
+    "methode_en": [
+      "Write the story in every language: 10 to 14 spreads, each with a quiet area reserved for text",
+      "Character sheets: five views and a few expressions, countable details in the prompt (three red buttons); test the first on 2-3 models",
+      "One square style thumbnail, the style authority for every page",
+      "2:1 spreads with sheets + thumbnail as references, framing and sizes described in words",
+      "Another technique: new thumbnail from the sheets alone, then each page redrawn with the original page as a mere layout sketch",
+      "Text typeset in HTML in the quiet area: a new language is just a new layout",
+      "Read-aloud per language, checked by two transcribers"
+    ],
+    "controles_en": [
+      "Count the named details in each take",
+      "Feet grounded with shadow, hands actually holding, depth order, nothing important on the gutter",
+      "Zero words misheard by both transcribers"
+    ],
+    "pieges_en": [
+      "Restyling by edit: the old technique remains",
+      "Having the model draw the text: untranslatable",
+      "3D layout given as reference: the model zooms in"
+    ],
+    "exemples_en": [
+      "Make a 12-page picture book about a cloud that wants to rain",
+      "Redo the whole book in paper cut-out",
+      "Add the Spanish version and the audio read-aloud"
+    ],
+    "illustration_en": "The same spread of a cloud and a little girl in watercolour, linocut and clay."
+  },
+  "the-stones-remember": {
+    "methode_en": [
+      "Bible per site: dimensions, plan, materials, colours, dated elements, costumes; each point marked known, reconstructed or uncertain with its source",
+      "Choose the mode: measured, repetitive architecture as walkable 3D, dense sculpture and reliefs as 360",
+      "Render a to-scale equirectangular guide from each stop's eye point",
+      "Paint the panorama over the guide (the model brings light, surfaces, crowd), seamless upscale, masked fixes",
+      "Readable inscriptions typeset from a font, never generated",
+      "Present-day view = an edit of the restored image, so the switch reads as time passing",
+      "Single-voice narration (135-150 words/min), captions timed by transcription, -18 LUFS, ambience and music; log of every job"
+    ],
+    "controles_en": [
+      "Self-review of each image: counts, proportions, attributes, time-of-day light, seams and poles",
+      "Voice takes transcribed and compared on proper names, ranked by expressiveness",
+      "Reject near-silent ambiences (e.g. -53 LUFS) or ones rumbling below 250 Hz"
+    ],
+    "pieges_en": [
+      "Painting before having the bible",
+      "Hieroglyphs generated by the image model: fake",
+      "Overwriting versions: keep versions and archives"
+    ],
+    "exemples_en": [
+      "Make a narrated tour of a castle in the year 1200",
+      "Show the same hall today",
+      "Check the historical accuracy of this panorama"
+    ],
+    "illustration_en": "Hypostyle hall with its original painted columns, right half as today's ruin."
+  },
+  "two-rulers": {
+    "methode_en": [
+      "Single concept, plain background, all parts visible, no logo or text",
+      "If orthographic views are drawn, produce them in a single image and compare them with each other by script (widths, heights, depths)",
+      "Rule A: several image-to-3D runs on the concept, keep the most consistent, scale it to real size, render orthographic views at fixed resolution and measure, never copying its geometry",
+      "Rule B: solve the concept's camera (near-axonometric) and back-project each element in millimetres",
+      "Write all dimensions in a single layout file that builders read without re-measuring",
+      "Split the model into part groups, one agent per group",
+      "Validate each stage by silhouette overlap from the fitted camera (blocking, forms, detail, render)"
+    ],
+    "controles_en": [
+      "Silhouette overlap (IoU) at each gate, e.g. 0.92 with mesh, 0.993 on the body",
+      "Gaps between views measured (height 14-19%, depth up to 32%)",
+      "Crops of the same concept/render areas sent to the leads"
+    ],
+    "pieges_en": [
+      "Modelling from drawn views that contradict each other",
+      "Clinging to the measurement mesh: you import its invented parts",
+      "Adding volume to gain overlap"
+    ],
+    "exemples_en": [
+      "Model this camera concept faithfully in Blender",
+      "My front and side views don't match, check them",
+      "Give me the likeness score between my model and the concept"
+    ],
+    "illustration_en": "Espresso machine as a red and blue silhouette overlaid on the concept, graduated ruler below."
+  },
+  "wish-you-were-here": {
+    "methode_en": [
+      "Write the loop in 5 to 8 photos, the deepest last, each transition marked \"zoom\" or \"frame\"",
+      "Change location only through a flat frame seen face-on (window, postcard, print, screen)",
+      "Generate the anchor photos; outpaint when a frame must contain a known image",
+      "Zoom transition: crop the central quarter and upscale it ×4 with a creative upscaler (high resemblance)",
+      "Frame transition: cut the opening along the inner edge, place the next photo behind it, 20-25% larger; redraw the old image's reflections",
+      "Close the loop with a frame, then a canvas player driven by scroll, drag and keyboard"
+    ],
+    "controles_en": [
+      "Shrink the upscale to 512 px and compare it with the crop: if it drifts, raise resemblance",
+      "Dense render of the chain to spot jumps",
+      "Never draw the child photo over its own content"
+    ],
+    "pieges_en": [
+      "Inventing a third transition type",
+      "Reflection in the water still showing the old image",
+      "Resending a call that seems slow instead of checking the queue"
+    ],
+    "exemples_en": [
+      "Make an infinite zoom from my city into my bedroom and back",
+      "Export the zoom as a 20-second 9:16 video",
+      "There's a visible seam between the 3rd and 4th photo, fix it"
+    ],
+    "illustration_en": "Lit window of a chalet by a fjord, a postcard visible inside."
+  },
+  "alter": {
+    "methode_en": [
+      "Probe the clip (duration, frame rate, size, HDR, rotation, variable frame rate) and prepare it; split into chunks beyond 30 s",
+      "Choose the mode based on what must stay: single-element replacement, performance transfer (new actor or location), or full restyle",
+      "Make a target image: a real frame of this shot where the change is already photographed, rather than a flat product render",
+      "Write the instruction from per-mode templates, the first sentence setting what the model may change",
+      "Run a 480p draft, measure it, then only take approved versions to full resolution",
+      "Turn off generated sound, lay back the original soundtrack (or an ambience made for the new location)",
+      "Trim the same end drift from every version so they loop together, export before/after and a versions reel"
+    ],
+    "controles_en": [
+      "Frame count identical to the source",
+      "Share of the image changed: 0.4 to 55% for a replacement, ≥ 1% for a new actor, ≥ 5% for a new location, ≥ 15% for a restyle",
+      "Source/output edge correlation: median ≤ 0.65 for a restyle (otherwise the photo shows through)",
+      "Coarse-grid motion correlation ≥ 0.60 (otherwise retiming or freezing)",
+      "Detect frame jumps and end-of-clip drift; drift ≥ 6 consecutive frames mid-clip = reject",
+      "100% crops of changed areas, reviewed by eye (stray logos, extra fingers)"
+    ],
+    "pieges_en": [
+      "A flat product render gives a pasted-on object; go through the target image",
+      "Two changes in one pass: chain them instead",
+      "A restyle that only describes the characters leaves a photographic background",
+      "Never rephrase to get around a content refusal",
+      "Finalising a restyle can bring back photo detail: recheck afterwards"
+    ],
+    "exemples_en": [
+      "Replace the mug in his hand with our can in this 8-second shot",
+      "Redo this take in claymation style without touching the motion",
+      "Have another character play this scene on a street at night"
+    ],
+    "illustration_en": "The same take as four synced thumbnails: original, can swapped, new actor, cartoon version."
+  },
+  "babel-tavern": {
+    "methode_en": [
+      "Start from a single painted set that serves as style reference for every portrait",
+      "Paint portraits at 3:4, mouth visible and lit; creature mouths drawn almost closed",
+      "Have a language model adapt each line (native spelling, never transliteration), rewriting puns rather than translating them",
+      "Create the voice from the portrait, then reuse the first approved take as audio reference for every other language",
+      "Master each take on arrival (-16 LUFS, -1.5 dBTP) before any check",
+      "Pick the lip-sync model by testing on the hardest mouth, then apply it to the whole cast",
+      "For a song: adapt with rhymes, cut the key couplet on a word boundary, then sync"
+    ],
+    "controles_en": [
+      "Voice pitch within 2.5 semitones of the reference take",
+      "Mastered file duration under the lip-sync model's audio limit",
+      "Re-listen via transcription and compare with the expected text",
+      "Mouth closed in silences, open on stressed syllables"
+    ],
+    "pieges_en": [
+      "Regenerating the voice for each language: it isn't guaranteed identical",
+      "Sending an adapted line to a dubbing model: it re-translates its own way and loses the pun",
+      "Creature drawn with an open mouth: lip-sync animates the tongue or paints human lips",
+      "Checking duration before mastering: the final file is about one second longer"
+    ],
+    "exemples_en": [
+      "Make my three characters speak French, English and Japanese with the same voice",
+      "Adapt this joke so it works in Spanish",
+      "Check the German take hasn't changed timbre"
+    ],
+    "illustration_en": "A painted innkeeper surrounded by eight flag bubbles, one sound wave linking every bubble."
+  },
+  "bottled": {
+    "methode_en": [
+      "Describe the product in dimensions (width, depth, height, glass thickness, liquid level, label) and typeset the label from font files",
+      "Produce 3D reference renders of the bottle, with and without label",
+      "First generate an empty set with a flat, clear spot",
+      "Place the bottle via a two-reference edit (set + unlabelled render): scale, contact shadow, reflection, refraction",
+      "Add the label by edit, check the letters at high zoom, and re-paste the exact label via homography if small text slips",
+      "Fix the background only under a mask, then restore the product pixel for pixel",
+      "Short film from start and end frames cut from the same approved visual; music mixed at -16 LUFS"
+    ],
+    "controles_en": [
+      "Physical check: contact, shadow, reflection, refraction, level liquid, scale",
+      "Read the label letters at 2.5×; watch ~5 px text on 2048 px",
+      "Measure the film's motion on a low-res preview before the final render",
+      "Log of every job (model, instruction, cost, kept or not, why)"
+    ],
+    "pieges_en": [
+      "Asking the model to invent or rewrite the label",
+      "Placing the product in a set where an object already occupies the spot",
+      "Re-pasting a label on a curved face: exact only on a flat face",
+      "Rounded rectangular mask: leaves a halo of the old background; use the silhouette"
+    ],
+    "exemples_en": [
+      "Put our bottle on a cliff at sunrise without distorting the label",
+      "Adapt this product to five moods for the campaign",
+      "Make an 8-second film between these two visuals"
+    ],
+    "illustration_en": "The same bottle on six backgrounds from morning to night, identical label boxed by a measuring frame."
+  },
+  "change-only-x": {
+    "methode_en": [
+      "Create the hero sheet: four full-length views and a face close-up, plain background, in the final style",
+      "Shoot the source from text and sheet, describing each beat of the action with its camera",
+      "For each step, take the previous step as input video, duration matched to the input, sound off",
+      "Write the instruction: change only X, then explicitly list everything that stays, including every earlier change",
+      "Add at most one reference image per step: the sheet of what's entering; none for a world change",
+      "Allow two changes in one step only if they are independent and numbered"
+    ],
+    "controles_en": [
+      "Jump search against the previous step, ignoring the encoding spike before 0.2 s",
+      "Contact sheet at the same instants to check every earlier change persists",
+      "1920×1080 and same duration as the source at every step"
+    ],
+    "pieges_en": [
+      "Added character described only in text: doesn't follow the fast camera",
+      "Editing a late step from the original: intermediate changes are lost",
+      "Incomplete keep list: an earlier change disappears",
+      "Mistaking the second-frame spike for a flaw"
+    ],
+    "exemples_en": [
+      "Add a robot companion to this shot without changing anything else",
+      "Now change his outfit and keep the robot",
+      "Take the whole set underwater"
+    ],
+    "illustration_en": "Six thumbnails of the same shot as a staircase, one new element highlighted on each step."
+  },
+  "content-engine": {
+    "methode_en": [
+      "Break down the reference second by second: one frame per second, contact sheets, camera moves, palette, pacing, sound levels, transcript",
+      "Write the analysis until you could rebuild the reference blind, then transpose the concept onto the new idea",
+      "Write a per-second plan (text, image, camera, graphics, sound, tool) and run it through a logic-and-interest gate",
+      "First user sign-off: plan + estimated price; second sign-off: key-image board",
+      "Generate the key images from a style image, then the shots by chaining first and last frames, drafts first",
+      "Produce music, voice and effects, then edit and draw all text in code",
+      "Final frame-by-frame audit at full size"
+    ],
+    "controles_en": [
+      "Three-pass logic gate (plan, each element, final cut): no morphing, no reappearing, no dead second",
+      "Safe area at 1080×1920: text between x 65-1015 and y 269-1248, clear of the platform's UI",
+      "Cuts only in measured silences; every word compared with its caption"
+    ],
+    "pieges_en": [
+      "Never send the reference's frames to a model or copy its captions",
+      "Letting a model draw text",
+      "Objects reappearing because a later key image still contains them",
+      "Traffic or crowds that must follow a rule: do it in code or as a diagram",
+      "Crossfading two texts: hard cut"
+    ],
+    "exemples_en": [
+      "Redo this \"what if\" format with my idea of NPCs on strike",
+      "Analyse second by second why this video holds attention",
+      "Make a 30-second ranking at the same pace as this template"
+    ],
+    "illustration_en": "A vertical reference video as a grey silhouette, beside it its recoloured version with a climbing counter."
+  },
+  "crimson-tower": {
+    "methode_en": [
+      "Generate an image with two poses of the character on plain magenta, cropped with headroom",
+      "Animate each cycle as a short image-to-video clip, pure right-facing profile, character centred as if on a treadmill",
+      "Key out the magenta, cut a loop window (run, walk, idle) or an active window (action), then pixelate all cycles onto a shared canvas and palette",
+      "Get the static poses (fall, wall grab, dash) from a separate pose sheet via connected components",
+      "Per level: opaque background, transparent midground with empty centre, wall texture, platform strip, prop sheet",
+      "Make the texture tileable by blending opposite edges, cut the platform into 3 parts (edges + repeated middle)",
+      "One looping music track per level, plus a short sound effect per game event"
+    ],
+    "controles_en": [
+      "Loop closure ratio against the reference (e.g. 0.42× good, 1.44× redo, ~1× acceptable after review)",
+      "Frames where an effect was keyed out as a solid block removed from the strip",
+      "Shared foot line across all of a character's cycles"
+    ],
+    "pieges_en": [
+      "Also pinning the last frame on a walk: the clip speeds up then slows down",
+      "Armed enemy spinning its weapon while walking: specify still arms",
+      "Trusting \"tileable\" in the instruction: tile it locally",
+      "Stretching the platform strip instead of cutting it in three",
+      "Regenerating a weak loop before widening the search range"
+    ],
+    "exemples_en": [
+      "Make me a pixel run cycle of this hero in profile",
+      "Create the background layers for a crypt level",
+      "Why doesn't my enemy walk loop?"
+    ],
+    "illustration_en": "A pixel huntress running across four frames, in front of three tower layers offset in parallax."
+  },
+  "eight-ways-to-edit": {
+    "methode_en": [
+      "Gather proof of the finished work in a single folder before writing a line",
+      "Pick a style and its settings grid: duration, format, voice pace, lettering, music, cut rate per 5 s slice",
+      "For the trailer style: fixed 2.39:1 bars, deep narrator (3 to 6 sentences, 30-45 words/min), single words on black cards timed to his stresses",
+      "Edit with an accelerating cut rate up to one second of digital silence, then impact and title",
+      "Compose frame by frame in a code compositor around the real footage; slow 2-8% push-ins",
+      "Time the words and check the mix with dedicated tools"
+    ],
+    "controles_en": [
+      "Speech rate per style (43 to 132 words/min depending on style)",
+      "Cut rate per 5 s slice matching the grammar (e.g. 3, 7, 13, 12 for a trailer)",
+      "Shortest shot length: half a beat, only in the last 4-5 seconds",
+      "Each card or sentence true for the shot that follows"
+    ],
+    "pieges_en": [
+      "Confusing trailer with kinetic style plus black bars",
+      "Captioning a trailer narrator",
+      "Reframing a 480p source beyond 1.6×"
+    ],
+    "exemples_en": [
+      "Cut this making-of like a movie trailer",
+      "Make a calm tutorial version of the same video",
+      "Compare the kinetic version and the documentary version"
+    ],
+    "illustration_en": "Eight stacked edit strips, each with its own cut density and colour."
+  },
+  "full-circle": {
+    "methode_en": [
+      "Start from an image: whole subject with margin, plain background, camera slightly above eye level and turned about 30°",
+      "Create an untextured mesh via image-to-3D (geometry alone is enough)",
+      "Generate a world panorama in the same style with clear ground all around",
+      "Find the zero camera that reproduces the starting image, then render each camera in clay with background and real cast shadow",
+      "Repaint each view with only two references: the clay view and the source image",
+      "For the no-background version: key out the same repainted image and add a studio shadow"
+    ],
+    "controles_en": [
+      "View 00 identical to the starting image",
+      "Contact sheets checked: extra limbs, flipped sides, leftover grey clay",
+      "Stable scale across views (7 to 53% drift found without the 3D layer)"
+    ],
+    "pieges_en": [
+      "Repainting each angle on a plain background independently: scale drifts",
+      "Pasting the subject onto a flat background photo: it floats and the horizon doesn't move",
+      "Adding a third reference: its flaws get copied",
+      "Final harmonisation pass: it reframes and breaks alignment"
+    ],
+    "exemples_en": [
+      "Show this character from behind and from above",
+      "Make an eight-view turnaround sheet of this vehicle",
+      "Give me the same views without background for my sprites"
+    ],
+    "illustration_en": "A painted character in the centre, ringed by eight views, one revealed in grey clay."
+  },
+  "game-to-trailer": {
+    "methode_en": [
+      "Keep only the character idea and the gameplay idea from the game",
+      "Redo each character as a 3D sheet (close-up, front, side, back) and create location images",
+      "Write a genre parody in 13 to 16 shots, each with a camera move, and a single punchline at the end",
+      "One 16:9 image per shot with the sheets as references, then 4-10 s image-to-video, generated sound muted",
+      "Use first and last frames for a long continuous move",
+      "Create one continuous song in same-tempo sections, measure its strong beats and land each shot's key moment on them",
+      "Directed narrator, one sound effect per beat, music ducked under the voice; animated logo card built from its own pieces"
+    ],
+    "controles_en": [
+      "Total price of the shot list announced before animation",
+      "Every cut lands on a measured strong beat of the song",
+      "No line without a visible synced mouth"
+    ],
+    "pieges_en": [
+      "Stitching several music tracks: make a single song",
+      "Leaving the video model's generated sound under the music",
+      "Restyling finished shots video-to-video: change the look in the stills",
+      "Showing the punchline's hero too early"
+    ],
+    "exemples_en": [
+      "Make an epic trailer for my stacked-cats game",
+      "Land every shot on the strong beats of this music",
+      "Write a disaster-movie parody for my delivery game"
+    ],
+    "illustration_en": "A flat mobile game screenshot unfolding into a cinemascope film frame."
+  },
+  "graveyard-waves": {
+    "methode_en": [
+      "Lock the brief once (devices, players, style, sending policy) with a number for every future check",
+      "Approve a style image seen from the game camera before any concept",
+      "Concepts on transparent backgrounds with the style image as first reference, characters in A-pose",
+      "Image-to-3D with a triangle budget per object class, then skeleton and motions via dedicated models with a walk contest",
+      "Tileable ground textures checked for stray letters, a single sky",
+      "Sound effects in three takes sorted by volume, attack and absence of words; music family on one motif cut into phrase loops",
+      "Playtests with capture at every wave, then frame-time fixes"
+    ],
+    "controles_en": [
+      "Concept contact sheet: a single look, whole objects",
+      "Foot speed measured and walk blended with run by speed",
+      "Sound check: loudness, attack, no speech"
+    ],
+    "pieges_en": [
+      "Cutting a mesh into rigid pieces instead of rigging it",
+      "Assuming all motions share the same skeleton (bones up to 4% longer)",
+      "Playing a slow walk at chase speed",
+      "Not looking at the tiles: text baked into the grass",
+      "Sending or publishing without explicit approval"
+    ],
+    "exemples_en": [
+      "Generate the enemies for my survival game under 5,000 triangles",
+      "Do three takes of this sound effect and keep the best",
+      "Create a family of music tracks on the same theme"
+    ],
+    "illustration_en": "A low-poly graveyard at night, A-pose zombies lined up with their triangle counters."
+  },
+  "hadal": {
+    "methode_en": [
+      "Plan shots in frames: focal length, move, what the viewer must notice, cuts on markers tied to cameras",
+      "Block the set in grey primitives",
+      "One clean concept image per hero object, captioned before paying for 3D",
+      "Replace proxies with generated meshes (rigged creature included), re-fit placements on updated proxies",
+      "Generated PBR materials and decals",
+      "Review loop: analyse each test render and make sure every remark changes the scene",
+      "Music and effects soundtrack mixed to frame numbers; record a timelapse of the live build"
+    ],
+    "controles_en": [
+      "Automatic concept caption before any move to 3D",
+      "Scored review of test renders (endless cable, creature lost in the dark, white spotlight circles)",
+      "Price announced before the 3D and rig steps"
+    ],
+    "pieges_en": [
+      "Metal on generated meshes underwater: force metalness to 0.1-0.25",
+      "Emissive creature too strong flooding the volume: stay around 2 kW",
+      "Placements computed on outdated proxies (creature at 23 m, drone at 0.4 m)",
+      "Swim cycle at native speed on a 50 m animal: slow down about ×4",
+      "Rebuilding the scene afterwards for the timelapse"
+    ],
+    "exemples_en": [
+      "Make a 30 s, three-shot film in an abandoned station",
+      "Analyse this test render and fix the scene",
+      "Replace the grey cubes with real generated objects"
+    ],
+    "illustration_en": "An underwater station in grey blocks on the left, the same one lit and textured on the right."
+  },
+  "image-to-3d-benchmark": {
+    "methode_en": [
+      "Prepare an image: whole subject, plain background, three-quarter view",
+      "Separate two questions: best mesh with no limit, and fixed budget (~4,000 and ~10,000 triangles) including a heavy-generation + retopology route",
+      "Send the same image to every model, settings noted, fallbacks declared",
+      "Render each GLB with the same script: angle best matching the source silhouette, textured, clay, side and back",
+      "Fill in a scorecard: triangles measured on import, budget overrun in %, textures, normal maps, open edges, silhouette overlap"
+    ],
+    "controles_en": [
+      "Triangles counted after import, never from the advertised value (13 to 88% gaps)",
+      "Open edges counted after welding UV seams",
+      "Close pairs compared in clay at full size",
+      "Failures shown as labelled empty cells"
+    ],
+    "pieges_en": [
+      "A single ranking mixing heavy sculpts and game meshes",
+      "Believing the max setting is always better (fine detail lost)",
+      "Ignoring the step of budget fields (10,000 impossible if steps of 10,000 from 1,000)",
+      "Framing on the bounding box while a helper object lingers",
+      "Decimating a mesh with a fragmented atlas: re-bake from the original"
+    ],
+    "exemples_en": [
+      "Which generator keeps this character best under 5,000 triangles?",
+      "Compare four 3D models on this concept",
+      "Show me the meshes in clay to judge the geometry"
+    ],
+    "illustration_en": "A grid of six meshes of the same object, half textured, half grey clay with figures."
+  },
+  "inside-a-heartbeat": {
+    "methode_en": [
+      "Write a reference table from citable sources: one row per stage, one column per changing state",
+      "Build the structure in code (distance fields, tubes, primitives) and check it automatically against the table on every change",
+      "Render a stages × layers × overlays grid from a locked camera",
+      "Give the atlas finish with AI, one six-stage grid per call to keep an identical style",
+      "Slice, realign each tile on its outline, then overlay arrows and signals rendered from the model",
+      "Narration transcribed by two engines and set to -16 LUFS"
+    ],
+    "controles_en": [
+      "Silhouette overlap 0.89-0.97 and edge recall 0.66-0.81 between finished tile and render",
+      "Arrows in the flow direction, never through a closed valve",
+      "Numbers in the instruction (veins, branches, leaflets) and a ban on adding or removing any"
+    ],
+    "pieges_en": [
+      "Letting the AI draw the arrows: it reverses them",
+      "Restyling frame by frame: the style drifts",
+      "Scoring a tile before realigning it",
+      "Having the narration state a layer count"
+    ],
+    "exemples_en": [
+      "Explain the four-stroke engine cycle in six panels",
+      "Add the flow arrows without the AI drawing them",
+      "Keep the same style across all six stages"
+    ],
+    "illustration_en": "A cutaway engine across six thumbnails, crisp vector arrows over a painted finish."
+  },
+  "kinetic-film": {
+    "methode_en": [
+      "Turn the brief into a timing sheet: one or two words per beat, one block per sentence, the drop where the film turns",
+      "Generate the music at the exact tempo wanted, then fit the beat grid to the section used",
+      "Build the page from scene blocks placed on the grid; every frame is a pure function of time",
+      "Generate a sound-effects kit (whooshes, impacts, clicks) and possibly images to insert",
+      "Render in 1080p then 4K with sub-frame motion blur, bloom and grain",
+      "Mix the soundtrack from the film's cue list"
+    ],
+    "controles_en": [
+      "Under a quarter of frames static; no shot held beyond about 0.4-0.7 s",
+      "Watch tempo error: 0.15% shifts the end of a 50 s film by 70 ms",
+      "Every image checked for size and legibility"
+    ],
+    "pieges_en": [
+      "Timing the cuts but staying frozen between beats (first version: 81% still frames)",
+      "Asking an image model for empty space for the title: it draws a grey rectangle",
+      "Mentioning a watermark in a reference edit: billed refusal",
+      "Real logos in generated images"
+    ],
+    "exemples_en": [
+      "Make a 20 s kinetic-type teaser for my game",
+      "Land every word on the beats of this 172 BPM track",
+      "Why does my film feel slow?"
+    ],
+    "illustration_en": "A giant word sliced by motion blur, a beat grid visible beneath."
+  },
+  "lamplighter": {
+    "methode_en": [
+      "One concept per object, same studio framing, launched as a parallel batch; hero front-facing in A-pose",
+      "Image-to-3D with PBR and a face limit per object (small prop 3-8k, hero 30k, building 40k)",
+      "Contest on the centrepiece between two or three generators: triangles, weight, lit render",
+      "Auto-rig the hero, one run per clip (idle, walk, run, jump)",
+      "2048 tileable materials in orthographic view, panoramic sky, emissive signs, sounds and loops",
+      "Blender pass: scale, grounding, slimming, then Meshopt and WebP compression"
+    ],
+    "controles_en": [
+      "Measure per render pass before decimating (e.g. reflections, bloom)",
+      "Total model weight before/after (≈ 250 MB raw → ≈ 18 MB)",
+      "Human listening of the sounds, measured peaks"
+    ],
+    "pieges_en": [
+      "One material shared by all interactive objects",
+      "Walking on the generated mesh: use separate colliders",
+      "Decimating props to gain fps when the cost is elsewhere",
+      "Shipping glTF with base64 buffers"
+    ],
+    "exemples_en": [
+      "Generate all the props for this level under 8,000 triangles",
+      "Compress my GLBs for the web",
+      "Rig my hero with walk, run and jump"
+    ],
+    "illustration_en": "A canal street of grey cubes turning one by one into houses and street lamps."
+  },
+  "little-lights": {
+    "methode_en": [
+      "Generate each object as a concept, then a separate mesh",
+      "Limit animation to the few elements that need it (rigged creature, blooming via morphs, robot moved in code)",
+      "Place each object along the sphere normal and move the player on great circles in sub-steps",
+      "Hide what goes below the horizon instead of relying on frustum culling",
+      "Optimise each GLB: simplification, morph base reduction, Meshopt, WebP, gzip"
+    ],
+    "controles_en": [
+      "Weight per file before/after (animated flower 11.3 MB → ≈ 635 KB)",
+      "Fixed pool of six point lights",
+      "Object size stable after morph reduction"
+    ],
+    "pieges_en": [
+      "Looking for the weight in textures when it's in the morphs",
+      "Placing a reduced model by its runtime bounding box",
+      "One light per glowing object",
+      "Animating every closed flower all the time"
+    ],
+    "exemples_en": [
+      "Why is this GLB 11 MB?",
+      "Slim down this animated plant without losing the bloom",
+      "Prepare my models for fast web loading"
+    ],
+    "illustration_en": "A small round planet with a robot, a flower and a shrinking weight gauge."
+  },
+  "material-worlds": {
+    "methode_en": [
+      "Keep a single UV mesh; group its material slots into three roles (e.g. cladding, roofing, metal), leave glass and lamps untouched",
+      "Define each finish as a colour / wear / gloss trio",
+      "Generate a 1024 tileable colour texture per role and per finish, asking for a material, not an object",
+      "Add normal, roughness, metalness (generated or derived locally, noted as such)",
+      "Apply to the same slots, render with identical cameras, export as WebP + gzip",
+      "Keep a trace of every instruction and job ID"
+    ],
+    "controles_en": [
+      "Same vertex and triangle counts for every finish",
+      "Origin of each channel (generated or derived) stated",
+      "Weight after compression (≈ 34 MB → 6.3 MB per finish)"
+    ],
+    "pieges_en": [
+      "Regenerating the mesh for each finish",
+      "Asking for \"roof\" or \"wall\": ribs and edges repeated everywhere",
+      "Not recording instructions and seeds at generation time"
+    ],
+    "exemples_en": [
+      "Make a rusty version and a freshly painted version of this building",
+      "Generate a tileable cladding texture",
+      "Compare the finishes under desert sun"
+    ],
+    "illustration_en": "The same industrial building cut into six vertical strips, each with a different finish."
+  },
+  "mirror-keeper": {
+    "methode_en": [
+      "Show the key image and two or three concepts with the camera plan, wait for approval before the full batch",
+      "One concept per object with identical studio framing and a shared style sentence",
+      "Image-to-3D with a face limit per object, tileable materials, skies for two moods",
+      "Write the level on an ASCII grid and prove it solvable with a solver before placing the art",
+      "High-angle perspective camera (≈ 50-55°, tight focal length) rather than true isometric",
+      "Lift-and-place controls, undo, hints, reset"
+    ],
+    "controles_en": [
+      "Beam-route solver: ≈ 2 ms vs ≈ 0.7 s with state search",
+      "The beam's last segment actually hits the target model (raycast)",
+      "Playtests by someone else"
+    ],
+    "pieges_en": [
+      "Generating the whole batch before showing the style",
+      "Pushing pieces on the grid: unrecoverable corners",
+      "Useless walking character in an object puzzle",
+      "Too much bloom in daylight"
+    ],
+    "exemples_en": [
+      "Show me three style concepts before generating everything",
+      "Generate lighthouse, mirrors and jars in the same toy style",
+      "Check that my level is solvable"
+    ],
+    "illustration_en": "A miniature island seen from above, a golden beam bouncing off three mirrors."
+  },
+  "nine-models-one-brief": {
+    "methode_en": [
+      "Pick a range of actually accessible models and confirm each access with a price estimate",
+      "Per category, write an instruction that can be checked on the image (exact text, numbers, left/right, fixed layout)",
+      "Run each model once at default settings, without rewriting the instruction; rerun only failures",
+      "Multi-view sheets on a wide canvas (16:9 for four views, 3:2 for six portraits) with rows and order specified",
+      "Labelled 3×3 grids, no cropping, each model always in the same slot",
+      "Log credits and processing time per job, totals reconciled"
+    ],
+    "controles_en": [
+      "Same input ID for all nine in each category",
+      "Textures repeated 2×2 with a seam score",
+      "No missing cell; retried attempts archived separately",
+      "Characters judged against the reference image, not against the instruction"
+    ],
+    "pieges_en": [
+      "Promising a range without checking access",
+      "Square canvases for multi-view sheets",
+      "Cropping results in the grid",
+      "Starting without a total price"
+    ],
+    "exemples_en": [
+      "Which model writes text on a shop sign best?",
+      "Compare five generators for game icons",
+      "How much does each model cost on this test?"
+    ],
+    "illustration_en": "A 3×3 grid of painted shop signs, the misspelled ones crossed out in red."
+  },
+  "one-sole": {
+    "methode_en": [
+      "Go from a side view to a single 3D model that serves as the permanent reference",
+      "Render packshots from that mesh (browser or Blender)",
+      "Finish the upper's material by editing the render, with no mask on the first try",
+      "Build each world around the shoe with a second reference to keep the same street",
+      "Animate only the air and the set in a loop, the shoe still",
+      "Typeset every word on the product sheets"
+    ],
+    "controles_en": [
+      "Silhouette overlap, mean error and edge correlation outside the upper; upper texture energy before/after",
+      "Sole fully on the ground, contact shadow along the light axis",
+      "Right foot stays right; mirrored pairs; constant eyelet count",
+      "Loop: last frame = first, nothing new in the sky"
+    ],
+    "pieges_en": [
+      "Putting \"sneaker\" in the material instruction: it draws shoes",
+      "Mask on the upper: it redraws a different shoe",
+      "Studio lighting kept on a backlit set",
+      "White shoes on a white background: skewed metrics"
+    ],
+    "exemples_en": [
+      "Make this shoe in eight colourways",
+      "Put it on a wet track at dawn",
+      "Check the shape hasn't moved between versions"
+    ],
+    "illustration_en": "A sneaker in eight colourways in a row, the exact same silhouette overlaid as a watermark."
+  },
+  "paper-city": {
+    "methode_en": [
+      "Pick a single material image (a paper photo you have rights to) as reference 1 for every layer",
+      "Generate each layer separately with a second silhouette reference; transparent background for cut-outs, opaque for backdrops",
+      "One subject per generation; ban outlines, cardboard, sticks and strings in the image",
+      "Lay out the layers as unlit planes with an explicit draw order; add sticks, strings and edges in code",
+      "Living thumbnail: still animated with the same image at start and end, background removed, packed as colour + mask",
+      "Calm looping music"
+    ],
+    "controles_en": [
+      "Same material visible on every layer",
+      "Keyed video retrieved in its original format with alpha (WebM VP9), never the opaque preview",
+      "Layer order stable when the pointer moves"
+    ],
+    "pieges_en": [
+      "Mixing materials between layers",
+      "Letting subjects leak from the material image",
+      "Painting the fixings into the image",
+      "Decoding WebM alpha with ffmpeg's native VP9 decoder: force libvpx"
+    ],
+    "exemples_en": [
+      "Make a paper cut-out city set in five layers",
+      "Animate this paper sun as a loop on a transparent background",
+      "Keep exactly the same paper texture on every layer"
+    ],
+    "illustration_en": "A red torn-paper tram in front of three offset planes of ivory houses."
+  },
+  "party-delivery": {
+    "methode_en": [
+      "Generate shopfronts as flat images and derive emissive, normal and roughness from them",
+      "Only take the facades closest to the camera into real 3D, redrawn in three-quarter view",
+      "Measure the real wall plane of a generated building (most front-facing side) to align it exactly",
+      "Create props from product photos on a plain background, place them at real height facing the street",
+      "Cut a neon sign sheet into individual signs",
+      "Import GLBs by script and drive the editor without risky keystrokes"
+    ],
+    "controles_en": [
+      "No gap between a 3D building and its card neighbours",
+      "No prop inside a wall; each object's front checked individually",
+      "Signs readable from the camera path, all names invented"
+    ],
+    "pieges_en": [
+      "Placing by bounding box: awnings and lanterns push the wall back 10-20 cm",
+      "Assuming a shared forward axis for all generated meshes",
+      "Real brand on a generated prop",
+      "Clearing the console via shortcuts: mass actor deletion"
+    ],
+    "exemples_en": [
+      "Build a neon-lit night alley in Blender",
+      "Align this generated building with the facade line",
+      "Turn this vending machine photo into a 3D prop"
+    ],
+    "illustration_en": "A rainy alley whose left half shows the facades as flat cards seen from above."
+  },
+  "pixel-vfx-forge": {
+    "methode_en": [
+      "Describe the effect as a stack of layers (ball, shockwave, sparks, smoke, flash), each writing a heat field",
+      "Cut the heat into 4 to 7 hard colour bands, hue-shifted ramps (cool shadows, warm highlights)",
+      "Timing: one- or two-frame flash, fast expansion, slower dissipation",
+      "Keep the core in warm colours and secondary layers at 0.5-0.8 gain",
+      "Render locally, preview on a character at the same pixel density, iterate",
+      "Export sprite sheet, JSON atlas (impact point, pivot), integer-scale GIF, separate frames"
+    ],
+    "controles_en": [
+      "Scaling by integers only (2, 4, 8)",
+      "Loop: speeds and turns in whole numbers so the last frame meets the first",
+      "Effect size consistent with the character"
+    ],
+    "pieges_en": [
+      "Smooth gradients",
+      "All layers at full heat: white blob",
+      "Resizing the output instead of changing the recipe size",
+      "Paying for a generation without asking"
+    ],
+    "exemples_en": [
+      "Make a 16-frame pixel ice explosion",
+      "Put this lightning bolt on my character to check the scale",
+      "Export the effect for Godot"
+    ],
+    "illustration_en": "A small pixel knight hit by a purple nova in crisp colour bands."
+  },
+  "quarantine-07": {
+    "methode_en": [
+      "Lock palette, proportions, scale, functions and wear before any generation",
+      "Generate one isolated object (or component) per image, neutral lighting, nothing cropped",
+      "Produce front, left, back and right of the same approved design, fix discrepancies before 3D",
+      "Rebuild with a multi-view model, three independent runs (high, medium, low density)",
+      "Generate moving parts (lid) as separate images and meshes",
+      "Deliver a manifest: names, IDs, real triangle counts, checks"
+    ],
+    "controles_en": [
+      "Four views consistent in shapes and markings before rebuilding",
+      "PBR textures confirmed present in the export",
+      "Real triangle counts recorded for each density"
+    ],
+    "pieges_en": [
+      "Moving to 3D with inconsistent views",
+      "Merging a lid with the body"
+    ],
+    "exemples_en": [
+      "Make a kit of six survival crates in the same style",
+      "Generate this chest at three levels of detail",
+      "Separate the lid so it can open"
+    ],
+    "illustration_en": "A white medical crate in four views, then three increasingly simple meshes."
+  },
+  "same-moves-new-actor": {
+    "methode_en": [
+      "Borrow the motion from a royalty-free clip (one full-body performer), trim it to at least 1280×720",
+      "Shoot back a base take: faceless grey silhouette in loose clothes, static camera, square frame, figure at mid-height",
+      "Draw each actor on the same plain background, by editing rather than redrawing",
+      "Edit each actor image so they stand exactly on the silhouette's mark and in its starting pose",
+      "Run the recasting (imposed motion) with a comparison test on one actor, then the whole cast with the same template",
+      "For a character that deforms, add an identity element (front + at least one other view)",
+      "Aligned review sheet and synced 3×3 grid"
+    ],
+    "controles_en": [
+      "Actor in frame for the whole take",
+      "Poses synced with the base at the same instants",
+      "No trace of the grey silhouette; identical durations per choreography"
+    ],
+    "pieges_en": [
+      "Wooden mannequin: animated like a puppet",
+      "Describing the silhouette as unclothed: blocked by the filter",
+      "Actor not placed on the starting mark: walks out of frame",
+      "Reference clip too small (640×360 refused)"
+    ],
+    "exemples_en": [
+      "Make my three mascots dance to this choreography",
+      "Replace the dancer with my samurai frog",
+      "Show the nine versions side by side"
+    ],
+    "illustration_en": "Nine synced thumbnails: a grey silhouette and eight characters in the same pose."
+  },
+  "side-pocket-defaistre": {
+    "methode_en": [
+      "For a tribute, lock a reference edition and note modes, rules and look",
+      "Set canvas and play area in engine units first; instructions cite the same proportions",
+      "Generate the art in layers: empty background, top-down play surface with an imposed inner rectangle, sprite grid on a plain background, logotype",
+      "Keep the brand's products as real photos with campaign links",
+      "Write new levels and prove them solvable by replayed simulation"
+    ],
+    "controles_en": [
+      "Deterministic rule tests",
+      "Captures reviewed at desktop and phone widths"
+    ],
+    "pieges_en": [
+      "Mixing several editions of the reference game",
+      "Reusing the original's solutions with different physics",
+      "Logotype that looks like a partnership",
+      "Game logic tied to displayed text"
+    ],
+    "exemples_en": [
+      "Generate a top-down game table that respects this rectangle",
+      "Make a sprite grid of balls on a magenta background",
+      "Create a retro logotype for our mini-game"
+    ],
+    "illustration_en": "A top-down pixel pool table with four product cards at the edge of the screen."
+  },
+  "small-worlds-real-craft": {
+    "methode_en": [
+      "One sentence per prop and a style set once (shapes, palette, finish)",
+      "Concept image with an explicit ban on logos and text",
+      "Detailed 3D model without remeshing, PBR, as the \"before\" reference; count its triangles in the file",
+      "Low-poly rebuild from a brief: hard budget after triangulation, silhouette and gaps to keep, detail to bake, UV and pivot rules",
+      "Moving parts separated with origins on the real axis; optional breakable crate in 18-30 closed fragments",
+      "Check in a real-time engine: same camera and light before/after, triangles read from the files"
+    ],
+    "controles_en": [
+      "Triangle counts read from the file, never estimated",
+      "Before/after comparison with identical camera and lighting",
+      "Per-part and assembled totals kept separate"
+    ],
+    "pieges_en": [
+      "Logos added by the image model",
+      "Aspect ratio not accepted by the next model"
+    ],
+    "exemples_en": [
+      "Make a stylised scooter under 5,000 triangles",
+      "Separate the wind turbine rotor with the right axis",
+      "Show before and after optimisation"
+    ],
+    "illustration_en": "A stylised windmill in two halves: dense mesh on the left, textured low-poly version on the right."
+  },
+  "the-drifting-afternoon": {
+    "methode_en": [
+      "Show the scene in three visual languages, have one picked, then write the style constants",
+      "Approve one reference image per object before any 3D conversion",
+      "Convert each image to a mesh with a face budget; review the lighter variants textured and in wireframe",
+      "Fix each object's orientation, scale and ground anchoring, log the fix",
+      "Add water, swimming, wake, hair and seasonal palettes in code",
+      "Load the music after user consent"
+    ],
+    "controles_en": [
+      "Lighter variant kept only if the silhouette survives (e.g. 4,480 → 1,932 triangles accepted)",
+      "Plants anchored to the terrain by their lowest vertices",
+      "Seasonal tint excluded from characters and water"
+    ],
+    "pieges_en": [
+      "Moving to 3D before the image is approved",
+      "Trusting export axes",
+      "Expecting hair animation from a static mesh"
+    ],
+    "exemples_en": [
+      "Suggest three styles for my diorama before starting",
+      "Convert these five approved objects into lightweight 3D",
+      "This boat is lying on its side, fix its orientation"
+    ],
+    "illustration_en": "A miniature pond seen from above in three seasons side by side."
+  },
+  "the-room-remembers": {
+    "methode_en": [
+      "Build the architecture once in Blender",
+      "Per era, create a style anchor image and condition every object on it alone",
+      "Convert each object to 3D, measure its real front and place it against the measured wall panels",
+      "Tileable materials checked at 2×2, exterior panoramas, period music",
+      "Visual review of every design and replacement of faulty pieces",
+      "Viewer with era transitions and optional films on a single camera path"
+    ],
+    "controles_en": [
+      "Count distinct generated models and placed instances separately; never label handmade geometry as generated",
+      "Texture repeated 2×2 with no ghost at the seam",
+      "Films reviewed against the scene (no invented door or object)"
+    ],
+    "pieges_en": [
+      "Chaining references from object to object: identity drifts",
+      "Trusting a mesh's declared front",
+      "Mistaking a returned job for an accepted asset",
+      "Relaunching after a timeout instead of resuming the job"
+    ],
+    "exemples_en": [
+      "Furnish this living room in 1920s style",
+      "Generate twenty consistent objects for the Baroque era",
+      "Check the sconces don't touch the columns"
+    ],
+    "illustration_en": "A Venetian salon cut into six vertical slices, from the 16th century to the future."
+  },
+  "theme-swap": {
+    "methode_en": [
+      "Inventory every sheet in the game (canvas size, piece names in order)",
+      "Create a theme sheet: same characters in the same places, one costume prop each on the head or neck",
+      "Edit each sheet with two references (original + theme), same size, transparent background",
+      "Slice the themed sheet by assigning each pixel to the nearest original piece, keeping shapes whole; note offsets",
+      "Rebuild 9-slice frames from the recoloured original, nothing painted inside",
+      "Optional: night variant of the background; music loop of exactly N bars",
+      "Switch theme via a mirror asset folder"
+    ],
+    "controles_en": [
+      "50% overlay or wipe: each themed piece covers the original",
+      "As many pieces as in the original",
+      "No debris beside the characters; costume never widens the body",
+      "Click-free music loop of exactly N bars"
+    ],
+    "pieges_en": [
+      "Repainting the theme from scratch: nothing lines up",
+      "Slicing by the themed sheet's own blocks: two characters merged",
+      "Decorations inside stretched frames",
+      "Thin seams at fractional scales"
+    ],
+    "exemples_en": [
+      "Make a Halloween version of all my sprites",
+      "Keep exactly the same positions for my buttons",
+      "Create a 24-bar Christmas music loop"
+    ],
+    "illustration_en": "A sheet of block cats as a wipe: half original, half with witch hats."
+  },
+  "video-color-grade": {
+    "methode_en": [
+      "First check whether an existing LUT preset covers the need (log→Rec.709, film emulation)",
+      "Otherwise write a recipe of per-pixel colour operations and tune it on stills",
+      "Bake the recipe into a .cube 3D LUT usable in editors",
+      "For light and selective colour: per-frame spatial operations, with object mask and in-object key, edges refined with a guided filter",
+      "Render each look, build a comparison reel with music",
+      "Retest on each new source and reduce saturation and contrast if needed"
+    ],
+    "controles_en": [
+      "Frame count and timing identical to the source",
+      "Test on stills before rendering",
+      "Colour isolation checked in preview; otherwise suggest a mask",
+      "Re-encode to H.264 for the web"
+    ],
+    "pieges_en": [
+      "Rewriting a look a preset already does",
+      "Hue key alone for an object whose colour exists elsewhere (skin, reflections)",
+      "Heuristic masks like \"only the sky\"",
+      "Brand or film names as look names"
+    ],
+    "exemples_en": [
+      "Give this clip a sunset look and export the LUT",
+      "Make the video black and white but keep the car red",
+      "Match the colours to this reference photo"
+    ],
+    "illustration_en": "The same street image in twelve differently coloured thumbnails, a LUT cube in the centre."
+  },
+  "apex-livery-studio": {
+    "methode_en": [
+      "Gather side, top and front views with known dimensions, then run two image-to-3D candidates (multi-image and single image) and keep the best.",
+      "In Blender: orient and scale, delete all generated textures, split into about ten named paintable panels plus the mechanical parts.",
+      "Create a second UV layer dedicated to baking, non-overlapping, separate from the display UVs.",
+      "Logos: use the official SVG if one exists; otherwise vectorise a black-on-white raster, cropped and upscaled, then clean up and recolour.",
+      "Describe each livery as data: hex colours, default finish (matte, satin, gloss, metallic) and per-panel exceptions, list of decals anchored to a named panel.",
+      "Only at export, bake colour, roughness and metal into the export atlas and embed it in the GLB."
+    ],
+    "controles_en": [
+      "Contrast of each decal against the panel carrying it (move it if values are close).",
+      "Left/right placements always linked as a pair.",
+      "First-surface filtering: no decal printed a second time on an inner wall.",
+      "Regenerate the export UV layer whenever the GLB changes."
+    ],
+    "pieges_en": [
+      "Keeping the generated textures: embossed logos reappear under every livery.",
+      "Vectorising a white marking on a white or transparent background: unusable path.",
+      "Re-optimising or reordering the mesh after creating the export UVs: the atlas shifts.",
+      "Presenting the reconstruction as engineering data."
+    ],
+    "exemples_en": [
+      "Make this kart in five liveries in my teams' colours, satin finish.",
+      "Add my SVG logo on the hood and the sides, symmetrical.",
+      "Export the red livery as a GLB with baked textures."
+    ],
+    "illustration_en": "The same kart shown three times side by side, three different liveries, panel labels as a watermark."
+  },
+  "blender-2d-animation": {
+    "methode_en": [
+      "Generate a 16:9 concept image (imaginary game screenshot, strict side view) that sets the style; two attempts.",
+      "Produce each layer (sky, far, mid, ground, foreground) by editing with the concept as reference, transparent except the sky, wide (about 3072×1152) for tiled layers.",
+      "Generate prop and foreground sheets on transparent backgrounds, objects well spaced, numbered in reading order.",
+      "Hero: two poses side by side on plain magenta, then an image-to-video run-in-place clip; key each frame on its own edge colour and extract a loop (9 to 12 frames, count read from disk).",
+      "In Blender: one card per frame at its depth, orthographic camera following the hero, per-layer scrolling driven by a follow factor (sky ≈ 0.97, foreground negative).",
+      "Jumps as keyframes with squash/stretch, props as rigid bodies with collision hulls traced on their outline, then bake the physics cache.",
+      "For a new look: swap the ten or so images and a few measurements, without touching animation, camera or physics."
+    ],
+    "controles_en": [
+      "Real transparency on every layer; number of cut props equals the number of names.",
+      "Last loop frame flows into the first, with no coloured fringe.",
+      "Feet sunk about 10 cm into the ground edge; physics confined to the image plane.",
+      "First frame of the render complete; no visible seam on tiled layers."
+    ],
+    "pieges_en": [
+      "Tile seam crossing a visual landmark: place it where the silhouette is lowest.",
+      "Clip background drifting from magenta to other hues: key frame by frame.",
+      "Magenta key eating the character's inner pink (ears, tongue).",
+      "Hard-coded loop length when it varies per character."
+    ],
+    "exemples_en": [
+      "Redo my run scene in a desert version, same animation.",
+      "Build a platformer shot with these five layers and my hero.",
+      "Move the far layer's seam so it doesn't cut through the castle."
+    ],
+    "illustration_en": "Three thumbnails of the same hero jump: jungle, Halloween night, snow; layers spread out in perspective."
+  },
+  "build-a-reef": {
+    "methode_en": [
+      "Pick a bounded composition and a documented species palette.",
+      "Generate four consistent views of the terrain in neutral clay (same footprint), fix contradictions, then multi-image-to-3D.",
+      "In Blender: check silhouette, loose parts, normals, UVs; keep a detailed master and bake to a measured runtime mesh.",
+      "Generate seamless tissue textures with no baked shadows or reflections.",
+      "Grow each colony from a branch history (position, parent, radius, birth time); one rule per form, never an enlarged adult mesh.",
+      "Add animals with swimming suited to each species, then ship a static, lazy-loading web build."
+    ],
+    "controles_en": [
+      "Compare a fixed wide view and a swim-height view, with identical lighting, camera and growth age.",
+      "After two failed attempts, log the failure and change approach.",
+      "Profile the production build in WebGPU and WebGL before optimising."
+    ],
+    "pieges_en": [
+      "Sending inconsistent views to image-to-3D, then repairing the wrong structure.",
+      "Passing off a mesh enlargement as growth.",
+      "Shipping source masters or unused studies in the initial page."
+    ],
+    "exemples_en": [
+      "Grow a fern forest on this terrain.",
+      "Generate four consistent views of this rock before converting it to 3D.",
+      "Create a seamless moss texture for my terrain."
+    ],
+    "illustration_en": "The same branching coral shown at three ages, from bud to colony, on a dark blue background."
+  },
+  "change-only-x-fashion": {
+    "methode_en": [
+      "Create a model sheet: four full-length views (front, two profiles, back) with margin, plus a face close-up, light grey studio background.",
+      "Each new outfit or new model = an edit of the previous sheet: keep everything exactly, change only the named element; no logos on clothes and shoes.",
+      "Shoot the source take with a wide lens, low camera, model at about two-thirds of the height, full body visible, a single continuous camera move.",
+      "Chain video-to-video edits linearly: step N is made only from N-1, same duration as the input, 1080p, sound off.",
+      "Place a companion (animal) in frame terms: always on one side of the image, never overlapping the model.",
+      "Scan each take for jumps (scene-change score) before approving."
+    ],
+    "controles_en": [
+      "Only the named element changes; all earlier edits remain, from front and back.",
+      "No new jump compared with the previous step; the same frame aligns with its input.",
+      "1920×1080 at every step, duration identical to the source.",
+      "A scene score around 0.28 mid-shot signals a hidden cut."
+    ],
+    "pieges_en": [
+      "Source framed too tight or too low: a new garment or face doesn't read.",
+      "Pushing focal length and speed until a hidden cut appears.",
+      "Logos on a sheet: the reference may be refused by moderation.",
+      "Redoing an intermediate step means redoing all the following ones."
+    ],
+    "exemples_en": [
+      "In my video, change only the jacket to red leather.",
+      "Keep everything but add a dog running on the left of the frame.",
+      "Replace the set with a beach at sunset without touching the motion."
+    ],
+    "illustration_en": "The same skater frame in four aligned steps: dress, hat, salt flat, velvet."
+  },
+  "continuity-heist": {
+    "methode_en": [
+      "Name the options once and index each node (a, a-b, a-b-c): three decisions with three options give 39 scenes.",
+      "Lock a small reference set: a world master, one variant per prop (an edit that only replaces the object), one portrait per companion on a plain background.",
+      "Build each scene image directly from these approved references, in a constant order, composing the start of the action; never from a generated scene.",
+      "Animate each image as a ~6 s clip, a single action, native diegetic sound, no cuts.",
+      "Extract a clip's last frame and the next one's first, then generate a short bridge shot between them describing the prop handoff (hand, contact, release).",
+      "Assemble bridge and scene per branch and review every join frame by frame."
+    ],
+    "controles_en": [
+      "Small props checked in a tight crop for the whole clip.",
+      "No isolated black flash in a bridge (failed take, not a transition).",
+      "Anatomy specified for each character when two designs share a shot.",
+      "Trim the first second if it's faulty rather than redoing everything."
+    ],
+    "pieges_en": [
+      "Relying on identity references for action continuity: you need bridges.",
+      "Asking for an arrival already done in the source image: the element appears twice.",
+      "Chaining references from scene to scene: identity drifts.",
+      "Retrying blindly after a moderation refusal."
+    ],
+    "exemples_en": [
+      "Make a mini-film where the viewer picks the stolen object, the accomplice and the getaway.",
+      "Generate a link shot between these two clips so the suitcase passes from hand to hand.",
+      "Check the prop's continuity across every branch."
+    ],
+    "illustration_en": "Three-level tree diagram with a tiny thumbnail per node and bridge arrows."
+  },
+  "dotties-voice": {
+    "methode_en": [
+      "Lock the story (three characters, two locations, one arc) and the exact lines; approval before any generation.",
+      "One sheet per character: four full-length views, three expressions, props, and a shared style described in words; a drifting character is redrawn with only the approved sheets as reference.",
+      "Generate the empty sets, then relight them (two motivated sources, shadows, haze, grain) before any motion.",
+      "Write each shot as a second-by-second choreography: causes before effects, objects still until something touches them, emotion landing at the end of the shot.",
+      "Generate reference-to-video sections (about 15 s, low res, native dialogue), then fix failed moments from their first, last or an edited frame (4-6 s shots).",
+      "Repair the frame rate of close-ups rendered on twos, upscale, and compose the music once outside the video model with ducking under the voices."
+    ],
+    "controles_en": [
+      "Names and lines checked with a large transcription model; another take's track can replace a badly delivered line.",
+      "\"No music\" present in every video prompt.",
+      "Close-up frame rate aligned with the wide shots (24 fps).",
+      "Measured checks at the end of the chain rather than by eye alone."
+    ],
+    "pieges_en": [
+      "Passing a drifted sheet as reference: the old style wins.",
+      "Open prompt for an object with states: it animates on its own.",
+      "Generated tears stuck on the cheek like paint.",
+      "Small faces generated at low res: upscaling keeps the distortion."
+    ],
+    "exemples_en": [
+      "Write the shot where he presses the tape recorder, second by second.",
+      "Check the first name is pronounced correctly in every take.",
+      "The close-ups stutter: fix the frame rate."
+    ],
+    "illustration_en": "Horizontal strip of a shot cut into seconds, one thumbnail and a short action per interval."
+  },
+  "every-scenario": {
+    "methode_en": [
+      "Analyse the song (tempo, strong beats, syllable onsets); use the supplied lyrics rather than a transcription.",
+      "Write a shared style bible and spread 2 to 4 looks across the sections; ask for precise colour references.",
+      "Generate a subject sheet, one style image per shot, then the clips (image-to-video, beat-guided dances, audio-to-video lip-sync).",
+      "Extract a per-frame person mask locally.",
+      "Render with a deterministic engine (every pixel a function of song time) five layers: clean plate, graphics behind, keyed subject, graphics in front, HUD.",
+      "Hand one section to each sub-agent with the same bible and a verification loop; final render 1080p60."
+    ],
+    "controles_en": [
+      "Every sung word visible at its onset, peaking on the onset frame.",
+      "At most three full-screen luminance flips per second.",
+      "A single focal point; text never covers the face; never the same type treatment on two consecutive lines.",
+      "Review the whole film yourself, then the first three seconds."
+    ],
+    "pieges_en": [
+      "Vague colour requests with no reference: dull palettes.",
+      "Filtering or grading the generated footage instead of keeping it clean.",
+      "Frozen frames: something must always move."
+    ],
+    "exemples_en": [
+      "Make a lyric video of my track with the lyrics passing behind the singer.",
+      "Add a counter and keywords synced to each chorus.",
+      "Prepare a 20 s vertical teaser."
+    ],
+    "illustration_en": "An image exploded into five transparent plates: footage, text behind, silhouette, text in front, HUD."
+  },
+  "full-self-flying": {
+    "methode_en": [
+      "Generate the car in a front 3/4 view on a light background, whole with margin, no logo or text.",
+      "Convert the image to 3D with PBR, around 20,000 triangles.",
+      "Generate a 360 sky with no ground or buildings, low sun, then orient it to the scene's lighting.",
+      "Generate planets, power-ups and obstacles on transparent backgrounds with a shared style suffix and a shared style image.",
+      "Generate the set (grass, bushes, cacti, mound) from one style reference, then in 3D; decimate and recolour each model under 1 MB in headless Blender.",
+      "Write the game (ramp, jump, boosters, loop) and run an automated playtest plus a UI overlap check."
+    ],
+    "controles_en": [
+      "Every set model under 1 MB.",
+      "Real alpha checked on every sprite.",
+      "Button and UI boxes measured: nothing covers the HUD on short screens.",
+      "One icon per concept (lives ≠ boost)."
+    ],
+    "pieges_en": [
+      "Power-ups blending into the set: give them their own colour and glow.",
+      "Browser cache serving an old sprite with the same name: change the path.",
+      "Loop camera too close, filling the screen."
+    ],
+    "exemples_en": [
+      "Prepare a 3D car under one megabyte for my web game.",
+      "Generate a 360° sunset sky for my scene.",
+      "Make six obstacles as transparent sprites in the same style."
+    ],
+    "illustration_en": "A small silver roadster mid-jump above a curling ramp, orange evening sky."
+  },
+  "game-ua-ads": {
+    "methode_en": [
+      "Ask once: game concept and name, platform and placement (ratio, safe areas, sound), exact duration of 6 to 30 s, game material, spending cap.",
+      "Plan a second-by-second timeline: hook, mechanic, escalation, end.",
+      "Generate one text-free still per game state, at the delivery ratio, from the supplied material if any.",
+      "Animate final-quality takes from these images, locked camera, end state pinned as the last frame when it matters.",
+      "Check the logic on crops of each action, then composite hook, HUD, hand, bursts and end card over the image.",
+      "Assemble to the exact duration with voice, effects and music, then check the master."
+    ],
+    "controles_en": [
+      "A sound at 0.0 s and motion from 0.3 s; no logo intro.",
+      "Counters that only go up, in 4 or 5 steps proportional to the event.",
+      "Top of the frame (about 15%) kept clear for the HUD and the hook.",
+      "Nothing crosses a closed barrier; a failed attempt = two takes from the same image.",
+      "Every paid call dry-run priced and kept under the cap."
+    ],
+    "pieges_en": [
+      "Letting the model draw text, numbers, buttons or the hand.",
+      "Dolly-in on a busy board: pipes and gates distort.",
+      "Pipes or bends that tempt the model into a shortcut off the path."
+    ],
+    "exemples_en": [
+      "Make a 15 s TikTok ad for my pull-the-pin game from these screenshots.",
+      "Add a fake fail, then the right solution before the end card.",
+      "Adapt the ad to 9:16 and 1:1 for Reels and the feed."
+    ],
+    "illustration_en": "Vertical pull-the-pin puzzle screen, gold flowing, counter and hand drawn as an overlay."
+  },
+  "grease-pencil-to-final-frame": {
+    "methode_en": [
+      "Capture the shot from the scene camera (playblast) with a written look.",
+      "Read the model's minimum duration (often 4 or 5 s) and pick a route: stretch the capture then speed it back up uniformly, or pad with a black card while stating the action's duration in seconds and frames then keep only the first frames, or send as is if long enough.",
+      "Write a look that adds a reactive world (dust, debris, birds) without new characters; mute the generated audio.",
+      "Render with one or two models and check each job's status and duration.",
+      "Measure the frame-by-frame offset between render and drawing, then retime or trim; prove alignment by overlaying only the extracted dark strokes."
+    ],
+    "controles_en": [
+      "Mean offset measured on every render (the best model stayed under about 2.4 frames).",
+      "Padding card truly black: flat shading and emission at 0.",
+      "Output duration equal to the original frame count after retiming."
+    ],
+    "pieges_en": [
+      "Judging timing by eye: a 198-frame shot fell up to 31 frames (1.3 s) behind, poses intact.",
+      "Stretching a shot whose world must move naturally: smoke and birds become too fast.",
+      "Overlaying the drawing in multiply mode: the grey background darkens everything."
+    ],
+    "exemples_en": [
+      "Render my 2 s animatic in watercolour style without changing the timing.",
+      "Measure how many frames the render lags behind my drawing.",
+      "Compare Seedance and MiniMax on this shot."
+    ],
+    "illustration_en": "Sliding wipe: left half blue pencil, right half painted render, same pose."
+  },
+  "hibana": {
+    "methode_en": [
+      "Start from one reference image per fighter and turn it into a clean front sheet.",
+      "Convert the sheet to textured 3D (about 40,000 triangles).",
+      "Auto-rig onto a standard humanoid skeleton (52 bones).",
+      "For each move: animate a reference actor from a still into a short video, then convert the video to motion on the skeleton.",
+      "Assemble in three.js: game frames, hitboxes, flat-shaded rendering, sounds; multilingual voices and one music track per arena."
+    ],
+    "controles_en": [
+      "Each video-to-motion clip reviewed on the character before integration (no published threshold).",
+      "Hitboxes tuned per move in game."
+    ],
+    "pieges_en": [
+      "No skill shipped: method reconstructed from the page alone."
+    ],
+    "exemples_en": [
+      "Create a rigged 3D fighter from my drawing.",
+      "Generate a spinning back kick for this character from a video.",
+      "Prepare ten basic moves for my game."
+    ],
+    "illustration_en": "Flat-shaded fighter silhouette, five kick poses lined up like a move sheet."
+  },
+  "impossible-fitting-room": {
+    "methode_en": [
+      "Casting: one full-length reference per person, front-facing, neutral grey outfit, margins of about 8%.",
+      "Clothing: one product photo with no visible mannequin per complete look, shoes included; sets generated separately.",
+      "Fit each person to each look as a \"fitted master\" and review it before any other step.",
+      "Build each editorial image from exactly three references (master, garment, set) with a precise asymmetric pose, not the catalogue pose.",
+      "From approved images only: a lateral walk (never towards the lens) and a loop that returns to the same frame; leave about 15% of floor below the shoes.",
+      "Pilot one person × one look × one set end to end before expanding the grid; one music track per set; estimate cost per video model."
+    ],
+    "controles_en": [
+      "Review identity, garment construction, framing and exposure on every image.",
+      "Loop review: about 7 out of 55 rejected for changed closures or invented hems.",
+      "Cost comparison per film: budget model ≈ 100 credits vs ≈ 460 at 720p for the premium model (≈ 78% savings)."
+    ],
+    "pieges_en": [
+      "Try-on that opens a closed jacket or loses a metallic material: rerun with the original references.",
+      "Copying the master's stiff pose: the whole editorial must be redone.",
+      "Walk replaced by a pirouette; identical first and last frames don't guarantee a clean loop."
+    ],
+    "exemples_en": [
+      "Put my three outfits on two models in four sets.",
+      "How much would the campaign cost in 1080p versus a cheaper model?",
+      "Add a 10 s lateral walk for each approved image."
+    ],
+    "illustration_en": "3×3 grid of thumbnails: same faces across rows, same outfits down columns, varied sets."
+  },
+  "island-builder": {
+    "methode_en": [
+      "Put the same style sentence in every concept prompt and always ask for dark navy-blue windows.",
+      "Separate moving parts by editing the approved concept (tower without sails, rotor alone) before 3D.",
+      "Convert each concept to textured 3D, preview from three angles, keep the originals.",
+      "Place each building in a lot slot that carries the spawn animation, so the model can be swapped.",
+      "Decimate: about 160,000 faces per building for the film, far fewer for the web.",
+      "For night: extract the navy blue from the textures by colour key and convert it to emission; switch the lighting."
+    ],
+    "controles_en": [
+      "Every building has enough dark glazing to light up.",
+      "Boat heading compared with the concept (bow forward).",
+      "Shadows baked into textures spotted and cleaned."
+    ],
+    "pieges_en": [
+      "Painting window masks by hand instead of using the colour key.",
+      "Windmill generated in one piece: sails welded to the tower.",
+      "Animating the model rather than the slot: a model swap loses the animation.",
+      "Raw image-to-3D output (about 1.9M triangles, 55 MB) shipped as is."
+    ],
+    "exemples_en": [
+      "Generate six pastel houses in the same style for my island.",
+      "Make the windows light up when night falls.",
+      "Separate the windmill sails so they spin."
+    ],
+    "illustration_en": "Pastel island in two halves: left in broad daylight, right at night with golden windows."
+  },
+  "kumo-ramen": {
+    "methode_en": [
+      "Generate a wide key image of the whole place in cutaway to set palette, light and mood.",
+      "Break the brief into rooms, machines, props, food, characters: one concept per object, same studio framing (light grey, 3/4 view, whole object); characters in front-facing A-pose.",
+      "Show the casting sheet and wait for a yes before any 3D.",
+      "Compare two to four image-to-3D models on one prop and one character, judging materials too; choose per object type.",
+      "Rig and share a walk cycle; action poses in code (reset each bone to rest, world-space targets); procedural architecture in headless Blender.",
+      "Paths on a grid computed from real collisions; compress models (geometry and WebP textures); about 120 s of music and a 30 s ambience loop."
+    ],
+    "controles_en": [
+      "Seat and speech-bubble heights measured on each skeleton.",
+      "Point light count capped (cut from 18 to 9).",
+      "30 fps when nobody interacts, rendering stopped in a hidden tab; building compressed from 7.6 to 2.3 MB."
+    ],
+    "pieges_en": [
+      "Absurd machinery for the real place: ask how the real place works.",
+      "Doing 3D before the casting is approved: nine meshes wasted.",
+      "Generated idle clip making the head jump: replace it with a pose in code.",
+      "Choosing a 3D model on shape alone: a black lacquered bowl turned grey."
+    ],
+    "exemples_en": [
+      "Build a 3D cutaway of a bakery with three staff.",
+      "Show me the casting first before going to 3D.",
+      "Slim down the scene so it loads fast on the web."
+    ],
+    "illustration_en": "Model of a food stall with its roof lifted, tiny cooks and customers, lanterns lit."
+  },
+  "last-order": {
+    "methode_en": [
+      "Write the plan in frames (240 at 24 fps, EEVEE): opening image, props passing, light event, payoff.",
+      "Plan the camera after the light event so it frames it.",
+      "Generate signs, posters and menu with readable invented names, seamless PBR materials (wet floor), a 360 sky and two concept-to-3D hero props.",
+      "Decimate and apply heavy meshes (about 12% of the original).",
+      "Animate the sputtering sign with a constant-key power value (18 keys over about twenty frames).",
+      "Render test frames at key moments, fix, and continuously record a timestamped timelapse and build notes."
+    ],
+    "controles_en": [
+      "Render time per frame: a 1.9M-face prop cost 8 to 17 s, brought down to 1-2 s after decimation.",
+      "Shadows only on the main lights; reflection probe off when the floor leaves the frame.",
+      "Open every test frame (rain under the awning, haze, saturated emissives, single hue).",
+      "No real logo in generated images."
+    ],
+    "pieges_en": [
+      "Camera path drawn before the light event: the sign is never framed.",
+      "First frame dark and muddled even though it's the thumbnail.",
+      "Empty boxes where small signs hang."
+    ],
+    "exemples_en": [
+      "Build a 10 s shot of a rainy alley with a sign that lights up.",
+      "Why does my render take 15 s per frame?",
+      "Generate a poster with a readable invented shop name."
+    ],
+    "illustration_en": "Rainy alley at night, foreground puddle reflecting a neon sign flickering on."
+  },
+  "little-paper-voyage": {
+    "methode_en": [
+      "Write 4 to 6 acts on a single horizontal strip, one interaction per act and a final reveal.",
+      "Generate a hero image that serves as style reference for everything else.",
+      "Produce a kit of about 25 layers: opaque sky, wide repeating wave or ground strips, transparent cut-outs for every element.",
+      "Make each character as a parts sheet (fixed face, separate limbs) assembled and jointed in the page.",
+      "Scrolling drives camera and puppets; night is a tint applied to the same textures; interactions are buttons projected onto the cut-outs.",
+      "A single looping instrumental track, tail crossfaded into the head."
+    ],
+    "controles_en": [
+      "Listen to and classify the music take before use (an early take was a nature ambience).",
+      "Music at about 10% so the effects can be heard.",
+      "Clickable areas active only once the curtains open; test every reachable camera."
+    ],
+    "pieges_en": [
+      "Looping the raw file: the join is audible.",
+      "Horizon strip visible between two sea sheets when the camera rises."
+    ],
+    "exemples_en": [
+      "Make a five-act children's story that reads as you scroll.",
+      "Cut my character into head, arms and legs to animate it.",
+      "Loop this music without an audible join."
+    ],
+    "illustration_en": "Small paper boat on three rows of cut-out waves, moon hanging on a string."
+  },
+  "mech-bay": {
+    "methode_en": [
+      "Start from one finished reference render per design.",
+      "Ask an image model to extract each part (head, headless torso, arms, legs) onto its own sheet without redrawing it; name sides by position in the image and forbid mirroring.",
+      "Review the sheets, then convert each part to textured 3D.",
+      "Fit in code from geometry: fixed height per slot, feet facing forward, hip above ankle, shoulders aligned; only small per-part corrections.",
+      "Cut limbs into rigid pieces at knee, ankle and elbow so they bend without stretching the armour.",
+      "Redraw the support crew in A-pose with empty hands before animating; generate and measure music and effects."
+    ],
+    "controles_en": [
+      "Left/right sides checked before image-to-3D.",
+      "Three designs = 18 parts mounted on the same attachment points.",
+      "Sound pitch and loudness measured (an alarm came back as a high beep)."
+    ],
+    "pieges_en": [
+      "Asking for a redesign instead of an extraction.",
+      "Torso keeping the head even though it's a separate part.",
+      "Automatic skinning on rigid armour: the plates stretch.",
+      "Animating a character whose tool is welded to the hand."
+    ],
+    "exemples_en": [
+      "Split my robot into head, torso, arms and legs in 3D.",
+      "Mount robot A's legs on robot B's torso.",
+      "Make the knee bend without deforming the armour."
+    ],
+    "illustration_en": "Hangar with three different mechs whose arms have been swapped, overhead crane above."
+  },
+  "motion-loops": {
+    "methode_en": [
+      "Write each loop as a stateless drawing function of time, palette and size.",
+      "Pick each period so it divides 12 s exactly; draw randomness from an indexed deterministic function.",
+      "Check: the same instant rendered twice is identical, the 12 s frame equals the 0 s frame, no jump at the loop point compared with neighbouring motion.",
+      "Render 1920×1080 at 24 fps with sub-frame motion blur (8 by default, up to 40 for very fast motion), supersampling and H.264 BT.709 encoding.",
+      "Optional: place a keyed subject on the loop's clock, or overlay a keyed AI shot with ffmpeg."
+    ],
+    "controles_en": [
+      "\"Seam\" failure if the 12 s frame differs from the 0 s frame.",
+      "\"Non-deterministic\" failure if the same instant gives two images.",
+      "Sample just before and after the loop point (11.9; 11.95; 0; 0.05 s)."
+    ],
+    "pieges_en": [
+      "Period that doesn't divide 12 s (5 s cycle): fix the period, never a crossfade.",
+      "Randomness or system date in the drawing.",
+      "3D projection divided by depth twice."
+    ],
+    "exemples_en": [
+      "Make a 12 s animated background in my brand colours behind my title.",
+      "Put my keyed mascot on a waves loop.",
+      "Check this loop doesn't jump at the join."
+    ],
+    "illustration_en": "Grid of nine colourful geometric thumbnails, each with a circular loop arrow."
+  },
+  "one-logo-42-worlds": {
+    "methode_en": [
+      "Keep the logo and one word identical, same position and same bounce; everything else changes on each landing.",
+      "Draw each world in SVG, CSS or canvas, rendered frame by frame (1080×1080 at 30 fps).",
+      "Speed up the bounce in steps (from 1.23 s to 0.7 s per bounce) every eight worlds.",
+      "Synthesise the music from the same timeline so every kick drum lands on a landing.",
+      "Add one sound effect per world, placed on its event frame.",
+      "Raster logo: vectorise it, then rebuild its layers by hand."
+    ],
+    "controles_en": [
+      "Logo tilt proportional to sway speed, so it passes zero smoothly.",
+      "Font loaded before drawing a text mask.",
+      "Final run through a limiter set on the groove's peak; public-domain status checked for each tribute."
+    ],
+    "pieges_en": [
+      "Leaving the rhythm to generated music: it doesn't follow tempo changes.",
+      "SVG nested inside an SVG: the logo disappears.",
+      "Believing a vectorised logo keeps its layers."
+    ],
+    "exemples_en": [
+      "Make my logo bounce through ten different styles over 30 s.",
+      "Sync a beat to every bounce.",
+      "Add a different sound for each world."
+    ],
+    "illustration_en": "The same logo in four panels: green terminal, swirling starry sky, op art, neon."
+  },
+  "one-take-many-angles": {
+    "methode_en": [
+      "Set up a camera study in Blender: stand-in silhouettes, source camera, new cameras; check headroom and blocked views on a contact sheet.",
+      "Generate the master image, then a second pass that widens the frame and restores full silhouettes.",
+      "Shoot the continuous source take (low-res pilots first).",
+      "Write the recut: continuity contract (same person, props, eyelines, time base), actions as observed in the take, numbered shot list with times and focal lengths.",
+      "Generate the recut in one go with the take as reference video.",
+      "Measure the actual cut points and exact duration on the result, then edit and compare source and recut side by side."
+    ],
+    "controles_en": [
+      "Cuts measured, never taken from the prompt (a cut requested at 1.35 s lands around 1.9-2.2 s; the last one requested at 18.2 s lands around 19.4-19.8 s).",
+      "Duration read with ffprobe, not from the last contact-sheet sample.",
+      "Same final hold added to both films."
+    ],
+    "pieges_en": [
+      "Writing the recut from the planned choreography rather than from what the take shows.",
+      "Taking an LLM's reading of contact sheets as timing truth.",
+      "Stopping at the first master: a recut can only cut into what the source contains."
+    ],
+    "exemples_en": [
+      "Turn this single shot into a sequence of ten different angles.",
+      "Where do the cuts really fall in this render?",
+      "Prepare a camera study in Blender before generating."
+    ],
+    "illustration_en": "Top view of a character surrounded by thirteen small numbered cameras and their focal lengths."
+  },
+  "paper-harbor": {
+    "methode_en": [
+      "Build at true miniature scale and shoot with real depth of field, not a post-production blur.",
+      "Generate flat, orthographic, full-page facades, with sign text quoted exactly.",
+      "Generate PBR papers, concept-to-3D hero props, room backdrop and environment lighting.",
+      "Animate with Blender Python (banded waves, boat, camera); place each sound on its second and ask for music slightly longer than the picture.",
+      "Have renders reviewed by image analysis; turn each remark into a measured change; keep v1 next to v2."
+    ],
+    "controles_en": [
+      "Hull checked frame by frame: in v1 the waves hid it on 290 of 360 frames.",
+      "Bounds printed for each placement (a lighthouse was floating 14 cm up).",
+      "Music scanned for silence gaps (1.4 s to 4.8 s in one take)."
+    ],
+    "pieges_en": [
+      "Faking tilt-shift with a blur gradient.",
+      "Facades generated in perspective or with sky and ground.",
+      "Believing the HDR step produced HDR when it produced 8-bit previews.",
+      "Rebuilding the scene to record the timelapse."
+    ],
+    "exemples_en": [
+      "Make a short 15 s film of a paper village at sunrise.",
+      "Review this render and tell me what's wrong.",
+      "Place a seagull cry at 5.4 s and a bell at 10 s."
+    ],
+    "illustration_en": "Paper sailboat leaving a quay of folded houses, striped lighthouse, sun on a stick."
+  },
+  "pavilion": {
+    "methode_en": [
+      "Define the building in numbers (plinth, grid, columns, roof module, glazing) and model it with metre-based UVs that follow each element.",
+      "Plan one shot per lighting state, cut on markers; check that light can reach what the camera looks at.",
+      "Generate a first sky, then the other hours with that sky as reference, convert to environment lighting; save a \"look\" per state (world, suns, emissives, exposure).",
+      "Generate tileable materials, invented posters and signage (legibility checked by caption), concept-to-3D furniture and trees.",
+      "Capture visitors from a video performance onto their rig; add music and sounds.",
+      "Review with a quality score and a strict art review; a second pass changes only what was flagged."
+    ],
+    "controles_en": [
+      "Test frames under the real render load (a shared GPU can triple the time).",
+      "Keep and report the harsher score of the two reviews.",
+      "Dusk render brought down from about 190 s to 5 s per frame."
+    ],
+    "pieges_en": [
+      "Black glass with a Fresnel gradient that reads as blue plastic.",
+      "Low sun under a deep roof with no opening: black interior.",
+      "Rebuilding the scene to redo the timelapse."
+    ],
+    "exemples_en": [
+      "Make a 30 s film of my house from noon to dusk.",
+      "Generate the golden-hour and night skies from this one.",
+      "Add a visitor who walks in and looks at a painting."
+    ],
+    "illustration_en": "Pavilion with a timber lattice roof by a lake, three sky bands: noon, gold, night blue."
+  },
+  "playable-ads": {
+    "methode_en": [
+      "Start from a recording or screenshots of the game, logo, store links and genre; use the supplied art as is and only generate missing pieces in its style.",
+      "Build a single HTML file with no network requests, with a verb understood within 2 s.",
+      "The game waits for the first touch, a pulsing target, a hand showing the right gesture; it never plays for the player.",
+      "Three endings: goal reached, 35-45 s cap, 10 s of inactivity; an honest sentence of 1.5 s at most, then the end card.",
+      "Package for each ad network (MRAID, Meta, Google, AppLovin, Unity, Mintegral, Moloco, Liftoff, Pangle).",
+      "Test in a headless browser: base checks plus per-network checks, then each network's official preview."
+    ],
+    "controles_en": [
+      "19 base checks plus per-network checks (67 of 67 on the template).",
+      "Progress stays at 0 before the first touch; the mute button never counts as the first touch.",
+      "The hand returns after 2.5 s of inactivity and only shows.",
+      "State which network tools were actually passed."
+    ],
+    "pieges_en": [
+      "Any form of autoplay or automatic move.",
+      "Game targets under the mute button.",
+      "Store screenshots taken as game art without approval."
+    ],
+    "exemples_en": [
+      "Make a playable ad for my puzzle from this gameplay video.",
+      "Package it for AppLovin and Unity Ads.",
+      "Check it never plays on its own."
+    ],
+    "illustration_en": "Vertical phone showing a sorting puzzle, dotted hint hand and mute button at bottom left."
+  },
+  "rover-foundry": {
+    "methode_en": [
+      "Lock the vehicle, equipment categories, screen sizes, visual direction and budget.",
+      "Generate a concept, then rebuild it as named parts, stored in an editable Blender kit.",
+      "Compose finishes of three coordinated materials: generated colour, roughness and metal calibrated locally.",
+      "Generate several panoramic worlds and workshop music.",
+      "Build the web configurator (orbit, exploded view, part mixing) with PNG, GLB and .blend export.",
+      "Keep a provenance record: prompts, parameters, rejected candidates and reasons, generated vs retouched content kept separate."
+    ],
+    "controles_en": [
+      "Real walkthrough in the browser with captures; exported files reopened.",
+      "30 fps cap active, no continuous work at idle, click targets checked.",
+      "Technical audio validation kept separate from listening."
+    ],
+    "pieges_en": [
+      "Rerunning old rebuild scripts that restore outdated geometry.",
+      "Publishing temporary signed URLs in the record.",
+      "Believing a successful local build proves the deployment."
+    ],
+    "exemples_en": [
+      "Make a configurator for my buggy with three wheel options.",
+      "Suggest three coordinated finishes: ceramic, copper, carbon.",
+      "Export my configuration as GLB and .blend."
+    ],
+    "illustration_en": "Lunar rover in exploded view, wheels and antenna pulled apart, three material swatches beside it."
+  },
+  "same-product-every-variation": {
+    "methode_en": [
+      "Approve one master photo per product (shape, framing, light; 3/4 view if temples must show) and write its identity list and variable axes.",
+      "Choose per product: full chained edits when the material changes global shading (bag: leather, then flap, then clasp, each step from an approved image), otherwise masked edits as layers.",
+      "For layers: masks fitted to the part alone (metal only, up to the hinge, to the setting's outline), keep only changed pixels, in aligned layers.",
+      "Flatten each combination (6 eyewear edits give 27 combinations).",
+      "Generate each on-model try-on in a single pass; cut the colour swatches from the photos.",
+      "Name precisely any flaw to remove and redo the variations from the cleaned image."
+    ],
+    "controles_en": [
+      "Every image passes the master's identity list; when flipping through, only the chosen part changes.",
+      "No fringe of the old material at a part's edge; stones fill their setting.",
+      "Likeness and lens tint stable across all try-on combinations; no generated text or logo."
+    ],
+    "pieges_en": [
+      "Cut layers for a leather change: the whole bag's shading changes.",
+      "Full-frame mask to change a metal: the model redraws the frame.",
+      "Relighting a finished try-on: the glasses distort.",
+      "Building on an output that has drifted."
+    ],
+    "exemples_en": [
+      "Make this bag in four leathers and three clasps.",
+      "Change only the lens colour, keep the frame.",
+      "Show each pair of glasses worn by two models."
+    ],
+    "illustration_en": "The same bag photographed nine times in a grid, only the leather and flap colour varying."
+  },
+  "sketch-to-asset": {
+    "methode_en": [
+      "Take the photo or scan of the user's sketch; a few strokes for the main masses are enough.",
+      "Render in colour with the sketch as reference; the prompt only adds style, colours and materials.",
+      "Generate once per theme a blank card frame whose window is a perfectly flat #00FF00 green.",
+      "Read height, normal, roughness and metal maps from the frame and the back; build the metal mask from colour.",
+      "Key out the character, set it in slight relief in front of a background, engrave the name on the measured plate, composite the user's logo on the back locally.",
+      "Convert the same render to textured 3D and slim it down (about 110,000 to 150,000 triangles, 1K WebP textures, 1 to 3 MB)."
+    ],
+    "controles_en": [
+      "Green window checked free of gradient or texture before reading any maps.",
+      "Metal mask taken from hues, not from the metal map (mother-of-pearl read as metal at 214/255).",
+      "Logo position measured on the real plate, not a fixed box."
+    ],
+    "pieges_en": [
+      "Reference-image calls launched in parallel: refusals in bursts; send them one at a time.",
+      "Asking the model to reproduce a trademarked logo: refused; composite it locally.",
+      "Frame generated with the art already in place: green fringe around the character."
+    ],
+    "exemples_en": [
+      "Turn my dragon drawing into a shiny game card.",
+      "Also make a 3D figurine of the same character.",
+      "Create a reusable black-and-gold card frame for my whole series."
+    ],
+    "illustration_en": "Pencil sketch of a little wizard on the left, his tilted gold card in the centre, his 3D figurine on the right."
+  },
+  "tap-to-install": {
+    "methode_en": [
+      "Write a one-page brief: rules, HUD, beat sheet (hook, loop, reward, end card).",
+      "Generate a style anchor sheet (pieces, UI, hero) passed as reference to every later image.",
+      "Generate transparent asset sheets and cut them into sprites (alpha islands or grid), named in order and checked on a contact sheet.",
+      "Code the gameplay as a deterministic program (rules engine, event list, renderer) that draws these sprites.",
+      "Reserve AI video for painted shots and hero moments, animated between painted first and last frames so they join; Blender optional for layouts, dice and crowds.",
+      "Two checkpoints: plan (6 to 10 key images and a low-res animatic with scratch voice), then a low-res edit with 100% crops before the final render."
+    ],
+    "controles_en": [
+      "At 1920×1080: 64 px margins, body text ≥ 24 px, labels ≥ 20 px, nothing overflowing or overlapping.",
+      "Credits taken from a reconciled log, one per job, failures checked for refunds.",
+      "Two takes compared on the same input when two models are close."
+    ],
+    "pieges_en": [
+      "Letting the video model play: illegal moves, jumping counters, health bars going back up.",
+      "Clips that look sped up.",
+      "Casting too close to a famous game."
+    ],
+    "exemples_en": [
+      "Make a 30 s ad for my match-3 with a real board that follows the rules.",
+      "Cut this pieces sheet into named sprites.",
+      "Show me the animatic before launching the final render."
+    ],
+    "illustration_en": "Vertical match-3 board with crisp pieces, a single painted hero piece bursting into light."
+  },
+  "the-last-lantern": {
+    "methode_en": [
+      "Split the roles: grey playblast = camera, focal length, framing, timing and motion; finished image per cut = style and light; sheets = identity; text = story states.",
+      "Build the blockout in Blender and place generated 3D models for set, ground and sky.",
+      "Generate reference sheets for recurring characters, props and locations.",
+      "Produce a look image, then a finished image per cut, aligned with the playblast.",
+      "Generate each shot in reference mode with the playblast as motion video; everything that must move must move in the playblast.",
+      "Narration, music and effects synced to picture; a single edit list rebuilt from each cut's latest valid take."
+    ],
+    "controles_en": [
+      "Before sending: playblast, look image and finished image overlaid at 50%, positions matching.",
+      "After: take/playblast overlay on first, middle and last frame; search for hard cuts and dissolves.",
+      "Legs alternating, feet planted, motion in the right direction; same face, costume, two hands, whole prop.",
+      "Review video of film over playblast with cut number and timecode; an eyeball pass always added."
+    ],
+    "pieges_en": [
+      "Conflicting inputs: the model settles it by cutting, dissolving or inventing.",
+      "Fixing by prompt alone: rarely stable from cut to cut; fix upstream.",
+      "Overwriting a take instead of versioning."
+    ],
+    "exemples_en": [
+      "Keep my 30 cuts consistent from my Blender playblast.",
+      "Make me the review video with cut numbers.",
+      "The lantern switches hands in cut 12: find the cause."
+    ],
+    "illustration_en": "Left half of the frame in grey blockout, right half a painted forest, a traveller and her lantern in the centre."
+  },
+  "the-showroom": {
+    "methode_en": [
+      "Put the car image as first reference in every prompt and restate its key features in words.",
+      "Performer: supplied photo or a few castings on a sheet; lock a final look.",
+      "Generate the music in sections (intro with isolated hits, build, drop, break, return, finale), then measure the real tempo and accents.",
+      "Write each start image like a camera report and get images approved before animating (video ≈ 10 times the price of an image).",
+      "Animate each shot (1080p, about 5 s, one camera move, one action, motion from the first frame).",
+      "Cut on measured accents, normalise to -14 LUFS, optionally add graphics in code; end on a first/last-frame shot into a white studio and the 3D model."
+    ],
+    "controles_en": [
+      "Same car and same performer in every shot.",
+      "Every cut on a measured accent; no clip starting frozen; no flaw at the out point.",
+      "Costs per ad taken from the jobs (final clips and images only)."
+    ],
+    "pieges_en": [
+      "Cutting on a fitted tempo grid: drift after a half-time drop.",
+      "Trusting the requested tempo (150 BPM requested, 120 obtained).",
+      "Two very short shots just before an impact; near-identical consecutive angles.",
+      "Graphics presenting the ad as an AI generation."
+    ],
+    "exemples_en": [
+      "Make a 40 s ad for my car with a dancer, cut to the beat.",
+      "Measure the accents in this music and place the cuts.",
+      "End on the car spinning in a white studio."
+    ],
+    "illustration_en": "Red car in profile, music waveform below with vertical marks at the cut points."
+  },
+  "twenty-minutes": {
+    "methode_en": [
+      "Open a session log: start time, then one line per job (model, prompt, inputs, outputs, ID, end time, cost, kept or not).",
+      "Plan a single camera move with one key image per stage and a change every 4 to 6 s.",
+      "Turn a drawing into a separate body and clothes, convert each to 3D, rig, then dress and animate the first steps.",
+      "Render each key image in Blender, then finish it with an image model keeping the render as reference.",
+      "Reveal the world in render blocks composited from Blender.",
+      "Finish the full playblast in one video pass with the key images as look references; display the clock computed from the log."
+    ],
+    "controles_en": [
+      "Each clock value = end time of the job closing the stage minus session start, never from memory.",
+      "Every compositing stage inspected on a rendered sheet.",
+      "No readable text invented by the video model; character mask locked to the tiles."
+    ],
+    "pieges_en": [
+      "Naming a camera move in the video prompt: the model invents another one; describe the first frame's framing instead.",
+      "Shaded playblast colours surviving the video finish.",
+      "Rain as thick bars, flat sky, empty street, centred framing."
+    ],
+    "exemples_en": [
+      "Make a shot showing my character built from sketch to walking.",
+      "Display the real time of each stage from the log.",
+      "Finish this Blender render in an illustrated style without changing the framing."
+    ],
+    "illustration_en": "Character half grey mesh, half dressed, digital clock in the corner."
+  },
+  "wang-tiles": {
+    "methode_en": [
+      "Generate a seamless top-down pixel art ground texture, palette chosen per terrain, small motifs spread out; describe what is present, with no negations.",
+      "For each direction, find two motif-free areas that become the edge strips (two colours per edge).",
+      "Give each of the 16 tiles a centre taken from elsewhere in the texture, most with their own motif.",
+      "Join strips and centres with a minimum-error cut, no blending, to stay true pixel art.",
+      "Mask objects too large for a tile (over ~80% of its size, dilated by 2 px) so no sample touches them.",
+      "Export for Tiled, Godot, Unity and the web, and render a loop video comparing a repeated tile with the Wang set."
+    ],
+    "controles_en": [
+      "Check each generation actually returned an image (over half the runs came back empty while still billed).",
+      "Real motif size measured (requested at 3-6 px, rendered at 8-20 px).",
+      "Reference repeated tile chosen with average detail, for a fair comparison."
+    ],
+    "pieges_en": [
+      "Negations in the prompt: excluded objects appear.",
+      "Highly structured materials (water, bricks, planks) as an edge set: visible diamonds; use a corner set.",
+      "Keeping only the barest centres: the Wang side looks empty."
+    ],
+    "exemples_en": [
+      "Make me a pixel art desert floor that doesn't show the grid.",
+      "Export the tileset for Godot.",
+      "Why do my water tiles make diamonds?"
+    ],
+    "illustration_en": "Snow map split in two: the same pebble in rows on the left, natural grid-free ground on the right."
+  }
+}

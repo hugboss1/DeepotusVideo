@@ -41,6 +41,7 @@ import { initOutils } from "./mod-tools.js";
 import { dansPanneau } from "./mod-flottant.js";
 import { initCalques } from "./mod-layers.js";
 import { initStyle } from "./mod-style.js";
+import { initTracesUI } from "./mod-tracesui.js";
 import { initExport } from "./mod-export.js";
 import { initSchema } from "./mod-schema.js";
 import { initVitrail } from "./mod-vitrail.js";
@@ -802,6 +803,7 @@ for (const o of document.querySelectorAll("select option")) { const t = window._
 initCalques(VL);
 initCouleur(VL);
 initStyle(VL);
+initTracesUI(VL);   // t430 : commandes de tracé (menu Vecteur, Pathfinder, Ctrl+4) — après initStyle
 initImage(VL);      // panneaux Image / Repères, après Apparence (lot A)
 initTrace(VL);      // le dialogue Vectoriser (lot A)
 initPlateau(VL);    // panneaux Grille / Terrains / Plateau (lot C)

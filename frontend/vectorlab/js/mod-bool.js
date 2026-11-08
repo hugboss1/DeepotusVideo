@@ -46,8 +46,9 @@ function _matriceDe(transform) {
   }
   return m;
 }
-const _pt = (m, x, y) => [m[0] * x + m[2] * y + m[4],
-                          m[1] * x + m[3] * y + m[5]];
+const _net = (v) => Math.round(v * 1e9) / 1e9 + 0;   // t422 : 6e-15 → 0 (sinon martinez boucle)
+const _pt = (m, x, y) => [_net(m[0] * x + m[2] * y + m[4]),
+                          _net(m[1] * x + m[3] * y + m[5])];
 
 /* ── aplatissement des courbes ── */
 function _plat_cubique(out, p0, p1, p2, p3, tol, prof = 0) {
@@ -203,6 +204,10 @@ function _dDePoly(poly) {
   return chemin_serialiser(segs);
 }
 const _dDeMulti = (mp) => mp.map(_dDePoly).filter(Boolean).join(" ");
+// t422 : lus par mod-traces.js (lot D1 « Tracés ») — l'écriture d'un multipolygone et les cibles déverrouillées
+export const multi_vers_d = (mp) => _dDeMulti(mp);
+export const cibles_b = (doc, ids) => _ciblesB(doc, ids);
+export const martinez = () => _martinez();   // t427 : intersection / diff de Diviser les objets en dessous
 
 /* ── contour GONFLÉ d'un objet tracé (fond none) : union de
    quadrilatères par segment + disques aux sommets (joints/bouts ronds,

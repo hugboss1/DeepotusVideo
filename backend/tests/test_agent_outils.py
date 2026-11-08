@@ -143,7 +143,9 @@ async def main():
     check("test_seulement_dix_outils : OUTILS", set(ao.OUTILS) - set(_B.BOITES["whatsapp"]["outils"])
           - set(_B.BOITES["scan"]["outils"]) - set(_B.BOITES["capture"]["outils"])
           - set(_B.BOITES["assets3d"]["outils"]) - set(_B.BOITES["chapitres"]["outils"])
-          - set(_B.BOITES["plateau"]["outils"]) - set(_B.BOITES["blender"]["outils"]) == DIX   # t319 : boîte « capture » ; t342 : boîte « assets3d » ; t337 : boîte « chapitres » ; t333 : boîte « plateau »
+          - set(_B.BOITES["plateau"]["outils"]) - set(_B.BOITES["blender"]["outils"])
+          - set(_B.BOITES["methodes"]["outils"]) == DIX   # t433 : boîte « methodes »
+             # t319 : boîte « capture » ; t342 : boîte « assets3d » ; t337 : boîte « chapitres » ; t333 : boîte « plateau »
           and set(_B.outils_pour("campagnes")) == DIX, str(sorted(ao.OUTILS)))
     defs = ao.definitions()
     check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 30)   # t365 : + entreprises_carte ; t366 : + veille_sources, veille_apify

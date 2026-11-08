@@ -44,7 +44,11 @@
     "espaces.assistant.whatsapp_creation",
     "veille.import.exemple",
     "whatsapp.onglets.aria",
-    "a2d.carte.guide_absent"
+    "a2d.carte.guide_absent",
+    "vectorlab.traces.simplifier_titre",
+    "vectorlab.traces.moyenne_titre",
+    "vectorlab.traces.nettoyer_titre",
+    "vectorlab.traces.lignes_titre"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"

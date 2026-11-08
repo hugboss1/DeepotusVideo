@@ -106,6 +106,14 @@ BOITES: dict[str, dict] = {
         "agents": [],
         "mobile": False,
     },
+    # t433 (08/11/2026, lot M0) : le catalogue des méthodes (lecture, gratuit) ; Claude Code (« mcp ») le lit ; les agents
+    # métier des lots M2-M9 le déclareront avec leur boîte ; Campagnes reste figé (fixture)
+    "methodes": {
+        "libelle": "agent.boites.methodes",
+        "outils": ["methodes_lire"],
+        "agents": ["mcp"],
+        "mobile": False,
+    },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)
     "assets3d": {
         "libelle": "agent.boites.assets3d",

@@ -53,6 +53,7 @@
   "agent.boites.fils": {"fr": "Fils suivis de News", "en": "Followed News feeds"},
   "agent.boites.chapitres": {"fr": "Chapitres", "en": "Chapters"},
   "agent.boites.assets3d": {"fr": "Pièces, budgets et comparatifs 3D", "en": "3D parts, budgets and comparisons"},
+  "agent.boites.methodes": {"fr": "Méthodes (lecture)", "en": "Methods (read-only)"},
   "agent.boites.plateau": {"fr": "Previs et couverture du Plateau", "en": "Stage previs and coverage"},
   "agent.boites.blender": {"fr": "Scène Blender (lecture)", "en": "Blender scene (read-only)"},
   "agent.onglet.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
