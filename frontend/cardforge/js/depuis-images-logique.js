@@ -12,7 +12,8 @@
      de `<nom>.<ext>` ; `_back` et `_front` valent de même. Même extension
      exigée (la spec écrit la même `<ext>` des deux côtés). Un recto sans verso
      est signalé, sans blocage ; un verso sans recto est orphelin ;
-   - nom de carte : le fichier sans extension, `_` remplacé par une espace
+   - nom de carte : le fichier sans extension ni préfixe photolab_AAAAMMJJ-
+     HHMMSS_ d'une retouche, `_` remplacé par une espace
      (miroir de `_titre` de backend/app/services/cards/depuis_images.py) ;
    - « Mon fichier inclut le fond perdu » : vrai si le rapport de l'image est
      celui de la TOILE (coupe + 2 × fond perdu, comme geomOf) à 0,5 % près ;
@@ -82,10 +83,15 @@
     return { cartes: cartes, sansVerso: sansVerso, orphelins: orphelins };
   }
 
+  /* vague finale (ruling) : le préfixe d'une retouche du Photolab
+     (photolab_AAAAMMJJ-HHMMSS_) tombe, comme `_titre` côté serveur ; s'il
+     est tout le nom, il reste. */
+  const PREFIXE_PHOTOLAB = /^photolab_\d{8}-\d{6}_/;
   function nomCarte(fichier) {
     const s = String(fichier == null ? "" : fichier);
     const k = s.lastIndexOf(".");
-    const t = (k > 0 ? s.slice(0, k) : s).replace(/_/g, " ").trim();
+    const tige = k > 0 ? s.slice(0, k) : s;
+    const t = (tige.replace(PREFIXE_PHOTOLAB, "") || tige).replace(/_/g, " ").trim();
     return t || s;
   }
 

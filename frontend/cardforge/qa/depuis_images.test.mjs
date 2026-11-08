@@ -61,6 +61,14 @@ if (L && CF) {
   ok("3.1 nomCarte : sans extension, _ devient une espace", L.nomCarte("la_magnat_de_la_tech.png") === "la magnat de la tech",
      L.nomCarte("la_magnat_de_la_tech.png"));
   ok("3.2 nomCarte garde les accents", L.nomCarte("le_pape_du_sanctuaire_brisé.png") === "le pape du sanctuaire brisé");
+  /* vague finale (I2, ruling) : une retouche du Photolab perd son préfixe photolab_AAAAMMJJ-HHMMSS_, comme _titre */
+  ok("3.3 nomCarte retire le préfixe d'une retouche du Photolab",
+     L.nomCarte("photolab_20261108-012041_adrian_veilleur_des_ames_fracturees.png") === "adrian veilleur des ames fracturees",
+     L.nomCarte("photolab_20261108-012041_adrian_veilleur_des_ames_fracturees.png"));
+  ok("3.4 nomCarte : préfixe seul gardé, préfixe mal formé gardé",
+     L.nomCarte("photolab_20261108-012041_.png") === "photolab 20261108-012041"
+     && L.nomCarte("photolab_2026-x_a.png") === "photolab 2026-x a", L.nomCarte("photolab_20261108-012041_.png"));
+  ok("3.5 nomCarte garde un nom courant d'import", L.nomCarte("carte (1).png") === "carte (1)" && L.nomCarte("d'été.png") === "d'été");
 
   /* ── format proposé et écarts, sur le lot réel ── */
   const FMTS = CF.FORMATS.map((f) => ({ id: f.id, trim_mm: f.trim_mm, bleed_mm: CF.nativeBleed(f.id) }));

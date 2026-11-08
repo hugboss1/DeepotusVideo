@@ -82,7 +82,7 @@ async def scenario():
             r = await c.post("/api/photolab/actions/lot", json={"action": "absente", "filename": nom})
             check(f"2a /actions/lot ({etiquette}) passe la garde du nom (le refus vient de l'action, pas du nom)",
                   "nom d'image refusé" not in r.text, (r.status_code, r.text))
-        for mauvais in ("a/b.png", "a\b.png", "..", "x\n.png"):
+        for mauvais in ("a/b.png", r"a\b.png", "..", "x\n.png"):
             r = await c.post("/api/photolab/actions/lot", json={"action": "x", "filename": mauvais})
             check(f"2b /actions/lot refuse {mauvais!r}", r.status_code == 400 and "nom d'image refusé" in r.text, (r.status_code, r.text))
 
@@ -108,7 +108,62 @@ async def scenario():
         check("4a le renommage garde les accents, remplace ce qui est interdit", out == "Âme d_été.png", out)
         out2 = routes._safe_rename_image("carte.png", "été")
         check("4b « été » reste « été »", out2 == "été.png", out2)
-        check("4c le nom rendu passe la garde de /ouvrir", PR._NOM_IMAGE.fullmatch(out2) is not None)
+        from app.services import noms
+        check("4c le nom rendu passe la garde de /ouvrir", noms.nom_image_valide(out2))
+
+        print("\n[6] vague finale : les noms COURANTS d'un import passent tout le parcours")
+        courants = ["carte (1).png", "d'été.png", "âmes fracturées.png",
+                    unicodedata.normalize("NFD", "âmes fracturées.png"), "a+b.png", "carte #3.png"]
+        png = __import__("io").BytesIO()
+        Image.new("RGB", (8, 8), (30, 30, 200)).save(png, format="PNG")
+        recus = []
+        for n in courants:
+            r = await c.post("/api/images/upload", files={"file": (n, png.getvalue(), "image/png")})
+            recus.append(r.json().get("filename") if r.status_code == 200 else None)
+            check(f"6a /images/upload garde {n!r} tel quel", r.status_code == 200 and recus[-1] == n, (r.status_code, r.text))
+        for n in courants:
+            r = await c.post("/api/photolab/ouvrir", json={"filename": n})
+            check(f"6b /photolab/ouvrir accepte {n!r}", r.status_code == 200
+                  and re.fullmatch(r"entrees/[0-9a-f]{8}-[A-Za-z0-9._-]+\.png", r.json().get("path", "")), (r.status_code, r.text))
+        r = await c.post("/api/cards/decks/depuis-images", json={"name": "Courants", "format": "poker_us",
+                                                                 "images": courants})
+        check("6c /cards/decks/depuis-images accepte les six noms", r.status_code == 200, (r.status_code, r.text))
+        if r.status_code == 200:
+            check("6d les six images sont les arts du deck", [l[1] for l in r.json()["deck"]["data"]["rows"]] == courants)
+        for mauvais in ("a/b.png", r"a\b.png", "..", ".", "x\n.png", "a\x7fb.png", "a\x85b.png", "a:b.png", "a<b.png", "a>b.png",
+                        'a"b.png', "a|b.png", "a?b.png", "a*b.png", "fin.", "fin ", "", "x" * 181):
+            for route, corps in (("/api/photolab/ouvrir", {"filename": mauvais}),
+                                 ("/api/cards/decks/depuis-images", {"format": "poker_us", "images": [mauvais]})):
+                r = await c.post(route, json=corps)
+                check(f"6e {route} refuse {mauvais[:20]!r} (400)", r.status_code == 400, (r.status_code, r.text[:120]))
+        check("6f 180 caractères passent la garde", noms.nom_image_valide("x" * 176 + ".png")
+              and not noms.nom_image_valide("x" * 177 + ".png"))
+
+        print("\n[7] vague finale : la copie entrees/ translittère les accents (plus de « fractur-es »)")
+        r = await c.post("/api/photolab/ouvrir", json={"filename": NFC})
+        chemin = r.json().get("path", "")
+        check("7a /ouvrir : copie « <h>-adrian_veilleur_des_ames_fracturees.png »", r.status_code == 200
+              and re.fullmatch(r"entrees/[0-9a-f]{8}-adrian_veilleur_des_ames_fracturees\.png", chemin), chemin)
+        r = await c.post("/api/photolab/ouvrir", json={"filename": NFD})
+        check("7b la forme NFD donne la même souche", r.json().get("path", "").endswith("-adrian_veilleur_des_ames_fracturees.png"),
+              r.json().get("path"))
+
+        async def appeler2(methode, params=None, delai_s=None):
+            if methode == "doc.inspect":                       # le vrai moteur nomme le document d'après son fichier
+                return {"name": chemin.rsplit("/", 1)[-1]}, 1
+            return await vrai(methode, params, delai_s)
+        PR._appeler = appeler2
+        try:
+            r = await c.post("/api/photolab/bibliotheque", json={"format": "png"})
+        finally:
+            PR._appeler = vrai
+        check("7c enregistrer donne photolab_<horo>_adrian_veilleur_des_ames_fracturees.png", r.status_code == 200
+              and re.fullmatch(r"photolab_\d{8}-\d{6}_adrian_veilleur_des_ames_fracturees\.png",
+                               r.json().get("filename", "")), (r.status_code, r.text))
+        for souche, ext, attendu in (("âme_brisée", ".png", "ame_brisee.png"), ("d'été (1)", ".jpg", "d-ete--1-.jpg"),
+                                     ("nul", ".png", "nul_.png"), ("日本", ".png", "image.png")):
+            out = PR._nom_entree("x", souche, ext)
+            check(f"7d _nom_entree({souche!r}) -> <h>-{attendu}", re.fullmatch(r"[0-9a-f]{8}-" + re.escape(attendu), out), out)
     PM.fermer()
 
 

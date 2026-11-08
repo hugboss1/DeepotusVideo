@@ -145,8 +145,14 @@ def test_refus_ne_creent_aucun_deck():
     assert r.status_code == 404 and "fantome.png" in r.json()["detail"]
     r = _post(verso_commun="absent_dos.png")
     assert r.status_code == 404 and "absent_dos.png" in r.json()["detail"]
-    for mauvais in ("../x.png", "a/b.png", "a\b.png", "a\nb.png", "", 3):
+    # vague finale (M2) : r"a\b.png" est un VRAI antislash (« \b » était un retour arrière)
+    for mauvais in ("../x.png", "a/b.png", r"a\b.png", "a\nb.png", "", 3,
+                    "a:b.png", "a?b.png", "fin.", "fin ", "x" * 181):
         assert _post(images=[NOMS[0], mauvais]).status_code == 400, mauvais
+    # vague finale (M3) : un verso qui n'est ni None, ni "", ni une chaîne -> 400
+    for mauvais in (0, False, [], {}, 0.0, 3, ["x.png"], True):
+        r = _post(versos=[mauvais, None, ""])
+        assert r.status_code == 400 and "versos" in r.json()["detail"], (mauvais, r.text)
     assert _post(images=[]).status_code == 400
     assert _post(images="x.png").status_code == 400
     assert _post(images=[NOMS[0]] * 501).status_code == 400
@@ -154,6 +160,45 @@ def test_refus_ne_creent_aucun_deck():
     assert _post(format=None).status_code == 400
     assert _nb_decks() == n
     assert _empreintes() == avant
+
+
+def test_noms_courants_d_un_import_passent():
+    """Vague finale (I1) : « carte (1).png », « d'été.png »… gardés tels quels
+    par /images/upload, deviennent des cartes."""
+    courants = ["carte (1).png", "d'été.png", "a+b.png", "carte #3.png"]
+    for i, n in enumerate(courants):
+        (IMAGES / n).write_bytes(b"\x89PNG-courant-%d" % i)
+    r = _post(images=courants)
+    assert r.status_code == 200, r.text
+    rows = r.json()["deck"]["data"]["rows"]
+    assert [l[1] for l in rows] == courants
+    assert [l[0] for l in rows] == ["carte (1)", "d'été", "a+b", "carte #3"]
+
+
+def test_nom_de_carte_sans_prefixe_photolab():
+    """Vague finale (I2, ruling) : une retouche du Photolab
+    (photolab_AAAAMMJJ-HHMMSS_<base>.png) donne une carte nommée <base>."""
+    n = "photolab_20261108-012041_adrian_veilleur_des_ames_fracturees.png"
+    (IMAGES / n).write_bytes(b"\x89PNG-retouche")
+    rows = _post(images=[n, NOMS[0]]).json()["deck"]["data"]["rows"]
+    assert rows[0][0] == "adrian veilleur des ames fracturees"
+    assert rows[0][1] == n
+    from app.services.cards import depuis_images as DI
+    assert DI._titre("photolab_20261108-012041_.png") == "photolab 20261108-012041"
+    assert DI._titre("photolab_2026-x_a.png") == "photolab 2026-x a"
+
+
+def test_echec_d_ecriture_apres_creation_ne_laisse_aucun_deck(monkeypatch):
+    """Vague finale (M4) : une OSError de patch_deck APRÈS create_deck
+    supprime le deck créé avant le 500."""
+    n = _nb_decks()
+
+    def casse(did, partial):
+        raise OSError(28, "disque plein")
+    monkeypatch.setattr(core, "patch_deck", casse)
+    r = _post()
+    assert r.status_code == 500 and "disque plein" in r.json()["detail"], r.text
+    assert _nb_decks() == n
 
 
 def test_cinq_cents_images_passent():

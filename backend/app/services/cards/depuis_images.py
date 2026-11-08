@@ -28,6 +28,8 @@ import re
 from fastapi import APIRouter, HTTPException, Response
 from loguru import logger
 
+from app.services.noms import nom_image_valide
+
 from . import core, hexa
 from .contract import FORMATS, geom, is_hex
 
@@ -38,12 +40,12 @@ router = APIRouter()
 # Même plafond que le traitement par lots de la Bibliothèque.
 IMAGES_MAX = 500
 
-# Même motif que le Photolab (`_NOM_IMAGE`, photolab_routes.py) : lettres
-# accentuées admises (forme composée ou décomposée), jamais de séparateur de
-# dossier, de « : » ni de retour à la ligne. Recopié, pas importé : `app.api`
-# importe les services, l'inverse ferait un cycle.
-_NOM_IMAGE = re.compile(
-    r"[\w\u0300-\u036f]([\w\u0300-\u036f. -]{0,179}[\w\u0300-\u036f-])?")
+# t421 (vague finale) : la garde du nom est celle du Photolab, partagée par
+# app/services/noms.py — elle ne refuse que le dangereux ; « carte (1).png »
+# ou « d'été.png », gardés tels quels par /images/upload, deviennent des cartes.
+
+# Le préfixe d'une retouche du Photolab : photolab_AAAAMMJJ-HHMMSS_<base>.
+_PREFIXE_PHOTOLAB = re.compile(r"^photolab_\d{8}-\d{6}_")
 
 # Le deck « carte pleine » : aucun habillage, aucune zone de texte.
 _CADRE_NU = {"family": "none", "gem": False, "banner": False,
@@ -56,7 +58,7 @@ def _images_dir():
 
 
 def _nom_valide(nom, champ: str) -> str:
-    if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
+    if not nom_image_valide(nom):
         raise HTTPException(400, f"{champ} : nom d'image refusé : {nom!r}")
     return nom
 
@@ -72,8 +74,12 @@ def _verifie_presente(nom: str) -> None:
 
 
 def _titre(nom: str) -> str:
-    """Le nom de la carte : le fichier sans extension, `_` -> espace."""
-    return os.path.splitext(nom)[0].replace("_", " ").strip() or nom
+    """Le nom de la carte : le fichier sans extension ni préfixe de retouche du
+    Photolab (photolab_AAAAMMJJ-HHMMSS_, comme `nomDocument` du Photolab),
+    `_` -> espace. Miroir : `nomCarte` de js/depuis-images-logique.js."""
+    tige = os.path.splitext(nom)[0]
+    tige = _PREFIXE_PHOTOLAB.sub("", tige) or tige
+    return tige.replace("_", " ").strip() or nom
 
 
 def preparer(body) -> dict:
@@ -109,6 +115,12 @@ def preparer(body) -> dict:
     noms = [_nom_valide(n, "images") for n in images]
     if commun is not None:
         _nom_valide(commun, "verso_commun")
+    if versos is not None:
+        for v in versos:
+            # vague finale (M3) : ni None, ni "", ni une chaîne -> refus
+            if v is not None and not isinstance(v, str):
+                raise HTTPException(
+                    400, f"versos : un nom d'image, None ou \"\" attendu ({v!r})")
     dos = ([v if v not in (None, "") else "" for v in versos]
            if versos is not None else [commun or ""] * len(noms))
     for v in dos:
@@ -128,9 +140,19 @@ def preparer(body) -> dict:
 
 
 def creer(prep: dict) -> dict:
-    """Crée le deck et l'ensemence par `core.patch_deck`."""
+    """Crée le deck et l'ensemence par `core.patch_deck`. Une OSError après la
+    création supprime le deck à moitié fait avant de remonter (vague finale,
+    M4) : un refus ne laisse aucun deck derrière lui."""
     doc = core.create_deck(prep["name"])
-    out = core.patch_deck(doc["id"], {
+    try:
+        return _ensemencer(doc["id"], prep)
+    except OSError:
+        core.delete_deck(doc["id"])
+        raise
+
+
+def _ensemencer(did: str, prep: dict) -> dict:
+    out = core.patch_deck(did, {
         "format": prep["format"],
         "frame": dict(_CADRE_NU),
         "type": {"slots": [], "seeded": True, "sel": ""},

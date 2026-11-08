@@ -15,8 +15,19 @@ ok("1.1 les deux formes sont distinctes", NFC !== NFD);
 ok("1.2 nomValide accepte la forme NFC", nomValide(NFC));
 ok("1.3 nomValide accepte la forme NFD", nomValide(NFD));
 ok("1.4 nomValide accepte espace, tiret, chiffre", nomValide("Âme d été 2-3.jpg"));
-for (const mauvais of ["a/b.png", "a\b.png", "..", ".cache", "x\n.png", "", "-a.png", 12, null])
-  ok("1.5 nomValide refuse " + JSON.stringify(mauvais), !nomValide(mauvais));
+/* t421 (vague finale) : la règle est celle de backend/app/services/noms.py — seul le dangereux est refusé. Les noms
+   COURANTS d'un import (gardés tels quels par /images/upload) passent ; String.raw pour un VRAI antislash. */
+const COURANTS = ["carte (1).png", "d'été.png", "âmes fracturées.png", "âmes fracturées.png".normalize("NFD"),
+  "a+b.png", "carte #3.png", "-a.png", ".cache", "x".repeat(176) + ".png", "🂡 as.png"];
+for (const bon of COURANTS) ok("1.5a nomValide accepte " + JSON.stringify(bon.slice(0, 30)), nomValide(bon));
+for (const mauvais of ["a/b.png", String.raw`a\b.png`, "..", ".", "x\n.png", "a\u007fb.png", "a\u0085b.png", "a:b.png",
+  "a<b.png", "a>b.png", 'a"b.png', "a|b.png", "a?b.png", "a*b.png", "fin.", "fin ", "", "x".repeat(177) + ".png",
+  "🂡".repeat(181), 12, null])
+  ok("1.5 nomValide refuse " + JSON.stringify(typeof mauvais === "string" ? mauvais.slice(0, 30) : mauvais), !nomValide(mauvais));
+ok("1.6 lireEnvoi ouvre « carte (1).png » (via envoi)",
+  JSON.stringify(lireEnvoi("", envoi("photolab", "carte (1).png"), "photolab", T0)) === JSON.stringify({ image: "carte (1).png", via: "envoi" }));
+ok("1.7 lireEnvoi ouvre ?img=d'été.png (via url)",
+  JSON.stringify(lireEnvoi("?img=" + encodeURIComponent("d'été.png"), null, "photolab", T0)) === JSON.stringify({ image: "d'été.png", via: "url" }));
 
 const p1 = envoi("photolab", NFC);
 ok("2.1 envoi accentué : ouvert (via envoi)", JSON.stringify(lireEnvoi("", p1, "photolab", T0)) === JSON.stringify({ image: NFC, via: "envoi" }));

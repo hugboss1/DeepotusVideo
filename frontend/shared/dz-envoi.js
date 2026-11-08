@@ -10,12 +10,18 @@
 // octet est servie depuis frontend/dist/shared/ (vérifié par le banc test_photolab_envoi).
 
 export const DUREE_MS = 120000;
-// Le nom d'une image de la Bibliothèque : jamais de séparateur de dossier (les routes revérifient de toute façon).
-// t421 : lettres, accents combinants (forme NFD) et chiffres de toute langue — « âmes_fracturées.png » passe.
-const NOM = /^[\p{L}\p{M}\p{N}_][\p{L}\p{M}\p{N}._ -]{0,180}$/u;
+// Le nom d'une image de la Bibliothèque (les routes revérifient de toute façon). t421 (vague finale) : la MÊME règle que
+// backend/app/services/noms.py — seul le dangereux est refusé : vide, « . », « .. », plus de 180 caractères (points de
+// code, comme len() en Python), séparateur de dossier, contrôle (U+0000-U+001F, U+007F-U+009F), interdit de Windows
+// < > : " | ? *, fin en point ou en espace. « carte (1).png », « d'été.png » et « âmes fracturées.png » (NFC comme NFD)
+// passent : /images/upload les garde tels quels.
+const NOM_MAX = 180;
+const INTERDIT = /[\u0000-\u001f\u007f-\u009f<>:"|?*/\\]/u;
 
 export function nomValide(nom) {
-  return typeof nom === "string" && NOM.test(nom);
+  if (typeof nom !== "string" || !nom || nom === "." || nom === "..") return false;
+  if ([...nom].length > NOM_MAX || /[. ]$/.test(nom)) return false;
+  return !INTERDIT.test(nom);
 }
 
 // La fenêtre qui porte l'envoi : celle de l'application (le haut de la pile d'iframes), ou null si elle est d'une autre
