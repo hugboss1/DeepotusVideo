@@ -147,20 +147,30 @@ un groupe ordinaire, dont les copies reçoivent des ids `o<n>` neufs (`_idLibre`
   défauts, refus traduits (1 ou 3 objets, texte, groupe, verrou, étapes, pas, mode, intermédiaire généré).
   40/41 mutants tués (le 41e équivalent).
 
-### T5 (t454) — Fusion : trajectoire, inversions, options
+### T5 (t454) — Fusion : trajectoire, inversions, options (FAIT)
 
-- `op_fusion_regler(doc, id, opts)` change mode, étapes ou pas.
-- `op_fusion_trajectoire(doc, idFusion, idChemin)` : « Remplacer la trajectoire ».
-  - Les centres de A, des intermédiaires et de B sont posés à intervalles égaux en longueur le long du chemin.
-  - Le chemin devient un enfant source de la fusion, non rendu par défaut, comme la trajectoire d'Illustrator. Il
-    reste éditable par Ctrl+clic, et les intermédiaires suivent.
-- `op_fusion_inverser_trajectoire` (A ↔ B sur la trajectoire) et `op_fusion_inverser_ordre` (la superposition).
-- Option **« Orienter selon la trajectoire »** : chaque intermédiaire tourne selon la tangente.
-- Banc :
-  - trajectoire en arc → les centres sont sur l'arc à pas égaux ;
-  - les deux inversions changent ce qu'elles doivent, et rien d'autre ;
-  - éditer le chemin → les intermédiaires suivent ;
-  - décomposer → groupe ordinaire avec la trajectoire visible.
+- La recette identifie A et B par leurs ids (`fusion_vive.a`, `.b`) : l'ordre des enfants peut s'inverser. Chaque
+  forme est CENTRÉE (sa boîte), interpolée, tournée si `orienter`, puis posée sur la trajectoire. Conséquence voulue :
+  un sous-chemin sans partenaire suit le mouvement de la fusion (il garde sa place relative) au lieu de rester sur
+  place — les attendus de T4 ont été corrigés en ce sens.
+- `op_fusion_regler(doc, id, { mode, etapes, pas, orienter })` : les réglages absents restent.
+- `op_fusion_trajectoire(doc, idFusion, idChemin)` — « Remplacer la trajectoire » : un tracé, une forme, un
+  rectangle ou une ellipse du premier niveau, qui a une longueur, devient le premier enfant de la fusion,
+  **invisible** (fond et contour `none`, son style gardé dans `styleTrajectoire` et rendu à la décomposition) et
+  protégé de « Nettoyer » (`mod-traces.js`). A et B sont posés à ses deux bouts (un `translate` préfixé, seulement
+  s'ils ont bougé : pas d'accumulation), les intermédiaires à pas égaux en longueur ; en mode distance, la longueur
+  est celle du chemin. Une trajectoire déjà posée ne se remplace pas : refus « décomposez d'abord » (écart à
+  Illustrator, qui remplace).
+- `op_fusion_inverser_trajectoire` : avec un chemin, il se parcourt à rebours (`inverse`) ; sans, A et B échangent
+  leurs places. `op_fusion_inverser_ordre` : B dessous, A dessus (`ordreInverse`), les intermédiaires à rebours.
+- **Orienter** : chaque intermédiaire tourne de (tangente du chemin − direction A → B). Sur une droite rien ne tourne ;
+  A et B gardent leur orientation (écart à Illustrator, qui les tourne aussi).
+- Tout passe par un ESSAI (copies de A, B, trajectoire) : un recalcul qui échoue en route ne laisse rien à moitié
+  posé. A, B ou la trajectoire supprimé → dernier état gardé.
+- Banc (fait) : chemin en L (positions, invisibilité, style gardé, stabilité, pas d'accumulation, réglage hors op,
+  chemin édité, deuxième trajectoire refusée, Nettoyer, décomposer), déplacement purement vertical, échec en route,
+  trajectoire disparue, inversions avec et sans chemin, ordre (couleurs et places), orienter (angles, centres,
+  aires), régler, refus traduits. 30/30 mutants tués ; jeux T1-T4 réajustés et repassés.
 
 ### T6 (t455) — Copies protégées et câblage UI
 

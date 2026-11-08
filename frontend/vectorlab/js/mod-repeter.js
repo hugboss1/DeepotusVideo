@@ -260,14 +260,18 @@ export function op_repetition_regler(doc, id, params = {}) {
   g.enfants = essai.enfants;
 }
 
-/* ══ T4 (t453) Objet › Fusion › Créer ══
-   Une fusion est un GROUPE { fusion_vive: { mode, etapes, pas, empreinte }, enfants: [A, ...intermédiaires, B] } :
-   A (le plus bas) et B (le plus haut) restent éditables, les intermédiaires sont des chemins générés d'ids
-   `<groupe>_f<k>`, en coordonnées du document (le transform de A et B est déjà appliqué). Recalcul par empreinte
-   (A, B et réglages), comme les répétitions. */
+/* ══ T4 (t453) Objet › Fusion › Créer ; T5 (t454) trajectoire, inversions, options ══
+   Une fusion est un GROUPE { fusion_vive: { mode, etapes, pas, orienter, a, b, trajectoire?, styleTrajectoire?,
+   inverse?, ordreInverse?, empreinte }, enfants: [trajectoire?, A, ...intermédiaires, B] } — ou [trajectoire?, B,
+   ...intermédiaires à rebours, A] quand l'ordre est inversé. A et B (ids `a`, `b`) restent éditables ; les
+   intermédiaires sont des chemins générés d'ids `<groupe>_f<k>`, en coordonnées du document. Chaque forme est
+   CENTRÉE (sa boîte), interpolée, tournée si `orienter`, puis posée sur la trajectoire : le chemin `trajectoire`
+   (invisible, son style gardé), ou à défaut la droite entre les centres de A et B. Avec un chemin, A et B sont
+   posés à ses deux bouts. Recalcul par empreinte (A, B, trajectoire et réglages), comme les répétitions. */
 const TYPES_FUSION = new Set(["rect", "ellipse", "path", "forme"]);
 const MODES_FUSION = new Set(["etapes", "distance", "couleur"]);
 const MAX_INTER = 200;
+const _cloner = (o) => JSON.parse(JSON.stringify(o));
 
 // couleurs : #rgb ou #rrggbb seulement (un dégradé, un motif, une couleur globale ne s'interpolent pas)
 function _rvb(c) {
@@ -279,7 +283,7 @@ function _rvb(c) {
 const _hexDe = (v) => "#" + v.map((x) => Math.round(x).toString(16).padStart(2, "0")).join("");
 // le style d'un intermédiaire : celui de A avant mi-chemin, celui de B ensuite, puis couleurs et nombres interpolés
 function _styleFusion(sa = {}, sb = {}, t) {
-  const s = JSON.parse(JSON.stringify(t < 0.5 ? sa : sb));
+  const s = _cloner(t < 0.5 ? sa : sb);
   for (const k of ["fond", "contour"]) {
     const a = _rvb(sa[k]), b = _rvb(sb[k]);
     if (a && b) s[k] = _hexDe(a.map((v, i) => v + (b[i] - v) * t));
@@ -293,10 +297,10 @@ function _styleFusion(sa = {}, sb = {}, t) {
   return s;
 }
 
-/* ── géométrie : les sous-chemins de A et B mis en correspondance point à point ── */
-function _sousChemins(o) {
+/* ── géométrie : les sous-chemins de A et B, centrés, mis en correspondance point à point ── */
+function _sousChemins(o, cx, cy) {
   return polylignes_objet(o).filter((l) => l.points.length >= 2).map((l) => {
-    const p = l.points.map(([x, y]) => [x, y]);
+    const p = l.points.map(([x, y]) => [x - cx, y - cy]);
     const a = p[0], z = p[p.length - 1];
     if (l.ferme && p.length > 2 && Math.abs(a[0] - z[0]) < 1e-9 && Math.abs(a[1] - z[1]) < 1e-9) p.pop();
     return { ferme: !!l.ferme, points: p };
@@ -334,9 +338,11 @@ function _aligner(a, b, ferme) {
   for (let s = 0; s < q.length; s++) { const e = _ecart2(a, q, s); if (e < min - 1e-9) { min = e; meilleur = s; } }
   return q.slice(meilleur).concat(q.slice(0, meilleur));
 }
+const _centreDe = (o) => { const b = _boite(o); if (!b) throw new Error(T("vectorlab.fusion.type")); return [b.x + b.w / 2, b.y + b.h / 2]; };
 const _centre = (p) => [p.reduce((s, q) => s + q[0], 0) / p.length, p.reduce((s, q) => s + q[1], 0) / p.length];
 function _paires(A, B) {
-  const la = _sousChemins(A), lb = _sousChemins(B);
+  const ca = _centreDe(A), cb = _centreDe(B);
+  const la = _sousChemins(A, ca[0], ca[1]), lb = _sousChemins(B, cb[0], cb[1]);
   const out = [];
   for (let i = 0; i < Math.max(la.length, lb.length); i++) {
     // un sous-chemin sans partenaire se réduit vers son propre centre
@@ -352,9 +358,38 @@ function _paires(A, B) {
   }
   return out;
 }
-function _dInter(paires, t) {
-  return paires.map(({ ferme, a, b }) => "M" + a.map((p, i) =>
-    `${nbc(p[0] + (b[i][0] - p[0]) * t)} ${nbc(p[1] + (b[i][1] - p[1]) * t)}`).join(" L") + (ferme ? " Z" : "")).join(" ");
+// l'intermédiaire de paramètre t : forme centrée interpolée, tournée de `rot` (radians), posée en P
+function _dInter(paires, t, P, rot) {
+  const c = Math.cos(rot), s = Math.sin(rot);
+  return paires.map(({ ferme, a, b }) => "M" + a.map((p, i) => {
+    const x = p[0] + (b[i][0] - p[0]) * t, y = p[1] + (b[i][1] - p[1]) * t;
+    return `${nbc(P[0] + x * c - y * s)} ${nbc(P[1] + x * s + y * c)}`;
+  }).join(" L") + (ferme ? " Z" : "")).join(" ");
+}
+// un chemin mesuré : sa longueur et, à une abscisse curviligne, le point et l'angle de la tangente
+function _mesure(Tr) {
+  const l = polylignes_objet(Tr).find((x) => x.points.length >= 2);
+  if (!l) return null;
+  const q = l.ferme ? l.points.concat([l.points[0]]) : l.points;
+  const cum = [0];
+  for (let i = 1; i < q.length; i++) cum.push(cum[i - 1] + Math.hypot(q[i][0] - q[i - 1][0], q[i][1] - q[i - 1][1]));
+  const L = cum[cum.length - 1];
+  if (!(L > 1e-9)) return null;
+  return {
+    L,
+    a(s) {
+      let j = 1;
+      while (j < q.length - 1 && cum[j] < s) j++;
+      const d = cum[j] - cum[j - 1], u = d > 0 ? (s - cum[j - 1]) / d : 0;
+      const p = q[j - 1], r = q[j];
+      return { p: [p[0] + (r[0] - p[0]) * u, p[1] + (r[1] - p[1]) * u], angle: Math.atan2(r[1] - p[1], r[0] - p[0]) };
+    },
+  };
+}
+// pose un objet pour que son centre soit en P (un translate préfixé, seulement s'il a bougé : idempotent)
+function _placer(o, P) {
+  const c = _centreDe(o), dx = P[0] - c[0], dy = P[1] - c[1];
+  if (Math.abs(dx) > 1e-4 || Math.abs(dy) > 1e-4) _prefixer(o, `translate(${nbc(dx)} ${nbc(dy)})`);
 }
 
 function _paramsFusion(p = {}, base = {}) {
@@ -365,16 +400,15 @@ function _paramsFusion(p = {}, base = {}) {
     mode,
     etapes: _entier(v.etapes === undefined ? 5 : v.etapes, 1, MAX_INTER, "vectorlab.fusion.etapes"),
     pas: _positif(v.pas === undefined ? 20 : v.pas, "vectorlab.fusion.pas"),
+    orienter: !!v.orienter,
   };
 }
-// le nombre d'intermédiaires : fixé (étapes), un tous les `pas` px entre les centres (distance), ou assez pour que
-// deux voisins ne diffèrent pas de plus de 4 niveaux sur un canal (couleur lissée) ; 1 à 200
-function _nombreInter(f, A, B) {
+// le nombre d'intermédiaires : fixé (étapes), un tous les `pas` px le long de la trajectoire (distance), ou assez
+// pour que deux voisins ne diffèrent pas de plus de 4 niveaux sur un canal (couleur lissée) ; 1 à 200
+function _nombreInter(f, A, B, longueur) {
   let n = f.etapes;
-  if (f.mode === "distance") {
-    const a = _boite(A), b = _boite(B);
-    n = Math.round(Math.hypot(b.x + b.w / 2 - a.x - a.w / 2, b.y + b.h / 2 - a.y - a.h / 2) / f.pas) - 1;
-  } else if (f.mode === "couleur") {
+  if (f.mode === "distance") n = Math.round(longueur / f.pas) - 1;
+  else if (f.mode === "couleur") {
     let delta = 0;
     for (const k of ["fond", "contour"]) {
       const a = _rvb((A.style || {})[k]), b = _rvb((B.style || {})[k]);
@@ -384,18 +418,62 @@ function _nombreInter(f, A, B) {
   }
   return Math.min(MAX_INTER, Math.max(1, n));
 }
-const _empreinteFusion = (g) => JSON.stringify([g.enfants[0], g.enfants[g.enfants.length - 1], g.fusion_vive.mode, g.fusion_vive.etapes, g.fusion_vive.pas]);
+// A, B et la trajectoire d'une fusion, retrouvés par id ; null si l'un manque (supprimé par Ctrl+clic)
+function _bouts(g) {
+  const f = g.fusion_vive, e = g.enfants || [];
+  const A = e.find((x) => x.id === f.a), B = e.find((x) => x.id === f.b);
+  const Tr = f.trajectoire ? e.find((x) => x.id === f.trajectoire) : null;
+  if (!A || !B || A.genere || B.genere || (f.trajectoire && !Tr)) return null;
+  return { A, B, Tr };
+}
+const _empreinteFusion = (g) => {
+  const { empreinte, ...f } = g.fusion_vive;
+  const b = _bouts(g);
+  return JSON.stringify([b && b.A, b && b.B, b && b.Tr, f]);
+};
 function _reconstruireFusion(g) {
-  const A = g.enfants[0], B = g.enfants[g.enfants.length - 1];
+  const bouts = _bouts(g);
+  if (!bouts) throw new Error(T("vectorlab.fusion.deux"));
+  const f = g.fusion_vive;
+  const A = _cloner(bouts.A), B = _cloner(bouts.B), Tr = bouts.Tr ? _cloner(bouts.Tr) : null;
+  let pos, longueur;
+  if (Tr) {
+    const m = _mesure(Tr);
+    if (!m) throw new Error(T("vectorlab.fusion.trajectoire_type"));
+    const u = (t) => (f.inverse ? 1 - t : t) * m.L;
+    pos = (t) => m.a(u(t));
+    longueur = m.L;
+    _placer(A, pos(0).p); _placer(B, pos(1).p);
+  } else {
+    const ca = _centreDe(A), cb = _centreDe(B), angle = Math.atan2(cb[1] - ca[1], cb[0] - ca[0]);
+    pos = (t) => ({ p: [ca[0] + (cb[0] - ca[0]) * t, ca[1] + (cb[1] - ca[1]) * t], angle });
+    longueur = Math.hypot(cb[0] - ca[0], cb[1] - ca[1]);
+  }
+  const p0 = pos(0).p, p1 = pos(1).p, corde = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
   const paires = _paires(A, B);
-  const n = _nombreInter(g.fusion_vive, A, B);
+  const n = _nombreInter(f, A, B, longueur);
   const inter = [];
   for (let k = 1; k <= n; k++) {
-    const t = k / (n + 1);
-    inter.push({ id: `${g.id}_f${k}`, type: "path", d: _dInter(paires, t), style: _styleFusion(A.style, B.style, t), genere: true });
+    const t = k / (n + 1), P = pos(t);
+    inter.push({ id: `${g.id}_f${k}`, type: "path", d: _dInter(paires, t, P.p, f.orienter ? P.angle - corde : 0),
+                 style: _styleFusion(A.style, B.style, t), genere: true });
   }
-  g.enfants = [A, ...inter, B];
-  g.fusion_vive.empreinte = _empreinteFusion(g);
+  g.enfants = [...(Tr ? [Tr] : []), ...(f.ordreInverse ? [B, ...inter.reverse(), A] : [A, ...inter, B])];
+  f.empreinte = _empreinteFusion(g);
+}
+// une fusion trouvée par id (refus traduits), et sa recette rejouée sur un essai : rien ne mute si ça échoue
+function _fusion(doc, id) {
+  const t = _trouver(doc, id);
+  if (!t) throw new Error(T("vectorlab.repeter.introuvable", { id }));
+  if (!t.objet.fusion_vive) throw new Error(T("vectorlab.fusion.pas_fusion", { id }));
+  return t.objet;
+}
+function _rejouer(g, changer) {
+  const essai = { ...g, enfants: g.enfants.slice(), fusion_vive: { ...g.fusion_vive } };
+  changer(essai);
+  _reconstruireFusion(essai);
+  g.fusion_vive = essai.fusion_vive;
+  g.enfants = essai.enfants;
 }
 
 // A et B : exactement deux formes (rect, ellipse, chemin, forme) du premier niveau d'un calque déverrouillé ;
@@ -411,14 +489,62 @@ export function op_fusionner(doc, ids, opts = {}) {
   }
   if (cibles.some((t) => t.calque.verrou)) throw new Error(T("vectorlab.repeter.verrou"));
   if (cibles.some((t) => !TYPES_FUSION.has(t.objet.type))) throw new Error(T("vectorlab.fusion.type"));
-  const f = _paramsFusion(opts);
-  const g = { id: _source_ids(doc)(), type: "groupe", style: {}, fusion_vive: { ...f, empreinte: "" },
-              enfants: [cibles[0].objet, cibles[1].objet] };
+  const [A, B] = [cibles[0].objet, cibles[1].objet];
+  const g = { id: _source_ids(doc)(), type: "groupe", style: {},
+              fusion_vive: { ..._paramsFusion(opts), a: A.id, b: B.id, empreinte: "" }, enfants: [A, B] };
   _reconstruireFusion(g);                          // tout se calcule AVANT de muter
   const haut = cibles[1];
   haut.calque.objets.splice(haut.calque.objets.indexOf(haut.objet), 1, g);
   cibles[0].calque.objets.splice(cibles[0].calque.objets.indexOf(cibles[0].objet), 1);
   return g.id;
+}
+
+// Options de fusion : espacement (mode, étapes, pas) et orienter ; les réglages absents restent
+export function op_fusion_regler(doc, id, opts = {}) {
+  const g = _fusion(doc, id);
+  const p = _paramsFusion(opts, g.fusion_vive);
+  _rejouer(g, (e) => Object.assign(e.fusion_vive, p));
+}
+
+// Remplacer la trajectoire : un chemin du premier niveau devient la trajectoire, invisible, son style gardé
+export function op_fusion_trajectoire(doc, idFusion, idChemin) {
+  const g = _fusion(doc, idFusion);
+  if (g.fusion_vive.trajectoire) throw new Error(T("vectorlab.fusion.deja_trajectoire"));
+  let cible = null;
+  for (const c of doc.calques) for (const o of c.objets) if (o.id === idChemin) cible = { calque: c, objet: o };
+  if (!cible) {
+    const t = _trouver(doc, idChemin);
+    throw new Error(T(t && t.objet.genere ? "vectorlab.repeter.copie_generee" : "vectorlab.fusion.trajectoire_introuvable"));
+  }
+  if (cible.calque.verrou) throw new Error(T("vectorlab.repeter.verrou"));
+  if (!TYPES_FUSION.has(cible.objet.type)) throw new Error(T("vectorlab.fusion.trajectoire_type"));
+  const Tr = { ..._cloner(cible.objet), style: { fond: "none", contour: "none" } };
+  _rejouer(g, (e) => {
+    e.fusion_vive.trajectoire = Tr.id;
+    e.fusion_vive.styleTrajectoire = _cloner(cible.objet.style || {});
+    e.enfants = [Tr, ...e.enfants];
+  });
+  cible.calque.objets.splice(cible.calque.objets.indexOf(cible.objet), 1);
+}
+
+// Inverser la trajectoire : A et B échangent leurs bouts (avec un chemin, il se parcourt à rebours ; sans, A et B
+// échangent leurs places)
+export function op_fusion_inverser_trajectoire(doc, id) {
+  const g = _fusion(doc, id);
+  _rejouer(g, (e) => {
+    if (e.fusion_vive.trajectoire) { e.fusion_vive.inverse = !e.fusion_vive.inverse; return; }
+    const b = _bouts(e);
+    if (!b) return;
+    const A = _cloner(b.A), B = _cloner(b.B), ca = _centreDe(A), cb = _centreDe(B);
+    _placer(A, cb); _placer(B, ca);
+    e.enfants = e.enfants.map((x) => (x.id === A.id ? A : x.id === B.id ? B : x));
+  });
+}
+
+// Inverser l'ordre de superposition : B passe dessous, A dessus (et réciproquement)
+export function op_fusion_inverser_ordre(doc, id) {
+  const g = _fusion(doc, id);
+  _rejouer(g, (e) => { e.fusion_vive.ordreInverse = !e.fusion_vive.ordreInverse; });
 }
 
 /* ── vivant : appelé par derives_rafraichir après chaque commande ── */
@@ -429,15 +555,11 @@ export function vivants_d2_rafraichir(doc) {
     for (const o of objs || []) {
       if (o.type !== "groupe") continue;
       v(o.enfants);
-      if (o.fusion_vive && Array.isArray(o.enfants) && o.enfants.length >= 2) {
-        // A ou B disparu (le bout est un intermédiaire) : dernier état gardé
-        if (o.enfants[0].genere || o.enfants[o.enfants.length - 1].genere) continue;
+      if (o.fusion_vive && Array.isArray(o.enfants)) {
+        // A, B ou la trajectoire disparu (supprimé par Ctrl+clic) : _reconstruireFusion refuse, dernier état gardé
         if (_empreinteFusion(o) === o.fusion_vive.empreinte) continue;
         try {
-          const essai = { ...o, fusion_vive: { ...o.fusion_vive } };
-          _reconstruireFusion(essai);
-          o.enfants = essai.enfants;
-          o.fusion_vive = essai.fusion_vive;
+          _rejouer(o, () => {});
           n++;
         } catch (e) { /* forme devenue impossible à fusionner : dernier état gardé */ }
         continue;
@@ -472,6 +594,10 @@ export function repetition_decomposer(doc, g) {
     }
   };
   for (const e of g.enfants.slice(1)) { if (e.genere) { delete e.genere; renommer(e); } }
+  // la trajectoire d'une fusion redevient visible, avec son style
+  const f = g.fusion_vive;
+  const tr = f && f.trajectoire && g.enfants.find((e) => e.id === f.trajectoire);
+  if (tr) tr.style = f.styleTrajectoire || {};
   delete g.repetition;
   delete g.fusion_vive;
 }

@@ -7,9 +7,13 @@
 // T3 (t452) Répétition en miroir : la source et son reflet par un axe (angle, écart au bord de la source).
 // T4 (t453) Fusion : deux formes et leurs intermédiaires vivants — forme (sommets alignés ou rééchantillonnés), style
 // (couleurs, épaisseur, opacité ; le reste bascule à mi-chemin), modes étapes / distance / couleur lissée.
+// T5 (t454) Fusion : remplacer la trajectoire (chemin vivant, invisible, protégé), inverser trajectoire et ordre,
+// orienter selon la tangente, régler.
 import { createRequire } from "node:module";
 import { polylignes_objet, fournirMartinez, martinez, versMulti, aplatir_objet, aire_multi } from "../js/mod-bool.js";
-import { op_repeter, op_repetition_regler, op_fusionner } from "../js/mod-repeter.js";
+import { op_repeter, op_repetition_regler, op_fusionner, op_fusion_trajectoire, op_fusion_inverser_trajectoire, op_fusion_inverser_ordre,
+         op_fusion_regler } from "../js/mod-repeter.js";
+import { op_nettoyer } from "../js/mod-traces.js";
 import { derives_rafraichir, op_derive_detacher } from "../js/mod-vivants.js";
 import { parserDoc } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
@@ -499,7 +503,8 @@ const seCroise = (o) => {
   ok("sous-chemins : 2 dans le milieu", anneaux.length === 2, anneaux.length);
   const second = { id: "t", type: "path", d: "M" + anneaux[1].points.map(([x, y]) => `${x} ${y}`).join(" L") + " Z" };
   ok("sous-chemins : le second, sans partenaire, est à moitié réduit (aire / 4)", pres(aireO(second), 100, 1), aireO(second));
-  ok("sous-chemins : il reste centré sur lui-même", pres(boite(second).cx, 50) && pres(boite(second).cy, 10), JSON.stringify(boite(second)));
+  // il suit le mouvement de la fusion : décalé de +20 du centre de A (30, 10) → du centre du milieu (120, 10)
+  ok("sous-chemins : il garde sa place relative en suivant la fusion", pres(boite(second).cx, 140) && pres(boite(second).cy, 10), JSON.stringify(boite(second)));
 }
 {
   // chemins ouverts : l'intermédiaire reste ouvert
@@ -527,6 +532,9 @@ const seCroise = (o) => {
   op_fusionner(d, ["a", "b"], { mode: "distance", pas: 50 });
   ok("mode distance : 300 px au pas de 50 → 5 intermédiaires", objets(d)[0].enfants.length === 7, objets(d)[0].enfants.length);
   ok("mode distance : réglages gardés", objets(d)[0].fusion_vive.pas === 50 && objets(d)[0].fusion_vive.mode === "distance");
+  const dd = doc(rect("a", 0, 0, 20, 20), rect("b", 180, 240, 20, 20));        // 300 px en diagonale (3-4-5)
+  op_fusionner(dd, ["a", "b"], { mode: "distance", pas: 50 });
+  ok("mode distance en diagonale : la vraie distance entre les centres", objets(dd)[0].enfants.length === 7, objets(dd)[0].enfants.length);
   const d2 = doc(rect("a", 0, 0, 20, 20, { fond: "#000000" }), rect("b", 300, 0, 20, 20, { fond: "#ffffff" }));
   op_fusionner(d2, ["a", "b"], { mode: "couleur" });
   const e2 = objets(d2)[0].enfants;
@@ -610,7 +618,7 @@ const seCroise = (o) => {
   op_fusionner(d, ["a", "b"], { etapes: 1 });
   const an = polylignes_objet(objets(d)[0].enfants[1]);
   const second = { id: "t", type: "path", d: "M" + an[1].points.map(([x, y]) => `${x} ${y}`).join(" L") + " Z" };
-  ok("sous-chemin en trop côté B : à moitié né (aire / 4), centré sur lui", an.length === 2 && pres(aireO(second), 100, 1) && pres(boite(second).cx, 250), `${aireO(second)} ${JSON.stringify(boite(second))}`);
+  ok("sous-chemin en trop côté B : à moitié né (aire / 4), à sa place relative (+20 du centre)", an.length === 2 && pres(aireO(second), 100, 1) && pres(boite(second).cx, 140), `${aireO(second)} ${JSON.stringify(boite(second))}`);
 }
 {
   // B bouge : les intermédiaires suivent aussi
@@ -627,6 +635,170 @@ const seCroise = (o) => {
   const c = doc(rect("a", 0, 0, 20, 20, { contour: "#f00" }), rect("b", 300, 0, 20, 20, { contour: "#ffffff" }));
   op_fusionner(c, ["a", "b"], { etapes: 1 });
   ok("couleur courte #f00 → #ffffff : milieu #ff8080", objets(c)[0].enfants[1].style.contour === "#ff8080", objets(c)[0].enfants[1].style.contour);
+}
+
+/* ── T5 (t454) fusion : trajectoire, inversions, orienter, régler ── */
+const centre = (o) => { const b = boite(o); return [b.cx, b.cy]; };
+const procheDe = (p, x, y) => pres(p[0], x) && pres(p[1], y);
+const fusionAvecChemin = (extraA = {}, extraB = {}) => {
+  const d = doc(rect("a", 0, 0, 20, 20, extraA), rect("b", 200, 0, 20, 20, { fond: "#0000ff", ...extraB }),
+                { id: "t", type: "path", d: "M0 100 L200 100 L200 300", style: { contour: "#123456", epaisseur: 3 } });
+  const gid = op_fusionner(d, ["a", "b"], { etapes: 3 });
+  return { d, gid };
+};
+const groupeDe = (d, gid) => objets(d).find((o) => o.id === gid);
+const parId = (g, id) => g.enfants.find((e) => e.id === id);
+{
+  const { d, gid } = fusionAvecChemin();
+  op_fusion_trajectoire(d, gid, "t");
+  const g = groupeDe(d, gid);
+  ok("trajectoire : le chemin quitte le calque et entre dans la fusion", !objets(d).some((o) => o.id === "t") && !!parId(g, "t") && g.fusion_vive.trajectoire === "t");
+  const t = parId(g, "t");
+  ok("trajectoire : invisible (sans fond ni contour), son style gardé dans la recette", t.style.fond === "none" && t.style.contour === "none"
+     && g.fusion_vive.styleTrajectoire.contour === "#123456" && g.fusion_vive.styleTrajectoire.epaisseur === 3, JSON.stringify([t.style, g.fusion_vive.styleTrajectoire]));
+  ok("trajectoire : A au départ du chemin", procheDe(centre(parId(g, "a")), 0, 100), centre(parId(g, "a")));
+  ok("trajectoire : B à l'arrivée", procheDe(centre(parId(g, "b")), 200, 300), centre(parId(g, "b")));
+  const inter = g.enfants.filter((e) => e.genere).map(centre);
+  ok("trajectoire : intermédiaires à pas égaux le long du chemin (longueur 400)", inter.length === 3 && procheDe(inter[0], 100, 100) && procheDe(inter[1], 200, 100) && procheDe(inter[2], 200, 200), JSON.stringify(inter));
+  ok("trajectoire : le document reste valide", !refus(() => parserDoc(d)));
+  ok("trajectoire : stable (A et B ne glissent pas à chaque passage)", derives_rafraichir(d) === 0 && derives_rafraichir(d) === 0);
+  const trA = parId(groupeDe(d, gid), "a").transform;
+  op_fusion_regler(d, gid, { etapes: 3 }); op_fusion_regler(d, gid, { etapes: 3 });
+  ok("trajectoire : A déjà en place n'accumule pas de déplacement nul", parId(groupeDe(d, gid), "a").transform === trA, `${trA} / ${parId(groupeDe(d, gid), "a").transform}`);
+  // un réglage écrit hors op (attribut générique) est suivi : l'empreinte couvre la recette
+  groupeDe(d, gid).fusion_vive.etapes = 1;
+  ok("trajectoire : réglage changé hors op → recalcul", derives_rafraichir(d) === 1 && groupeDe(d, gid).enfants.filter((e) => e.genere).length === 1);
+  groupeDe(d, gid).fusion_vive.etapes = 3;
+  derives_rafraichir(d);
+  // le chemin change : tout suit
+  parId(groupeDe(d, gid), "t").d = "M0 100 L400 100";
+  ok("trajectoire éditée : un recalcul", derives_rafraichir(d) === 1);
+  const g2 = groupeDe(d, gid);
+  ok("trajectoire éditée : B suit le bout du chemin, le milieu suit", procheDe(centre(parId(g2, "b")), 400, 100) && procheDe(centre(g2.enfants.filter((e) => e.genere)[1]), 200, 100), JSON.stringify(g2.enfants.map(centre)));
+  ok("trajectoire éditée : puis stable", derives_rafraichir(d) === 0);
+  // une trajectoire ne se remplace pas par-dessus une autre
+  const avant = JSON.stringify(d);
+  d.calques[0].objets.push({ id: "t2", type: "path", d: "M0 0 L10 10", style: {} });
+  const avant2 = JSON.stringify(d);
+  ok("deuxième trajectoire : refus traduit", refus(() => op_fusion_trajectoire(d, gid, "t2")) === T("vectorlab.fusion.deja_trajectoire"));
+  ok("deuxième trajectoire : aucune trace", JSON.stringify(d) === avant2 && !!avant);
+  // Nettoyer ne prend pas la trajectoire invisible
+  d.calques[0].objets.push({ id: "vide", type: "rect", x: 0, y: 0, w: 5, h: 5, style: { fond: "none", contour: "none" } });
+  op_nettoyer(d, { isoles: false, invisibles: true, textesVides: false });
+  ok("Nettoyer garde la trajectoire invisible d'une fusion", !!parId(groupeDe(d, gid), "t") && !objets(d).some((o) => o.id === "vide"));
+  // Décomposer : la trajectoire redevient visible, avec son style
+  op_derive_detacher(d, gid);
+  const gd = groupeDe(d, gid);
+  ok("décomposer avec trajectoire : chemin visible, style rendu", !gd.fusion_vive && parId(gd, "t") && parId(gd, "t").style.contour === "#123456", JSON.stringify(gd.enfants.map((e) => [e.id, e.style])));
+}
+{
+  // A est déjà à l'aplomb du départ : seul un déplacement VERTICAL le pose
+  const d = doc(rect("a", -10, 0, 20, 20), rect("b", 200, 0, 20, 20), { id: "t", type: "path", d: "M0 100 L200 100", style: {} });
+  const gid = op_fusionner(d, ["a", "b"], { etapes: 1 });
+  op_fusion_trajectoire(d, gid, "t");
+  ok("trajectoire : un déplacement purement vertical pose A", procheDe(centre(parId(groupeDe(d, gid), "a")), 0, 100), centre(parId(groupeDe(d, gid), "a")));
+  // un recalcul qui échoue en route (B devenu sans géométrie) ne laisse pas A à moitié posé
+  const g = groupeDe(d, gid);
+  const aAvant = JSON.stringify(parId(g, "a"));
+  parId(g, "t").d = "M0 200 L200 200";
+  parId(g, "b").d = undefined; parId(g, "b").type = "path"; parId(g, "b").d = "M5 5";
+  derives_rafraichir(d);
+  ok("trajectoire : recalcul échoué → A n'a pas bougé", JSON.stringify(parId(groupeDe(d, gid), "a")) === aAvant, JSON.stringify(parId(groupeDe(d, gid), "a")));
+}
+{
+  // la trajectoire disparue (supprimée par Ctrl+clic) : dernier état gardé
+  const { d, gid } = fusionAvecChemin();
+  op_fusion_trajectoire(d, gid, "t");
+  const g = groupeDe(d, gid);
+  g.enfants = g.enfants.filter((e) => e.id !== "t");
+  const avant = JSON.stringify(d);
+  ok("trajectoire disparue : pas d'exception, groupe inchangé", !refus(() => derives_rafraichir(d)) && JSON.stringify(d) === avant);
+}
+{
+  // inverser la trajectoire : A va à l'arrivée, B au départ
+  const { d, gid } = fusionAvecChemin();
+  op_fusion_trajectoire(d, gid, "t");
+  op_fusion_inverser_trajectoire(d, gid);
+  const g = groupeDe(d, gid);
+  ok("inverser la trajectoire (chemin) : A à l'arrivée, B au départ", procheDe(centre(parId(g, "a")), 200, 300) && procheDe(centre(parId(g, "b")), 0, 100), JSON.stringify([centre(parId(g, "a")), centre(parId(g, "b"))]));
+  const inter = g.enfants.filter((e) => e.genere);
+  ok("inverser la trajectoire : l'intermédiaire proche de A est près de l'arrivée", procheDe(centre(inter[0]), 200, 200) && inter[0].style.fond !== inter[2].style.fond, JSON.stringify(inter.map(centre)));
+  ok("inverser la trajectoire : puis stable", derives_rafraichir(d) === 0);
+  op_fusion_inverser_trajectoire(d, gid);
+  ok("inverser deux fois : retour au départ", procheDe(centre(parId(groupeDe(d, gid), "a")), 0, 100));
+  // sans trajectoire : A et B échangent leurs places
+  const d2 = doc(rect("a", 0, 0, 20, 20), rect("b", 200, 50, 20, 20, { fond: "#0000ff" }));
+  const g2id = op_fusionner(d2, ["a", "b"], { etapes: 1 });
+  op_fusion_inverser_trajectoire(d2, g2id);
+  const g2 = groupeDe(d2, g2id);
+  ok("inverser sans trajectoire : A et B échangent leurs places", procheDe(centre(parId(g2, "a")), 210, 60) && procheDe(centre(parId(g2, "b")), 10, 10), JSON.stringify([centre(parId(g2, "a")), centre(parId(g2, "b"))]));
+  ok("inverser sans trajectoire : les couleurs restent à A et à B", parId(g2, "a").style.fond === "#ff0000" && parId(g2, "b").style.fond === "#0000ff");
+}
+{
+  // inverser l'ordre : B passe dessous, A dessus ; la couleur suit toujours A → B
+  const d = doc(rect("a", 0, 0, 20, 20), rect("b", 200, 0, 20, 20, { fond: "#0000ff" }));
+  const gid = op_fusionner(d, ["a", "b"], { etapes: 3 });
+  op_fusion_inverser_ordre(d, gid);
+  const g = groupeDe(d, gid);
+  ok("inverser l'ordre : B en premier (dessous), A en dernier (dessus)", g.enfants[0].id === "b" && g.enfants[g.enfants.length - 1].id === "a", g.enfants.map((e) => e.id).join());
+  ok("inverser l'ordre : l'intermédiaire posé juste sous A est le plus proche de A", procheDe(centre(g.enfants[g.enfants.length - 2]), 60, 10) && g.enfants[g.enfants.length - 2].style.fond === "#bf0040", JSON.stringify(g.enfants.map((e) => [e.id, centre(e), e.style.fond])));
+  ok("inverser l'ordre : stable, et gardé au recalcul", derives_rafraichir(d) === 0 && (() => { parId(g, "a").y = 10; derives_rafraichir(d); return groupeDe(d, gid).enfants[0].id === "b"; })());
+  op_fusion_inverser_ordre(d, gid);
+  ok("inverser l'ordre deux fois : A de nouveau dessous", groupeDe(d, gid).enfants[0].id === "a");
+}
+{
+  // orienter selon la trajectoire : chaque intermédiaire tourne de la tangente moins la direction A → B
+  const { d, gid } = fusionAvecChemin({ w: 40, h: 10 }, { w: 40, h: 10 });
+  op_fusion_trajectoire(d, gid, "t");
+  const angle1 = (o) => { const p = polylignes_objet(o)[0].points; const a = Math.atan2(p[1][1] - p[0][1], p[1][0] - p[0][0]) * 180 / Math.PI; return ((a % 180) + 180) % 180; };
+  const inter = (g) => g.enfants.filter((e) => e.genere);
+  ok("sans orienter : les intermédiaires restent droits", inter(groupeDe(d, gid)).every((e) => pres(angle1(e), 0, 0.01) || pres(angle1(e), 180, 0.01)), inter(groupeDe(d, gid)).map(angle1).join());
+  op_fusion_regler(d, gid, { orienter: true });
+  const i2 = inter(groupeDe(d, gid));
+  ok("orienter : sur le bras horizontal -45°, sur le bras vertical +45° (corde à 45°)", pres(angle1(i2[0]), 135, 0.01) && pres(angle1(i2[2]), 45, 0.01), i2.map(angle1).join());
+  ok("orienter : les centres ne bougent pas", procheDe(centre(i2[0]), 100, 100) && procheDe(centre(i2[2]), 200, 200), JSON.stringify(i2.map(centre)));
+  ok("orienter : une vraie rotation (l'aire 40 × 10 est gardée)", i2.every((e) => pres(aireO(e), 400, 0.5)), i2.map(aireO).join());
+  ok("orienter : réglage gardé, autres réglages aussi", groupeDe(d, gid).fusion_vive.orienter === true && groupeDe(d, gid).fusion_vive.etapes === 3);
+  // sans trajectoire, orienter ne tourne rien (la tangente EST la corde)
+  const d2 = doc(rect("a", 0, 0, 40, 10), rect("b", 200, 100, 40, 10));
+  const g2 = op_fusionner(d2, ["a", "b"], { etapes: 1, orienter: true });
+  ok("orienter sans trajectoire : rien ne tourne", pres(angle1(inter(groupeDe(d2, g2))[0]), 0, 0.01) || pres(angle1(inter(groupeDe(d2, g2))[0]), 180, 0.01));
+}
+{
+  // régler
+  const d = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  const gid = op_fusionner(d, ["a", "b"], { etapes: 3 });
+  op_fusion_regler(d, gid, { etapes: 5 });
+  ok("régler : 3 → 5 étapes", groupeDe(d, gid).enfants.length === 7 && groupeDe(d, gid).fusion_vive.etapes === 5);
+  op_fusion_regler(d, gid, { mode: "distance", pas: 100 });
+  ok("régler : passer en distance", groupeDe(d, gid).enfants.length === 4 && groupeDe(d, gid).fusion_vive.mode === "distance" && groupeDe(d, gid).fusion_vive.etapes === 5);
+  ok("régler : puis stable", derives_rafraichir(d) === 0);
+  const avant = JSON.stringify(d);
+  ok("régler hors bornes : refus", !!refus(() => op_fusion_regler(d, gid, { etapes: 0 })));
+  ok("régler un objet qui n'est pas une fusion : refus traduit", refus(() => op_fusion_regler(doc(carre("q")), "q", { etapes: 2 })) === T("vectorlab.fusion.pas_fusion", { id: "q" }));
+  ok("régler un id inconnu : refus", !!refus(() => op_fusion_regler(d, "nope", {})));
+  ok("inverser un objet qui n'est pas une fusion : refus", !!refus(() => op_fusion_inverser_ordre(doc(carre("q")), "q")) && !!refus(() => op_fusion_inverser_trajectoire(doc(carre("q")), "q")));
+  ok("aucune trace après les refus", JSON.stringify(d) === avant);
+}
+{
+  // refus de trajectoire
+  const { d, gid } = fusionAvecChemin();
+  d.calques[0].objets.push({ id: "tx", type: "texte", x: 0, y: 0, texte: "x", style: {} });
+  d.calques[0].objets.push({ id: "pt", type: "path", d: "M5 5", style: {} });
+  const avant = JSON.stringify(d);
+  ok("trajectoire inconnue : refus traduit", refus(() => op_fusion_trajectoire(d, gid, "nope")) === T("vectorlab.fusion.trajectoire_introuvable"));
+  ok("trajectoire = un texte : refus", refus(() => op_fusion_trajectoire(d, gid, "tx")) === T("vectorlab.fusion.trajectoire_type"));
+  ok("trajectoire sans longueur : refus", refus(() => op_fusion_trajectoire(d, gid, "pt")) === T("vectorlab.fusion.trajectoire_type"));
+  d.calques[0].objets.push({ id: "p0", type: "path", d: "M5 5 L5 5", style: {} });
+  ok("trajectoire de longueur nulle (deux points confondus) : refus", refus(() => op_fusion_trajectoire(d, gid, "p0")) === T("vectorlab.fusion.trajectoire_type"));
+  d.calques[0].objets.pop();
+  ok("trajectoire = la fusion elle-même : refus", !!refus(() => op_fusion_trajectoire(d, gid, gid)));
+  ok("trajectoire sur un objet qui n'est pas une fusion : refus", refus(() => op_fusion_trajectoire(d, "t", "tx")) === T("vectorlab.fusion.pas_fusion", { id: "t" }));
+  ok("trajectoire = un intermédiaire généré : refus", refus(() => op_fusion_trajectoire(d, gid, `${gid}_f1`)) === T("vectorlab.repeter.copie_generee"));
+  ok("aucune trace après les refus de trajectoire", JSON.stringify(d) === avant);
+  const v = fusionAvecChemin();
+  v.d.calques.push({ id: "c2", nom: "v", visible: true, verrou: true, objets: [{ id: "tv", type: "path", d: "M0 0 L50 0", style: {} }] });
+  ok("trajectoire sur un calque verrouillé : refus", refus(() => op_fusion_trajectoire(v.d, v.gid, "tv")) === T("vectorlab.repeter.verrou"));
 }
 
 if (echecs.length) {
