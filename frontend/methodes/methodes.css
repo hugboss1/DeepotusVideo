@@ -1,0 +1,99 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   L'écran « Méthodes » (t433, lot M0) — même famille visuelle que la page
+   WhatsApp : tout vient de /shared/deepotus.tokens.css, aucune couleur en dur,
+   le thème clair suit, angles vifs (--r-* = --radius). L'accent est réservé
+   aux actions et à l'agent.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@import url("/shared/deepotus.tokens.css");
+
+html, body { height: 100%; margin: 0; background: var(--bg-base); color: var(--ink); font-family: var(--f-ui); font-size: 13px; }
+button, input, select { font-family: inherit; }
+[hidden] { display: none !important; }
+.mt { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.mt-ico { display: inline-flex; line-height: 0; }
+
+/* ── en-tête et filtres ── */
+.mt-tete {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px;
+  border-bottom: 1px solid var(--stroke); background: var(--bg-panel);
+}
+.mt-marque { display: flex; align-items: center; gap: 8px; margin-right: auto; color: var(--ink-strong); }
+.mt-marque b { font-family: var(--f-display); font-size: 15px; letter-spacing: .01em; }
+.mt-sous { color: var(--ink-soft); font-size: 11px; }
+.mt-etiquette { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-soft); }
+.mt-etiquette > span { font-family: var(--f-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+.mt-champ {
+  min-width: 0; height: 28px; padding: 0 8px; border-radius: var(--r-sm);
+  border: 1px solid var(--stroke-strong); background: var(--bg-panel-2); color: var(--ink); font-size: 12px;
+}
+.mt-champ:focus { outline: none; border-color: var(--accent); }
+.mt-champ--q { width: 220px; }
+select.mt-champ { max-width: 200px; }
+.mt-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--r-sm);
+  border: 1px solid var(--stroke-strong); background: var(--bg-panel-2); color: var(--ink); font-size: 12px;
+  cursor: pointer; white-space: nowrap;
+}
+.mt-btn:hover { border-color: var(--accent); }
+.mt-btn--discret { background: transparent; border-color: transparent; color: var(--ink-soft); }
+.mt-btn--petit { height: 22px; padding: 0 8px; font-size: 11px; flex: none; }
+
+/* ── corps ── */
+.mt-corps { flex: 1; overflow: auto; padding: 14px 16px 24px; }
+.mt-compte { color: var(--ink-soft); font-size: 12px; margin-bottom: 10px; }
+.mt-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.mt-pied { margin-top: 24px; color: var(--ink-soft); font-size: 11px; max-width: 760px; }
+
+/* ── carte ── */
+.mt-carte {
+  display: flex; flex-direction: column; text-align: left; padding: 0; overflow: hidden; cursor: pointer;
+  border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel); color: var(--ink);
+}
+.mt-carte:hover, .mt-carte:focus-visible { border-color: var(--accent); }
+.mt-carte-visuel {
+  display: flex; align-items: center; justify-content: center; aspect-ratio: 16 / 7;
+  background: var(--bg-panel-2); color: var(--ink-soft); border-bottom: 1px solid var(--stroke);
+}
+.mt-carte-visuel--grand { width: 168px; flex: none; border: 1px solid var(--stroke); border-radius: var(--r); }
+.mt-carte:hover .mt-carte-visuel { color: var(--accent); }
+.mt-carte-visuel .dzi { width: 36px; height: 36px; }
+.mt-carte-visuel--grand .dzi { width: 56px; height: 56px; }
+.mt-carte-visuel--grand { aspect-ratio: 16 / 10; }
+.mt-carte-corps { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 12px; flex: 1; }
+.mt-carte-famille { font-family: var(--f-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.mt-carte-titre { margin: 0; font-size: 14px; font-weight: 600; color: var(--ink-strong); }
+.mt-carte-resume { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.45; flex: 1; }
+.mt-carte-pied { display: flex; flex-wrap: wrap; gap: 4px; }
+.mt-badge {
+  display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: var(--r-sm);
+  border: 1px solid var(--stroke); font-size: 11px; color: var(--ink-soft); white-space: nowrap;
+}
+.mt-badge--agent { color: var(--accent); border-color: var(--accent); }
+.mt-badge--mono { font-family: var(--f-mono); font-size: 10px; }
+
+/* ── fiche ── */
+.mt-fiche { display: flex; flex-direction: column; gap: 14px; max-width: 1100px; }
+.mt-fiche > .mt-btn { align-self: flex-start; }
+.mt-fiche-tete { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.mt-fiche-tete > div:last-child { flex: 1; min-width: 260px; display: flex; flex-direction: column; gap: 8px; }
+.mt-fiche-titre { margin: 0; font-family: var(--f-display); font-size: 22px; color: var(--ink-strong); }
+.mt-fiche-resume { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.5; }
+.mt-ligne { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.mt-ligne-titre { font-family: var(--f-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); margin-right: 4px; }
+.mt-fiche-corps { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; }
+@media (max-width: 860px) { .mt-fiche-corps { grid-template-columns: 1fr; } }
+.mt-fiche-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.mt-bloc { border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel); padding: 10px 12px; }
+.mt-bloc h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--ink-strong); }
+.mt-liste { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; line-height: 1.5; }
+.mt-fiche-col--cote .mt-liste { padding-left: 0; list-style: none; }
+.mt-fiche-col--cote .mt-liste li { display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
+.mt-agent { border: 1px solid var(--accent); border-radius: var(--r); background: var(--bg-panel); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.mt-agent-tete { font-family: var(--f-mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.mt-agent b { font-size: 14px; color: var(--ink-strong); }
+.mt-agent p { margin: 0; color: var(--ink-soft); font-size: 12px; line-height: 1.45; }
+.mt-agent-bientot { font-style: italic; }
+.mt-source { color: var(--ink-soft); font-size: 11px; margin: 0; }
+.mt-source a { color: var(--ink-soft); }
+.mt-source a:hover { color: var(--accent); }
+.mt-vide { color: var(--ink-soft); }

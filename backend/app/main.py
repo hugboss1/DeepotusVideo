@@ -576,6 +576,9 @@ app.include_router(tutoriels_router, prefix="/api/tutoriels")
 # t344 (29/10/2026) : /api/comparatif3d — banc comparatif des moteurs image -> 3D (tir payant gardé, existants gratuit)
 from app.api.comparatif3d_routes import router as comparatif3d_router
 app.include_router(comparatif3d_router, prefix="/api/comparatif3d")
+# t433 (lot M0 « Méthodes », 08/11/2026) : le catalogue des méthodes, en lecture
+from app.api.methodes_routes import router as methodes_router
+app.include_router(methodes_router, prefix="/api/methodes")
 # t388 (31/10/2026) : /api/studio3d — 3D Studio à écrans : galerie, modèle ouvert, préréglages de Préparer (lecture)
 from app.api.studio3d_routes import router as studio3d_router
 app.include_router(studio3d_router, prefix="/api/studio3d")
@@ -935,6 +938,29 @@ if _PLATEAU_DIR.is_dir():
         return RedirectResponse(url="/plateau/", status_code=307)
 
     logger.info(f"Serving etabli from {_etabli}")
+
+# ── /methodes : l'écran « Méthodes » (t433, lot M0, 08/11/2026) — la galerie des 94 méthodes et leurs agents métier ──
+# Même patron standalone que /whatsapp, HORS du bundle ; avant le montage de la SPA « / ».
+_METHODES_DIR = Path(__file__).resolve().parent.parent.parent / "frontend" / "methodes"
+if _METHODES_DIR.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFMeth
+
+    class _MethodesStatic(_SFMeth):
+        """no-cache comme /whatsapp : methodes.js garde un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/methodes", _MethodesStatic(directory=str(_METHODES_DIR), html=True), name="methodes")
+
+    @app.get("/methodes", include_in_schema=False)
+    async def _methodes_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/methodes/", status_code=307)
 
 # ── /whatsapp : la page WhatsApp d'un espace (t311 tâche 7, 27/10/2026) — conversations, modèles, contacts, santé, prix ──
 # Même patron standalone que /plateau, HORS du bundle ; avant le montage de la SPA « / ». Le montage se crée au boot.

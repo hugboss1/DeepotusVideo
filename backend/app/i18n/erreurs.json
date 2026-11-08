@@ -1175,6 +1175,7 @@
   "erreur.53d31c2952": {"fr": "Rendu sur les serveurs HeyGen", "en": "Rendering on HeyGen servers", "src": "en"},
   "erreur.53dc288be8": {"fr": "Délai dépassé chez HeyGen pour lister les avatars : {e}", "en": "HeyGen timed out listing avatars: {e}", "src": "en"},
   "erreur.53ef1a8fe6": {"fr": "Fichier trop gros : {nom} (au plus {v} Ko).", "en": "File too large: {nom} (at most {v} KB).", "src": "fr"},
+  "erreur.53efc2c8a0": {"fr": "méthode inconnue", "en": "unknown method", "src": "fr"},
   "erreur.53f8886ec8": {"fr": "couleur attendue au format #rrggbb", "en": "couleur expected in #rrggbb format", "src": "fr"},
   "erreur.5421e6dc69": {"fr": "réserve des actions illisible : liste des actions", "en": "unreadable actions store: list of actions", "src": "fr"},
   "erreur.54220f720c": {"fr": "Identifiant de capture invalide.", "en": "Invalid capture id.", "src": "fr"},

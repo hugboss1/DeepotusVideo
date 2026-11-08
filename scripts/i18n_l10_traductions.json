@@ -14314,5 +14314,9 @@
  "La carte {v} mesure {v2}x{v3} px ; la géométrie du jeu impose {v4}x{v5} px": {
   "fr": "La carte {v} mesure {v2}x{v3} px ; la géométrie du jeu impose {v4}x{v5} px",
   "en": "Card {v} measures {v2}x{v3} px; the deck geometry requires {v4}x{v5} px"
+ },
+ "méthode inconnue": {
+  "fr": "méthode inconnue",
+  "en": "unknown method"
  }
 }
