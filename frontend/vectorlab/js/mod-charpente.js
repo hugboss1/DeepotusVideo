@@ -26,6 +26,7 @@ export function initCharpente(VL) {
     nouveau: { peut: () => true, faire: () => { VL.ouvrirBiblio(); setTimeout(() => { const n = $("#bibNouvNom"); if (n) n.focus(); }, 60); } },
     sauver: { peut: () => !!etat.doc, faire: () => VL.sauver() },
     brouillon: { peut: () => !!(etat.doc && VL.restaurerBrouillon), faire: () => VL.restaurerBrouillon() },
+    importer: { peut: () => !!(etat.doc && VL.importer), faire: () => VL.importer.ouvrir() },   // t470
     imageFichier: { peut: () => !!(etat.doc && A().image), faire: () => A().image.fichier() },
     imageBiblio: { peut: () => !!(etat.doc && A().image), faire: () => A().image.biblio() },
     imageColler: { peut: () => !!(etat.doc && A().image), faire: () => A().image.coller() },

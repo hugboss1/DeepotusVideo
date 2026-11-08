@@ -45,6 +45,12 @@
     "groupe": "t455"
    },
    {
+    "pos": 2334,
+    "avant": "import { initBiblio } from \"./mod-biblio.js\";",
+    "apres": "import { initImporterUI } from \"./mod-importerui.js\";   // t470 : lot D4\r\nimport { initBiblio } from \"./mod-biblio.js\";",
+    "groupe": "t470"
+   },
+   {
     "pos": 15459,
     "avant": "\"Grille d'aimantation et repère visuel (G) — \"",
     "apres": "T(\"vectorlab.core.grille_titre\")",
@@ -169,6 +175,12 @@
     "avant": "initExport(VL);",
     "apres": "initExport(VL);\r\ninitSchema(VL);    // t314 : Scanner un schéma…, Envoyer vers › Animation — après initExport (VL.svgCourant)",
     "groupe": "t314"
+   },
+   {
+    "pos": 34830,
+    "avant": "initBiblio(VL);",
+    "apres": "initImporterUI(VL); // t470 : Fichier › Importer (SVG, PDF), SVG collé ou déposé sur la toile\r\ninitBiblio(VL);",
+    "groupe": "t470"
    },
    {
     "pos": 37296,
@@ -1409,6 +1421,12 @@
     "avant": "",
     "apres": "import { T as vlT } from \"./mod-i18n.js\";\r\n",
     "groupe": "import"
+   },
+   {
+    "pos": 2059,
+    "avant": "    imageFichier: {",
+    "apres": "    importer: { peut: () => !!(etat.doc && VL.importer), faire: () => VL.importer.ouvrir() },   // t470\r\n    imageFichier: {",
+    "groupe": "t470"
    },
    {
     "pos": 3013,
@@ -6375,6 +6393,12 @@
     "avant": "\"Restaurer le brouillon\"",
     "apres": "T(\"vectorlab.menus.brouillon\")",
     "groupe": "menus"
+   },
+   {
+    "pos": 876,
+    "avant": "    e(\"inserer\", ",
+    "apres": "    e(\"importer\", T(\"vectorlab.importer.m_importer\"), \"importer\"), e(\"inserer\", ",
+    "groupe": "t470"
    },
    {
     "pos": 893,

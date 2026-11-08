@@ -5,6 +5,7 @@
 // transforms SVG restent des chaînes (le modèle les lit, cf. _matriceDe de mod-bool). Ce qui n'entre pas est COMPTÉ
 // par raison dans `stats.ignores` : l'interface le dit (T2).
 import { T } from "./mod-i18n.js";
+import { op_ajouter } from "./mod-doc.js";
 
 const ELEMENTS_MAX = 50000;
 const nb = (x) => String(Math.round(x * 1e4) / 1e4 + 0);
@@ -271,7 +272,8 @@ const _nombres = (s) => (String(s || "").match(/[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][
 
 /* ── styles ── */
 const HERITES = new Set(["fill", "stroke", "stroke-width", "stroke-dasharray", "fill-opacity", "stroke-opacity", "color",
-  "font-family", "font-size", "font-weight", "font-style", "text-anchor", "visibility", "letter-spacing"]);
+  "font-family", "font-size", "font-weight", "font-style", "text-anchor", "visibility", "letter-spacing", "fill-rule",
+  "stroke-linejoin"]);
 const PROPRIETES = new Set([...HERITES, "opacity", "display", "filter", "clip-path", "mask", "stop-color"]);
 
 function _declarations(txt) {
@@ -407,6 +409,8 @@ export function svg_vers_objets(texte) {
     const f = sansFond ? { c: "none", a: 1 } : (peinture(c.fill, c) || { c: "#000000", a: 1 });
     const s = peinture(c.stroke, c) || { c: "none", a: 1 };
     const st = { fond: f.c, contour: s.c, epaisseur: _longueur(c["stroke-width"]) ?? 1 };
+    if (c["fill-rule"] === "evenodd") st.regle = "evenodd";
+    if (s.c !== "none") st.joint = ["miter", "round", "bevel"].includes(c["stroke-linejoin"]) ? c["stroke-linejoin"] : "miter";   // défaut SVG : en onglet
     const num = (v) => { const x = parseFloat(v); return Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : 1; };
     let op = num(propres.opacity ?? 1);
     op *= f.c !== "none" ? num(c["fill-opacity"] ?? 1) * f.a : num(c["stroke-opacity"] ?? 1) * s.a;
@@ -550,4 +554,23 @@ export function svg_vers_objets(texte) {
     taille,
     stats: { importes, ignores },
   };
+}
+
+/* ── T2 (t470) : importer dans le document ── */
+// op_importer_svg(doc, analyse, { calque, x, y }) → id du groupe. Tout entre dans UN groupe dont la boîte du SVG
+// (analyse.taille) est centrée sur (x, y), par défaut le centre de la page ; les ids provisoires sont retirés pour
+// qu'op_ajouter donne des o<n> neufs, sans collision. L'analyse n'est pas modifiée : elle se réimporte.
+export function op_importer_svg(doc, analyse, opts = {}) {
+  const objets = (analyse && analyse.objets) || [];
+  if (!objets.length) throw new Error(T("vectorlab.importer.vide"));
+  const nettoyer = (o) => {
+    const c = { ...o };
+    delete c.id; delete c.nat_provisoire;
+    if (Array.isArray(c.enfants)) c.enfants = c.enfants.map(nettoyer);
+    return JSON.parse(JSON.stringify(c));
+  };
+  const t = analyse.taille || { w: 0, h: 0 };
+  const x = opts.x === undefined ? doc.taille.w / 2 : +opts.x, y = opts.y === undefined ? doc.taille.h / 2 : +opts.y;
+  const g = { type: "groupe", style: {}, transform: `translate(${nb(x - t.w / 2)} ${nb(y - t.h / 2)})`, enfants: objets.map(nettoyer) };
+  return op_ajouter(doc, opts.calque || doc.calques[0].id, g);
 }

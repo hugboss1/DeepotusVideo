@@ -89,6 +89,9 @@ const commandes = (d) => (d.match(/[A-Za-z]/g) || []).join("");
   ok("style=\"\" > CSS ; opacité", b.style.fond === "#aabbcc" && b.style.opacite === 0.25 && b.style.epaisseur === 2, JSON.stringify(b.style));
   ok("héritage du groupe (fill, stroke-width)", c.style.fond === "#0000ff" && c.style.epaisseur === 2, JSON.stringify(c.style));
   ok("fill-opacity se reporte sur l'opacité", un('<rect width="1" height="1" fill="red" fill-opacity="0.4"/>').style.opacite === 0.4);
+  ok("fill-rule evenodd hérité → regle", un('<g fill-rule="evenodd"><path d="M0 0 L1 0 L1 1 Z"/></g>').enfants[0].style.regle === "evenodd" && !("regle" in un('<rect width="1" height="1"/>').style));
+  ok("jointure : onglet par défaut (SVG), ronde si demandée, absente sans contour", un('<line x2="5" stroke="#000"/>').style.joint === "miter"
+     && un('<line x2="5" stroke="#000" stroke-linejoin="round"/>').style.joint === "round" && !("joint" in un('<rect width="1" height="1"/>').style));
   ok("pointillés", un('<line x2="5" stroke="#000" stroke-dasharray="4,2"/>').style.pointilles === "4 2");
   ok("currentColor", un('<g color="#336699"><rect width="1" height="1" fill="currentColor"/></g>').enfants[0].style.fond === "#336699");
   ok("url(#dégradé) → couleur du premier arrêt", un('<defs><linearGradient id="g"><stop offset="0" stop-color="#ff8800"/><stop offset="1" stop-color="#000"/></linearGradient></defs><rect width="1" height="1" fill="url(#g)"/>').style.fond === "#ff8800");

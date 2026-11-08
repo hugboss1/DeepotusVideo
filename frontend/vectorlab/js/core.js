@@ -48,6 +48,7 @@ import { initSchema } from "./mod-schema.js";
 import { initRepeterUI } from "./mod-repeterui.js";   // t455 : lot D2
 import { initDeformerUI } from "./mod-deformerui.js";   // t465 : lot D3
 import { initVitrail } from "./mod-vitrail.js";
+import { initImporterUI } from "./mod-importerui.js";   // t470 : lot D4
 import { initBiblio } from "./mod-biblio.js";
 import { initIA } from "./mod-ia.js";
 import { initCouleur } from "./mod-couleur.js";
@@ -822,6 +823,7 @@ initSchema(VL);    // t314 : Scanner un schéma…, Envoyer vers › Animation �
 initVitrail(VL);
 initDialogue(VL);   // finitions UI : VL.dialogue AVANT tout appelant (biblio, calques, brouillon…)
 initControles(VL);  // finitions UI : <vl-curseur> / <vl-bascule> / <vl-curseur-couleur> définis AVANT tout rendu de panneau
+initImporterUI(VL); // t470 : Fichier › Importer (SVG, PDF), SVG collé ou déposé sur la toile
 initBiblio(VL);
 initIA(VL);        // le dialogue IA du canevas — après initOutils (surOutil)
 // lot B : APRÈS initOutils — mod-tools pose surTouche/surOutil sans chaîner,
