@@ -2243,6 +2243,17 @@
       /* ── JOURNAL (le même que le panneau rectangulaire) ── */
       + '<details class="grp"><summary>' + dzT("cartes.print.titre_journal") + '</summary><div class="grp-body">'
       + '<div class="cf-print-log" data-role="log"></div></div></details>';
+    hintImpression();
+  }
+
+  /* vague finale (C5) : le sous-titre de l'onglet Impression (index.html) suit la forme — un hexagone n'a ni
+     TrimBox / BleedBox ni contrôle avant vol. Le texte d'un rectangle n'est touché qu'au retour d'un hexagone. */
+  function hintImpression() {
+    const panneau = HOST && typeof HOST.closest === "function" ? HOST.closest(".cf-panel") : null;
+    const p = panneau ? panneau.querySelector(".panel-head .hint") : null;
+    if (!p) return;
+    if (HEXA) { p.textContent = dzT("cartes.print.hex_hint"); p.dataset.dzHex = "1"; }
+    else if (p.dataset.dzHex) { p.textContent = dzT("cartes.page.print_hint"); delete p.dataset.dzHex; }
   }
 
   /* les champs suivent le document (annulation, autre onglet, format) */
@@ -2448,7 +2459,7 @@
       PROBE = null; PF = null;     /* la sonde de couleur et le contrôle avant vol datent de l'ancien panneau */
       shell();
       paintIntents(); paintFormats(); paintIcc(); paintAudit(); paintPreflight(); paintGabarits();
-      if (!h) wirePlanDrag();
+      if (!h) { wirePlanDrag(); hintImpression(); }
     }
     if (!HEXA) return false;
     sync();

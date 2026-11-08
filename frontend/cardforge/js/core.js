@@ -530,6 +530,8 @@
       if (v < LIM[k][0] || v > LIM[k][1]) throw new Error(dzT("cartes.core.hors_bornes", { k: k, min: LIM[k][0], max: LIM[k][1] }));
       out[k] = (k === "dpi") ? Math.round(v) : v;
     });
+    /* t421 (vague finale) : un hexagone est TOUJOURS a sommets vifs (coin 0), comme normalize_format */
+    if (FMT_BY_ID[out.fmt].forme === "hex") out.corner_mm = 0;
     DOC.format = out;
     GEOM = null;
     touch();
@@ -1492,6 +1494,19 @@
     const b1 = el("#bleedInp"); if (b1) b1.value = f.bleed_mm;
     const s1 = el("#safeInp"); if (s1) s1.value = f.safe_mm;
     const c1 = el("#cornerInp"); if (c1) c1.value = f.corner_mm;
+    /* t421 (vague finale) : un hexagone garde des sommets vifs — le champ est grise et dit pourquoi */
+    if (c1) {
+      const lb = typeof c1.closest === "function" ? c1.closest("label") : null;
+      if (g.forme === "hex") {
+        c1.disabled = true;
+        c1.title = dzT("cartes.core.coin_hex");
+        if (lb) lb.title = c1.title;
+      } else if (c1.disabled) {
+        c1.disabled = false;
+        c1.removeAttribute("title");
+        if (lb) lb.removeAttribute("title");
+      }
+    }
     const rd = el("#fmtRead");
     if (rd) {
       /* les trois unites ensemble, toujours : un imprimeur ne travaille pas

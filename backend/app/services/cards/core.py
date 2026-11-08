@@ -126,10 +126,10 @@ def normalize_format(raw, base: dict | None = None) -> dict:
         out["fmt"] = fmt
         out["bleed_mm"] = native_bleed_mm(fmt)
         out["safe_mm"] = native_bleed_mm(fmt)
-        # t421 : un hexagone naît à coin 0 (ses sommets ne s'arrondissent que
-        # sur demande) ; en le quittant pour un rectangle, le coin 0 hérité
-        # redevient le coin par défaut. Un `corner_mm` du corps, lu plus bas,
-        # l'emporte toujours. Rectangle -> rectangle : rien ne change.
+        # t421 : un hexagone est à coin 0 (forcé plus bas) ; en le quittant
+        # pour un rectangle, le coin 0 hérité redevient le coin par défaut. Un
+        # `corner_mm` du corps, lu plus bas, l'emporte pour un rectangle.
+        # Rectangle -> rectangle : rien ne change.
         if is_hex(fmt):
             if not is_hex(old_fmt):
                 out["corner_mm"] = 0.0
@@ -156,6 +156,12 @@ def normalize_format(raw, base: dict | None = None) -> dict:
             continue
         if math.isfinite(v) and 0.0 <= v <= hi:
             out[key] = v
+    # t421 (vague finale, ruling) : un hexagone est TOUJOURS à sommets vifs —
+    # fichier de coupe SVG/DXF, trait imprimé, masque de planche et gabarit
+    # n'ont pas d'arcs ; l'aperçu les suivrait seul. Miroir : setFormatInternal
+    # (core.js), qui grise aussi le champ « Rayon de coin ».
+    if is_hex(out["fmt"]):
+        out["corner_mm"] = 0.0
     return out
 
 
@@ -1179,6 +1185,8 @@ async def get_deck_geom(did: str, fmt: str | None = None,
                      ("safe_mm", safe_mm), ("corner_mm", corner_mm)):
         if val is not None:
             f[key] = val
+    if f["fmt"] in FORMATS and is_hex(f["fmt"]):
+        f["corner_mm"] = 0.0          # t421 : comme normalize_format
     try:
         g = geom(f["fmt"], f["dpi"], f["bleed_mm"], f["safe_mm"], f["corner_mm"])
     except ValueError as e:

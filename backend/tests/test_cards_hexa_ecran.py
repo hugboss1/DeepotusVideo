@@ -145,10 +145,15 @@ const RAIL = ["face", "frame", "type", "data", "solid", "texture", "print", "glt
   .map((id) => el("rail-item", id));
 const PANNEAUX = RAIL.map((b) => el("cf-panel", b.dataset.mod));
 const SCRIPT = (nom) => ({ src: "http://h/cardforge/js/" + nom, getAttribute: () => null });
+/* vague finale (I4) : le champ « Rayon de coin » et son libellé, seuls éléments de la barre que le banc tient */
+const COIN_LBL = el("fw");
+const COIN = Object.assign(el(""), { value: "", disabled: false, closest: (s) => (s === "label" ? COIN_LBL : null),
+  removeAttribute(k) { if (k === "title") this.title = ""; delete this["@" + k]; } });
+COIN_LBL.removeAttribute = COIN.removeAttribute;
 const document = {
   readyState: "loading", addEventListener() { }, baseURI: "http://h/cardforge/", currentScript: SCRIPT("core.js"),
   createElement(t) { if (t === "canvas") return new Toile(); const e = el(""); e.className = ""; return e; },
-  querySelector() { return null; },
+  querySelector(s) { return s === "#cornerInp" ? COIN : null; },
   querySelectorAll(s) { return s === ".rail-item" ? RAIL : s === ".cf-panel" ? PANNEAUX : []; },
 };
 const ctx = vm.createContext({ console: { log() { }, warn() { }, error() { }, info() { } }, setTimeout, clearTimeout, URL, Image: Img,
@@ -199,6 +204,9 @@ const R = {};
   try {
     for (const q of QUOI) {
       if (q.fmt) P_PRINT.setFormat(dedans({ fmt: q.fmt, dpi: q.dpi || 150 }));
+      if (q.corner !== undefined) P_PRINT.setFormat(dedans({ corner_mm: q.corner }));
+      if (q.coin) R[q.nom] = { doc: CF.doc().format.corner_mm, geom: CF.geom().corner_mm, value: COIN.value,
+        disabled: COIN.disabled, title: COIN.title, label: COIN_LBL.title };
       if (q.cartes) P_DATA.setCards(dedans(q.cartes));
       if (q.cadre && FRAME) FRAME.patch(dedans(q.cadre));
       if (q.attente) await dort(q.attente);
@@ -498,6 +506,75 @@ def test_la_phrase_est_traduite():
     d = json.loads((RACINE / "frontend" / "shared" / "i18n" / "cartes.json").read_text(encoding="utf-8"))
     fr, en = d["cartes.hexa.non_gere"]["fr"], d["cartes.hexa.non_gere"]["en"]
     assert "hexagonales" in fr and "hexagonal" in en
+
+
+# ═══ vague finale (I4) : un hexagone est à sommets vifs, le champ du coin est grisé ═══
+
+def test_le_rayon_de_coin_d_un_hexagone_est_force_a_zero_et_son_champ_grise(tmp_path, neuf):
+    core, _frame = neuf
+    R = _node(tmp_path, core, None, [
+        {"fmt": "poker_us"}, {"corner": 2.5}, {"coin": 1, "nom": "rect"},
+        {"fmt": "hex_p50"}, {"coin": 1, "nom": "hex"},
+        {"corner": 3}, {"coin": 1, "nom": "hex_demande"},
+        {"fmt": "hex_f90"}, {"corner": 4}, {"coin": 1, "nom": "hex_autre"},
+        {"fmt": "poker_eu"}, {"coin": 1, "nom": "retour"},
+        {"corner": 1.5}, {"coin": 1, "nom": "retour_regle"},
+    ])
+    assert R["rect"]["doc"] == 2.5 and R["rect"]["disabled"] is False and R["rect"]["title"] == ""
+    for k in ("hex", "hex_demande", "hex_autre"):
+        h = R[k]
+        assert h["doc"] == 0 and h["geom"] == 0 and str(h["value"]) == "0", (k, h)
+        assert h["disabled"] is True, (k, h)
+        assert "cartes.core.coin_hex" in h["title"] and "cartes.core.coin_hex" in h["label"], (k, h)
+    assert R["retour"]["doc"] == 3 and R["retour"]["disabled"] is False
+    assert R["retour"]["title"] == "" and R["retour"]["label"] == ""
+    assert R["retour_regle"]["doc"] == 1.5
+
+
+MASQUE = r"""
+import vm from "node:vm";
+import { readFileSync } from "node:fs";
+const [srcP] = process.argv.slice(2);
+const out = {};
+for (const forme of ["rect", "hex"]) {
+  const ctx = vm.createContext({ dzT: (k, v) => "[" + k + (v ? JSON.stringify(v) : "") + "]",
+    CF: { geom: () => ({ forme: forme }) } });
+  vm.runInContext(readFileSync(srcP, "utf8") + "\nthis.maskLine = maskLine;", ctx);
+  out[forme] = ctx.maskLine();
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def test_la_phrase_du_papier_d_un_hexagone_parle_des_coins(tmp_path):
+    """Vague finale (C3) : sur un hexagone, ce qui n'atteint pas le papier, ce
+    sont les coins hors de l'hexagone, pas « le cadre et les textes »."""
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent")
+    face = _source(JS / "mod-face.js")
+    src = ("const fmt1 = (v) => (Math.round(v * 10) / 10).toFixed(1);\n"
+           "let MASK = { sig: 1, temoin: 0, vis: 758, pose: 1000, inWin: 1000 };\n"
+           "function maskSignature() { return 1; }\n" + _fonction(face, "maskLine"))
+    (tmp_path / "m.js").write_text(src, encoding="utf-8")
+    (tmp_path / "m.mjs").write_text(MASQUE, encoding="utf-8")
+    r = subprocess.run([node, str(tmp_path / "m.mjs"), str(tmp_path / "m.js")],
+                       capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert r.returncode == 0, r.stderr[-2000:]
+    R = json.loads(r.stdout)
+    assert '[cartes.face.papier_masque{"d":"24.2"}]' in R["rect"], R
+    assert '[cartes.face.papier_masque_hex{"d":"24.2"}]' in R["hex"], R
+    assert "cartes.face.papier_masque{" not in R["hex"]
+    d = json.loads((RACINE / "frontend" / "shared" / "i18n" / "cartes.json").read_text(encoding="utf-8"))
+    e = d["cartes.face.papier_masque_hex"]
+    assert "hexagone" in e["fr"] and "hexagon" in e["en"] and "{d}" in e["fr"] and "{d}" in e["en"]
+    assert "cadre" not in e["fr"] and "frame" not in e["en"]
+
+
+def test_l_infobulle_du_coin_hexagonal_est_traduite():
+    d = json.loads((RACINE / "frontend" / "shared" / "i18n" / "cartes.json").read_text(encoding="utf-8"))
+    e = d["cartes.core.coin_hex"]
+    assert "hexagone" in e["fr"].lower() and "hexagon" in e["en"].lower()
 
 
 if __name__ == "__main__":

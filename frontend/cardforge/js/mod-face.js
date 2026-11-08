@@ -2806,7 +2806,8 @@
     const pw = 100 * MASK.inWin / MASK.pose;
     const cls = pv >= 99.95 ? "mono" : "cf-face-crop";
     return '<span class="' + cls + '">' + dzT("cartes.face.papier_pct", { p: fmt1(pv) })
-      + (pv + 0.05 < pw ? dzT("cartes.face.papier_masque", { d: fmt1(pw - pv) }) : '.')
+      + (pv + 0.05 < pw ? (CF.geom().forme === "hex" ? dzT("cartes.face.papier_masque_hex", { d: fmt1(pw - pv) })
+        : dzT("cartes.face.papier_masque", { d: fmt1(pw - pv) })) : '.')
       + '</span>';
   }
 

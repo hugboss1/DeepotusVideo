@@ -142,11 +142,11 @@ _COIN = r"""        /* t421 : meme regle que normalize_format du backend — un 
 
 _LIBELLES = {
     "cartes.core.fmt_hex_p50": ("Hexagone 50 mm, pointe en haut", "Hexagon 50 mm, point up"),
-    "cartes.core.fmt_hex_p635": ("Hexagone 63,5 mm, pointe en haut", "Hexagon 63,5 mm, point up"),
+    "cartes.core.fmt_hex_p635": ("Hexagone 63,5 mm, pointe en haut", "Hexagon 63.5 mm, point up"),
     "cartes.core.fmt_hex_p75": ("Hexagone 75 mm, pointe en haut", "Hexagon 75 mm, point up"),
     "cartes.core.fmt_hex_p90": ("Hexagone 90 mm, pointe en haut", "Hexagon 90 mm, point up"),
     "cartes.core.fmt_hex_f50": ("Hexagone 50 mm, côté plat en haut", "Hexagon 50 mm, flat side up"),
-    "cartes.core.fmt_hex_f635": ("Hexagone 63,5 mm, côté plat en haut", "Hexagon 63,5 mm, flat side up"),
+    "cartes.core.fmt_hex_f635": ("Hexagone 63,5 mm, côté plat en haut", "Hexagon 63.5 mm, flat side up"),
     "cartes.core.fmt_hex_f75": ("Hexagone 75 mm, côté plat en haut", "Hexagon 75 mm, flat side up"),
     "cartes.core.fmt_hex_f90": ("Hexagone 90 mm, côté plat en haut", "Hexagon 90 mm, flat side up"),
 }

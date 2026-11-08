@@ -260,16 +260,52 @@ def test_normalize_format_coin_zero_pour_un_hexagone():
     f = CC.normalize_format({"fmt": "hex_p50"})
     assert f["fmt"] == "hex_p50" and f["corner_mm"] == 0.0
     assert f["bleed_mm"] == 3.0 and f["safe_mm"] == 3.0
-    # un coin explicite reste respecté
-    assert CC.normalize_format({"fmt": "hex_p50", "corner_mm": 2.0})["corner_mm"] == 2.0
-    # et un rectangle garde son coin par défaut
-    assert CC.normalize_format({"fmt": "poker_us"})["corner_mm"] == 3.0
-    # hexagone -> rectangle : le coin du rectangle revient
+    # vague finale (I4, ruling) : un hexagone est TOUJOURS à sommets vifs — le
+    # fichier de coupe, le trait, le masque et le gabarit n'ont pas d'arcs ; un
+    # coin explicite est ramené à 0 (l'écran grise le champ).
+    assert CC.normalize_format({"fmt": "hex_p50", "corner_mm": 2.0})["corner_mm"] == 0.0
     base = CC.normalize_format({"fmt": "hex_f75"})
+    assert CC.normalize_format({"corner_mm": 3.0}, base=base)["corner_mm"] == 0.0
+    assert CC.normalize_format({"fmt": "hex_f75", "corner_mm": 1.5}, base=None)["corner_mm"] == 0.0
+    # un hexagone déjà enregistré avec un coin (avant la vague finale) se relit à 0
+    assert CC.normalize_format({"fmt": "hex_f75", "corner_mm": 1.5},
+                               base={"fmt": "hex_f75", "corner_mm": 1.5})["corner_mm"] == 0.0
+    # et un rectangle garde son coin par défaut, et son coin explicite
+    assert CC.normalize_format({"fmt": "poker_us"})["corner_mm"] == 3.0
+    assert CC.normalize_format({"fmt": "poker_us", "corner_mm": 1.5})["corner_mm"] == 1.5
+    # hexagone -> rectangle : le coin du rectangle revient
     assert CC.normalize_format({"fmt": "poker_eu"}, base=base)["corner_mm"] == 3.0
-    # hexagone -> hexagone : le coin choisi est conservé
-    base = CC.normalize_format({"fmt": "hex_f75", "corner_mm": 1.5})
-    assert CC.normalize_format({"fmt": "hex_p50"}, base=base)["corner_mm"] == 1.5
+
+
+def _api(method: str, path: str, **kw):
+    import asyncio
+    from httpx import ASGITransport, AsyncClient
+
+    async def go():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+            return await c.request(method, path, **kw)
+    return asyncio.run(go())
+
+
+def test_patch_format_hexagonal_coin_force_a_zero():
+    """Vague finale (I4) : PATCH format hex avec corner_mm 3 -> document à 0 ;
+    /geom d'un hexagone ignore aussi un corner_mm demandé."""
+    did = CC.create_deck("Coin hex", {"fmt": "hex_p50"})["id"]
+    out = CC.patch_deck(did, {"format": {"corner_mm": 3.0}})
+    assert out["format"]["corner_mm"] == 0.0
+    out = CC.patch_deck(did, {"format": {"fmt": "hex_f90", "corner_mm": 3.0}})
+    assert out["format"]["fmt"] == "hex_f90" and out["format"]["corner_mm"] == 0.0
+    assert CC.read_deck(did)["format"]["corner_mm"] == 0.0
+    r = _api("GET", f"/api/cards/{did}/geom", params={"corner_mm": "2"})
+    assert r.status_code == 200 and r.json()["geom"]["corner_mm"] == 0.0, r.text
+    r = _api("PATCH", f"/api/cards/{did}", json={"format": {"corner_mm": 4}})
+    assert r.status_code == 200 and CC.read_deck(did)["format"]["corner_mm"] == 0.0, r.text
+    # un rectangle garde son coin
+    rid = CC.create_deck("Coin rect", {"fmt": "poker_us"})["id"]
+    assert CC.patch_deck(rid, {"format": {"corner_mm": 1.5}})["format"]["corner_mm"] == 1.5
+    r = _api("GET", f"/api/cards/{rid}/geom", params={"corner_mm": "2"})
+    assert r.json()["geom"]["corner_mm"] == 2.0
 
 
 def test_les_profils_d_imprimeur_n_admettent_aucun_hexagone():
@@ -306,6 +342,10 @@ def test_les_huit_libelles_sont_traduits():
     for f, (fr, en) in attendu.items():
         assert cles["cartes.core.fmt_" + f] == {"fr": fr, "en": en}
     assert cles["cartes.core.fmt_hex_p635"]["fr"] == "Hexagone 63,5 mm, pointe en haut"
+    # vague finale (C4) : l'anglais écrit le nombre à point décimal
+    assert cles["cartes.core.fmt_hex_p635"]["en"] == "Hexagon 63.5 mm, point up"
+    assert cles["cartes.core.fmt_hex_f635"]["en"] == "Hexagon 63.5 mm, flat side up"
+    assert not [k for k, v in cles.items() if k.startswith("cartes.core.fmt_hex") and "," in v["en"].split(" mm")[0]]
 
 
 # ═══════════════════════ 8. parité Python / JS ═════════════════════════════

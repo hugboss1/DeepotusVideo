@@ -103,18 +103,22 @@ function trouve(sel) {
   return out;
 }
 const ECOUTE = {};
+/* vague finale (C5) : le sous-titre statique de l'onglet (index.html, .panel-head .hint), que le panneau peut changer */
+const HINT = { dataset: {}, textContent: "" };
+const PANNEAU = { querySelector: (s) => (s === ".panel-head .hint" ? HINT : null) };
 const HOST = {
   get innerHTML() { return HTML; }, set innerHTML(v) { HTML = String(v); CACHE = {}; },
   querySelector(sel) { return sel.split(",").map(trouve).reduce((a, b) => a.concat(b), [])[0] || null; },
   querySelectorAll(sel) { return sel.split(",").map(trouve).reduce((a, b) => a.concat(b), []); },
   addEventListener(n, f) { (ECOUTE[n] = ECOUTE[n] || []).push(f); }, appendChild() { },
-  closest() { return null; },
+  closest(s) { return s === ".cf-panel" ? PANNEAU : null; },
 };
 const document = { createElement: () => mkEl(), body: { appendChild() { } }, addEventListener() { },
   getElementById() { return null; } };
 
 /* ── dzT : le français du dictionnaire ──────────────────────────────────── */
 const DIC = CONF.dico;
+HINT.textContent = DIC["cartes.page.print_hint"].fr;
 function dzT(k, v) {
   const e = DIC[k];
   if (!e) return "??" + k;
@@ -190,7 +194,7 @@ function change(hx, v, checked) {
   const t = { dataset: { hx: hx }, value: String(v), checked: !!checked, id: "" };
   (ECOUTE.change || []).forEach((f) => f({ target: t }));
 }
-function photo(k) { OUT[k] = { html: HTML, appels: etat(APPELS), trace: TRACE.slice() }; }
+function photo(k) { OUT[k] = { html: HTML, appels: etat(APPELS), trace: TRACE.slice(), hint: HINT.textContent }; }
 function role(r) { const e = HOST.querySelector('[data-role="' + r + '"]'); return e ? { html: e.innerHTML, hidden: e.hidden, href: e.getAttribute("href") } : null; }
 
 (async function () {
@@ -211,7 +215,8 @@ function role(r) { const e = HOST.querySelector('[data-role="' + r + '"]'); retu
     if (pas.change) change(pas.change[0], pas.change[1], pas.change[2]);
     await dort(pas.attente || 700);
     OUT[pas.nom] = { html: HTML, appels: etat(APPELS), trace: TRACE.slice(), toasts: TOASTS.slice(), dl: DL.slice(),
-      patchs: etat(PATCHS), print: etat(DOC.print), hexerr: role("hex-err"), hexread: role("hex-read"), dessin: DESSIN.slice() };
+      patchs: etat(PATCHS), print: etat(DOC.print), hexerr: role("hex-err"), hexread: role("hex-read"), dessin: DESSIN.slice(),
+      hint: HINT.textContent };
   }
   process.stdout.write(JSON.stringify(OUT));
   process.exit(0);
@@ -444,6 +449,24 @@ def test_aller_retour_rectangle_hexagone_rectangle(tmp_path):
     assert r["html"] == a["init"]["html"]
     assert not any(x["sub"].startswith("hex/") for x in r["appels"])
     assert "layoutOf" in r["trace"] and "layout" in _subs(r["appels"]) and "preflight" in _subs(r["appels"])
+
+
+def test_le_sous_titre_de_l_onglet_suit_la_forme(tmp_path):
+    """Vague finale (C5) : un hexagone n'a ni TrimBox / BleedBox ni contrôle avant vol ; son sous-titre le dit.
+    Un rectangle garde le texte d'index.html, retour d'un hexagone compris."""
+    d = _dico()
+    rect, hexa = d["cartes.page.print_hint"]["fr"], d["cartes.print.hex_hint"]["fr"]
+    assert "TrimBox" not in hexa and "avant vol" not in hexa and "nid d'abeilles" in hexa
+    assert "TrimBox" not in d["cartes.print.hex_hint"]["en"] and d["cartes.print.hex_hint"]["en"] != hexa
+    R = _node(tmp_path, _source(None), "hex_p50")
+    assert R["init"]["hint"] == hexa
+    R = _node(tmp_path, _source(None), "poker_eu", [
+        {"nom": "hex", "geom": GHEX.to_dict(), "format": _fmt("hex_p50"), "attente": 900},
+        {"nom": "rect", "geom": CT.geom("poker_eu", 300).to_dict(), "format": _fmt("poker_eu"), "attente": 900},
+    ])
+    assert R["init"]["hint"] == rect
+    assert R["hex"]["hint"] == hexa
+    assert R["rect"]["hint"] == rect
 
 
 def test_cles_hex_fr_et_en():
