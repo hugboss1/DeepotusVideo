@@ -255,3 +255,64 @@ export function op_noeuds_moyenne(doc, id, indices, axe) {
   if (!modes) throw new Error(`moyenne : axe inconnu ${axe}`);
   for (const m of modes) op_noeuds_aligner(doc, id, indices, m);
 }
+
+/* ── T5 (t426) Objet › Tracé › Nettoyer… ──
+   Sur tout le document (calques et objets verrouillés exceptés), retire au choix :
+     isoles      un chemin sans aucun segment (seulement des M / Z) ;
+     invisibles  un tracé ou une forme sans fond ET sans contour (contour none ou épaisseur 0), sans contour
+                 d'Apparence + ;
+     textesVides un texte, un cadre ou un texte sur chemin dont le contenu n'a que des blancs.
+   PROTÉGÉS : le guide d'un texte sur chemin (textechemin.chemin) et la source d'un contour vivant (derive.source),
+   souvent invisibles par choix ; le contenu d'un groupe écrêté (le masque est fait pour ne pas se peindre). Un
+   groupe que le nettoyage vide part avec. Rien à retirer → refus traduit (VL.executer ne garde alors aucune trace).
+   -> { isoles, invisibles, textesVides } */
+const _TRACES_FORMES = new Set(["path", "rect", "ellipse", "forme"]);
+const _TEXTES = new Set(["texte", "cadre", "textechemin"]);
+const _sansCouleur = (v) => v === undefined || v === null || v === "" || v === "none";
+
+function _isole(o) {
+  if (o.type !== "path") return false;
+  try { return chemin_parser(o.d).every((g) => g.c === "M" || g.c === "Z"); } catch (e) { return false; }
+}
+function _invisible(o) {
+  if (!_TRACES_FORMES.has(o.type)) return false;
+  const s = o.style || {};
+  const trait = !_sansCouleur(s.contour) && !(s.epaisseur !== undefined && Number(s.epaisseur) <= 0);
+  return _sansCouleur(s.fond) && !trait && !(Array.isArray(s.contours) && s.contours.length);
+}
+const _texteVide = (o) => _TEXTES.has(o.type) && !String(o.contenu || "").trim();
+
+export function op_nettoyer(doc, { isoles = true, invisibles = true, textesVides = true } = {}) {
+  const proteges = new Set();
+  for (const c of doc.calques) (function v(l) { for (const o of l) {
+    if (o.type === "textechemin" && o.chemin) proteges.add(o.chemin);
+    if (o.derive && o.derive.source) proteges.add(o.derive.source);
+    if (o.type === "groupe") v(o.enfants || []);
+  } })(c.objets);
+  const compte = { isoles: 0, invisibles: 0, textesVides: 0 };
+  // une liste nettoyée, calculée SANS muter (null = inchangée)
+  const nettoyer = (liste) => {
+    let change = false;
+    const out = [];
+    for (const o of liste) {
+      if (o.verrou || proteges.has(o.id)) { out.push(o); continue; }
+      if (isoles && _isole(o)) { compte.isoles++; change = true; continue; }
+      if (invisibles && _invisible(o)) { compte.invisibles++; change = true; continue; }
+      if (textesVides && _texteVide(o)) { compte.textesVides++; change = true; continue; }
+      if (o.type === "groupe" && o.clip === undefined) {
+        const enf = nettoyer(o.enfants || []);
+        if (enf) {
+          change = true;
+          if (enf.length) out.push({ ...o, enfants: enf });
+          continue;
+        }
+      }
+      out.push(o);
+    }
+    return change ? out : null;
+  };
+  const neufs = doc.calques.map((c) => (c.verrou ? null : nettoyer(c.objets)));
+  if (!compte.isoles && !compte.invisibles && !compte.textesVides) throw new Error(T("vectorlab.traces.nettoyer_rien"));
+  doc.calques.forEach((c, k) => { if (neufs[k]) c.objets = neufs[k]; });
+  return compte;
+}

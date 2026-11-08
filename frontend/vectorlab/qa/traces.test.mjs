@@ -5,9 +5,10 @@
 // T2 (t423) Simplifier : moins de points, forme tenue, angles gardés, jamais plus de points que l'original.
 // T3 (t424) Ajouter des points d'ancrage : un point au milieu de chaque segment, segment de fermeture compris ; forme identique.
 // T4 (t425) Moyenne : les nœuds choisis vont à leur position moyenne — horizontale (même y), verticale (même x) ou les deux.
+// T5 (t426) Nettoyer : points isolés, objets invisibles, textes vides retirés du document entier ; liens et masques protégés.
 import { createRequire } from "node:module";
 import { fournirMartinez, aplatir_objet, versMulti, aire_multi } from "../js/mod-bool.js";
-import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres, op_noeuds_moyenne } from "../js/mod-traces.js";
+import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres, op_noeuds_moyenne, op_nettoyer } from "../js/mod-traces.js";
 import { chemin_parser } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
 
@@ -22,6 +23,7 @@ const doc = (...objets) => ({ v: 1, taille: { w: 400, h: 400 },
 const objets = (d) => d.calques[0].objets;
 const aire = (o) => aire_multi(versMulti(aplatir_objet(o)));
 const tousIds = (d) => { const out = []; (function v(l) { for (const o of l) { out.push(o.id); if (o.type === "groupe") v(o.enfants || []); } })(objets(d)); return out; };
+const tousIdsDoc = (d) => { const out = []; for (const c of d.calques) (function v(l) { for (const o of l) { out.push(o.id); if (o.type === "groupe") v(o.enfants || []); } })(c.objets); return out; };
 const refus = (fn) => { try { fn(); return null; } catch (e) { return e.message; } };
 
 /* ── T1 : Vectoriser le contour ── */
@@ -294,6 +296,56 @@ const finsDe = (d) => chemin_parser(d).filter((g) => g.c !== "Z").map((g) => g.p
   ok("T4 un seul nœud : refus de l'alignement, document intact", refus(() => op_noeuds_moyenne(r1, "p", [1], "deux")) === T("vectorlab.noeuds.err_aligner") && JSON.stringify(r1) === av1);
   const r2 = tri(), av2 = JSON.stringify(r2);
   ok("T4 mode inconnu : refus, document intact", refus(() => op_noeuds_moyenne(r2, "p", [0, 1], "diagonale")) !== null && JSON.stringify(r2) === av2);
+}
+
+/* ── T5 : Nettoyer ── */
+{
+  const plein = (id) => ({ id, type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#eee" } });
+  const semer = () => ({ v: 1, taille: { w: 400, h: 400 }, calques: [
+    { id: "c1", nom: "a", visible: true, verrou: false, objets: [
+      plein("ok1"),
+      { id: "iso", type: "path", d: "M 5 5", style: { fond: "none", contour: "#000", epaisseur: 1 } },
+      { id: "iso2", type: "path", d: "M 5 5 Z", style: { fond: "#eee" } },
+      { id: "inv", type: "ellipse", cx: 0, cy: 0, rx: 5, ry: 5, style: { fond: "none", contour: "none" } },
+      { id: "inv0", type: "rect", x: 0, y: 0, w: 5, h: 5, style: { fond: "none", contour: "#000", epaisseur: 0 } },
+      { id: "vide", type: "texte", x: 0, y: 0, contenu: "  \n ", style: { fond: "#000" } },
+      { id: "cvide", type: "cadre", x: 0, y: 0, w: 50, h: 20, contenu: "", style: { fond: "#000" } },
+      { id: "txt", type: "texte", x: 0, y: 0, contenu: "Bonjour", style: { fond: "#000" } },
+      { id: "trait", type: "path", d: "M 0 0 L 9 9", style: { fond: "none", contour: "#000", epaisseur: 1 } },
+      { id: "app", type: "rect", x: 0, y: 0, w: 5, h: 5, style: { fond: "none", contour: "none", contours: [{ couleur: "#f00", epaisseur: 3 }] } },
+      { id: "grad", type: "rect", x: 0, y: 0, w: 5, h: 5, style: { fond: "grad:g1" } },
+      // guide invisible d'un texte sur chemin, source invisible d'un contour vivant : protégés
+      { id: "guide", type: "path", d: "M 0 0 L 100 0", style: { fond: "none", contour: "none" } },
+      { id: "tc", type: "textechemin", d: "M 0 0 L 100 0", chemin: "guide", contenu: "le long", style: { fond: "#000" } },
+      { id: "src", type: "path", d: "M 0 0 L 50 0 L 50 50 Z", style: { fond: "none", contour: "none" } },
+      { id: "viv", type: "path", d: "M 0 0 L 9 0 L 9 9 Z", derive: { source: "src", decalage: 2 }, style: { fond: "#eee" } },
+      // groupe : un invisible dedans part ; un groupe vidé part aussi ; un groupe écrêté est laissé tel quel
+      { id: "g", type: "groupe", style: {}, enfants: [plein("ok2"), { id: "ginv", type: "rect", x: 0, y: 0, w: 1, h: 1, style: { fond: "none" } }] },
+      { id: "gv", type: "groupe", style: {}, enfants: [{ id: "gviso", type: "path", d: "M 1 1", style: { fond: "#eee" } }] },
+      { id: "gm", type: "groupe", clip: "m", style: {}, enfants: [{ id: "m", type: "rect", x: 0, y: 0, w: 9, h: 9, style: { fond: "none", contour: "none" } }, plein("ok3")] },
+    ] },
+    { id: "c2", nom: "verrou", visible: true, verrou: true, objets: [{ id: "vinv", type: "rect", x: 0, y: 0, w: 1, h: 1, style: { fond: "none" } }] },
+  ] });
+  const d = semer();
+  const r = op_nettoyer(d, { isoles: true, invisibles: true, textesVides: true });
+  const restants = new Set(tousIdsDoc(d));
+  ok("T5 compte exact : 3 isolés, 3 invisibles, 2 textes vides", r.isoles === 3 && r.invisibles === 3 && r.textesVides === 2, JSON.stringify(r));
+  for (const id of ["iso", "iso2", "inv", "inv0", "vide", "cvide", "ginv", "gviso", "gv"]) ok(`T5 « ${id} » est parti`, !restants.has(id));
+  for (const id of ["ok1", "txt", "trait", "app", "grad", "guide", "tc", "src", "viv", "g", "ok2", "gm", "m", "ok3", "vinv"]) ok(`T5 « ${id} » est resté`, restants.has(id));
+  // options : seulement les textes vides
+  const e = semer();
+  const r2 = op_nettoyer(e, { isoles: false, invisibles: false, textesVides: true });
+  ok("T5 une seule case : seuls les textes vides partent", r2.isoles === 0 && r2.invisibles === 0 && r2.textesVides === 2
+     && tousIdsDoc(e).includes("iso") && tousIdsDoc(e).includes("inv") && !tousIdsDoc(e).includes("vide"), JSON.stringify(r2));
+  const f = semer();
+  const r3 = op_nettoyer(f, { isoles: true, invisibles: false, textesVides: false });
+  ok("T5 seulement les points isolés : textes vides et invisibles restent", r3.isoles === 3 && r3.invisibles === 0 && r3.textesVides === 0
+     && tousIdsDoc(f).includes("vide") && tousIdsDoc(f).includes("inv") && !tousIdsDoc(f).includes("iso"), JSON.stringify(r3));
+  // rien à nettoyer : refus traduit, document intact (VL.executer ne pousse rien dans l'historique)
+  const n = doc(plein("a"));
+  const avant = JSON.stringify(n);
+  ok("T5 rien à nettoyer : refus traduit, document intact", refus(() => op_nettoyer(n, { isoles: true, invisibles: true, textesVides: true })) === T("vectorlab.traces.nettoyer_rien") && JSON.stringify(n) === avant);
+  ok("T5 la clé existe", T("vectorlab.traces.nettoyer_rien") !== "vectorlab.traces.nettoyer_rien");
 }
 
 if (echecs.length) {

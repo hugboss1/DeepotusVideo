@@ -35,4 +35,7 @@ ENTREES = [
     # t424 Ajouter des points d'ancrage
     H("vectorlab.traces.points_rien", "Ajouter des points : sélectionnez un tracé ou une forme (pas un texte ni un groupe)",
       "Add anchor points: select a path or a shape (not a text or a group)"),
+    # t426 Nettoyer
+    H("vectorlab.traces.nettoyer_rien", "Rien à nettoyer : aucun point isolé, objet invisible ni texte vide",
+      "Nothing to clean up: no stray points, invisible objects or empty texts"),
 ]
