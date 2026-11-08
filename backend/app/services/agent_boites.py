@@ -111,7 +111,8 @@ BOITES: dict[str, dict] = {
     "methodes": {
         "libelle": "agent.boites.methodes",
         "outils": ["methodes_lire"],
-        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs"],   # t435-t438 : les agents métier
+        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
+                   "publicitaire"],   # t435-t439 : les agents métier
         "mobile": False,
     },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
@@ -119,7 +120,8 @@ BOITES: dict[str, dict] = {
     "briques": {
         "libelle": "agent.boites.briques",
         "outils": ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"],
-        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs"],   # t435-t438 : les agents métier
+        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
+                   "publicitaire"],   # t435-t439 : les agents métier
         "mobile": False,
     },
     # t435 (08/11/2026, lot M2) : l'agent métier Monteur — temps forts d'une musique, coupes calées, titre gravé par
@@ -128,7 +130,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.monteur",
         "outils": ["temps_forts_musique", "caler_coupes", "poser_titre",
                    "chaines_lire", "deviser_etape_chaine"],   # t435b : la chaîne d'éditions (B4)
-        "agents": ["monteur"],
+        "agents": ["monteur", "publicitaire"],   # t439 : le Publicitaire monte aussi (coupes, titres, chaîne)
         "mobile": False,
     },
     # t437 (08/11/2026, lot M4) : la carte des différences (avant / après) du Retoucheur et des Déclinaisons produit ;
@@ -145,6 +147,13 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.acteurs",
         "outils": ["controler_replique", "segments_voix"],
         "agents": ["directeur_acteurs"],
+        "mobile": False,
+    },
+    # t439 (08/11/2026, lot M6) : le format d'une pub par réseau (lecture, local, gratuit)
+    "publicite": {
+        "libelle": "agent.boites.publicite",
+        "outils": ["verifier_format_pub"],
+        "agents": ["publicitaire"],
         "mobile": False,
     },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)

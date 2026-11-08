@@ -14570,5 +14570,13 @@
  "Durée illisible.": {
   "fr": "Durée illisible.",
   "en": "Unreadable duration."
+ },
+ "Le format d'une pub se vérifie sur une vidéo.": {
+  "fr": "Le format d'une pub se vérifie sur une vidéo.",
+  "en": "An ad format is checked on a video."
+ },
+ "Réseau inconnu : {v}": {
+  "fr": "Réseau inconnu : {v}",
+  "en": "Unknown network: {v}"
  }
 }

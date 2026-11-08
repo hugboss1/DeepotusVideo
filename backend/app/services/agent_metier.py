@@ -50,6 +50,7 @@ ACTIFS: dict[str, dict] = {
     "retoucheur": {"categorie": "studio"},       # t437 : Studio, Photolab
     "declinaisons": {"categorie": "studio"},     # t437 : Studio, Modèles, Espaces de marque
     "directeur_acteurs": {"categorie": "son"},   # t438 : Studio, Son & VFX (voix), Avatar live
+    "publicitaire": {"categorie": "marketing"},  # t439 : Quick, Montage, relais Campagnes
 }
 _ROLES = Path(__file__).resolve().parent.parent.parent.parent / "docs" / "agent" / "metiers"
 _VERROUS: dict[str, asyncio.Lock] = {}
