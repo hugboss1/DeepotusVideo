@@ -104,7 +104,7 @@ def main():
     from app.services import agent_outils as ao
     from app.services import agent_metier as AM
     attendu = {"methodes_lire", "mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire",
-               "controler_replique", "segments_voix"}
+               "controler_replique", "segments_voix", "arbitrer_sorties"}
     o = set(B.outils_pour("directeur_acteurs"))
     check("B1 méthodes, briques, acteurs — exactement ; que de la lecture", o == attendu
           and all(ao.OUTILS[x]["nature"] == "lecture" for x in o), sorted(o ^ attendu))

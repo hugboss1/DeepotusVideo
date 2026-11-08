@@ -14610,5 +14610,45 @@
  "GLB illisible : {v}": {
   "fr": "GLB illisible : {v}",
   "en": "Unreadable GLB: {v}"
+ },
+ "Donne au moins une sortie à arbitrer (modèle et fichier).": {
+  "fr": "Donne au moins une sortie à arbitrer (modèle et fichier).",
+  "en": "Give at least one output to referee (model and file)."
+ },
+ "{MAX_SORTIES} sorties au plus.": {
+  "fr": "{MAX_SORTIES} sorties au plus.",
+  "en": "{MAX_SORTIES} outputs at most."
+ },
+ "Chaque sortie nomme son modèle.": {
+  "fr": "Chaque sortie nomme son modèle.",
+  "en": "Each output names its model."
+ },
+ "Une seule sortie par modèle (règle d'un comparatif équitable) : {m}": {
+  "fr": "Une seule sortie par modèle (règle d'un comparatif équitable) : {m}",
+  "en": "One output per model (fair comparison rule): {m}"
+ },
+ "Fonte inconnue : {police} (fontes de l'app : {v})": {
+  "fr": "Fonte inconnue : {police} (fontes de l'app : {v})",
+  "en": "Unknown font: {police} (app fonts: {v})"
+ },
+ "Donne les textes par langue, par exemple {\"fr\": …, \"en\": …}.": {
+  "fr": "Donne les textes par langue, par exemple {\"fr\": …, \"en\": …}.",
+  "en": "Give the texts per language, for example {\"fr\": …, \"en\": …}."
+ },
+ "{MAX_LANGUES} langues au plus.": {
+  "fr": "{MAX_LANGUES} langues au plus.",
+  "en": "{MAX_LANGUES} languages at most."
+ },
+ "Taille (6-400), largeur (20-8000 px) ou nombre de lignes (1-40) hors bornes.": {
+  "fr": "Taille (6-400), largeur (20-8000 px) ou nombre de lignes (1-40) hors bornes.",
+  "en": "Size (6-400), width (20-8000 px) or line count (1-40) out of bounds."
+ },
+ "Taille, largeur et lignes : des entiers.": {
+  "fr": "Taille, largeur et lignes : des entiers.",
+  "en": "Size, width and lines: integers."
+ },
+ "Texte vide pour la langue {lg}.": {
+  "fr": "Texte vide pour la langue {lg}.",
+  "en": "Empty text for language {lg}."
  }
 }

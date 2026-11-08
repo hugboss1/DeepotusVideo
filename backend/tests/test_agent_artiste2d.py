@@ -130,7 +130,7 @@ def main():
     from app.services import agent_metier as AM
     o = set(B.outils_pour("artiste_2d"))
     attendu = {"analyser_pixel_art", "verifier_planche", "methodes_lire", "mesurer_sortie", "comparer_sorties",
-               "ancres_lire", "ancre_verifier", "registre_lire"}
+               "ancres_lire", "ancre_verifier", "registre_lire", "arbitrer_sorties"}
     check("B1 contrôles sprites + méthodes + briques — exactement, lecture", o == attendu
           and all(ao.OUTILS[x]["nature"] == "lecture" for x in o), sorted(o ^ attendu))
     check("B2 registre sain", B.verifier() == [], B.verifier())

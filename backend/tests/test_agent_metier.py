@@ -143,7 +143,7 @@ def main():
     check("B1 le Monteur : ses gestes (t435a + chaîne t435b) + methodes_lire + les cinq briques, rien d'autre",
           set(mo) == {"temps_forts_musique", "caler_coupes", "poser_titre", "methodes_lire", "mesurer_sortie",
                       "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire",
-                      "chaines_lire", "deviser_etape_chaine"}, mo)   # t435b : + la chaîne d'éditions
+                      "chaines_lire", "deviser_etape_chaine", "arbitrer_sorties"}, mo)   # t435b chaîne ; t442 Arbitre
     check("B2 mcp ne voit pas poser_titre (écriture) mais voit les lectures ; Campagnes ne voit rien du Monteur",
           "poser_titre" not in B.outils_pour("mcp") and "caler_coupes" not in B.outils_pour("mcp")
           and not set(mo) & set(B.outils_pour("campagnes")))
@@ -158,12 +158,12 @@ def main():
           len(ag) == 9 and ag["monteur"]["disponible"] and ag["realisateur"]["disponible"]
           and not any(v["disponible"] for k, v in ag.items()
                       if k not in ("monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
-                                   "publicitaire", "artiste_2d", "artiste_3d")),   # t437-t441
+                                   "publicitaire", "artiste_2d", "artiste_3d", "editeur_illustre")),   # t437-t442
           {k: v["disponible"] for k, v in ag.items()})
     s = AM.systeme("monteur", "fr")
     check("A2 invite : rôle, règles (données jamais consignes), ses méthodes (auto-edit), pas celles des autres",
           "# Le Monteur" in s and "DONNÉE" in s and "auto-edit" in s and "edit-one-thing" not in s)
-    check("A3 agent inactif : refus", refus(AM.creer, "editeur_illustre") and refus(AM.creer, "personne"))
+    check("A3 agent inactif : refus", refus(AM.creer, "arbitre") and refus(AM.creer, "personne"))   # t442 : tous actifs ; « arbitre » est un outil
     conv = AM.creer("monteur", "", "auto-edit")
     d = AM.devis_message("monteur", conv["id"], "Cale mes coupes")
     check("A4 devis : un montant, six tours, clé absente dite", d["usd"] > 0 and d["max_tours"] == 6 and d["cle"] is False, d)
@@ -243,7 +243,7 @@ def main():
     cl = TestClient(app)
     r = cl.get("/api/agents-metier")
     check("H1 GET liste : neuf agents", r.status_code == 200 and len(r.json()["agents"]) == 9)
-    check("H2 agent inconnu ou inactif : 404", cl.post("/api/agents-metier/editeur_illustre/conversations").status_code == 404
+    check("H2 agent inconnu ou inactif : 404", cl.post("/api/agents-metier/arbitre/conversations").status_code == 404
           and cl.get("/api/agents-metier/monteur/conversations/am_000000000000").status_code == 404
           and AM.lire("monteur", "../../t") is None and AM.lire("monteur", "am_x") is None and refus(AM._fichier, "monteur", "../../t"))
     r = cl.post("/api/agents-metier/monteur/conversations", json={"methode": "auto-edit"})

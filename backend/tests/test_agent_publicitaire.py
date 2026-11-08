@@ -106,7 +106,7 @@ def main():
     o = set(B.outils_pour("publicitaire"))
     attendu = {"verifier_format_pub", "temps_forts_musique", "caler_coupes", "poser_titre", "chaines_lire",
                "deviser_etape_chaine", "methodes_lire", "mesurer_sortie", "comparer_sorties", "ancres_lire",
-               "ancre_verifier", "registre_lire"}
+               "ancre_verifier", "registre_lire", "arbitrer_sorties"}
     check("B1 formats + gestes du Monteur + méthodes + briques — exactement", o == attendu, sorted(o ^ attendu))
     check("B2 rien de Campagnes ; registre sain", not o & set(B.outils_pour("campagnes")) and B.verifier() == [],
           B.verifier())

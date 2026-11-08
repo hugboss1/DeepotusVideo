@@ -57,7 +57,7 @@ def main():
     re_ = set(B.outils_pour("realisateur"))
     attendu = {"lire_revue_plan", "lire_bible", "lire_plans", "lire_passes_plan", "modeles_video", "plateau_previs",
                "blender_scene", "blender_regarder", "blender_retour", "methodes_lire", "mesurer_sortie",
-               "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"}
+               "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire", "arbitrer_sorties"}
     check("B1 le Réalisateur : Chapitres, Plateau, Blender, méthodes, briques — exactement", re_ == attendu,
           sorted(re_ ^ attendu))
     check("B2 que de la lecture : aucune écriture ni carte", all(ao.OUTILS[o]["nature"] == "lecture" for o in re_))

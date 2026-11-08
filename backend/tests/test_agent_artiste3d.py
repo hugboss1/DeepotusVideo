@@ -126,7 +126,7 @@ def main():
     from app.services import agent_metier as AM
     o = set(B.outils_pour("artiste_3d"))
     attendu = {"rapport_web_glb", "pieces_analyser", "budgets_triangles", "comparatif3d_lire", "mouvement_lire",
-               "methodes_lire", "mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"}
+               "methodes_lire", "mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire", "arbitrer_sorties"}
     check("B1 web3d + assets3d + méthodes + briques — exactement, lecture", o == attendu
           and all(ao.OUTILS[x]["nature"] == "lecture" for x in o), sorted(o ^ attendu))
     check("B2 mcp garde assets3d et ne gagne pas web3d ; registre sain", "pieces_analyser" in B.outils_pour("mcp")
