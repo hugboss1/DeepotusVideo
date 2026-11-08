@@ -12,6 +12,7 @@
 import { T } from "./mod-i18n.js";
 import { forme_d } from "./mod-formes.js";
 import { contour_d } from "./mod-bool.js";
+import { vivants_d2_rafraichir, repetition_decomposer } from "./mod-repeter.js";   // t450 : lot D2
 
 function _index(doc) {
   const idx = new Map();
@@ -51,7 +52,7 @@ export function derives_rafraichir(doc) {
       n++;
     }
   });
-  return n;
+  return n + vivants_d2_rafraichir(doc);   // t450 : les répétitions vivantes, après les dérivés qu'elles lisent
 }
 
 // le dérivé redevient un objet ordinaire : il ne suit plus sa source
@@ -59,6 +60,7 @@ export function op_derive_detacher(doc, id) {
   const o = _index(doc).get(id);
   if (!o) throw new Error(T("vectorlab.vivants.err_introuvable", { id }));
   if (o.derive) { delete o.derive; return; }
+  if (o.repetition || o.fusion_vive) { repetition_decomposer(doc, o); return; }   // t450-t453 : Décomposer
   if (o.type === "textechemin" && o.chemin) { delete o.chemin; delete o.empreinte; return; }
   throw new Error(T("vectorlab.vivants.err_detacher", { id }));
 }

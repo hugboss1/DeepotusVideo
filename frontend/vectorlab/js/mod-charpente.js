@@ -84,6 +84,7 @@ export function initCharpente(VL) {
     const S = () => A().selection, N = () => A().noeuds, P = () => A().pixel;
     if (pre === "traces") return VL.traces ? VL.traces.action(arg) : { peut: () => false, faire: () => {} };   // t430
     if (pre === "bool") return { peut: () => sel() >= 2 && !!S(), faire: () => S().booleen(arg) };
+    if (pre === "repeter") return VL.repeterUI ? VL.repeterUI.action(arg) : { peut: () => false, faire: () => {} };   // t455
     if (pre === "ordre") return { peut: () => sel() >= 1 && !!S(), faire: () => S().ordre(arg) };
     if (pre === "noeuds") return { peut: () => { const n = N(); if (!n || !n.peut) return false; const p = n.peut(); return arg === "joindre" ? !!p.deux : arg === "diviser" ? !!p.ancre : arg === "inverser" ? !!p.chemin : !!p.sel; }, faire: () => N()[arg]() };
     if (pre === "pixel") return { peut: () => !!(P() && etat.px && etat.px.id), faire: () => P()[arg]() };

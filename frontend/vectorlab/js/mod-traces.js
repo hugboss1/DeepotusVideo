@@ -288,6 +288,7 @@ export function op_nettoyer(doc, { isoles = true, invisibles = true, textesVides
   for (const c of doc.calques) (function v(l) { for (const o of l) {
     if (o.type === "textechemin" && o.chemin) proteges.add(o.chemin);
     if (o.derive && o.derive.source) proteges.add(o.derive.source);
+    if (o.fusion_vive && o.fusion_vive.trajectoire) proteges.add(o.fusion_vive.trajectoire);   // t454 : invisible par choix
     if (o.type === "groupe") v(o.enfants || []);
   } })(c.objets);
   const compte = { isoles: 0, invisibles: 0, textesVides: 0 };

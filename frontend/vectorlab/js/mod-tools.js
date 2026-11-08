@@ -10,6 +10,7 @@ import { op_ajouter, op_supprimer, op_deplacer, op_redimensionner, op_tourner,
          chemin_parser, chemin_serialiser, chemin_ancres } from "./mod-doc.js";
 import { hex_depuis_point, hex_centre, hex_d } from "./mod-grille.js";
 import { noeuds_deplacer_segs } from "./mod-noeuds.js";
+import { id_non_genere } from "./mod-repeter.js";   // t455
 
 const SNS = "http://www.w3.org/2000/svg";
 
@@ -145,7 +146,7 @@ export function initOutils(VL) {
     const idBrut = cible ? cible.dataset.objet : null;
     // cliquer un enfant de groupe sélectionne le GROUPE (remontée au sommet)
     // R11 (Affinity) : Ctrl+clic vise l'ENFANT cliqué lui-même, sinon le sommet du groupe
-    const idCible = idBrut ? (ev.ctrlKey && etat.outil === "select" ? idBrut : (VL.sommetDe(idBrut) || idBrut)) : null;
+    const idCible = idBrut ? (ev.ctrlKey && etat.outil === "select" ? id_non_genere(etat.doc, idBrut) : (VL.sommetDe(idBrut) || idBrut)) : null;
     const selectionnable = idCible
       && (objetsSelectionnables().includes(idCible) || (ev.ctrlKey && etat.outil === "select" && !!VL.sommetDe(idBrut)));
 
