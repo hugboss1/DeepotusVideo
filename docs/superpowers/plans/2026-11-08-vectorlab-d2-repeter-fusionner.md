@@ -199,20 +199,21 @@ un groupe ordinaire, dont les copies reçoivent des ids `o<n>` neufs (`_idLibre`
   instances suivent, Ctrl+Alt+B, Remplacer la trajectoire au menu, Options… depuis Apparence avec aperçu 8 étapes
   puis Échap → 5, Ctrl+Z défait la trajectoire ; menus et Apparence en anglais.
 
-### T7 (t456) — Poignées sur la toile (petite tâche, à confirmer en revue)
+### T7 (t456) — Poignées sur la toile (ÉCARTÉE)
 
-- Répétition radiale sélectionnée : une poignée de rayon et une poignée de nombre sur le cercle, comme les widgets
-  d'Illustrator.
-- Miroir : l'axe se glisse et se tourne.
-- Glisser passe par `op_repetition_regler`, donc une seule étape d'annulation par geste.
-- **Si le coût dépasse une journée, la tâche sort du lot** en ligne de suivi : le dialogue suffit à tout régler.
+- Sortie du lot par décision de l'utilisateur le 08/11 (« Passer à T8 ») : les dialogues à aperçu en direct règlent
+  tout. Reste en ligne de suivi : poignées rayon / nombre de la rosace, axe du miroir glissé et tourné.
 
-### T8 (t457) — Connaissance, guide
+### T8 (t457) — Connaissance, guide (FAIT)
 
-- Skill `connaissance-agent` : fiches FR/EN des entrées neuves, puis `catalogue.py --check` et les bancs agent verts.
-- Skill `guide-deepotus` : cartes « Répétition » et « Fusion » au chapitre Vectorlab (FR/EN), qui disent les écarts
-  (pas de dégradé interpolé, 200 copies au plus).
-- Fiches didactiques animées : **non**, même décision qu'en D1 (l'encart ne vise que des boutons de panneau).
+- Skill `connaissance-agent` : 11 fiches du menu Vecteur rédigées d'après le code (`repeter:*`), FR/EN, synonymes ;
+  `catalogue.py --check` vert, bancs agent 117 + 12 + 23 + 21. Preuve : 7 questions sans le libellé (rosace, paver un
+  plateau d'hexagones, visage symétrique, morphing FR/EN, étapes sur une courbe, copies indépendantes) → la bonne
+  fiche au rang 1 (la grille était 8e derrière le panneau Plateau avant d'enrichir ses synonymes).
+- Skill `guide-deepotus` : cartes « Répétition » et « Fusion » au chapitre Vectorlab (FR/EN), écarts dits (200
+  copies, dégradé et motif qui basculent à mi-chemin), ligne Ctrl+Alt+B aux raccourcis ; `test_guide_v3` 494,
+  `test_vectorlab_guide_devis` 17.
+- Fiches didactiques animées : non (même décision qu'en D1).
 
 ### T9 (t458) — Preuve et livraison
 
