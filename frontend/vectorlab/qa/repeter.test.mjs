@@ -5,9 +5,11 @@
 // T2 (t451) Répétition en grille : lignes × colonnes au pas de la boîte de la source (+ écart), briques, miroirs
 // alternés, pavage hexagonal sans jour ni recouvrement.
 // T3 (t452) Répétition en miroir : la source et son reflet par un axe (angle, écart au bord de la source).
+// T4 (t453) Fusion : deux formes et leurs intermédiaires vivants — forme (sommets alignés ou rééchantillonnés), style
+// (couleurs, épaisseur, opacité ; le reste bascule à mi-chemin), modes étapes / distance / couleur lissée.
 import { createRequire } from "node:module";
 import { polylignes_objet, fournirMartinez, martinez, versMulti, aplatir_objet, aire_multi } from "../js/mod-bool.js";
-import { op_repeter, op_repetition_regler } from "../js/mod-repeter.js";
+import { op_repeter, op_repetition_regler, op_fusionner } from "../js/mod-repeter.js";
 import { derives_rafraichir, op_derive_detacher } from "../js/mod-vivants.js";
 import { parserDoc } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
@@ -416,6 +418,215 @@ const pts = (o) => polylignes_objet(o).flatMap((l) => l.points.map(([x, y]) => `
   const d8 = doc(tri());
   op_repeter(d8, ["a"], "miroir", { angle: -90 });
   ok("miroir : -90° = 270°, axe vertical à GAUCHE (x = 90)", objets(d8)[0].repetition.params.angle === 270 && pts(objets(d8)[0].enfants[1]).includes("70,40") && !pts(objets(d8)[0].enfants[1]).includes("110,40"), pts(objets(d8)[0].enfants[1]).join(" "));
+}
+
+/* ── T4 (t453) fusion : deux formes et leurs intermédiaires vivants ── */
+const aireO = (o) => aire_multi(versMulti(aplatir_objet(o)));
+const rect = (id, x, y, w, h, style = {}) => ({ id, type: "rect", x, y, w, h, style: { fond: "#ff0000", ...style } });
+// vrai si deux segments non voisins d'une polyligne fermée se croisent
+const seCroise = (o) => {
+  for (const l of polylignes_objet(o)) {
+    const p = l.points, n = p.length;
+    const seg = (i) => [p[i], p[(i + 1) % n]];
+    const cr = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    for (let i = 0; i < n; i++) for (let j = i + 2; j < n; j++) {
+      if (i === 0 && j === n - 1) continue;
+      const [a, b] = seg(i), [c, e] = seg(j);
+      if (cr(a, b, c) * cr(a, b, e) < -1e-9 && cr(c, e, a) * cr(c, e, b) < -1e-9) return true;
+    }
+  }
+  return false;
+};
+{
+  const d = doc(carre("z", 0, 300), rect("a", 0, 0, 20, 20), rect("b", 280, 0, 20, 20, { fond: "#0000ff" }), carre("y", 300, 300));
+  const gid = op_fusionner(d, ["a", "b"], { mode: "etapes", etapes: 3 });
+  const g = objets(d).find((o) => o.id === gid);
+  ok("fusion : le groupe prend la place du plus haut des deux, l'ordre des autres est gardé", objets(d).map((o) => o.id).join() === `z,${gid},y`, objets(d).map((o) => o.id).join());
+  ok("fusion : [A, 3 intermédiaires, B]", g.enfants.length === 5 && g.enfants[0].id === "a" && g.enfants[4].id === "b"
+     && g.enfants.slice(1, 4).every((e, k) => e.id === `${gid}_f${k + 1}` && e.genere && e.type === "path"), JSON.stringify(g.enfants.map((e) => e.id)));
+  ok("fusion : recette posée", g.fusion_vive && g.fusion_vive.mode === "etapes" && g.fusion_vive.etapes === 3 && typeof g.fusion_vive.empreinte === "string");
+  const cx = g.enfants.slice(1, 4).map((e) => boite(e).cx);
+  ok("fusion : intermédiaires équidistants", pres(cx[0], 80) && pres(cx[1], 150) && pres(cx[2], 220), JSON.stringify(cx));
+  ok("fusion : même forme → même aire", g.enfants.slice(1, 4).every((e) => pres(aireO(e), 400, 0.5)));
+  ok("fusion : rouge → bleu, le milieu est violet", g.enfants[2].style.fond === "#800080", g.enfants[2].style.fond);
+  ok("fusion : le document reste valide", !refus(() => parserDoc(d)));
+  ok("fusion : ids uniques", new Set(tousIds(d)).size === tousIds(d).length);
+  // vivant : A bouge, les intermédiaires suivent ; ensuite plus rien
+  g.enfants[0].y = 100;
+  ok("fusion vivante : A change, un recalcul", derives_rafraichir(d) === 1);
+  ok("fusion vivante : le milieu descend de moitié", pres(boite(objets(d).find((o) => o.id === gid).enfants[2]).cy, 60));
+  ok("fusion vivante : stable ensuite", derives_rafraichir(d) === 0);
+  // décomposer
+  op_derive_detacher(d, gid);
+  const gd = objets(d).find((o) => o.id === gid);
+  ok("fusion décomposée : plus de recette ni de généré, ids o<n> neufs", !gd.fusion_vive && gd.enfants.every((e) => !e.genere)
+     && gd.enfants.slice(1, 4).every((e) => /^o\d+$/.test(e.id)) && new Set(tousIds(d)).size === tousIds(d).length, tousIds(d).join());
+}
+{
+  // tailles différentes : le carré 20 → 40, le milieu fait 30 × 30 (les sommets se correspondent un à un)
+  const d = doc(rect("a", 0, 0, 20, 20), rect("b", 200, 0, 40, 40));
+  op_fusionner(d, ["a", "b"], { mode: "etapes", etapes: 1 });
+  ok("fusion 20 → 40 : le milieu fait 900", pres(aireO(objets(d)[0].enfants[1]), 900, 0.01), aireO(objets(d)[0].enfants[1]));
+}
+{
+  // un carré vers un cercle : aire entre les deux, aucun auto-croisement
+  const d = doc(rect("a", 0, 0, 100, 100), { id: "b", type: "ellipse", cx: 350, cy: 50, rx: 50, ry: 50, style: { fond: "#00ff00" } });
+  op_fusionner(d, ["a", "b"], { mode: "etapes", etapes: 3 });
+  const g = objets(d)[0];
+  const aires = g.enfants.slice(1, 4).map(aireO);
+  ok("carré → cercle : les aires décroissent du carré vers le cercle", aires[0] < 10000 && aires[0] > aires[1] && aires[1] > aires[2] && aires[2] > Math.PI * 2500, JSON.stringify(aires));
+  ok("carré → cercle : aucun auto-croisement", g.enfants.slice(1, 4).every((e) => !seCroise(e)));
+}
+{
+  // sens opposés et départs différents : le milieu de deux carrés égaux reste un carré
+  const A = { id: "a", type: "path", d: "M0 0 L20 0 L20 20 L0 20 Z", style: { fond: "#ff0000" } };
+  const B = { id: "b", type: "path", d: "M220 20 L220 0 L200 0 L200 20 Z", style: { fond: "#ff0000" } };   // autre départ, autre sens
+  const d = doc(A, B);
+  op_fusionner(d, ["a", "b"], { mode: "etapes", etapes: 1 });
+  const m = objets(d)[0].enfants[1];
+  ok("sens et départ alignés : le milieu garde l'aire 400", pres(aireO(m), 400, 0.5), aireO(m));
+  ok("sens et départ alignés : sans auto-croisement", !seCroise(m));
+  ok("sens et départ alignés : centré à mi-chemin", pres(boite(m).cx, 110) && pres(boite(m).w, 20), JSON.stringify(boite(m)));
+}
+{
+  // sous-chemins en nombre différent : le sous-chemin en trop se réduit vers son centre
+  const A = { id: "a", type: "path", d: "M0 0 L20 0 L20 20 L0 20 Z M40 0 L60 0 L60 20 L40 20 Z", style: { fond: "#ff0000" } };
+  const B = { id: "b", type: "path", d: "M200 0 L220 0 L220 20 L200 20 Z", style: { fond: "#ff0000" } };
+  const d = doc(A, B);
+  op_fusionner(d, ["a", "b"], { mode: "etapes", etapes: 1 });
+  const m = objets(d)[0].enfants[1];
+  const anneaux = polylignes_objet(m);
+  ok("sous-chemins : 2 dans le milieu", anneaux.length === 2, anneaux.length);
+  const second = { id: "t", type: "path", d: "M" + anneaux[1].points.map(([x, y]) => `${x} ${y}`).join(" L") + " Z" };
+  ok("sous-chemins : le second, sans partenaire, est à moitié réduit (aire / 4)", pres(aireO(second), 100, 1), aireO(second));
+  ok("sous-chemins : il reste centré sur lui-même", pres(boite(second).cx, 50) && pres(boite(second).cy, 10), JSON.stringify(boite(second)));
+}
+{
+  // chemins ouverts : l'intermédiaire reste ouvert
+  const A = { id: "a", type: "path", d: "M0 0 L100 0", style: { contour: "#000000", epaisseur: 2 } };
+  const B = { id: "b", type: "path", d: "M0 100 L100 100", style: { contour: "#000000", epaisseur: 6 } };
+  const d = doc(A, B);
+  op_fusionner(d, ["a", "b"], { mode: "etapes", etapes: 1 });
+  const m = objets(d)[0].enfants[1];
+  ok("chemin ouvert : le milieu est ouvert, à y = 50", !/Z/i.test(m.d) && pres(boite(m).cy, 50) && pres(boite(m).w, 100), m.d);
+  ok("épaisseur interpolée : 2 → 6 donne 4", m.style.epaisseur === 4, m.style.epaisseur);
+}
+{
+  // style : nombres et couleurs interpolés ; ce qui ne s'interpole pas bascule à mi-chemin
+  const d = doc(rect("a", 0, 0, 20, 20, { fond: "grad:g1", opacite: 1, contour: "#000", epaisseur: 1 }),
+                rect("b", 200, 0, 20, 20, { fond: "#00ff00", opacite: 0, contour: "#ffffff", epaisseur: 1 }));
+  op_fusionner(d, ["a", "b"], { mode: "etapes", etapes: 3 });
+  const e = objets(d)[0].enfants;
+  ok("style : un dégradé ne s'interpole pas, il bascule à mi-chemin", e[1].style.fond === "grad:g1" && e[2].style.fond === "#00ff00" && e[3].style.fond === "#00ff00", JSON.stringify(e.map((x) => x.style.fond)));
+  ok("style : opacité 1 → 0, quart par quart", pres(e[1].style.opacite, 0.75) && pres(e[2].style.opacite, 0.5) && pres(e[3].style.opacite, 0.25), JSON.stringify(e.map((x) => x.style.opacite)));
+  ok("style : contour #000 (court) → #ffffff, milieu gris", e[2].style.contour === "#808080", e[2].style.contour);
+}
+{
+  // modes : distance et couleur lissée
+  const d = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  op_fusionner(d, ["a", "b"], { mode: "distance", pas: 50 });
+  ok("mode distance : 300 px au pas de 50 → 5 intermédiaires", objets(d)[0].enfants.length === 7, objets(d)[0].enfants.length);
+  ok("mode distance : réglages gardés", objets(d)[0].fusion_vive.pas === 50 && objets(d)[0].fusion_vive.mode === "distance");
+  const d2 = doc(rect("a", 0, 0, 20, 20, { fond: "#000000" }), rect("b", 300, 0, 20, 20, { fond: "#ffffff" }));
+  op_fusionner(d2, ["a", "b"], { mode: "couleur" });
+  const e2 = objets(d2)[0].enfants;
+  ok("couleur lissée : noir → blanc en 63 intermédiaires", e2.length === 65, e2.length);
+  const canal = (h) => parseInt(h.slice(1, 3), 16);
+  ok("couleur lissée : deux voisins diffèrent de 4 niveaux au plus", e2.slice(1).every((x, k) => Math.abs(canal(x.style.fond) - canal(e2[k].style.fond)) <= 4), e2.map((x) => x.style.fond).join());
+  const d3 = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  op_fusionner(d3, ["a", "b"], { mode: "couleur" });
+  ok("couleur lissée sans écart de couleur : un intermédiaire", objets(d3)[0].enfants.length === 3, objets(d3)[0].enfants.length);
+  const d4 = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  op_fusionner(d4, ["a", "b"], { mode: "distance", pas: 0.5 });
+  ok("mode distance : plafonné à 200 intermédiaires", objets(d4)[0].enfants.length === 202, objets(d4)[0].enfants.length);
+  const d5 = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  op_fusionner(d5, ["a", "b"], {});
+  ok("défauts : 5 étapes", objets(d5)[0].fusion_vive.mode === "etapes" && objets(d5)[0].enfants.length === 7, JSON.stringify(objets(d5)[0].fusion_vive));
+}
+{
+  // A disparu : le groupe reste à son dernier état
+  const d = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  op_fusionner(d, ["a", "b"], { etapes: 2 });
+  objets(d)[0].enfants = objets(d)[0].enfants.slice(1);
+  const avant = JSON.stringify(d);
+  ok("fusion, A disparu : pas d'exception, groupe inchangé", !refus(() => derives_rafraichir(d)) && JSON.stringify(d) === avant);
+  const d2 = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  op_fusionner(d2, ["a", "b"], { etapes: 2 });
+  objets(d2)[0].enfants = objets(d2)[0].enfants.slice(0, -1);
+  const avant2 = JSON.stringify(d2);
+  ok("fusion, B disparu : pas d'exception, groupe inchangé", !refus(() => derives_rafraichir(d2)) && JSON.stringify(d2) === avant2);
+}
+{
+  // refus sans trace
+  const d = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20), rect("c", 0, 100, 20, 20),
+                { id: "t", type: "texte", x: 0, y: 0, texte: "x", style: {} }, { id: "g", type: "groupe", style: {}, enfants: [rect("g1", 0, 0, 5, 5)] });
+  const avant = JSON.stringify(d);
+  ok("fusion d'un seul objet : refus traduit", refus(() => op_fusionner(d, ["a"], {})) === T("vectorlab.fusion.deux"));
+  ok("fusion de trois objets : refus", refus(() => op_fusionner(d, ["a", "b", "c"], {})) === T("vectorlab.fusion.deux"));
+  ok("fusion avec un texte : refus traduit", refus(() => op_fusionner(d, ["a", "t"], {})) === T("vectorlab.fusion.type"));
+  ok("fusion avec un groupe : refus", refus(() => op_fusionner(d, ["a", "g"], {})) === T("vectorlab.fusion.type"));
+  ok("étapes 0 : refus", !!refus(() => op_fusionner(d, ["a", "b"], { etapes: 0 })));
+  ok("étapes 201 : refus", !!refus(() => op_fusionner(d, ["a", "b"], { etapes: 201 })));
+  ok("pas 0 : refus", !!refus(() => op_fusionner(d, ["a", "b"], { mode: "distance", pas: 0 })));
+  ok("mode inconnu : refus", !!refus(() => op_fusionner(d, ["a", "b"], { mode: "spirale" })));
+  ok("aucune trace après les refus", JSON.stringify(d) === avant);
+  const r = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  const gid = op_fusionner(r, ["a", "b"], { etapes: 2 });
+  ok("fusionner un intermédiaire généré : refus", refus(() => op_fusionner(r, [`${gid}_f1`, "a"], {})) === T("vectorlab.repeter.copie_generee"));
+}
+
+{
+  // un tracé qui répète son premier point avant Z a les mêmes 4 sommets qu'un rectangle : pas de rééchantillonnage
+  const A = { id: "a", type: "path", d: "M0 0 L20 0 L20 30 L0 30 L0 0 Z", style: { fond: "#ff0000" } };
+  const d = doc(A, rect("b", 200, 0, 20, 30));
+  op_fusionner(d, ["a", "b"], { etapes: 1 });
+  ok("point de fermeture répété : sommets un à un, aire exacte 600", pres(aireO(objets(d)[0].enfants[1]), 600, 0.001), aireO(objets(d)[0].enfants[1]));
+  // sommets en nombre différent (4 contre 5) : rééchantillonnés finement, les angles à peine rognés
+  const B5 = { id: "b", type: "path", d: "M200 0 L210 0 L220 0 L220 30 L200 30 Z", style: { fond: "#ff0000" } };
+  const d2 = doc(rect("a", 0, 0, 20, 30), B5);
+  op_fusionner(d2, ["a", "b"], { etapes: 1 });
+  ok("4 sommets contre 5 : rééchantillonnage fin, aire à 4 % près", pres(aireO(objets(d2)[0].enfants[1]), 600, 4), aireO(objets(d2)[0].enfants[1]));
+  // le même carré décrit par 8 points : le rééchantillonnage suit TOUT le tour, segment de fermeture compris
+  const B8 = { id: "b", type: "path", d: "M200 0 L210 0 L220 0 L220 10 L220 20 L210 20 L200 20 L200 10 Z", style: { fond: "#ff0000" } };
+  const d3 = doc(rect("a", 0, 0, 20, 20), B8);
+  op_fusionner(d3, ["a", "b"], { etapes: 1 });
+  const m3 = objets(d3)[0].enfants[1];
+  ok("carré de 4 points vers carré de 8 : le milieu est le même carré", pres(aireO(m3), 400, 0.5) && pres(boite(m3).w, 20) && pres(boite(m3).h, 20), `${aireO(m3)} ${JSON.stringify(boite(m3))}`);
+}
+{
+  // chemins ouverts de longueurs de description différentes, et B dans l'autre sens
+  const A = { id: "a", type: "path", d: "M0 0 L100 0", style: { contour: "#000000", epaisseur: 2 } };
+  const B = { id: "b", type: "path", d: "M100 100 L50 100 L0 100", style: { contour: "#000000", epaisseur: 2 } };
+  const d = doc(A, B);
+  op_fusionner(d, ["a", "b"], { etapes: 1 });
+  const m = objets(d)[0].enfants[1];
+  ok("ouvert, B à rebours et rééchantillonné : le milieu va de 0 à 100 à y = 50", pres(boite(m).w, 100) && pres(boite(m).x, 0) && pres(boite(m).cy, 50) && pres(boite(m).h, 0), JSON.stringify(boite(m)));
+}
+{
+  // c'est B qui a le sous-chemin en trop : il naît de son centre
+  const A = { id: "a", type: "path", d: "M0 0 L20 0 L20 20 L0 20 Z", style: { fond: "#ff0000" } };
+  const B = { id: "b", type: "path", d: "M200 0 L220 0 L220 20 L200 20 Z M240 0 L260 0 L260 20 L240 20 Z", style: { fond: "#ff0000" } };
+  const d = doc(A, B);
+  op_fusionner(d, ["a", "b"], { etapes: 1 });
+  const an = polylignes_objet(objets(d)[0].enfants[1]);
+  const second = { id: "t", type: "path", d: "M" + an[1].points.map(([x, y]) => `${x} ${y}`).join(" L") + " Z" };
+  ok("sous-chemin en trop côté B : à moitié né (aire / 4), centré sur lui", an.length === 2 && pres(aireO(second), 100, 1) && pres(boite(second).cx, 250), `${aireO(second)} ${JSON.stringify(boite(second))}`);
+}
+{
+  // B bouge : les intermédiaires suivent aussi
+  const d = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  op_fusionner(d, ["a", "b"], { etapes: 1 });
+  const g = objets(d)[0];
+  g.enfants[g.enfants.length - 1].y = 200;
+  ok("fusion vivante : B change, un recalcul, le milieu descend", derives_rafraichir(d) === 1 && pres(boite(objets(d)[0].enfants[1]).cy, 110));
+  // calque verrouillé
+  const v = doc(rect("a", 0, 0, 20, 20), rect("b", 300, 0, 20, 20));
+  v.calques[0].verrou = true;
+  ok("fusion sur un calque verrouillé : refus traduit", refus(() => op_fusionner(v, ["a", "b"], {})) === T("vectorlab.repeter.verrou"));
+  // une couleur courte non uniforme (#f00) se lit bien en #ff0000
+  const c = doc(rect("a", 0, 0, 20, 20, { contour: "#f00" }), rect("b", 300, 0, 20, 20, { contour: "#ffffff" }));
+  op_fusionner(c, ["a", "b"], { etapes: 1 });
+  ok("couleur courte #f00 → #ffffff : milieu #ff8080", objets(c)[0].enfants[1].style.contour === "#ff8080", objets(c)[0].enfants[1].style.contour);
 }
 
 if (echecs.length) {

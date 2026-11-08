@@ -122,35 +122,30 @@ un groupe ordinaire, dont les copies reçoivent des ids `o<n>` neufs (`_idLibre`
   reflet, du bon côté), source élargie → l'axe suit, source réduite à un point → reflet gardé, régler, angles 450°
   et −90°, refus traduits sans trace.
 
-### T4 (t453) — Fusion : créer et interpoler
+### T4 (t453) — Fusion : créer et interpoler (FAIT)
 
-- `op_fusionner(doc, [idA, idB], { mode, etapes, pas })` → groupe `fusion_vive`. Il faut exactement deux objets (refus
-  sinon). A est celui du dessous ; l'ordre de superposition est gardé.
-- Trois modes, comme Illustrator :
-  - `"etapes"` : 1-200 intermédiaires ;
-  - `"distance"` : un intermédiaire tous les `pas` px entre les centres ;
-  - `"couleur"` (couleur lissée) : assez d'étapes pour que deux voisins ne diffèrent pas de plus de 4 niveaux sur un
-    canal, plafonnées à 200.
-- **Interpolation de forme** :
-  - A et B passent en polylignes (`polylignes_objet`, transform compris) ;
-  - chaque sous-chemin est rééchantillonné à N points égaux en longueur (N = max des deux, au moins 32) ;
-  - le point de départ et le sens de B sont alignés sur A, avec le décalage circulaire qui minimise la somme des
-    distances (un sens inversé est essayé) ;
-  - interpolation linéaire, puis `lisser_vers_d` (`mod-crayon.js`) ;
-  - sous-chemins en nombre différent : les sous-chemins en trop se réduisent vers leur centre.
-- **Interpolation de style** :
-  - couleurs hex de `fond` et `contour` : interpolation en RVB ;
-  - `epaisseur` et `opacite` : interpolation linéaire.
-  - Un dégradé, un motif ou une couleur globale ne s'interpole pas : le style bascule à mi-chemin. C'est un **écart
-    assumé**, dit dans le guide.
-- Banc :
-  - deux carrés, 3 étapes → 3 intermédiaires équidistants, aires interpolées ;
-  - carré → cercle : le milieu a une aire intermédiaire et aucun auto-croisement ;
-  - rouge → bleu → le milieu vaut #800080 (± 1) ;
-  - mode distance : 300 px avec un pas de 50 → 5 intermédiaires ;
-  - mode couleur : #000 → #fff → 63 étapes ;
-  - modifier A → les intermédiaires suivent ;
-  - un seul objet → refus ; échec → aucune mutation.
+- `op_fusionner(doc, [idA, idB], { mode, etapes, pas })`, dans `mod-repeter.js` (un seul module pour le lot) → groupe
+  `fusion_vive: { mode, etapes, pas, empreinte }`. Exactement deux rectangles, ellipses, formes ou tracés du premier
+  niveau d'un calque déverrouillé ; le groupe prend la place du plus haut. Intermédiaires `<groupe>_f<k>`, chemins
+  en coordonnées du document.
+- Modes : `etapes` (1-200, 5 par défaut), `distance` (un intermédiaire tous les `pas` px entre les centres, 20 par
+  défaut), `couleur` (deux voisins ne diffèrent pas de plus de 4 niveaux sur un canal de fond ou de contour ; un
+  seul intermédiaire si les couleurs sont égales). Toujours 1 à 200.
+- **Forme** : sous-chemins appariés dans l'ordre. Mêmes nombres de sommets → sommets un à un (un carré reste un
+  carré exact) ; sinon rééchantillonnage à N = max(32, sommets) points égaux en longueur, fermeture comprise.
+  Fermé : B mis dans le sens de A (aire signée) puis tourné pour viser le plus proche ; ouvert : B retourné si
+  c'est plus proche. Un sous-chemin sans partenaire naît de son propre centre (ou s'y réduit). Pas de lissage :
+  les intermédiaires sont des polygones (un lissage arrondirait les angles d'un carré).
+- **Style** : celui de A avant mi-chemin, de B ensuite ; `fond` et `contour` (#rgb ou #rrggbb) interpolés en RVB,
+  `epaisseur` et `opacite` linéairement. Dégradé, motif, couleur globale : bascule à mi-chemin (écart assumé).
+- Recalcul par empreinte (A, B, réglages) dans `vivants_d2_rafraichir` ; A ou B disparu → dernier état gardé.
+  Décomposer : `op_derive_detacher` (entrée S de `t450.py` étendue à `fusion_vive`).
+- Banc (fait) : places et ids, équidistance, aires, rouge → bleu = #800080, vivant sur A et sur B, décomposer,
+  20 → 40 = 900, carré → cercle (aires décroissantes, sans auto-croisement), sens et départ opposés, sous-chemins en
+  trop côté A et côté B, point de fermeture répété, 4 sommets contre 5, carré de 4 contre 8 points, chemins
+  ouverts à rebours, style (dégradé, opacité, #000 et #f00 courts), modes distance / couleur / plafond 200 /
+  défauts, refus traduits (1 ou 3 objets, texte, groupe, verrou, étapes, pas, mode, intermédiaire généré).
+  40/41 mutants tués (le 41e équivalent).
 
 ### T5 (t454) — Fusion : trajectoire, inversions, options
 

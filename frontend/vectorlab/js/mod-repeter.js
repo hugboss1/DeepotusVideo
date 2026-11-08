@@ -1,5 +1,5 @@
 // mod-repeter.js — lot D2 « Répéter et fusionner » (spec 2026-11-08-illustrator-vectorlab-inventaire.md, plan
-// 2026-11-08-vectorlab-d2-repeter-fusionner.md) : les RÉPÉTITIONS VIVANTES d'Illustrator.
+// 2026-11-08-vectorlab-d2-repeter-fusionner.md) : les RÉPÉTITIONS et les FUSIONS VIVANTES d'Illustrator.
 //
 // Une répétition est un GROUPE qui porte sa recette : { repetition: { mode, params, empreinte }, enfants: [source,
 // ...copies] }. Les copies sont STOCKÉES (l'export, l'impression, le serveur et une version plus ancienne les voient
@@ -260,6 +260,167 @@ export function op_repetition_regler(doc, id, params = {}) {
   g.enfants = essai.enfants;
 }
 
+/* ══ T4 (t453) Objet › Fusion › Créer ══
+   Une fusion est un GROUPE { fusion_vive: { mode, etapes, pas, empreinte }, enfants: [A, ...intermédiaires, B] } :
+   A (le plus bas) et B (le plus haut) restent éditables, les intermédiaires sont des chemins générés d'ids
+   `<groupe>_f<k>`, en coordonnées du document (le transform de A et B est déjà appliqué). Recalcul par empreinte
+   (A, B et réglages), comme les répétitions. */
+const TYPES_FUSION = new Set(["rect", "ellipse", "path", "forme"]);
+const MODES_FUSION = new Set(["etapes", "distance", "couleur"]);
+const MAX_INTER = 200;
+
+// couleurs : #rgb ou #rrggbb seulement (un dégradé, un motif, une couleur globale ne s'interpolent pas)
+function _rvb(c) {
+  const m = typeof c === "string" && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(c.trim());
+  if (!m) return null;
+  const h = m[1].length === 3 ? m[1].split("").map((x) => x + x).join("") : m[1];
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+}
+const _hexDe = (v) => "#" + v.map((x) => Math.round(x).toString(16).padStart(2, "0")).join("");
+// le style d'un intermédiaire : celui de A avant mi-chemin, celui de B ensuite, puis couleurs et nombres interpolés
+function _styleFusion(sa = {}, sb = {}, t) {
+  const s = JSON.parse(JSON.stringify(t < 0.5 ? sa : sb));
+  for (const k of ["fond", "contour"]) {
+    const a = _rvb(sa[k]), b = _rvb(sb[k]);
+    if (a && b) s[k] = _hexDe(a.map((v, i) => v + (b[i] - v) * t));
+  }
+  for (const k of ["epaisseur", "opacite"]) {
+    const a = Number(sa[k]), b = Number(sb[k]);
+    if (sa[k] !== undefined && sb[k] !== undefined && Number.isFinite(a) && Number.isFinite(b)) {
+      s[k] = Math.round((a + (b - a) * t) * 1e6) / 1e6;
+    }
+  }
+  return s;
+}
+
+/* ── géométrie : les sous-chemins de A et B mis en correspondance point à point ── */
+function _sousChemins(o) {
+  return polylignes_objet(o).filter((l) => l.points.length >= 2).map((l) => {
+    const p = l.points.map(([x, y]) => [x, y]);
+    const a = p[0], z = p[p.length - 1];
+    if (l.ferme && p.length > 2 && Math.abs(a[0] - z[0]) < 1e-9 && Math.abs(a[1] - z[1]) < 1e-9) p.pop();
+    return { ferme: !!l.ferme, points: p };
+  });
+}
+function _aireSignee(p) {
+  let s = 0;
+  for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length]; s += a[0] * b[1] - b[0] * a[1]; }
+  return s / 2;
+}
+// N points également espacés le long du tracé (fermé : le segment de fermeture compte)
+function _reechantillonner(p, ferme, N) {
+  const q = ferme ? p.concat([p[0]]) : p;
+  const cum = [0];
+  for (let i = 1; i < q.length; i++) cum.push(cum[i - 1] + Math.hypot(q[i][0] - q[i - 1][0], q[i][1] - q[i - 1][1]));
+  const L = cum[cum.length - 1];
+  if (!(L > 0)) return Array.from({ length: N }, () => [p[0][0], p[0][1]]);
+  const pas = ferme ? L / N : L / (N - 1);
+  const out = [];
+  let j = 1;
+  for (let k = 0; k < N; k++) {
+    const s = Math.min(k * pas, L);
+    while (j < q.length - 1 && cum[j] < s) j++;
+    const u = cum[j] > cum[j - 1] ? (s - cum[j - 1]) / (cum[j] - cum[j - 1]) : 0;
+    out.push([q[j - 1][0] + (q[j][0] - q[j - 1][0]) * u, q[j - 1][1] + (q[j][1] - q[j - 1][1]) * u]);
+  }
+  return out;
+}
+const _ecart2 = (a, b, s) => { let e = 0; const n = a.length; for (let i = 0; i < n; i++) { const p = a[i], q = b[(i + s) % n]; e += (p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2; } return e; };
+// B mis dans le sens de A, et (fermé) tourné pour que chaque point vise son plus proche partenaire
+function _aligner(a, b, ferme) {
+  if (!ferme) return _ecart2(a, b.slice().reverse(), 0) < _ecart2(a, b, 0) ? b.slice().reverse() : b;
+  let q = Math.sign(_aireSignee(a)) * Math.sign(_aireSignee(b)) < 0 ? b.slice().reverse() : b;
+  let meilleur = 0, min = Infinity;
+  for (let s = 0; s < q.length; s++) { const e = _ecart2(a, q, s); if (e < min - 1e-9) { min = e; meilleur = s; } }
+  return q.slice(meilleur).concat(q.slice(0, meilleur));
+}
+const _centre = (p) => [p.reduce((s, q) => s + q[0], 0) / p.length, p.reduce((s, q) => s + q[1], 0) / p.length];
+function _paires(A, B) {
+  const la = _sousChemins(A), lb = _sousChemins(B);
+  const out = [];
+  for (let i = 0; i < Math.max(la.length, lb.length); i++) {
+    // un sous-chemin sans partenaire se réduit vers son propre centre
+    const a = la[i] || { ferme: lb[i].ferme, points: lb[i].points.map(() => _centre(lb[i].points)) };
+    const b = lb[i] || { ferme: la[i].ferme, points: la[i].points.map(() => _centre(la[i].points)) };
+    const ferme = a.ferme || b.ferme;
+    let pa = a.points, pb = b.points;
+    if (pa.length !== pb.length) {                 // sommets en nombre différent : rééchantillonnés
+      const N = Math.max(32, pa.length, pb.length);
+      pa = _reechantillonner(pa, ferme, N); pb = _reechantillonner(pb, ferme, N);
+    }
+    out.push({ ferme, a: pa, b: _aligner(pa, pb, ferme) });
+  }
+  return out;
+}
+function _dInter(paires, t) {
+  return paires.map(({ ferme, a, b }) => "M" + a.map((p, i) =>
+    `${nbc(p[0] + (b[i][0] - p[0]) * t)} ${nbc(p[1] + (b[i][1] - p[1]) * t)}`).join(" L") + (ferme ? " Z" : "")).join(" ");
+}
+
+function _paramsFusion(p = {}, base = {}) {
+  const v = { ...base, ...p };
+  const mode = v.mode === undefined ? "etapes" : v.mode;
+  if (!MODES_FUSION.has(mode)) throw new Error(T("vectorlab.fusion.mode", { mode }));
+  return {
+    mode,
+    etapes: _entier(v.etapes === undefined ? 5 : v.etapes, 1, MAX_INTER, "vectorlab.fusion.etapes"),
+    pas: _positif(v.pas === undefined ? 20 : v.pas, "vectorlab.fusion.pas"),
+  };
+}
+// le nombre d'intermédiaires : fixé (étapes), un tous les `pas` px entre les centres (distance), ou assez pour que
+// deux voisins ne diffèrent pas de plus de 4 niveaux sur un canal (couleur lissée) ; 1 à 200
+function _nombreInter(f, A, B) {
+  let n = f.etapes;
+  if (f.mode === "distance") {
+    const a = _boite(A), b = _boite(B);
+    n = Math.round(Math.hypot(b.x + b.w / 2 - a.x - a.w / 2, b.y + b.h / 2 - a.y - a.h / 2) / f.pas) - 1;
+  } else if (f.mode === "couleur") {
+    let delta = 0;
+    for (const k of ["fond", "contour"]) {
+      const a = _rvb((A.style || {})[k]), b = _rvb((B.style || {})[k]);
+      if (a && b) for (let i = 0; i < 3; i++) delta = Math.max(delta, Math.abs(a[i] - b[i]));
+    }
+    n = Math.ceil(delta / 4) - 1;
+  }
+  return Math.min(MAX_INTER, Math.max(1, n));
+}
+const _empreinteFusion = (g) => JSON.stringify([g.enfants[0], g.enfants[g.enfants.length - 1], g.fusion_vive.mode, g.fusion_vive.etapes, g.fusion_vive.pas]);
+function _reconstruireFusion(g) {
+  const A = g.enfants[0], B = g.enfants[g.enfants.length - 1];
+  const paires = _paires(A, B);
+  const n = _nombreInter(g.fusion_vive, A, B);
+  const inter = [];
+  for (let k = 1; k <= n; k++) {
+    const t = k / (n + 1);
+    inter.push({ id: `${g.id}_f${k}`, type: "path", d: _dInter(paires, t), style: _styleFusion(A.style, B.style, t), genere: true });
+  }
+  g.enfants = [A, ...inter, B];
+  g.fusion_vive.empreinte = _empreinteFusion(g);
+}
+
+// A et B : exactement deux formes (rect, ellipse, chemin, forme) du premier niveau d'un calque déverrouillé ;
+// le groupe prend la place de la plus haute. -> id du groupe
+export function op_fusionner(doc, ids, opts = {}) {
+  const voulu = new Set(ids || []);
+  if (voulu.size !== 2) throw new Error(T("vectorlab.fusion.deux"));
+  const cibles = [];
+  for (const c of doc.calques) for (const o of c.objets) if (voulu.has(o.id)) cibles.push({ calque: c, objet: o });
+  if (cibles.length !== 2) {
+    const genere = [...voulu].some((id) => { const t = _trouver(doc, id); return t && t.objet.genere; });
+    throw new Error(T(genere ? "vectorlab.repeter.copie_generee" : "vectorlab.fusion.deux"));
+  }
+  if (cibles.some((t) => t.calque.verrou)) throw new Error(T("vectorlab.repeter.verrou"));
+  if (cibles.some((t) => !TYPES_FUSION.has(t.objet.type))) throw new Error(T("vectorlab.fusion.type"));
+  const f = _paramsFusion(opts);
+  const g = { id: _source_ids(doc)(), type: "groupe", style: {}, fusion_vive: { ...f, empreinte: "" },
+              enfants: [cibles[0].objet, cibles[1].objet] };
+  _reconstruireFusion(g);                          // tout se calcule AVANT de muter
+  const haut = cibles[1];
+  haut.calque.objets.splice(haut.calque.objets.indexOf(haut.objet), 1, g);
+  cibles[0].calque.objets.splice(cibles[0].calque.objets.indexOf(cibles[0].objet), 1);
+  return g.id;
+}
+
 /* ── vivant : appelé par derives_rafraichir après chaque commande ── */
 export function vivants_d2_rafraichir(doc) {
   let n = 0;
@@ -268,6 +429,19 @@ export function vivants_d2_rafraichir(doc) {
     for (const o of objs || []) {
       if (o.type !== "groupe") continue;
       v(o.enfants);
+      if (o.fusion_vive && Array.isArray(o.enfants) && o.enfants.length >= 2) {
+        // A ou B disparu (le bout est un intermédiaire) : dernier état gardé
+        if (o.enfants[0].genere || o.enfants[o.enfants.length - 1].genere) continue;
+        if (_empreinteFusion(o) === o.fusion_vive.empreinte) continue;
+        try {
+          const essai = { ...o, fusion_vive: { ...o.fusion_vive } };
+          _reconstruireFusion(essai);
+          o.enfants = essai.enfants;
+          o.fusion_vive = essai.fusion_vive;
+          n++;
+        } catch (e) { /* forme devenue impossible à fusionner : dernier état gardé */ }
+        continue;
+      }
       if (!o.repetition || !Array.isArray(o.enfants) || !o.enfants.length) continue;
       if (o.enfants[0].genere) continue;            // la source a disparu : dernier état gardé
       if (_empreinte(o) === o.repetition.empreinte) continue;
@@ -286,7 +460,8 @@ export function vivants_d2_rafraichir(doc) {
   return n;
 }
 
-// Décomposer : la répétition redevient un groupe ordinaire ; ses copies reçoivent des ids o<n> neufs
+// Décomposer : la répétition ou la fusion redevient un groupe ordinaire ; ses copies et intermédiaires reçoivent
+// des ids o<n> neufs
 export function repetition_decomposer(doc, g) {
   const neuf = _source_ids(doc);
   const renommer = (x) => {
@@ -298,4 +473,5 @@ export function repetition_decomposer(doc, g) {
   };
   for (const e of g.enfants.slice(1)) { if (e.genere) { delete e.genere; renommer(e); } }
   delete g.repetition;
+  delete g.fusion_vive;
 }
