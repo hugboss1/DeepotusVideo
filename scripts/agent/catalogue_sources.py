@@ -31,8 +31,9 @@ from catalogue_partages import depuis_partages
 LABS = {"vectorlab": ("vectorlab", "/vectorlab/"), "photolab": ("photolab", "/photolab/"),
         "avatar": ("avatarlive", "/avatar/"), "spritelab": ("assets3d", "/spritelab/"),
         "tilelab": ("assets3d", "/tilelab/"),
-        "whatsapp": ("whatsapp", "/whatsapp/")}         # t311 (27/10/2026) : la page WhatsApp d'un espace
-LABS_LUS = ("vectorlab", "photolab", "avatar", "whatsapp")
+        "whatsapp": ("whatsapp", "/whatsapp/"),          # t311 (27/10/2026) : la page WhatsApp d'un espace
+        "methodes": ("methodes", "/methodes/")}         # t443 (08/11/2026) : l'écran Méthodes et ses agents métier
+LABS_LUS = ("vectorlab", "photolab", "avatar", "whatsapp", "methodes")
 
 # infobulle d'un lab : title: T("k"), b.title = T("k"), et la forme gabarit title="${T("k")}" ; T, dzT, t ou vlT
 RE_T_LAB = re.compile(r'(title|titre|"aria-label"|aria-label|tip)\s*[:=]\s*(?:"\$\{\s*)?(?:T|dzT|t|vlT)\("([a-z0-9_.]+)"\)')
