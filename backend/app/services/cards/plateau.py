@@ -17,11 +17,14 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from PIL import Image, ImageDraw
+
+from . import hexa
 from .contract import geom, is_hex
 from .depuis_images import IMAGES_MAX
 
 __all__ = ["COTE_MAX", "TUILES_MAX", "Grille", "grille", "cadrage_couvrant",
-           "ppp_effectif"]
+           "ppp_effectif", "decouper"]
 
 COTE_MAX = 30                 # colonnes ou rangées, au plus
 TUILES_MAX = IMAGES_MAX       # = 500, le plafond d'un deck depuis des images
@@ -115,3 +118,67 @@ def cadrage_couvrant(src_w: int, src_h: int, ext_w: float, ext_h: float,
 def ppp_effectif(rect_w_px: float, largeur_mm: float) -> float:
     """Points par pouce réels : pixels source du cadrage / largeur imprimée."""
     return rect_w_px / (largeur_mm / 25.4)
+
+
+def _en_rgba(src: Image.Image) -> Image.Image:
+    """RGBA quel que soit le mode d'entrée (P avec transparence, LA, L, CMYK…).
+    Renvoie toujours une copie : la source n'est jamais modifiée."""
+    if src.mode == "RGBA":
+        return src.copy()
+    if src.mode == "P":
+        return src.convert("RGBA")       # honore la transparence de palette
+    if src.mode in ("LA", "La", "RGBa", "PA"):
+        return src.convert("RGBA")
+    return src.convert("RGB").convert("RGBA")
+
+
+def _image_travail(src: Image.Image, g: Grille, cadrage: dict,
+                   dpi: int) -> Image.Image:
+    """Le cadrage couvrant de `src`, rééchantillonné UNE fois (LANCZOS) à
+    l'étendue de la grille en pixels : toutes les tuiles en sont des
+    fenêtres, donc le fond perdu d'une tuile est fait des pixels voisins."""
+    cadrage = cadrage or {}
+    gauche, haut, w, h = cadrage_couvrant(
+        src.width, src.height, g.largeur_mm, g.hauteur_mm,
+        cadrage.get("zoom", 1.0), cadrage.get("x", 0.5), cadrage.get("y", 0.5))
+    taille = (max(1, round(g.largeur_mm / 25.4 * dpi)),
+              max(1, round(g.hauteur_mm / 25.4 * dpi)))
+    return _en_rgba(src).resize(
+        taille, Image.LANCZOS, box=(gauche, haut, gauche + w, haut + h))
+
+
+def _origine_tuile(g: Grille, cx_mm: float, cy_mm: float, dpi: int,
+                   canvas: tuple[int, int]) -> tuple[int, int]:
+    """Coin haut-gauche (pixels de l'image de travail) de la toile d'une tuile."""
+    k = dpi / 25.4
+    return (round(cx_mm * k - canvas[0] / 2), round(cy_mm * k - canvas[1] / 2))
+
+
+def decouper(src: Image.Image, g: Grille, cadrage: dict,
+             dpi: int = 300) -> list[tuple[int, int, Image.Image]]:
+    """Découpe `src` en tuiles RGBA (rang, colonne, image), ordre de lecture.
+
+    Chaque tuile est une fenêtre de l'image de travail à la taille de la toile
+    du format (`geom(fmt, dpi, bleed).canvas_px`) ; l'alpha vaut 255 à
+    l'intérieur du contour de fond perdu de la tuile (`hexa.contour_toile_mm`)
+    et 0 ailleurs. Les pixels de la coupe d'une tuile (centre de grille le
+    plus proche) ne sont donc dans aucune autre coupe, et le fond perdu est
+    fait des pixels réels des voisines, jamais d'un prolongement. Fonction
+    pure : `src` n'est pas modifié, rien n'est écrit."""
+    cg = geom(g.fmt, dpi, g.bleed_mm)
+    canvas = cg.canvas_px
+    travail = _image_travail(src, g, cadrage, dpi)
+    k = dpi / 25.4
+    contour = [(x * k, y * k) for x, y in hexa.contour_toile_mm(cg)]
+    # Masque de fond perdu, identique pour toutes les tuiles du format.
+    masque = Image.new("L", canvas, 0)
+    ImageDraw.Draw(masque).polygon(contour, fill=255)
+    sortie = []
+    for rang, col, cx, cy in g.centres_mm:
+        ox, oy = _origine_tuile(g, cx, cy, dpi, canvas)
+        tuile = travail.crop((ox, oy, ox + canvas[0], oy + canvas[1]))
+        alpha = Image.new("L", canvas, 0)
+        alpha.paste(tuile.getchannel("A"), mask=masque)
+        tuile.putalpha(alpha)
+        sortie.append((rang, col, tuile))
+    return sortie
