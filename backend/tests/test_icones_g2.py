@@ -83,7 +83,7 @@ CLES = {
                         "dz-edit-monter": 1, "dz-etat-erreur": 1, "dz-etat-succes": 6, "dz-media-generer-image": 1,
                         "dz-nav-cf-cadre": 1},
     "js/mod-gltf.js": {"dz-action-annuler": 2, "dz-action-telecharger": 1, "dz-nav-cf-export-3d": 1},
-    "js/mod-print.js": {"dz-action-annuler": 1, "dz-action-telecharger": 2, "dz-edit-reperes": 2, "dz-etat-succes": 4,
+    "js/mod-print.js": {"dz-action-annuler": 1, "dz-action-telecharger": 4, "dz-edit-reperes": 2, "dz-etat-succes": 4,
                         "dz-nav-cf-impression": 1},
     "js/mod-solid.js": {"dz-action-ajuster-vue": 1, "dz-action-zoom-arriere": 1, "dz-action-zoom-avant": 1,
                         "dz-lab3d-filaire": 1, "dz-lab3d-hdri": 1, "dz-lab3d-rotation": 1, "dz-nav-cf-volume": 1},

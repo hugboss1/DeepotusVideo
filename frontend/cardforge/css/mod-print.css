@@ -29,6 +29,10 @@
 /* t421 : le gabarit de dessin d'un hexagone (caché pour un rectangle) */
 .cf-print .cf-print-gabhex[hidden] { display: none; }
 .cf-print .cf-print-gabhex a.btn { text-decoration: none; }
+/* t421 (tâche 8) : le panneau hexagonal — le rappel « couper recto dessus » se voit */
+.cf-print .cf-print-hex-rappel { border-left: 2px solid var(--accent); padding-left: 8px;
+  color: var(--ink-strong); }
+.cf-print .cf-print-hex .btn[disabled] { opacity: .5; cursor: not-allowed; }
 
 /* ── ligne de tete : ce que l'export va produire, en clair ───────────────── */
 .cf-print .cf-print-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

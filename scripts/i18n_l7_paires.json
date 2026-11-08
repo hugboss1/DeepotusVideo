@@ -12091,6 +12091,12 @@
     "groupe": "print"
    },
    {
+    "pos": 37338,
+    "avant": "function shell() {",
+    "apres": "function shell() {\r\n    if (HEXA) { shellHex(); return; }",
+    "groupe": "t421_impression"
+   },
+   {
     "pos": 37450,
     "avant": "'<span class=\"cf-print-free\">0 crédit — tout est calculé sur ce poste</span>'",
     "apres": "'<span class=\"cf-print-free\">' + dzT(\"cartes.print.gratuit\") + '</span>'",
@@ -12113,12 +12119,6 @@
     "avant": "'<button class=\"btn sm\" type=\"button\" data-act=\"undo\" title=\"Annuler le dernier réglage (Ctrl+Z)\" aria-label=\"Annuler le dernier réglage (Ctrl+Z)\">'",
     "apres": "'<button class=\"btn sm\" type=\"button\" data-act=\"undo\" title=\"' + dzT(\"cartes.print.annuler_titre\") + '\" aria-label=\"' + dzT(\"cartes.print.annuler_titre\") + '\">'",
     "groupe": "print"
-   },
-   {
-    "pos": 38078,
-    "avant": "/* ── GABARIT D'IMPRIMEUR (tache #83) : le choix qui regle tout le reste ── */",
-    "apres": "/* ── t421 : GABARIT DE DESSIN d'un format hexagonal (visible pour un hexagone seulement) ── */\r\n      + '<div class=\"cf-print-gabhex\" data-role=\"gabhex\" hidden>'\r\n      + '<details class=\"grp\" open><summary>' + dzT(\"cartes.print.gabhex_titre\") + '</summary><div class=\"grp-body\">'\r\n      + '<div class=\"btn-row\">'\r\n      + '<a class=\"btn sm\" data-role=\"gabhex-png\" href=\"#\" download>' + ICO(\"dz-action-telecharger\", 16, \"cf-ic\") + dzT(\"cartes.print.gabhex_png\") + '</a>'\r\n      + '<a class=\"btn sm\" data-role=\"gabhex-svg\" href=\"#\" download>' + ICO(\"dz-action-telecharger\", 16, \"cf-ic\") + dzT(\"cartes.print.gabhex_svg\") + '</a>'\r\n      + '</div>'\r\n      + '<p class=\"hint\">' + dzT(\"cartes.print.gabhex_aide\") + '</p>'\r\n      + '</div></details></div>'\r\n\r\n      /* ── GABARIT D'IMPRIMEUR (tache #83) : le choix qui regle tout le reste ── */",
-    "groupe": "t421_gabarit"
    },
    {
     "pos": 38166,
@@ -12665,6 +12665,12 @@
     "avant": "\" (\" + sgn(dx) + \" / \" + sgn(dy) + \" µm du nominal)\"",
     "apres": "dzT(\"cartes.print.tip_ecart\", { dx: sgn(dx), dy: sgn(dy) })",
     "groupe": "print"
+   },
+   {
+    "pos": 58301,
+    "avant": "esc(f.label.replace(/\\s*\\d.*$/, \"\"))",
+    "apres": "esc(f.forme === \"hex\" && typeof CF.libelleFormat === \"function\" ? CF.libelleFormat(f.id) : f.label.replace(/\\s*\\d.*$/, \"\"))",
+    "groupe": "t421_impression"
    },
    {
     "pos": 59101,
@@ -13327,6 +13333,18 @@
     "groupe": "print"
    },
    {
+    "pos": 94740,
+    "avant": "function refresh(light) {",
+    "apres": "function refresh(light) {\r\n    if (HEXA) { syncHex(); schedulePlanHex(); return; }",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 95062,
+    "avant": "async function verify() {",
+    "apres": "async function verify() {\r\n    if (HEXA) return;",
+    "groupe": "t421_impression"
+   },
+   {
     "pos": 95285,
     "avant": "\"hors ligne — plan local\"",
     "apres": "dzT(\"cartes.print.hors_ligne\")",
@@ -13403,6 +13421,18 @@
     "avant": "\"plan vérifié backend · \" + BPLAN.sheet_px[0] + \"x\"\r\n        + BPLAN.sheet_px[1] + \" px · gouttière \" + fx(BPLAN.gutter_pt, 2).replace(\".\", \",\")\r\n        + \" pt · toile \" + g.canvas_px.join(\"x\") + \" px\"\r\n        + (BPLAN.duplex ? \" · miroir R/V \" + nfx(BPLAN.mirror_um, 1) + \" µm\" : \"\")",
     "apres": "dzT(\"cartes.print.plan_verifie\", { w: BPLAN.sheet_px[0], h: BPLAN.sheet_px[1], g: fx(BPLAN.gutter_pt, 2).replace(\".\", \",\"), toile: g.canvas_px.join(\"x\") })\r\n        + (BPLAN.duplex ? dzT(\"cartes.print.plan_verifie_miroir\", { um: nfx(BPLAN.mirror_um, 1) }) : \"\")",
     "groupe": "print"
+   },
+   {
+    "pos": 102147,
+    "avant": "function schedulePreflight() {",
+    "apres": "function schedulePreflight() {\r\n    if (HEXA) return;",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 102287,
+    "avant": "async function preflight() {",
+    "apres": "async function preflight() {\r\n    if (HEXA) return;",
+    "groupe": "t421_impression"
    },
    {
     "pos": 102431,
@@ -13729,6 +13759,30 @@
     "groupe": "print"
    },
    {
+    "pos": 127143,
+    "avant": "function wire() {",
+    "apres": "/* ══ t421 (tâche 8) : L'IMPRESSION HEXAGONALE ══════════════════════════════\r\n     Un jeu hexagonal a SON panneau : feuille, marge, gouttière, recto verso,\r\n     trait de coupe imprimé, un aperçu de page dessiné depuis le plan du\r\n     SERVEUR (POST hex/plan) et deux téléchargements, le PDF d'impression\r\n     (hex/pdf) et le fichier de coupe (hex/coupe : un ZIP de SVG + DXF). Ce\r\n     panneau n'appelle ni layoutOf, ni layout, ni preflight : ils ne savent\r\n     que la grille rectangulaire. Le panneau rectangulaire reste tel quel —\r\n     `shell` ne se détourne que pour un hexagone. Les réglages vivent sous la\r\n     seule clé `doc.print.hexa`, hors DEFAULTS : `st()` et la spec\r\n     rectangulaire ne la voient pas. ══════════════════════════════════════ */\r\n  let HEXA = false, HEXPLAN = null, HEXERR = \"\", HEXATTENTE = false, HEXSEQ = 0, HEXRETRY = 0;\r\n  let HEXBUSY = false, hxtimer = null;\r\n  const HEX_FEUILLES = [[\"a4\", \"A4\"], [\"letter\", \"Letter\"], [\"a3\", \"A3\"]];\r\n  function estHex() { const g = CF.geom(); return !!g && g.forme === \"hex\"; }\r\n  function hexStocke() { const p = CF.doc().print; return (p && p.hexa) || {}; }\r\n  function hexReglages() {\r\n    const h = hexStocke(), b = Number(CF.geom().bleed_mm) || 0;\r\n    const nb = (v, d) => (v != null && v !== \"\" && isFinite(Number(v)) ? Number(v) : d);\r\n    return {\r\n      sheet: HEX_FEUILLES.some((f) => f[0] === h.sheet) ? h.sheet : \"a4\",\r\n      marge_mm: nb(h.marge_mm, 12),\r\n      /* LA GOUTTIÈRE PAR DÉFAUT VAUT DEUX FONDS PERDUS : en dessous, le\r\n         serveur refuse (les fonds perdus de deux voisines se\r\n         chevaucheraient). Celle du panneau rectangulaire (4 mm) serait\r\n         refusée pour 3 mm de fond perdu. */\r\n      gouttiere_mm: nb(h.gouttiere_mm, Math.round(2 * b * 1000) / 1000),\r\n      trait: !!h.trait, duplex: !!h.duplex,\r\n    };\r\n  }\r\n  /* le corps des trois routes hex/* : le MÊME pour le plan, le PDF et la coupe */\r\n  function hexCorps() {\r\n    const r = hexReglages();\r\n    return { sheet: r.sheet, marge_mm: r.marge_mm, gouttiere_mm: r.gouttiere_mm,\r\n      n_cards: CF.cards().length, trait: r.trait, duplex: r.duplex };\r\n  }\r\n  function setHex(partial) { M.patch({ hexa: Object.assign({}, hexStocke(), partial) }); }\r\n\r\n  function shellHex() {\r\n    const h = hexReglages();\r\n    const num = (k, label, min, max, step) => '<label class=\"fld\"><span class=\"lbl\">' + esc(label) + '</span>'\r\n      + '<span class=\"cf-print-num\"><input type=\"number\" data-hx=\"' + k + '\" min=\"' + min + '\" max=\"' + max\r\n      + '\" step=\"' + step + '\" value=\"' + esc(h[k]) + '\"><i class=\"cf-print-px\">mm</i></span></label>';\r\n    const chk = (k, label) => '<label class=\"check tiny\"><input type=\"checkbox\" data-hx=\"' + k + '\"'\r\n      + (h[k] ? \" checked\" : \"\") + '><span>' + esc(label) + '</span></label>';\r\n    HOST.innerHTML = ''\r\n      + '<div class=\"cf-print-top\">'\r\n      + '<span class=\"cf-print-free\">' + dzT(\"cartes.print.gratuit\") + '</span>'\r\n      + '</div>'\r\n\r\n      /* ── GABARIT DE DESSIN (tâche 6) ── */\r\n      + '<div class=\"cf-print-gabhex\" data-role=\"gabhex\" hidden>'\r\n      + '<details class=\"grp\" open><summary>' + dzT(\"cartes.print.gabhex_titre\") + '</summary><div class=\"grp-body\">'\r\n      + '<div class=\"btn-row\">'\r\n      + '<a class=\"btn sm\" data-role=\"gabhex-png\" href=\"#\" download>' + ICO(\"dz-action-telecharger\", 16, \"cf-ic\") + dzT(\"cartes.print.gabhex_png\") + '</a>'\r\n      + '<a class=\"btn sm\" data-role=\"gabhex-svg\" href=\"#\" download>' + ICO(\"dz-action-telecharger\", 16, \"cf-ic\") + dzT(\"cartes.print.gabhex_svg\") + '</a>'\r\n      + '</div>'\r\n      + '<p class=\"hint\">' + dzT(\"cartes.print.gabhex_aide\") + '</p>'\r\n      + '</div></details></div>'\r\n\r\n      /* ── LA PLANCHE EN NID D'ABEILLES ── */\r\n      + '<div class=\"cf-print-hex\" data-role=\"hex\">'\r\n      + '<details class=\"grp\" open><summary>' + dzT(\"cartes.print.hex_titre\") + '</summary><div class=\"grp-body\">'\r\n      + '<p class=\"hint\" data-role=\"hex-format\"></p>'\r\n      + '<label class=\"fld\"><span class=\"lbl\">' + dzT(\"cartes.print.planche\") + '</span>'\r\n      + '<div class=\"seg sm\" data-hxseg=\"sheet\">' + HEX_FEUILLES.map((f) => '<button class=\"seg-b'\r\n        + (f[0] === h.sheet ? \" active\" : \"\") + '\" type=\"button\" data-v=\"' + f[0] + '\">' + f[1] + '</button>').join(\"\")\r\n      + '</div></label>'\r\n      + '<div class=\"grid2\">' + num(\"marge_mm\", dzT(\"cartes.print.marge\"), 0, 60, 0.5)\r\n      + num(\"gouttiere_mm\", dzT(\"cartes.print.gouttiere\"), 0, 40, 0.5) + '</div>'\r\n      + '<div class=\"grid2\">' + chk(\"duplex\", dzT(\"cartes.print.recto_verso\"))\r\n      + chk(\"trait\", dzT(\"cartes.print.hex_trait\")) + '</div>'\r\n      + '<div class=\"cf-print-plan\">'\r\n      + '<canvas class=\"cf-print-canvas\" data-role=\"hex-plan\" width=\"264\" height=\"330\"></canvas>'\r\n      + '<div class=\"cf-print-side\">'\r\n      + '<dl class=\"cf-print-read\" data-role=\"hex-read\"></dl>'\r\n      + '<div class=\"cf-print-warns\" data-role=\"hex-err\"></div>'\r\n      + '</div></div>'\r\n      + '<div class=\"btn-row\">'\r\n      + '<button class=\"btn strong\" type=\"button\" data-act=\"hexpdf\">' + dzT(\"cartes.print.hex_btn_pdf\") + '</button>'\r\n      + '<button class=\"btn strong\" type=\"button\" data-act=\"hexcoupe\">' + dzT(\"cartes.print.hex_btn_coupe\") + '</button>'\r\n      + '</div>'\r\n      + '<p class=\"hint cf-print-hex-rappel\">' + dzT(\"cartes.print.hex_aide_coupe\") + '</p>'\r\n      + '<p class=\"hint\">' + dzT(\"cartes.print.hex_aide_gouttiere\") + '</p>'\r\n      + '<p class=\"hint\">' + dzT(\"cartes.print.hex_aide_duplex\") + '</p>'\r\n      + '</div></details></div>'\r\n\r\n      /* ── JOURNAL (le même que le panneau rectangulaire) ── */\r\n      + '<details class=\"grp\"><summary>' + dzT(\"cartes.print.titre_journal\") + '</summary><div class=\"grp-body\">'\r\n      + '<div class=\"cf-print-log\" data-role=\"log\"></div></div></details>';\r\n  }\r\n\r\n  /* les champs suivent le document (annulation, autre onglet, format) */\r\n  function syncHex() {\r\n    const h = hexReglages(), g = CF.geom(), f = q('[data-role=\"hex-format\"]');\r\n    if (f) {\r\n      const lib = typeof CF.libelleFormat === \"function\" ? CF.libelleFormat(g.fmt) : g.fmt;\r\n      f.innerHTML = dzT(\"cartes.print.hex_format\", { format: esc(lib), b: nf(g.bleed_mm, 2), g: nf(2 * g.bleed_mm, 2) });\r\n    }\r\n    [\"marge_mm\", \"gouttiere_mm\"].forEach((k) => { const i = q('[data-hx=\"' + k + '\"]'); if (i) i.value = h[k]; });\r\n    [\"duplex\", \"trait\"].forEach((k) => { const i = q('[data-hx=\"' + k + '\"]'); if (i) i.checked = !!h[k]; });\r\n    const sg = q('[data-hxseg=\"sheet\"]');\r\n    if (sg) sg.querySelectorAll(\".seg-b\").forEach((b) => { b.classList.toggle(\"active\", b.dataset.v === h.sheet); });\r\n  }\r\n\r\n  function schedulePlanHex(ms) {\r\n    clearTimeout(hxtimer);\r\n    hxtimer = setTimeout(() => { planHex().catch(() => { }); }, ms == null ? 250 : ms);\r\n  }\r\n  /* L'ENREGISTREMENT DU CORE EST DIFFÉRÉ DE 900 ms et le serveur lit la\r\n     géométrie du jeu ENREGISTRÉ : juste après un changement de format, il\r\n     sert encore le plan de l'ancien. Un tel plan n'est ni montré ni\r\n     exporté — on redemande. */\r\n  function hexPlanAJour(p) {\r\n    const g = CF.geom(), pg = (p && p.geom) || {};\r\n    return pg.fmt === g.fmt && Number(pg.dpi) === Number(g.dpi) && String(pg.canvas_px) === String(g.canvas_px);\r\n  }\r\n  /* LE PLAN DU SERVEUR, ou SA phrase : un refus (gouttière < 2 × fond\r\n     perdu, marge trop petite pour les repères…) est affiché tel quel. */\r\n  async function planHex() {\r\n    const seq = ++HEXSEQ;\r\n    let p = null, err = \"\";\r\n    try { p = await M.api.post(\"hex/plan\", hexCorps()); } catch (e) { err = String((e && e.message) || e); }\r\n    if (seq !== HEXSEQ || !HEXA) return null;\r\n    if (p && !hexPlanAJour(p)) {\r\n      HEXPLAN = null; HEXERR = \"\"; HEXATTENTE = true;\r\n      if (HEXRETRY++ < 5) schedulePlanHex(1000);\r\n      paintHex();\r\n      return null;\r\n    }\r\n    HEXRETRY = 0; HEXATTENTE = false;\r\n    HEXPLAN = p; HEXERR = err;\r\n    paintHex();\r\n    return p;\r\n  }\r\n  function paintHex() {\r\n    const p = HEXPLAN, d = q('[data-role=\"hex-read\"]'), w = q('[data-role=\"hex-err\"]');\r\n    const ligne = (dt, v) => '<dt>' + dt + '</dt><dd class=\"big\">' + v + '</dd>';\r\n    if (d) {\r\n      d.innerHTML = p ? ligne(dzT(\"cartes.print.hex_par_page\"), p.par_page) + ligne(dzT(\"cartes.print.hex_cartes\"), p.n_cartes)\r\n        + ligne(dzT(\"cartes.print.hex_pages\"), p.pages) + ligne(dzT(\"cartes.print.hex_pages_pdf\"), p.out_pages)\r\n        + ligne(dzT(\"cartes.print.hex_feuille\"), nf(p.size_mm[0], 1) + \" x \" + nf(p.size_mm[1], 1) + \" mm\")\r\n        : '<dt>' + dzT(\"cartes.print.dt_plan\") + '</dt><dd class=\"dim\">' + dzT(\"cartes.print.hex_aucun_plan\") + '</dd>';\r\n    }\r\n    if (w) {\r\n      w.innerHTML = HEXERR ? '<div class=\"cf-print-w err\"><span>' + esc(HEXERR) + '</span></div>'\r\n        : HEXATTENTE ? '<div class=\"cf-print-w info\"><span>' + dzT(\"cartes.print.hex_attente\") + '</span></div>' : '';\r\n    }\r\n    qa('[data-act=\"hexpdf\"], [data-act=\"hexcoupe\"]').forEach((b) => { b.disabled = !p; });\r\n    dessinePlanHex();\r\n  }\r\n  /* L'APERÇU : la page 1 recto, à l'échelle, d'après les cases, le contour\r\n     et les repères SERVIS — aucun pas de nid d'abeilles n'est calculé ici. */\r\n  function dessinePlanHex() {\r\n    const cv = q('[data-role=\"hex-plan\"]'), p = HEXPLAN;\r\n    if (!cv || typeof cv.getContext !== \"function\") return;\r\n    const ctx = cv.getContext(\"2d\");\r\n    if (!ctx) return;\r\n    ctx.setTransform(1, 0, 0, 1, 0, 0);\r\n    ctx.clearRect(0, 0, cv.width, cv.height);\r\n    if (!p) return;\r\n    const sc = Math.min(264 / p.size_mm[0], 330 / p.size_mm[1]);\r\n    const dpr = Math.min(2, (typeof devicePixelRatio === \"number\" ? devicePixelRatio : 1) || 1);\r\n    const wCss = Math.round(p.size_mm[0] * sc), hCss = Math.round(p.size_mm[1] * sc);\r\n    cv.width = Math.round(wCss * dpr); cv.height = Math.round(hCss * dpr);\r\n    cv.style.width = wCss + \"px\"; cv.style.height = hCss + \"px\";\r\n    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);\r\n    const soft = tone(\"--ink-muted\", \"#888\"), acc = tone(\"--accent\", \"#e8a33d\");\r\n    ctx.fillStyle = \"#ffffff\";\r\n    ctx.fillRect(0, 0, wCss, hCss);\r\n    ctx.lineWidth = 1; ctx.strokeStyle = soft;\r\n    ctx.strokeRect(0.5, 0.5, wCss - 1, hCss - 1);\r\n    const contour = (p.geom && p.geom.contour_mm) || [];\r\n    const pleines = Math.min(p.par_page, p.n_cartes);\r\n    (p.cases || []).forEach((c, k) => {\r\n      ctx.beginPath();\r\n      contour.forEach((s, i) => {\r\n        const x = (c[0] + s[0]) * sc, y = (c[1] + s[1]) * sc;\r\n        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);\r\n      });\r\n      ctx.closePath();\r\n      if (k < pleines) {\r\n        ctx.setLineDash([]);\r\n        ctx.globalAlpha = 0.3; ctx.fillStyle = acc; ctx.fill(); ctx.globalAlpha = 1;\r\n        ctx.strokeStyle = p.trait ? \"#111111\" : acc;\r\n      } else {\r\n        ctx.setLineDash([3, 3]); ctx.strokeStyle = soft;\r\n      }\r\n      ctx.stroke();\r\n    });\r\n    ctx.setLineDash([]);\r\n    ctx.fillStyle = \"#111111\";\r\n    const r = (Number(p.repere_diametre_mm) || 5) / 2 * sc;\r\n    (p.reperes_mm || []).forEach((m) => {\r\n      ctx.beginPath(); ctx.arc(m[0] * sc, m[1] * sc, r, 0, Math.PI * 2); ctx.fill();\r\n    });\r\n  }\r\n\r\n  /* LE PDF : les cartes rendues par CF.cardBlob (renderAll, comme l'export\r\n     rectangulaire), versos compris en recto verso, puis POST hex/pdf. Le\r\n     plan est redemandé d'abord : un refus du serveur arrive avec SA phrase,\r\n     avant le moindre rendu. */\r\n  async function exportHexPdf() {\r\n    if (HEXBUSY) return;\r\n    HEXBUSY = true;\r\n    try {\r\n      const p = await planHex();\r\n      if (!p) { CF.toast(HEXERR || dzT(\"cartes.print.hex_attente\"), true); return; }\r\n      const corps = hexCorps();\r\n      const r = await renderAll(!!corps.duplex);\r\n      CF.busy(true, dzT(\"cartes.print.busy_pdf\"));\r\n      const out = await M.api.blob(\"POST\", \"hex/pdf\", formData(corps, r.fronts, r.backs));\r\n      const name = deckSlug() + \"_planches_hex.pdf\";\r\n      CF.download(out, name);\r\n      logLine(name, out.size, dzT(\"cartes.print.hex_log_pdf\", { n: r.fronts.length, p: p.out_pages, pp: p.par_page }));\r\n      CF.toast(dzT(\"cartes.print.hex_toast_pdf\", { n: r.fronts.length, p: p.out_pages }));\r\n    } catch (e) { CF.toast(String((e && e.message) || e), true); }\r\n    finally { CF.busy(false); HEXBUSY = false; }\r\n  }\r\n  /* LE FICHIER DE COUPE : un ZIP (page-01.svg, page-01.dxf…), en mm, qui\r\n     suit la page RECTO — on coupe recto dessus. */\r\n  async function exportHexCoupe() {\r\n    if (HEXBUSY) return;\r\n    HEXBUSY = true;\r\n    try {\r\n      const p = await planHex();\r\n      if (!p) { CF.toast(HEXERR || dzT(\"cartes.print.hex_attente\"), true); return; }\r\n      CF.busy(true, dzT(\"cartes.print.hex_busy_coupe\"));\r\n      const out = await M.api.blob(\"POST\", \"hex/coupe\", hexCorps());\r\n      const name = deckSlug() + \"_coupe.zip\";\r\n      CF.download(out, name);\r\n      logLine(name, out.size, dzT(\"cartes.print.hex_log_coupe\", { p: p.pages }));\r\n      CF.toast(dzT(\"cartes.print.hex_toast_coupe\", { p: p.pages }));\r\n    } catch (e) { CF.toast(String((e && e.message) || e), true); }\r\n    finally { CF.busy(false); HEXBUSY = false; }\r\n  }\r\n\r\n  function clicHex(ev) {\r\n    if (!HEXA) return false;\r\n    const sb = ev.target.closest(\"[data-hxseg] .seg-b\");\r\n    if (sb) {\r\n      if (sb.closest(\"[data-hxseg]\").dataset.hxseg === \"sheet\") setHex({ sheet: String(sb.dataset.v) });\r\n      return true;\r\n    }\r\n    const act = ev.target.closest(\"[data-act]\"), a = act && act.dataset.act;\r\n    if (a === \"hexpdf\") { exportHexPdf(); return true; }\r\n    if (a === \"hexcoupe\") { exportHexCoupe(); return true; }\r\n    return false;\r\n  }\r\n  function changeHex(t) {\r\n    if (!HEXA || !t || !t.dataset || !t.dataset.hx) return false;\r\n    const k = t.dataset.hx, o = {};\r\n    if (k === \"duplex\" || k === \"trait\") o[k] = !!t.checked;\r\n    else {\r\n      const v = Number(t.value);\r\n      if (t.value === \"\" || !isFinite(v)) { syncHex(); return true; }\r\n      o[k] = v;\r\n    }\r\n    setHex(o);\r\n    return true;\r\n  }\r\n  /* LA FORME CHANGE : le panneau se rebâtit (rectangle <-> hexagone). Rend\r\n     vrai si le jeu est hexagonal — le reste de `core:geom` est alors sauté. */\r\n  function geomHex() {\r\n    const h = estHex();\r\n    if (h !== HEXA) {\r\n      HEXA = h; HEXPLAN = null; HEXERR = \"\"; HEXATTENTE = false; HEXRETRY = 0;\r\n      PROBE = null; PF = null;     /* la sonde de couleur et le contrôle avant vol datent de l'ancien panneau */\r\n      shell();\r\n      paintIntents(); paintFormats(); paintIcc(); paintAudit(); paintPreflight(); paintGabarits();\r\n      if (!h) wirePlanDrag();\r\n    }\r\n    if (!HEXA) return false;\r\n    sync();\r\n    refresh();\r\n    return true;\r\n  }\r\n\r\n  function wire() {",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 127166,
+    "avant": "HOST.addEventListener(\"click\", (ev) => {",
+    "apres": "HOST.addEventListener(\"click\", (ev) => {\r\n      if (clicHex(ev)) return;",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 128661,
+    "avant": "HOST.addEventListener(\"change\", (ev) => {",
+    "apres": "HOST.addEventListener(\"change\", (ev) => {\r\n      if (changeHex(ev.target)) return;",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 130516,
+    "avant": "if (!visible()) return;",
+    "apres": "if (!visible() || HEXA) return;",
+    "groupe": "t421_impression"
+   },
+   {
     "pos": 131737,
     "avant": "\"repères indisponibles\"",
     "apres": "dzT(\"cartes.print.reperes_indispo\")",
@@ -13757,6 +13811,24 @@
     "avant": "\"Impression\"",
     "apres": "dzT(\"cartes.print.titre\")",
     "groupe": "print"
+   },
+   {
+    "pos": 134148,
+    "avant": "state: Object.assign({}, DEFAULTS),",
+    "apres": "/* t421 : `hexa` = les réglages de la planche hexagonale, HORS DEFAULTS */\r\n    state: Object.assign({}, DEFAULTS, { hexa: {} }),",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 134217,
+    "avant": "HOST = host;",
+    "apres": "HOST = host;\r\n      HEXA = estHex();",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 135165,
+    "avant": "CF.on(\"core:geom\", () => { paintFormats();",
+    "apres": "CF.on(\"core:geom\", () => { if (geomHex()) return; paintFormats();",
+    "groupe": "t421_impression"
    }
   ],
   "js/mod-solid.js": [
