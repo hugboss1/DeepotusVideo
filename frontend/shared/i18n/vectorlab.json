@@ -617,6 +617,8 @@
   "vectorlab.export.outil_tranche": {"fr": "Tranche — glisser un rectangle à exporter (onglet Exporter)", "en": "Slice — drag a rectangle to export (Export tab)"},
   "vectorlab.export.pdf_titre": {"fr": "Vectoriel : les chemins, formes, textes (en contours), dégradés et motifs restent des vecteurs — seuls les effets, masques, images et textes sur chemin sont rasterisés, et le toast les compte. Image : une image par page (l'ancien PDF).", "en": "Vector: paths, shapes, texts (as outlines), gradients and patterns stay vectors — only effects, masks, images and text on path are rasterized, and the toast counts them. Image: one image per page (the old PDF)."},
   "vectorlab.export.plan_vide": {"fr": "rien à exporter (aucune tranche ou aucun format)", "en": "nothing to export (no slice or no format)"},
+  "vectorlab.export.plateau": {"fr": "Découper en hexagones…", "en": "Cut into hexagons…"},
+  "vectorlab.export.plateau_titre": {"fr": "Découpe le document en tuiles hexagonales pour créer un jeu plateau du Card Forge — exporté en PNG opaque, 300 ppp sur la grille choisie", "en": "Cuts the document into hexagonal tiles to create a Card Forge board deck — exported as an opaque PNG, 300 ppi on the chosen grid"},
   "vectorlab.export.png_depose": {"fr": "{f} déposé dans la Library ({k}×)", "en": "{f} saved to the Library ({k}×)"},
   "vectorlab.export.print3d_indispo": {"fr": "impression 3D indisponible (module non chargé)", "en": "3D printing unavailable (module not loaded)"},
   "vectorlab.export.qualite": {"fr": "Qualité", "en": "Quality"},
