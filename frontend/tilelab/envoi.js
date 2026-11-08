@@ -6,8 +6,9 @@ import { recevoir } from "../shared/dz-envoi.js";
 // t421 : un nom refusé est DIT dans le toast de l'écran (jamais une source vide en silence).
 function dire(nom) {
   const el = typeof document !== "undefined" ? document.getElementById("toast") : null;
-  if (!el || typeof globalThis.dzT !== "function") return;
-  el.textContent = globalThis.dzT("commun.envoi.refuse", { nom });
+  const t = globalThis.dzT;
+  if (!el || typeof t !== "function") return;
+  el.textContent = t("commun.envoi.refuse", { nom });
   el.classList.remove("hidden"); el.classList.add("err");
   setTimeout(() => el.classList.add("hidden"), 4200);
 }
@@ -20,3 +21,5 @@ export function appliquer(recu, tl) {
 }
 
 if (typeof window !== "undefined" && window.document) appliquer(recevoir("tilelab"), window.__tl);
+// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)
+function __dzT9(k, fr, v) { return typeof globalThis.dzT === "function" ? globalThis.dzT(k, v) : String(fr).replace(/\{(\w+)\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }

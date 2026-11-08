@@ -32,6 +32,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   qui en a besoin. → [ALLER:library] [GUIDE:bibliotheque]
 - **Game Assets** — le hub des outils de ressources de jeu : image vers modèle 3D, 3D Studio, Assets 2D, Sprite Lab,
   Tile Lab, Card Forge, matières. → [ALLER:assets3d] [GUIDE:assets2d]
+- **Card Forge** (Game Assets) — fabriquer un jeu de cartes. Galerie : « Nouveau jeu depuis des images » (dialogue en 4 étapes : Nom et format, Images, Verso apparié par le nom ou aucun, Récapitulatif ; gratuit). Les formats hexagonaux (50 à 90 mm) grisent le rayon de coin et ouvrent une impression hexagonale (feuille, marge, gouttière, recto verso, trait de coupe) : PDF et fichier de coupe ZIP ; gabarit de dessin PNG/SVG téléchargeable. Certaines pièces du rail disent « pas encore » pour les hexagones. → [ALLER:assets3d] [GUIDE:assets2d]
 - **Vectorlab** — dessiner une affiche, un logo ou une planche en vectoriel (formes, plume, texte, calques, symboles)
   puis l'envoyer vers les autres écrans. → [ALLER:vectorlab] [GUIDE:vectorlab]
 - **Photolab** — ouvrir une image, la sélectionner, la retoucher, la régler (calques non destructifs) et la renvoyer

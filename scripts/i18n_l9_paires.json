@@ -1473,6 +1473,20 @@
     "groupe": "aide"
    }
   ],
+  "tilelab/envoi.js": [
+   {
+    "pos": 357,
+    "avant": "export function appliquer(recu, tl) {\r\n  if (!recu ||",
+    "apres": "// t421 : un nom refusé est DIT dans le toast de l'écran (jamais une source vide en silence).\r\nfunction dire(nom) {\r\n  const el = typeof document !== \"undefined\" ? document.getElementById(\"toast\") : null;\r\n  const t = globalThis.dzT;\r\n  if (!el || typeof t !== \"function\") return;\r\n  el.textContent = t(\"commun.envoi.refuse\", { nom });\r\n  el.classList.remove(\"hidden\"); el.classList.add(\"err\");\r\n  setTimeout(() => el.classList.add(\"hidden\"), 4200);\r\n}\r\n\r\nexport function appliquer(recu, tl) {\r\n  if (recu && recu.refus) { dire(recu.refus); return false; }\r\n  if (!recu ||",
+    "groupe": "t421"
+   },
+   {
+    "pos": 613,
+    "avant": "",
+    "apres": "// t149 (traduction L9) : dzT dans la page, le français sous node (bancs)\r\nfunction __dzT9(k, fr, v) { return typeof globalThis.dzT === \"function\" ? globalThis.dzT(k, v) : String(fr).replace(/\\{(\\w+)\\}/g, (m, n) => (v && v[n] != null ? String(v[n]) : m)); }\r\n",
+    "groupe": "aide"
+   }
+  ],
   "studio3d/studio3d.js": [
    {
     "pos": 1001,
