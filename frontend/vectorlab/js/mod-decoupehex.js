@@ -1,7 +1,8 @@
 // mod-decoupehex.js — plateau (lot 1) : Export › Découper en hexagones… Le document du Vectorlab devient un jeu
 // « plateau » du Card Forge par le dialogue partagé (/shared/dz-decoupe-hex.js : cadrage, grille, création du jeu).
 //
-// L'image à découper est le document lui-même, rastérisé OPAQUE (la case « fond transparent » n'est pas lue) à la
+// L'image à découper est le document lui-même, rastérisé sans lire la case « fond transparent » (la couleur de fond du
+// document est gardée ; les zones sans fond sont aplaties sur du blanc par le serveur, à la découpe), à la
 // résolution qui donne 300 ppp sur la grille choisie, au plus 8192 px sur le plus grand côté. Elle est déposée dans la
 // Bibliothèque sous vector_<docId>_plateau_<k>x.png : la lignée des tuiles remonte au document par ce nom.
 // L'aperçu du dialogue est un rendu borné (APERCU_MAX), jamais le document à pleine taille.
@@ -30,7 +31,19 @@ async function blobVersCanvas(blob) {
 }
 
 // -> {deck, tuiles} | null (annulé, ou pas de document). `ouvrir` et `versCanvas` sont injectables (banc node).
+let enCours = false;       // un seul dialogue : un second clic pendant le rendu de l'aperçu ou le dialogue est ignoré
+
 export async function decouperHex(VL, T, { ouvrir = ouvrirDecoupeHex, versCanvas = blobVersCanvas } = {}) {
+  if (enCours) return null;
+  enCours = true;
+  try {
+    return await ouvrirDocument(VL, T, ouvrir, versCanvas);
+  } finally {
+    enCours = false;
+  }
+}
+
+async function ouvrirDocument(VL, T, ouvrir, versCanvas) {
   const { etat } = VL;
   if (!etat.doc) return null;
   const { w, h } = etat.doc.taille;

@@ -191,6 +191,40 @@ def test_modes_d_image(mode):
     assert px[3] == 255 and px[:3] != (0, 0, 0)
 
 
+def _alpha_coupe_opaque(src):
+    """Chaque tuile : alpha 255 au centre et sur tout l'intérieur de l'hexagone de coupe (rétréci d'un cran)."""
+    g = P.grille("hex_p50", 2, 2)
+    t = P.decouper(src, g, {}, DPI_TEST)
+    for _, _, im in t:
+        a = im.getchannel("A")
+        assert a.getpixel(_centre(im)) == 255
+        # les seuls pixels non opaques sont hors contour : jamais un trou au milieu
+        cx, cy = _centre(im)
+        for dx in range(-8, 9, 4):
+            for dy in range(-8, 9, 4):
+                assert a.getpixel((cx + dx, cy + dy)) == 255
+    return t
+
+
+def test_source_transparente_aplatie_sur_blanc():
+    t = _alpha_coupe_opaque(Image.new("RGBA", (400, 300), (10, 200, 30, 0)))
+    for _, _, im in t:
+        assert im.getpixel(_centre(im)) == (255, 255, 255, 255)
+
+
+def test_source_a_moitie_transparente():
+    src = Image.new("RGBA", (400, 300), (200, 0, 0, 255))
+    src.paste((0, 0, 0, 0), (0, 0, 200, 300))            # moitié gauche transparente
+    t = _alpha_coupe_opaque(src)
+    couleurs = {im.getpixel(_centre(im))[:3] for _, _, im in t}
+    assert couleurs <= {(255, 255, 255), (200, 0, 0)} and (255, 255, 255) in couleurs and (200, 0, 0) in couleurs
+
+
+def test_source_opaque_inchangee():
+    src = _mire(400, 300)
+    assert P._sur_blanc(src.convert("RGBA")).tobytes() == src.convert("RGBA").tobytes()
+
+
 def test_source_intacte():
     src = _mire(800, 600)
     avant = src.tobytes()

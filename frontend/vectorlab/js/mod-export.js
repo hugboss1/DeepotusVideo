@@ -16,6 +16,11 @@ export function nomExportPNG(docId, suffixe, k, transparent) {
   return `vector_${docId}${suffixe || ""}_${Math.round(k * 100) / 100}x${transparent ? "_t" : ""}.png`;
 }
 
+/** Fond transparent ou non : l'export plateau (`opts.opaque`) ne lit jamais la case, les autres la suivent. */
+export function transparentExport(opts, caseCochee) {
+  return opts.opaque ? false : !!caseCochee;
+}
+
 export function initExport(VL) {
   const { $, etat } = VL;
 
@@ -81,7 +86,7 @@ export function initExport(VL) {
   }
 
   async function exporterPNG(k, opts = {}) {
-    const transparent = opts.opaque ? false : $("#expTransparent").checked;   // plateau : toujours opaque, la case n'est pas lue
+    const transparent = transparentExport(opts, $("#expTransparent").checked);
     const png = await rasteriser(k, transparent, opts.cadre);
     // le transparent porte son suffixe : il n'écrase jamais l'opaque ; une
     // planche porte le sien (lot C) — l'export du document reste stable
@@ -91,7 +96,7 @@ export function initExport(VL) {
     const r = await fetch("/api/images/upload", { method: "POST", body: fd });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(d.detail || r.statusText);
-    VL.toast(T("vectorlab.export.png_depose", { f: d.filename, k }));
+    VL.toast(T("vectorlab.export.png_depose", { f: d.filename, k: Math.round(k * 100) / 100 }));
     return d.filename;
   }
 

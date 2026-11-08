@@ -119,7 +119,7 @@ ENTREES = [
     L(F_EX, 64, '"rasterisation vide"', "vectorlab.export.rasterisation_vide", "rasterisation vide", "empty rasterization"),
     L(F_EX, 69, '"SVG non décodable par le navigateur"', "vectorlab.export.svg_navigateur",
       "SVG non décodable par le navigateur", "the browser cannot decode the SVG"),
-    S(F_EX, 86, '`${d.filename} déposé dans la Library (${k}×)`', 'T("vectorlab.export.png_depose", { f: d.filename, k })',
+    S(F_EX, 86, '`${d.filename} déposé dans la Library (${k}×)`', 'T("vectorlab.export.png_depose", { f: d.filename, k: Math.round(k * 100) / 100 })',
       {"vectorlab.export.png_depose": ("{f} déposé dans la Library ({k}×)", "{f} saved to the Library ({k}×)")}),
     S(F_EX, 100, '"vignette : " + r.status', 'T("vectorlab.export.err_vignette", { s: r.status })',
       {"vectorlab.export.err_vignette": ("vignette : {s}", "thumbnail: {s}")}),

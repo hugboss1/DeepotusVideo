@@ -144,18 +144,30 @@ def _en_rgba(src: Image.Image) -> Image.Image:
     return src.convert("RGB").convert("RGBA")
 
 
+def _sur_blanc(im: Image.Image) -> Image.Image:
+    """`im` (RGBA) composée sur du BLANC opaque. Les zones transparentes de la
+    source (document sans fond, calque vide, PNG détouré) deviennent du blanc :
+    elles ne creusent pas de trous dans les tuiles."""
+    if im.getchannel("A").getextrema()[0] == 255:
+        return im
+    fond = Image.new("RGBA", im.size, (255, 255, 255, 255))
+    return Image.alpha_composite(fond, im)
+
+
 def _image_travail(src: Image.Image, g: Grille, cadrage: dict,
                    dpi: int) -> Image.Image:
     """Le cadrage couvrant de `src`, rééchantillonné UNE fois (LANCZOS) à
     l'étendue de la grille en pixels : toutes les tuiles en sont des
-    fenêtres, donc le fond perdu d'une tuile est fait des pixels voisins."""
+    fenêtres, donc le fond perdu d'une tuile est fait des pixels voisins.
+    La source est d'abord APLATIE sur du blanc opaque : l'alpha d'une tuile ne
+    vient ensuite que du masque coupe ∪ fond perdu."""
     cadrage = cadrage or {}
     gauche, haut, w, h = cadrage_couvrant(
         src.width, src.height, g.largeur_mm, g.hauteur_mm,
         cadrage.get("zoom", 1.0), cadrage.get("x", 0.5), cadrage.get("y", 0.5))
     taille = (max(1, round(g.largeur_mm / 25.4 * dpi)),
               max(1, round(g.hauteur_mm / 25.4 * dpi)))
-    return _en_rgba(src).resize(
+    return _sur_blanc(_en_rgba(src)).resize(
         taille, Image.LANCZOS, box=(gauche, haut, gauche + w, haut + h))
 
 
@@ -237,7 +249,9 @@ def iter_tuiles(src: Image.Image, g: Grille, cadrage: dict, dpi: int = 300):
     Chaque pixel de coupe est ainsi dans une seule tuile, même sans fond perdu,
     et le fond perdu est fait des pixels réels des voisines. La coupe est
     bornée à l'hexagone de coupe élargi d'un pixel (les tuiles du bord n'ont
-    pas de cellule infinie). Fonction pure : `src` n'est pas modifié."""
+    pas de cellule infinie). La source est aplatie sur du blanc (voir
+    `_image_travail`) : un pixel de coupe est toujours opaque, même si la
+    source est transparente. Fonction pure : `src` n'est pas modifié."""
     cg = geom(g.fmt, dpi, g.bleed_mm)
     canvas = cg.canvas_px
     travail = _image_travail(src, g, cadrage, dpi)

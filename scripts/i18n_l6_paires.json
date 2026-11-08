@@ -3589,7 +3589,7 @@
    {
     "pos": 499,
     "avant": "import { image_hrefs, image_rev_max } from \"./mod-image.js\";",
-    "apres": "import { image_hrefs, image_rev_max } from \"./mod-image.js\";\r\nimport { decouperHex } from \"./mod-decoupehex.js\";\r\n\r\n/** Nom déposé dans la Bibliothèque : vector_<docId><suffixe>_<k>x[_t].png. Un k non entier (plateau) est arrondi à\r\n    deux décimales : le nom reste sûr pour un fichier ; les exports 1×/2×/4× gardent leur nom. */\r\nexport function nomExportPNG(docId, suffixe, k, transparent) {\r\n  return `vector_${docId}${suffixe || \"\"}_${Math.round(k * 100) / 100}x${transparent ? \"_t\" : \"\"}.png`;\r\n}",
+    "apres": "import { image_hrefs, image_rev_max } from \"./mod-image.js\";\r\nimport { decouperHex } from \"./mod-decoupehex.js\";\r\n\r\n/** Nom déposé dans la Bibliothèque : vector_<docId><suffixe>_<k>x[_t].png. Un k non entier (plateau) est arrondi à\r\n    deux décimales : le nom reste sûr pour un fichier ; les exports 1×/2×/4× gardent leur nom. */\r\nexport function nomExportPNG(docId, suffixe, k, transparent) {\r\n  return `vector_${docId}${suffixe || \"\"}_${Math.round(k * 100) / 100}x${transparent ? \"_t\" : \"\"}.png`;\r\n}\r\n\r\n/** Fond transparent ou non : l'export plateau (`opts.opaque`) ne lit jamais la case, les autres la suivent. */\r\nexport function transparentExport(opts, caseCochee) {\r\n  return opts.opaque ? false : !!caseCochee;\r\n}",
     "groupe": "plateau"
    },
    {
@@ -3625,7 +3625,7 @@
    {
     "pos": 3557,
     "avant": "const transparent = $(\"#expTransparent\").checked;",
-    "apres": "const transparent = opts.opaque ? false : $(\"#expTransparent\").checked;   // plateau : toujours opaque, la case n'est pas lue",
+    "apres": "const transparent = transparentExport(opts, $(\"#expTransparent\").checked);",
     "groupe": "plateau"
    },
    {
@@ -3637,7 +3637,7 @@
    {
     "pos": 4222,
     "avant": "`${d.filename} déposé dans la Library (${k}×)`",
-    "apres": "T(\"vectorlab.export.png_depose\", { f: d.filename, k })",
+    "apres": "T(\"vectorlab.export.png_depose\", { f: d.filename, k: Math.round(k * 100) / 100 })",
     "groupe": "export"
    },
    {

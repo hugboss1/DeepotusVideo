@@ -2,7 +2,7 @@
 // export opaque, appel du dialogue partagé, bouton et libellés FR/EN).
 import { readFileSync } from "node:fs";
 import { echelleDecoupe, decouperHex, APERCU_MAX } from "../js/mod-decoupehex.js";
-import { nomExportPNG } from "../js/mod-export.js";
+import { nomExportPNG, transparentExport } from "../js/mod-export.js";
 import { grille } from "../../shared/dz-decoupe-hex-logique.js";
 
 let ok = 0, ko = 0;
@@ -35,6 +35,13 @@ const source = readFileSync(new URL("../js/mod-export.js", import.meta.url), "ut
   check("2.4 plateau : k à deux décimales", nomExportPNG("abc", "_plateau", 3.3711, false) === "vector_abc_plateau_3.37x.png", nomExportPNG("abc", "_plateau", 3.3711, false));
   check("2.5 plateau : k entier sans décimales", nomExportPNG("abc", "_plateau", 4, false) === "vector_abc_plateau_4x.png");
   check("2.6 nom sans caractère interdit", /^[A-Za-z0-9._-]+$/.test(nomExportPNG("abc", "_plateau", 3.3711, false)));
+}
+
+// 2bis. l'opacité : le plateau ne lit pas la case, les autres boutons la suivent
+{
+  check("2b.1 plateau : opaque même case cochée", transparentExport({ opaque: true }, true) === false);
+  check("2b.2 plateau : opaque case décochée", transparentExport({ opaque: true }, false) === false);
+  check("2b.3 autres boutons : suivent la case", transparentExport({}, true) === true && transparentExport({}, false) === false && transparentExport({ suffixe: "_p1" }, true) === true);
 }
 
 // 3. l'appel du dialogue
@@ -70,6 +77,15 @@ function fabrique({ taille = { w: 1000, h: 700 }, nom = "Mon plateau" } = {}) {
   check("3.7 grand document : l'aperçu est borné à APERCU_MAX", Math.abs(j.apercus[0][0] * 8000 - APERCU_MAX) < 1e-9, j.apercus);
 }
 {
+  const { VL, outils } = fabrique();
+  let ouverts = 0;
+  outils.ouvrir = async () => { ouverts++; await new Promise((r) => setTimeout(r, 20)); return null; };
+  const [, b] = await Promise.all([decouperHex(VL, (c) => c, outils), decouperHex(VL, (c) => c, outils)]);
+  check("3.10 double clic : un seul dialogue", ouverts === 1 && b === null, ouverts);
+  await decouperHex(VL, (c) => c, outils);
+  check("3.11 le verrou est relâché après coup", ouverts === 2, ouverts);
+}
+{
   const { VL, j, outils } = fabrique();
   VL.etat.doc = null;
   const r = await decouperHex(VL, (c) => c, outils);
@@ -87,7 +103,7 @@ function fabrique({ taille = { w: 1000, h: 700 }, nom = "Mon plateau" } = {}) {
   check("4.1 bouton #expPlateau dans le menu Export, après #expPng4", /id="expPng4"[\s\S]*?id="expPlateau"/.test(html) && html.indexOf("expPlateau") < html.indexOf("expTransparent"));
   check("4.2 libellé et infobulle FR/EN", ["vectorlab.export.plateau", "vectorlab.export.plateau_titre"].every((c) => dico[c] && dico[c].fr.trim() && dico[c].en.trim() && dico[c].fr !== dico[c].en), Object.keys(dico).filter((c) => c.includes("plateau")));
   check("4.3 libellé FR attendu", dico["vectorlab.export.plateau"].fr === "Découper en hexagones…" && dico["vectorlab.export.plateau"].en === "Cut into hexagons…");
-  check("4.4 câblage : clic -> garde(decouperHex), exporterPNG lit l'option opaque", /\$\("#expPlateau"\)\.addEventListener\("click", garde\(/.test(source) && /opts\.opaque/.test(source));
+  check("4.4 câblage : clic -> garde(decouperHex), exporterPNG lit l'option opaque", /\$\("#expPlateau"\)\.addEventListener\("click", garde\(/.test(source) && /transparentExport\(opts, \$\("#expTransparent"\)\.checked\)/.test(source));
   check("4.5 les boutons existants ne passent pas l'option", /exporterPNG\(1\)/.test(source) && /exporterPNG\(2\)/.test(source) && /exporterPNG\(4\)/.test(source));
 }
 

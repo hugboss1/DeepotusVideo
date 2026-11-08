@@ -58,7 +58,8 @@ def test_cablage():
     assert html.index('id="expPng4"') < html.index('id="expPlateau"') < html.index('id="expTransparent"')
     assert '$("#expPlateau").addEventListener("click", garde(() => decouperHex(VL, T)));' in EXPORT
     assert 'T("vectorlab.export.plateau")' in EXPORT and 'T("vectorlab.export.plateau_titre")' in EXPORT
-    assert "opts.opaque ? false : $(\"#expTransparent\").checked" in EXPORT
+    assert 'transparentExport(opts, $("#expTransparent").checked)' in EXPORT
+    assert "k: Math.round(k * 100) / 100" in EXPORT          # le toast affiche le k arrondi
     # les boutons existants n'ont pas changé de comportement
     for k in ("1", "2", "4"):
         assert f'garde(() => exporterPNG({k}))' in EXPORT
