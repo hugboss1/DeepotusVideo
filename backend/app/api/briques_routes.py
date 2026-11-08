@@ -147,3 +147,95 @@ async def briques_registre(tache: str = ""):
         return await RT.lire(tache)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+# ── t435b (lot M2) : B4, la chaîne d'éditions vidéo → vidéo (services/chaine_video.py) ─────────────────────────────
+#   GET  /api/briques/chaines                  les chaînes (les plus récentes d'abord)
+#   POST /api/briques/chaines                  {source, nom?}          une chaîne neuve sur une vidéo approuvée
+#   GET  /api/briques/chaines/{id}             la chaîne et ses étapes
+#   POST /api/briques/chaines/{id}/devis       {consigne, ancres?, resolution?}   devis GRATUIT de la prochaine étape
+#   POST /api/briques/chaines/{id}/etapes      {…, confirme_cout, max_usd}        PAYANT, tir en tâche de fond
+# Ordre de refus du tir, tout AVANT la dépense : chaîne / entrée (404/400) → clé fal (503) → refus du clip ou étape en
+# cours (409) → confirmation (409, devis joint) → coût hors accord (409) → plafond « montage » (402).
+
+from fastapi import BackgroundTasks  # noqa: E402
+
+from app.services import chaine_video as CV  # noqa: E402
+
+
+def _chaine(cid: str) -> dict:
+    ch = CV.lire(cid)
+    if ch is None:
+        raise HTTPException(404, "Chaîne inconnue.")
+    return ch
+
+
+@router.get("/chaines")
+async def briques_chaines():
+    return {"chaines": await asyncio.to_thread(CV.lister)}
+
+
+@router.post("/chaines", dependencies=[Depends(_local)])
+async def briques_chaine_creer(body: dict | None = None):
+    b = _corps(body)
+    return await _fil(CV.creer, b.get("source"), b.get("nom") or "")
+
+
+@router.get("/chaines/{cid}")
+async def briques_chaine(cid: str):
+    return _chaine(cid)
+
+
+async def _devis_chaine(cid: str, b: dict) -> dict:
+    _chaine(cid)
+    ancres = b.get("ancres") if isinstance(b.get("ancres"), list) else []
+    return await _fil(CV.devis_etape, cid, b.get("consigne") or "", [str(a) for a in ancres],
+                      str(b.get("resolution") or "720p"))
+
+
+@router.post("/chaines/{cid}/devis")
+async def briques_chaine_devis(cid: str, body: dict | None = None):
+    d = await _devis_chaine(cid, _corps(body))
+    d.pop("op", None)
+    return d
+
+
+@router.post("/chaines/{cid}/etapes", dependencies=[Depends(_local)])
+async def briques_chaine_etape(cid: str, background_tasks: BackgroundTasks, body: dict | None = None):
+    from app.config import settings
+    from app.services import plafonds as PL
+    from app.services.scan_vision import _accord
+    b = _corps(body)
+    d = await _devis_chaine(cid, b)
+    if not settings.FAL_KEY:
+        raise HTTPException(503, "Ajoute une clé fal.ai (Réglages › Clés d'API) pour lancer une édition vidéo.")
+    if d["refus"]:
+        raise HTTPException(409, d["refus"])
+    pub = {k: v for k, v in d.items() if k != "op"}
+    if b.get("confirme_cout") is not True:
+        raise HTTPException(409, {"message": "Confirme le coût de l'étape avant de la lancer.", "usd": d["usd"],
+                                  "devis": pub})
+    try:
+        mx = _accord(b.get("max_usd", d["usd"]))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if d["usd"] > mx + 1e-4:
+        raise HTTPException(409, {"message": "Le coût a changé : il dépasse le montant accepté.", "usd": d["usd"],
+                                  "devis": pub})
+    try:
+        n = CV.reserver(cid, d)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    try:
+        garde = await PL.verifier(d["op"], "montage", ref=f"{cid}:{n}")
+    except BaseException:
+        CV.terminer(cid, n, statut="annule")
+        raise
+    etape = await RT.ouvrir(cid, f"étape {n}", d["usd"], (garde or {}).get("lignes") or [])
+
+    async def _run():
+        e = await CV.tirer(cid, n, d)
+        await RT.fermer(etape, "fait" if e.get("statut") == "fait" else "echec")
+
+    background_tasks.add_task(_run)
+    return {"chaine": cid, "n": n, "usd": d["usd"], "statut": "en_cours"}

@@ -14530,5 +14530,29 @@
  "Donne un nombre de plans ou leurs durées.": {
   "fr": "Donne un nombre de plans ou leurs durées.",
   "en": "Give a number of shots or their durations."
+ },
+ "Chaîne inconnue.": {
+  "fr": "Chaîne inconnue.",
+  "en": "Unknown chain."
+ },
+ "Ajoute une clé fal.ai (Réglages › Clés d'API) pour lancer une édition vidéo.": {
+  "fr": "Ajoute une clé fal.ai (Réglages › Clés d'API) pour lancer une édition vidéo.",
+  "en": "Add a fal.ai key (Settings › API keys) to launch a video edit."
+ },
+ "Une chaîne d'éditions part d'une vidéo.": {
+  "fr": "Une chaîne d'éditions part d'une vidéo.",
+  "en": "An edit chain starts from a video."
+ },
+ "Dis la seule chose à changer.": {
+  "fr": "Dis la seule chose à changer.",
+  "en": "Say the one thing to change."
+ },
+ "Résolution inconnue (480p ou 720p).": {
+  "fr": "Résolution inconnue (480p ou 720p).",
+  "en": "Unknown resolution (480p or 720p)."
+ },
+ "Une étape est déjà en cours sur cette chaîne.": {
+  "fr": "Une étape est déjà en cours sur cette chaîne.",
+  "en": "A step is already running on this chain."
  }
 }

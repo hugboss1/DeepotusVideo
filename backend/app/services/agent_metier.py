@@ -13,7 +13,9 @@ réponses, outils appelés avec leur résumé) ; chaque message de l'utilisateur
     (402 -> arrêt « plafond ») ; après : le réel noté sur les lignes ; le tout inscrit au registre coût/temps (B7) ;
   - les outils passent par agent_outils.executer avec ctx.agent = l'agent (refus hors de ses boîtes) ; les textes lus
     (fiches, noms de fichiers) sont des DONNÉES.
-Aucune génération payante n'est lancée par la boucle : un agent ne fait que lire, mesurer et poser des gestes locaux.
+Aucune génération payante n'est lancée par la boucle : un agent ne fait que lire, mesurer et poser des gestes locaux ;
+t435b : un outil « carte » (devis) PROPOSE une dépense — la carte remonte à l'écran, arrête le tour, et c'est le clic
+de l'utilisateur qui lance la route payante.
 """
 from __future__ import annotations
 
@@ -212,7 +214,7 @@ async def _boucle(agent: str, conv: dict, texte: str, accord: float, langue: str
     sys_ = systeme(agent, lg)
     msgs = _messages_modele(conv, texte)
     ctx = ao.Ctx(cid=conv["id"], espace_id=conv.get("espace_id") or None, lang=lg, agent=agent)
-    depense, morceaux, traces, arret = 0.0, [], [], "fin"
+    depense, morceaux, traces, cartes, arret = 0.0, [], [], [], "fin"
     for n in range(MAX_TOURS):
         op = MT.op_tour(modele, _jetons(sys_, msgs, outils), SORTIE_MAX)
         estime = _usd(op)
@@ -258,17 +260,22 @@ async def _boucle(agent: str, conv: dict, texte: str, accord: float, langue: str
                 res = await ao.executer(b.get("name"), dict(args), ctx)
             traces.append({"nom": str(b.get("name"))[:60], "ok": bool(res.get("ok")),
                            "resume": str(res.get("resume") or "")[:300]})
+            if res.get("ok") and isinstance(res.get("carte"), dict):
+                cartes.append(res["carte"])                 # t435b : une carte (devis) remonte à l'écran
             tr = {"type": "tool_result", "tool_use_id": b.get("id"), "content": ao.pour_modele(res)}
             if not res.get("ok"):
                 tr["is_error"] = True
             resultats.append(tr)
         msgs.append({"role": "user", "content": resultats})
+        if cartes:                                          # t435b : la première carte arrête le tour (comme Campagnes)
+            arret = "carte"
+            break
     else:
         arret = "max_tours"
     reponse = "\n\n".join(m.strip() for m in morceaux if m.strip())[:MAX_TEXTE * 2]
     maintenant = datetime.now(timezone.utc).isoformat(timespec="seconds")
     conv["messages"].append({"role": "user", "texte": texte, "date": maintenant})
-    conv["messages"].append({"role": "agent", "texte": reponse, "outils": traces, "usd": round(depense, 4),
-                             "arret": arret, "date": maintenant})
+    conv["messages"].append({"role": "agent", "texte": reponse, "outils": traces, "cartes": cartes,
+                             "usd": round(depense, 4), "arret": arret, "date": maintenant})
     _ecrire(conv["agent"], conv)
-    return {"texte": reponse, "outils": traces, "usd": round(depense, 4), "arret": arret}
+    return {"texte": reponse, "outils": traces, "cartes": cartes, "usd": round(depense, 4), "arret": arret}

@@ -6,6 +6,7 @@
    POST …/message {texte, confirme_cout: true, max_usd: devis} -> la réponse, les outils appelés (nom + résumé), le coût.
    Erreurs : 503 (clé Anthropic absente), 402 (plafond), 409 (occupée / coût), autre -> le message du serveur.
    Les exemples de la fiche deviennent des suggestions qui remplissent le champ (rien n'est envoyé sans clic).
+   t435b : une carte « devis » d'étape de chaîne vidéo (B4) s'affiche avec « Lancer (x $) » ; seul ce clic dépense.
    Textes : dzT("methodes.agent.…") ; réponses et données par textContent seulement. */
 (function () {
   "use strict";
@@ -79,9 +80,52 @@
         })) : null;
         var pied = el("div", { cls: "mt-bulle-pied", texte: T("methodes.agent.cout", { usd: prix(j.usd) })
           + (j.arret && j.arret !== "fin" ? " · " + T("methodes.agent.arret." + j.arret) : "") });
-        bulle("agent", j.texte || T("methodes.agent.sans_texte"), [outils, pied]);
+        bulle("agent", j.texte || T("methodes.agent.sans_texte"), [outils].concat((j.cartes || []).map(carte)).concat([pied]));
         majBouton();
       }, function () { attente.remove(); C.occupe = false; bulle("erreur", T("methodes.agent.erreur")); majBouton(); });
+  }
+
+  // t435b : une carte « devis » d'étape de chaîne -> bouton « Lancer (x $) » ; le clic seul dépense : POST
+  // /api/briques/chaines/<id>/etapes {consigne, ancres, resolution, confirme_cout: true, max_usd: devis}, puis la chaîne
+  // est relue toutes les 5 s jusqu'à la fin de l'étape (sortie, dérive mesurée contre le parent).
+  function carte(c) {
+    if (!c || c.genre !== "devis" || c.action !== "chaine_etape" || !c.arguments) return null;
+    var a = c.arguments;
+    var etat = el("p", { cls: "mt-carte-etat" });
+    var b = el("button", { cls: "mt-btn mt-btn--accent", type: "button", a: { "data-dz-methodes-lancer": a.chaine },
+      texte: T("methodes.agent.lancer", { usd: prix(c.devis) }) });
+    b.addEventListener("click", function () {
+      b.disabled = true;
+      etat.textContent = T("methodes.agent.lance");
+      envoyerJson("/api/briques/chaines/" + encodeURIComponent(a.chaine) + "/etapes", {
+        consigne: a.consigne, ancres: a.ancres || [], resolution: a.resolution, confirme_cout: true, max_usd: c.devis
+      }).then(function (r) {
+        if (r.statut !== 200) {
+          b.disabled = false;
+          var d = r.json && r.json.detail;
+          etat.textContent = r.statut === 503 ? T("methodes.agent.sans_fal") : r.statut === 402 ? T("methodes.agent.plafond")
+            : (typeof d === "string" ? d : (d && d.message) || T("methodes.agent.erreur"));
+          return;
+        }
+        suivre(a.chaine, r.json.n, etat);
+      }, function () { b.disabled = false; etat.textContent = T("methodes.agent.erreur"); });
+    });
+    return el("div", { cls: "mt-carte-devis" }, [el("b", { texte: c.libelle }),
+      el("span", { cls: "mt-sous", texte: a.parent + " · " + a.resolution + " · " + a.secondes_sortie + " s" }), b, etat]);
+  }
+
+  function suivre(chaine, n, etat) {
+    fetch("/api/briques/chaines/" + encodeURIComponent(chaine)).then(function (r) { return r.json(); }).then(function (ch) {
+      var e = (ch.etapes || []).filter(function (x) { return x.n === n; })[0];
+      if (!e || e.statut === "en_cours") { setTimeout(function () { suivre(chaine, n, etat); }, 5000); return; }
+      if (e.statut === "fait") {
+        var m = e.mesure || {};
+        etat.textContent = T("methodes.agent.etape_faite", { sortie: e.sortie,
+          derive: m.derive_images != null ? m.derive_images : "?" });
+      } else {
+        etat.textContent = T("methodes.agent.etape_echec") + (e.erreur ? " — " + e.erreur : "");
+      }
+    }, function () { setTimeout(function () { suivre(chaine, n, etat); }, 5000); });
   }
 
   function fermer() { if (C.panneau) { C.panneau.remove(); C.panneau = null; } }

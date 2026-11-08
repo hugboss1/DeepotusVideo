@@ -52,5 +52,13 @@
   "methodes.agent.arret.plafond": {"fr": "arrêté : plafond de dépense", "en": "stopped: spending cap", "contexte": true},
   "methodes.agent.arret.max_tours": {"fr": "arrêté : trop d'étapes pour un message", "en": "stopped: too many steps for one message", "contexte": true},
   "methodes.agent.arret.moteur": {"fr": "arrêté : le modèle n'a pas répondu", "en": "stopped: the model did not answer", "contexte": true},
-  "methodes.agent.arret.sans_cle": {"fr": "arrêté : clé Anthropic absente", "en": "stopped: no Anthropic key", "contexte": true}
+  "methodes.agent.arret.sans_cle": {"fr": "arrêté : clé Anthropic absente", "en": "stopped: no Anthropic key", "contexte": true},
+  "methodes.pont.bouton": {"fr": "Méthodes", "en": "Methods", "contexte": true},
+  "methodes.pont.titre": {"fr": "Les méthodes pas à pas de cet écran", "en": "This screen's step-by-step methods", "contexte": true},
+  "methodes.agent.lancer": {"fr": "Lancer (≈ {usd} $)", "en": "Launch (≈ ${usd})", "contexte": true},
+  "methodes.agent.lance": {"fr": "Étape lancée : le rendu prend quelques minutes…", "en": "Step launched: rendering takes a few minutes…", "contexte": true},
+  "methodes.agent.sans_fal": {"fr": "Ajoute une clé fal.ai dans Réglages › Clés d'API pour lancer une édition vidéo.", "en": "Add a fal.ai key in Settings › API keys to launch a video edit.", "contexte": true},
+  "methodes.agent.etape_faite": {"fr": "Étape rendue : {sortie} (dérive contre le parent : {derive} image(s))", "en": "Step rendered: {sortie} (drift against the parent: {derive} frame(s))", "contexte": true},
+  "methodes.agent.etape_echec": {"fr": "L'étape a échoué", "en": "The step failed", "contexte": true},
+  "methodes.agent.arret.carte": {"fr": "une proposition attend ton clic", "en": "a proposal is waiting for your click", "contexte": true}
 }
