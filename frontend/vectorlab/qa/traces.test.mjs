@@ -8,9 +8,10 @@
 // T5 (t426) Nettoyer : points isolés, objets invisibles, textes vides retirés du document entier ; liens et masques protégés.
 // T6 (t427) Diviser les objets en dessous : le tracé du dessus découpe chaque objet rempli situé SOUS lui, puis disparaît.
 // T7 (t428) Lignes et colonnes : la boîte de l'objet devient une grille de rectangles séparés par des gouttières, repères en option.
+// T8 (t429) Pathfinder : exclusion, soustraction arrière, découpage, fusion, recadrage, contour (les 6 qui manquaient).
 import { createRequire } from "node:module";
 import { fournirMartinez, aplatir_objet, versMulti, aire_multi } from "../js/mod-bool.js";
-import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres, op_noeuds_moyenne, op_nettoyer, op_diviser_dessous, op_lignes_colonnes } from "../js/mod-traces.js";
+import { op_contour_vectoriser, op_simplifier, simplifier_apercu, op_points_ajouter, compter_ancres, op_noeuds_moyenne, op_nettoyer, op_diviser_dessous, op_lignes_colonnes, op_pathfinder } from "../js/mod-traces.js";
 import { chemin_parser } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
 
@@ -475,6 +476,81 @@ const finsDe = (d) => chemin_parser(d).filter((g) => g.c !== "Z").map((g) => g.p
   const avT = JSON.stringify(t);
   ok("T7 objet non traçable : refus traduit, document intact", refus(() => op_lignes_colonnes(t, "t", { lignes: 2, colonnes: 2 })) === T("vectorlab.traces.lignes_objet") && JSON.stringify(t) === avT);
   ok("T7 la clé lignes_objet existe", T("vectorlab.traces.lignes_objet") !== "vectorlab.traces.lignes_objet");
+}
+
+/* ── T8 : Pathfinder ── */
+{
+  // deux carrés de 100 décalés de (50, 50) — recouvrement 2 500, aucun bord colinéaire : A (rouge, dessous), B (bleu, dessus)
+  const deux = (fondB = "#0000ff") => doc({ id: "w", type: "rect", x: 300, y: 300, w: 5, h: 5, style: { fond: "#eee" } },
+    { id: "A", type: "rect", x: 0, y: 0, w: 100, h: 100, style: { fond: "#ff0000", contour: "#000", epaisseur: 2 } },
+    { id: "B", type: "rect", x: 50, y: 50, w: 100, h: 100, style: { fond: fondB, contour: "#000", epaisseur: 2 } },
+    { id: "z", type: "rect", x: 300, y: 0, w: 5, h: 5, style: { fond: "#eee" } });
+  const sel = (d) => objets(d).filter((o) => o.id !== "w" && o.id !== "z");
+  const temoins = (d) => objets(d)[0].id === "w" && objets(d)[objets(d).length - 1].id === "z";
+
+  const x = deux(); const ix = op_pathfinder(x, ["A", "B"], "exclusion");
+  ok("T8 exclusion : un chemin d'aire 15 000, style du DESSUS", ix.length === 1 && sel(x).length === 1 && pres(aire(sel(x)[0]), 15000, 0.1) && sel(x)[0].style.fond === "#0000ff",
+     JSON.stringify(sel(x).map(aire)));
+  ok("T8 exclusion : à sa place, témoins intacts", temoins(x) && objets(x).length === 3);
+
+  const m = deux(); op_pathfinder(m, ["A", "B"], "soustraction_arriere");
+  ok("T8 soustraction arrière : B − A = 7 500, style du dessus", sel(m).length === 1 && pres(aire(sel(m)[0]), 7500, 0.1) && sel(m)[0].style.fond === "#0000ff", JSON.stringify(sel(m).map(aire)));
+
+  const t = deux(); const it = op_pathfinder(t, ["A", "B"], "decoupage");
+  const tA = sel(t).find((o) => o.style.fond === "#ff0000"), tB = sel(t).find((o) => o.style.fond === "#0000ff");
+  ok("T8 découpage : A rogné à 7 500, B entier à 10 000, dans l'ordre", it.length === 2 && tA && tB && pres(aire(tA), 7500, 0.1) && pres(aire(tB), 10000, 0.1)
+     && sel(t).indexOf(tA) < sel(t).indexOf(tB), JSON.stringify(sel(t).map(aire)));
+  ok("T8 découpage : contours retirés", sel(t).every((o) => o.style.contour === "none" && o.style.epaisseur === undefined), JSON.stringify(sel(t).map((o) => o.style)));
+
+  const f = deux("#ff0000"); op_pathfinder(f, ["A", "B"], "fusion");
+  ok("T8 fusion de même couleur : un seul chemin de 17 500", sel(f).length === 1 && pres(aire(sel(f)[0]), 17500, 0.1) && sel(f)[0].style.contour === "none", JSON.stringify(sel(f).map(aire)));
+  const g = deux(); op_pathfinder(g, ["A", "B"], "fusion");
+  ok("T8 fusion de couleurs différentes : comme le découpage (7 500 + 10 000)", sel(g).length === 2 && pres(sel(g).reduce((s2, o) => s2 + aire(o), 0), 17500, 0.1), JSON.stringify(sel(g).map(aire)));
+
+  const c = deux(); const ic = op_pathfinder(c, ["A", "B"], "recadrage");
+  ok("T8 recadrage : A ∩ B = 2 500 au style de A, B supprimé", ic.length === 1 && sel(c).length === 1 && pres(aire(sel(c)[0]), 2500, 0.1) && sel(c)[0].style.fond === "#ff0000"
+     && sel(c)[0].style.contour === "none", JSON.stringify(sel(c).map(aire)));
+
+  const o = deux(); const io = op_pathfinder(o, ["A", "B"], "contour");
+  const long = (d2) => { let L = 0, p0 = null; for (const s2 of chemin_parser(d2)) { const q = s2.p.slice(-2); if (s2.c !== "M" && s2.c !== "Z" && p0) L += Math.hypot(q[0] - p0[0], q[1] - p0[1]); if (s2.c !== "Z") p0 = q; } return L; };
+  ok("T8 contour : 4 chemins OUVERTS, sans fond, contour = l'ancien fond", io.length === 4 && sel(o).length === 4 && sel(o).every((p2) => !/Z/.test(p2.d) && p2.style.fond === "none"
+     && ["#ff0000", "#0000ff"].includes(p2.style.contour)), JSON.stringify(sel(o).map((p2) => [p2.d.slice(0, 30), p2.style])));
+  ok("T8 contour : longueur totale = les deux périmètres (800)", pres(sel(o).reduce((s2, p2) => s2 + long(p2.d), 0), 800, 0.1), sel(o).reduce((s2, p2) => s2 + long(p2.d), 0));
+  ok("T8 contour : 2 morceaux rouges, 2 bleus", sel(o).filter((p2) => p2.style.contour === "#ff0000").length === 2);
+
+  ok("T8 ids uniques", [x, m, t, f, g, c, o].every((d2) => new Set(tousIdsDoc(d2)).size === tousIdsDoc(d2).length));
+}
+{
+  // un objet tourné compte avec sa rotation ; refus : un seul objet, mode inconnu, texte → document intact
+  const r = doc({ id: "A", type: "rect", x: 0, y: 0, w: 100, h: 20, transform: "rotate(90 0 0)", style: { fond: "#f00" } },
+                { id: "B", type: "rect", x: -20, y: 0, w: 20, h: 50, style: { fond: "#00f" } });
+  op_pathfinder(r, ["A", "B"], "exclusion");
+  ok("T8 rotation appliquée : A tourné (x −20..0, 2 000) contient B (1 000) → exclusion = 1 000 (3 000 sans la rotation)",
+     objets(r).length === 1 && pres(aire(objets(r)[0]), 1000, 0.2), JSON.stringify(objets(r).map(aire)));
+  const un = doc({ id: "A", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#f00" } });
+  const av = JSON.stringify(un);
+  ok("T8 un seul objet : refus « deux objets », document intact", refus(() => op_pathfinder(un, ["A"], "exclusion")) === T("vectorlab.bool.deux_objets") && JSON.stringify(un) === av);
+  const mi = doc({ id: "A", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#f00" } }, { id: "B", type: "rect", x: 5, y: 0, w: 10, h: 10, style: { fond: "#00f" } });
+  const av2 = JSON.stringify(mi);
+  ok("T8 mode inconnu : refus, document intact", refus(() => op_pathfinder(mi, ["A", "B"], "melange")) !== null && JSON.stringify(mi) === av2);
+  const tx = doc({ id: "A", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#f00" } }, { id: "T", type: "texte", x: 0, y: 0, contenu: "A", style: { fond: "#000" } });
+  const av3 = JSON.stringify(tx);
+  ok("T8 un texte dans la sélection : refus (texte à vectoriser d'abord), document intact", refus(() => op_pathfinder(tx, ["A", "T"], "exclusion")) === T("vectorlab.bool.texte_hors") && JSON.stringify(tx) === av3);
+  // soustraction arrière qui ne laisse rien : refus « résultat vide », document intact
+  const vide = doc({ id: "A", type: "rect", x: 0, y: 0, w: 100, h: 100, style: { fond: "#f00" } }, { id: "B", type: "rect", x: 10, y: 10, w: 20, h: 20, style: { fond: "#00f" } });
+  const av4 = JSON.stringify(vide);
+  // recadrage par un objet qui ne touche rien : refus « résultat vide », document intact
+  const rc = doc({ id: "A", type: "rect", x: 0, y: 0, w: 10, h: 10, style: { fond: "#f00" } }, { id: "B", type: "rect", x: 50, y: 50, w: 10, h: 10, style: { fond: "#00f" } });
+  const av5 = JSON.stringify(rc);
+  ok("T8 recadrage sans recouvrement : refus traduit, document intact", refus(() => op_pathfinder(rc, ["A", "B"], "recadrage")) === T("vectorlab.bool.resultat_vide") && JSON.stringify(rc) === av5);
+  // contour : un bord qui croise un SOMMET (la diagonale du triangle passe par le coin (100 100) du carré) coupe là aussi
+  const sv = doc({ id: "A", type: "rect", x: 0, y: 0, w: 100, h: 100, style: { fond: "#f00" } },
+                 { id: "B", type: "path", d: "M 50 150 L 150 50 L 150 150 Z", style: { fond: "#00f" } });
+  op_pathfinder(sv, ["A", "B"], "contour");
+  const rouges = objets(sv).filter((p2) => p2.style.contour === "#ff0000" || p2.style.contour === "#f00");
+  ok("T8 contour au sommet : le carré est ouvert en (100 100) — un chemin ouvert qui y commence et y finit",
+     rouges.length === 1 && !/Z/.test(rouges[0].d) && /^M 100 100 /.test(rouges[0].d) && / 100 100$/.test(rouges[0].d.trim()), JSON.stringify(rouges.map((p2) => p2.d)));
+  ok("T8 résultat vide : refus traduit, document intact", refus(() => op_pathfinder(vide, ["A", "B"], "soustraction_arriere")) === T("vectorlab.bool.resultat_vide") && JSON.stringify(vide) === av4);
 }
 
 if (echecs.length) {

@@ -407,3 +407,109 @@ export function op_lignes_colonnes(doc, id, { lignes = 1, colonnes = 1, gouttier
   }
   return cellules.map((x) => x.id);
 }
+
+/* ── T8 (t429) Pathfinder : les six opérations qui manquaient à op_booleen ──
+   Sur la sélection en ordre de PEINTURE (dessous → dessus), transforms appliqués :
+     exclusion            XOR de tous ; style de l'objet du dessus, à sa place ;
+     soustraction_arriere le dessus moins tous les autres ; style du dessus ;
+     decoupage            chaque objet moins tout ce qui est au-dessus de lui (sans fusion) ; contours retirés ;
+     fusion               découpage, puis réunion des morceaux de même fond (au plus bas d'entre eux) ;
+     recadrage            chaque objet (rogné par ceux d'au-dessus) ∩ l'objet du dessus, qui disparaît ;
+     contour              chaque bord coupé là où il croise un autre bord → chemins OUVERTS sans fond, contour 1 px
+                          de la couleur de l'ancien fond.
+   Chaque objet est remplacé à sa place par ses résultats (ou retiré) ; tout se calcule d'abord. -> ids posés */
+const _MODES_PF = new Set(["exclusion", "soustraction_arriere", "decoupage", "fusion", "recadrage", "contour"]);
+const _polys = (mp) => (mp || []).filter((poly) => poly && poly.length && aire_multi([poly]) > AIRE_MIN);
+
+// intersection des segments [a b] et [c d] : t sur ab, u sur cd (parallèles : null)
+function _inter(a, b, c, d) {
+  const rx = b[0] - a[0], ry = b[1] - a[1], sx = d[0] - c[0], sy = d[1] - c[1];
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-12) return null;
+  const qx = c[0] - a[0], qy = c[1] - a[1];
+  return { t: (qx * sy - qy * sx) / den, u: (qx * ry - qy * rx) / den };
+}
+
+// un anneau fermé coupé aux points où il croise les autres anneaux -> polylignes ouvertes (ou l'anneau entier)
+function _decouperAnneau(ring, autres) {
+  const suite = [];                                   // [{ p, coupe }]
+  for (let k = 0; k < ring.length - 1; k++) {
+    const a = ring[k], b = ring[k + 1];
+    const ts = [];
+    for (const r2 of autres) for (let j = 0; j < r2.length - 1; j++) {
+      const x = _inter(a, b, r2[j], r2[j + 1]);
+      if (x && x.t >= -1e-9 && x.t < 1 - 1e-9 && x.u >= -1e-9 && x.u <= 1 + 1e-9) ts.push(Math.max(0, x.t));
+    }
+    ts.sort((p, q) => p - q);
+    suite.push({ p: a, coupe: ts.length > 0 && ts[0] < 1e-9 });
+    for (const t of ts) if (t >= 1e-9 && !(suite.length && suite[suite.length - 1].t === t)) suite.push({ p: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t], coupe: true, t });
+  }
+  const i0 = suite.findIndex((e) => e.coupe);
+  if (i0 < 0) return [{ points: [...suite.map((e) => e.p), suite[0].p], ferme: true }];
+  const tour = [...suite.slice(i0), ...suite.slice(0, i0), suite[i0]];
+  const out = [];
+  let cur = [tour[0].p];
+  for (let k = 1; k < tour.length; k++) {
+    cur.push(tour[k].p);
+    if (tour[k].coupe) { if (cur.length > 1) out.push({ points: cur, ferme: false }); cur = [tour[k].p]; }
+  }
+  return out;
+}
+
+export function op_pathfinder(doc, ids, mode) {
+  if (!_MODES_PF.has(mode)) throw new Error(`pathfinder : mode inconnu ${mode}`);
+  const cibles = cibles_b(doc, ids);
+  if (cibles.length < 2) throw new Error(T("vectorlab.bool.deux_objets"));
+  const mz = martinez();
+  const mps = cibles.map((c) => versMulti(aplatir_objet(c.objet)));
+  const n = cibles.length, H = n - 1, st = (i) => cibles[i].objet.style || {};
+  const reunion = (lst) => lst.reduce((acc, mp) => (acc ? mz.union(acc, mp) : mp), null);
+  const remp = new Map();                              // objet -> [{ d, style }]
+  const pose = (i, mp, style) => remp.set(cibles[i].objet, [...(remp.get(cibles[i].objet) || []), { d: multi_vers_d(mp), style }]);
+  for (const c of cibles) remp.set(c.objet, []);
+  const rogne = (i) => (i === H ? mps[i] : mz.diff(mps[i], reunion(mps.slice(i + 1))));
+  if (mode === "exclusion" || mode === "soustraction_arriere") {
+    const r = mode === "exclusion" ? mps.slice(1).reduce((acc, mp) => mz.xor(acc, mp), mps[0]) : mz.diff(mps[H], reunion(mps.slice(0, H)));
+    if (!_polys(r).length) throw new Error(T("vectorlab.bool.resultat_vide"));
+    pose(H, _polys(r), { ...st(H) });
+  } else if (mode === "decoupage") {
+    for (let i = 0; i < n; i++) { const r = _polys(rogne(i)); if (r.length) pose(i, r, _sansTrait(st(i))); }
+  } else if (mode === "fusion") {
+    const groupes = new Map();                         // fond -> { i (le plus bas), mp }
+    for (let i = 0; i < n; i++) {
+      const r = _polys(rogne(i)); if (!r.length) continue;
+      const cle = JSON.stringify(st(i).fond ?? null), g = groupes.get(cle);
+      if (g) g.mp = mz.union(g.mp, r); else groupes.set(cle, { i, mp: r });
+    }
+    for (const { i, mp } of groupes.values()) pose(i, _polys(mp), _sansTrait(st(i)));
+  } else if (mode === "recadrage") {
+    for (let i = 0; i < H; i++) {
+      const dessus = mps.slice(i + 1, H);
+      const base = dessus.length ? mz.diff(mps[i], reunion(dessus)) : mps[i];
+      const r = _polys(mz.intersection(base, mps[H]));
+      if (r.length) pose(i, r, _sansTrait(st(i)));
+    }
+    if (![...remp.values()].some((l) => l.length)) throw new Error(T("vectorlab.bool.resultat_vide"));
+  } else {                                            // contour
+    const anneaux = cibles.map((c) => aplatir_objet(c.objet));
+    for (let i = 0; i < n; i++) {
+      const autres = anneaux.filter((_, j) => j !== i).flat();
+      const couleur = _sansCouleur(st(i).fond) || String(st(i).fond).startsWith("grad:") || String(st(i).fond).startsWith("motif:") ? "#000000" : st(i).fond;
+      for (const ring of anneaux[i]) for (const pl of _decouperAnneau(ring, autres)) {
+        const segs = pl.points.map((q, k) => ({ c: k ? "L" : "M", p: [q[0], q[1]] }));
+        if (pl.ferme) segs.push({ c: "Z", p: [] });
+        remp.set(cibles[i].objet, [...remp.get(cibles[i].objet), { d: chemin_serialiser(segs), style: { fond: "none", contour: couleur, epaisseur: 1 } }]);
+      }
+    }
+  }
+  const neuf = _idsNeufs(doc);
+  const poses = [];
+  for (const c of doc.calques) {
+    if (!c.objets.some((o) => remp.has(o))) continue;
+    c.objets = c.objets.flatMap((o) => {
+      if (!remp.has(o)) return [o];
+      return remp.get(o).map((x) => { const id = neuf(); poses.push(id); return { id, type: "path", d: x.d, style: x.style }; });
+    });
+  }
+  return poses;
+}
