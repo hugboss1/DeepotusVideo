@@ -80,6 +80,11 @@ REPERE_DECALAGE_MM = 10.0         # le repère bas-gauche, remonté de 10 mm
 MARGE_MAX_MM = 60.0
 GOUTTIERE_MAX_MM = 60.0
 TRAIT_MM = 0.1                    # le trait de coupe à la main : fin
+# t421 (vague finale) : le trait est NOIR, bordé de BLANC des deux côtés (une
+# bordure de la largeur du trait) — lisible sur un design clair comme sombre,
+# toujours centré sur la ligne de coupe.
+TRAIT_NOIR = (0, 0, 0)
+TRAIT_BORD = (255, 255, 255)
 _EPS = 1e-9
 
 
@@ -185,7 +190,8 @@ def plan_hex(g: CardGeom, sheet: str = "a4", marge_mm: float = 12.0,
         raise ValueError(
             f"La marge ({marge:g} mm) doit faire au moins {mini:g} mm : elle "
             f"loge les repères de calage (Ø {REPERE_DIAMETRE_MM:g} mm) à "
-            f"{jeu:g} mm au moins des cartes et de leur fond perdu.")
+            f"{jeu:g} mm au moins de la coupe des cartes, hors de leur fond "
+            f"perdu ({b:g} mm).")
     W, H = g.trim_mm
     aw, ah = sw - 2 * marge, sh - 2 * marge
     if g.orientation == "plat":
@@ -387,7 +393,9 @@ def compose_page(p: PlanHex, images: list, page: int,
         ep = max(1, int(R(TRAIT_MM * k)))
         for j in range(cartes_de_page(p, page)):
             pts = [(x * k, y * k) for x, y in contour_page_mm(p, j)]
-            d.line(pts + [pts[0]], fill=(40, 40, 40), width=ep, joint="curve")
+            # le blanc d'abord (3 largeurs), le noir par-dessus, même axe
+            d.line(pts + [pts[0]], fill=TRAIT_BORD, width=3 * ep, joint="curve")
+            d.line(pts + [pts[0]], fill=TRAIT_NOIR, width=ep, joint="curve")
     r = REPERE_DIAMETRE_MM / 2 * k
     for x, y in _repere_cote(p, cote):
         d.ellipse((x * k - r, y * k - r, x * k + r, y * k + r), fill=(0, 0, 0))

@@ -4870,6 +4870,29 @@ def _premier(body: dict, *cles):
     return None
 
 
+# t421 (vague finale) : n_cards = 10**9 figeait le serveur ; le plan d'un jeu
+# se borne comme un jeu (les lots de cartes restent bien en deçà).
+HEX_N_MAX = 10_000
+
+
+def _n_cartes_hex(brut) -> int:
+    """Le nombre de cartes d'une planche hexagonale : absent -> 1 ; 0,
+    négatif, non entier ou au-delà de HEX_N_MAX -> 400."""
+    if brut is None:
+        return 1
+    try:
+        if isinstance(brut, bool) or float(brut) != int(brut):
+            raise ValueError
+        n = int(brut)
+    except (TypeError, ValueError, OverflowError):
+        raise HTTPException(400, f"Le nombre de cartes doit être un entier (reçu {brut!r}).")
+    if n < 1:
+        raise HTTPException(400, f"Il faut au moins une carte pour faire une planche (reçu {n}).")
+    if n > HEX_N_MAX:
+        raise HTTPException(400, f"Une planche hexagonale compte au plus 10 000 cartes (reçu {n}).")
+    return n
+
+
 def _plan_hex_de(doc: dict, body: dict, n: int | None = None):
     """Le plan hexagonal du deck, ou le 400 qui dit pourquoi."""
     from .core import geom_of as geom_deck
@@ -4886,7 +4909,7 @@ def _plan_hex_de(doc: dict, body: dict, n: int | None = None):
             # gutter_mm) : /sheet et /pdf délèguent ici pour un hexagone
             _premier(body, "marge_mm", "margin_mm"),
             _premier(body, "gouttiere_mm", "gutter_mm"),
-            n if n is not None else (body.get("n_cards") or 1),
+            _n_cartes_hex(n if n is not None else body.get("n_cards")),
             _flag(body, "trait"), _flag(body, "duplex"))
     except ValueError as e:
         raise HTTPException(400, str(e))

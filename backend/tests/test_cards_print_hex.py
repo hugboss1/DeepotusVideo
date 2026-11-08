@@ -624,5 +624,95 @@ def test_les_routes_hex():
     assert r.status_code == 400 and "hexagon" in r.json()["detail"]
 
 
+def test_n_cards_borne_par_les_routes():
+    """Vague finale (I5) : n_cards = 10**9 figeait le serveur, 0 devenait 1.
+    0, négatif, non entier -> 400 ; au-delà de 10 000 -> 400 ; absent -> 1."""
+    did = CC.create_deck("Hex bornes", {"fmt": "hex_p50", "dpi": 150})["id"]
+    base = f"/api/cards/{did}/print/hex"
+    for path in ("/plan", "/coupe"):
+        for n in (0, -3, 10 ** 9, 10_001, "beaucoup", "inf"):
+            if n == "inf":       # json.loads("1e999") rend float('inf')
+                r = _api("POST", base + path, content=b'{"n_cards": 1e999}',
+                         headers={"content-type": "application/json"})
+            else:
+                r = _api("POST", base + path, json={"n_cards": n})
+            assert r.status_code == 400, (path, n, r.status_code, r.text[:200])
+        r = _api("POST", base + path, json={"n_cards": 10_000})
+        assert r.status_code == 200, (path, r.text[:200])
+    r = _api("POST", base + "/plan", json={})
+    assert r.status_code == 200 and r.json()["pages"] == 1
+    r = _api("POST", base + "/plan", json={"n_cards": 0})
+    assert "carte" in r.json()["detail"]
+    r = _api("POST", base + "/plan", json={"n_cards": 10 ** 9})
+    assert "10 000" in r.json()["detail"] or "10000" in r.json()["detail"], r.text
+
+
+def _luminance(px):
+    r, g, b = px[:3]
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+def _profil_travers(page, a, b, k, demi=6, long=4):
+    """Les pixels d'une BANDE au milieu du côté [a, b] : `long` px de part et
+    d'autre le long du côté, `demi` px de part et d'autre en travers (une
+    seule perpendiculaire passerait entre les marches d'un trait oblique).
+    -> [(distance signée du centre du pixel à la coupe, en px ; luminance)]."""
+    mx, my = (a[0] + b[0]) / 2 * k, (a[1] + b[1]) / 2 * k
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    n = math.hypot(dx, dy)
+    ux, uy, nx, ny = dx / n, dy / n, -dy / n, dx / n
+    out = []
+    r = demi + long + 2
+    for py in range(int(my) - r, int(my) + r + 1):
+        for px in range(int(mx) - r, int(mx) + r + 1):
+            vx, vy = px + 0.5 - mx, py + 0.5 - my
+            u, t = vx * ux + vy * uy, vx * nx + vy * ny
+            if abs(u) <= long and abs(t) <= demi:
+                out.append((t, _luminance(page.getpixel((px, py)))))
+    return out
+
+
+def test_le_trait_de_coupe_se_voit_sur_fond_noir_et_blanc_et_reste_centre():
+    """Vague finale (I3) : un gris (40,40,40) d'un pixel disparaissait sur un
+    design sombre. Le trait (noir bordé de blanc) se distingue du fond — écart
+    de luminance >= 100 au droit de la coupe — sur une carte toute noire comme
+    toute blanche, et son centre reste à <= 1 px du contour de coupe."""
+    for dpi in (150, 300, 600):
+        g = CT.geom("hex_p50", dpi)
+        k = dpi / 25.4
+        for fond in ((0, 0, 0), (255, 255, 255), BLEU):
+            p = PH.plan_hex(g, "a4", 12, 6, 1, trait=True)
+            page = PH.compose_page(p, [_carte(g, fond)], 0, "recto")
+            c = PH.contour_page_mm(p, 0)
+            lf = _luminance(fond)
+            for i in range(6):
+                prof = _profil_travers(page, c[i], c[(i + 1) % 6], k)
+                # loin du trait (5 px et plus), c'est le fond de la carte
+                loin = [l for t, l in prof if abs(t) >= 5]
+                assert all(abs(l - lf) < 1 for l in loin), (dpi, fond, i, loin)
+                ecarts = [(t, abs(l - lf)) for t, l in prof]
+                assert max(e for _, e in ecarts) >= 100, (dpi, fond, i, prof)
+                # le centre du trait (barycentre de l'écart au fond) est sur la coupe
+                poids = sum(e for _, e in ecarts)
+                centre = sum(t * e for t, e in ecarts) / poids
+                assert abs(centre) <= 1.0, (dpi, fond, i, centre)
+                # sur fond clair, le cœur noir est sur la coupe, à 1 px près
+                if lf < 128:
+                    continue
+                noirs = [t for t, l in prof if l < 60]
+                assert noirs and abs(sum(noirs) / len(noirs)) <= 1.0, (dpi, fond, i, noirs)
+                assert max(abs(t) for t in noirs) <= 2 * k * PH.TRAIT_MM + 1, (dpi, fond, i, noirs)
+
+
+def test_le_refus_de_marge_dit_la_verite():
+    """Vague finale (M1) : le jeu est mesuré depuis la COUPE (le fond perdu y
+    est compris) ; le message le dit."""
+    g = CT.geom("hex_p50", 300)
+    with pytest.raises(ValueError) as e:
+        PH.plan_hex(g, "a4", 8, 6, 1)
+    m = str(e.value)
+    assert "11 mm" in m and "coupe" in m and "et de leur fond perdu" not in m, m
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
