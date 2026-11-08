@@ -1,0 +1,126 @@
+{
+  "titre": {
+    "fr": "Suivre une fiche et parler à l'agent",
+    "en": "Follow a card and talk to the agent"
+  },
+  "legende": {
+    "fr": "Une fiche : étapes, contrôles, exemples ; « Parler au Monteur » ouvre la conversation.",
+    "en": "A card: steps, checks, examples; “Talk to the Editor” opens the conversation."
+  },
+  "captures": [
+    {
+      "fr": "fiche.fr.webp",
+      "en": "fiche.en.webp"
+    },
+    {
+      "fr": "conversation.fr.webp",
+      "en": "conversation.en.webp"
+    }
+  ],
+  "taille": [
+    1280,
+    800
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        10,
+        327,
+        776,
+        308
+      ],
+      "bulle": {
+        "fr": "Les étapes à suivre, puis les contrôles",
+        "en": "The steps to follow, then the checks"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        877,
+        436
+      ],
+      "clic": true,
+      "surligne": [
+        803,
+        416,
+        148,
+        40
+      ],
+      "bulle": {
+        "fr": "L'agent métier qui porte la méthode",
+        "en": "The specialist agent behind the method"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        1159,
+        682,
+        115,
+        40
+      ],
+      "bulle": {
+        "fr": "Le coût s'estime avant chaque envoi",
+        "en": "The cost is estimated before each send"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        10,
+        327,
+        776,
+        327
+      ],
+      "bulle": {
+        "fr": "Les étapes à suivre, puis les contrôles",
+        "en": "The steps to follow, then the checks"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        875,
+        436
+      ],
+      "clic": true,
+      "surligne": [
+        803,
+        416,
+        143,
+        40
+      ],
+      "bulle": {
+        "fr": "L'agent métier qui porte la méthode",
+        "en": "The specialist agent behind the method"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        1146,
+        682,
+        128,
+        40
+      ],
+      "bulle": {
+        "fr": "Le coût s'estime avant chaque envoi",
+        "en": "The cost is estimated before each send"
+      }
+    }
+  ],
+  "taille_en": [
+    1280,
+    800
+  ]
+}

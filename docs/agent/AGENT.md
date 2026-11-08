@@ -43,7 +43,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   envoyer les brouillons de l'agent WhatsApp, prendre ou rendre la main, modèles, contacts (accords, STOP), santé du
   numéro et grille Prix Meta. → [ALLER:whatsapp] [GUIDE:whatsapp]
 - **Méthodes** — 94 recettes pas à pas filtrées par écran (pastille « Méthodes » des écrans) ; « Parler au … » ouvre
-  l'agent métier qui la porte, devis avant chaque message. → [ALLER:methodes]
+  l'agent métier qui la porte, devis avant chaque message. → [ALLER:methodes] [GUIDE:methodes]
 - **Réglages** — clés des fournisseurs, comptes connectés, personas, espaces de marque, kits de marque, modèles et langue
   par défaut, tarifs et budget, diagnostic, appareils. → [ALLER:settings] [GUIDE:reglages]
 

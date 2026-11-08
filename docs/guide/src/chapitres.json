@@ -66,6 +66,17 @@
       "etat": "v3"
     },
     {
+      "id": "methodes",
+      "famille": "demarrer",
+      "lot": "t443",
+      "icone": "dz-action-lancer-recette",
+      "fr": "Suivre une méthode avec un agent métier",
+      "en": "Follow a method with a specialist agent",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
       "id": "installer",
       "famille": "demarrer",
       "lot": "t171",
