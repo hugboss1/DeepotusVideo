@@ -140,9 +140,10 @@ def main():
     from app.services import agent_boites as B
     from app.services import agent_outils as ao
     mo = B.outils_pour("monteur")
-    check("B1 le Monteur : ses trois gestes + methodes_lire + les cinq briques, rien d'autre",
+    check("B1 le Monteur : ses gestes (t435a + chaîne t435b) + methodes_lire + les cinq briques, rien d'autre",
           set(mo) == {"temps_forts_musique", "caler_coupes", "poser_titre", "methodes_lire", "mesurer_sortie",
-                      "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"}, mo)
+                      "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire",
+                      "chaines_lire", "deviser_etape_chaine"}, mo)   # t435b : + la chaîne d'éditions
     check("B2 mcp ne voit pas poser_titre (écriture) mais voit les lectures ; Campagnes ne voit rien du Monteur",
           "poser_titre" not in B.outils_pour("mcp") and "caler_coupes" not in B.outils_pour("mcp")
           and not set(mo) & set(B.outils_pour("campagnes")))

@@ -126,7 +126,8 @@ BOITES: dict[str, dict] = {
     # l'app ; locaux et gratuits ; seul le Monteur la déclare (poser_titre écrit une copie : pas pour « mcp »)
     "monteur": {
         "libelle": "agent.boites.monteur",
-        "outils": ["temps_forts_musique", "caler_coupes", "poser_titre"],
+        "outils": ["temps_forts_musique", "caler_coupes", "poser_titre",
+                   "chaines_lire", "deviser_etape_chaine"],   # t435b : la chaîne d'éditions (B4)
         "agents": ["monteur"],
         "mobile": False,
     },

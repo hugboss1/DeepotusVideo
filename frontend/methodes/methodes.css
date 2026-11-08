@@ -121,3 +121,5 @@ select.mt-champ { max-width: 200px; }
 .mt-conv-saisie { display: flex; gap: 6px; align-items: flex-end; }
 .mt-champ--message { flex: 1; height: auto; padding: 6px 8px; resize: vertical; line-height: 1.45; }
 .mt-conv-note { margin: 0; color: var(--ink-soft); font-size: 11px; }
+.mt-carte-devis { margin-top: 8px; padding: 8px; border: 1px solid var(--accent); border-radius: var(--r); display: flex; flex-direction: column; gap: 6px; }
+.mt-carte-etat { margin: 0; color: var(--ink-soft); font-size: 11px; }
