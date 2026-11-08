@@ -1,0 +1,64 @@
+{
+  "titre": {
+    "fr": "Les méthodes de l'écran ouvert",
+    "en": "The methods of the open screen"
+  },
+  "legende": {
+    "fr": "La pastille « Méthodes », en bas à droite, ouvre les méthodes de l'écran.",
+    "en": "The “Methods” pill, bottom right, opens the screen's methods."
+  },
+  "captures": [
+    {
+      "fr": "montage.fr.webp",
+      "en": "montage.en.webp"
+    }
+  ],
+  "taille": [
+    1280,
+    800
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "curseur": [
+        1215,
+        722
+      ],
+      "surligne": [
+        1161,
+        702,
+        109,
+        40
+      ],
+      "bulle": {
+        "fr": "Un clic : les méthodes du Montage",
+        "en": "One click: the Editing methods"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "curseur": [
+        1219,
+        722
+      ],
+      "surligne": [
+        1167,
+        702,
+        103,
+        40
+      ],
+      "bulle": {
+        "fr": "Un clic : les méthodes du Montage",
+        "en": "One click: the Editing methods"
+      }
+    }
+  ],
+  "taille_en": [
+    1280,
+    800
+  ]
+}

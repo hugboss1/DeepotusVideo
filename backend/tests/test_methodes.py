@@ -79,6 +79,13 @@ def main():
     check("1.9 aucune accroche du site recopiée", not any(a in brut for a in accroches),
           [a for a in accroches if a in brut])
 
+    from PIL import Image
+    ills = sorted(M.ILLUSTRATIONS.glob("*.webp"))
+    check("1.10 t443b : une illustration WebP 640x400 par méthode, ≤ 40 Ko chacune, aucune en trop",
+          {x.stem for x in ills} == {m["slug"] for m in ms}
+          and all(Image.open(x).size == (640, 400) and x.stat().st_size <= 40_000 for x in ills),
+          (len(ills), [x.name for x in ills if x.stat().st_size > 40_000][:5]))
+
     print("\n[2] service")
     tout = M.lister()
     check("2.1 lister sans filtre : 94, triées par utilité décroissante",
@@ -96,6 +103,9 @@ def main():
     check("2.7 fiche en anglais : étapes, exemples, agent, écrans libellés",
           f and f["titre"] == next(m for m in ms if m["slug"] == "edit-one-thing")["titre"]["en"]
           and f["etapes"] and f["exemples"] and f["agent"] == "retoucheur" and f["ecrans_libelles"], f and f.keys())
+    check("2.7b t443b : la carte et la fiche donnent l'adresse de l'illustration ; absente -> None",
+          tout[0]["visuel"] == f"/methodes/illustrations/{tout[0]['slug']}.webp"
+          and f["visuel"].endswith("edit-one-thing.webp") and M.visuel("nexiste-pas") is None)
     check("2.8 fiche inconnue -> None ; langue inconnue -> français",
           M.fiche("nexiste-pas") is None and M.fiche("edit-one-thing", "de")["titre"] ==
           next(m for m in ms if m["slug"] == "edit-one-thing")["titre"]["fr"])
@@ -119,6 +129,9 @@ def main():
     check("3.4 slug inconnu -> 404", c.get("/api/methodes/nexiste-pas").status_code == 404)
     r = c.get("/methodes/")
     check("3.5 la page /methodes/ est servie", r.status_code == 200 and "methodes.js" in r.text, r.status_code)
+    r = c.get("/methodes/illustrations/alter.webp")
+    check("3.6 t443b : une illustration est servie (image/webp)", r.status_code == 200
+          and r.headers.get("content-type", "").startswith("image/webp"), r.status_code)
 
     print("\n[4] l'outil d'agent")
     from app.services import agent_outils as ao
