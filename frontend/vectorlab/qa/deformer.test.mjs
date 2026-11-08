@@ -1,6 +1,7 @@
 // deformer.test.mjs — lot D3 « Déformer » (t460…) : les déformations vivantes de js/mod-deformer.js.
 // T1 (t460) Le modèle vivant (groupe [source cachée, résultat généré], Modifier le contenu, Annuler, Décomposer) et
 // l'Enveloppe par déformation prédéfinie (15 styles, courbure, distorsions, orientation).
+// T2 (t461) Distorsion libre (bilinéaire sur les quatre coins) et Torsion (angle proportionnel à la distance au centre).
 import { createRequire } from "node:module";
 import { polylignes_objet, fournirMartinez, versMulti, aplatir_objet, aire_multi } from "../js/mod-bool.js";
 import { op_deformer, op_deformation_regler, op_deformation_editer, op_deformation_annuler, STYLES_ENVELOPPE } from "../js/mod-deformer.js";
@@ -144,6 +145,55 @@ const env = (params, source = rect("a")) => { const d = doc(source); op_deformer
   ok("distorsion verticale : le bas plus large que le haut", lB > lH * 1.2, `${lH} ${lB}`);
   // tous les styles gardent un tracé fermé et valide à 100 %
   ok("chaque style à 100 % : un tracé fermé, sans NaN", STYLES_ENVELOPPE.every((s) => { const r = env({ style: s, courbure: 100 }); return /Z\s*$/.test(r.d) && !/NaN|Infinity/.test(r.d); }));
+}
+
+/* ── T2 (t461) Distorsion libre et Torsion ── */
+const def = (effet, params, source = rect("a")) => { const d = doc(source); op_deformer(d, ["a"], effet, params); return { d, r: resultat(objets(d)[0])[0], g: objets(d)[0] }; };
+{
+  const a0 = aire(rect("a"));
+  const id = def("distorsion", {});
+  ok("distorsion : réglages par défaut, quatre coins à zéro", JSON.stringify(id.g.deformation.params) === '{"coins":[[0,0],[0,0],[0,0],[0,0]]}', JSON.stringify(id.g.deformation.params));
+  ok("distorsion à zéro : la forme d'origine", pres(aire(id.r), a0, a0 * 0.005) && proche(id.r, 100, 100) < 0.01 && proche(id.r, 300, 200) < 0.01);
+  const hg = def("distorsion", { coins: [[-20, -10], [0, 0], [0, 0], [0, 0]] }).r;
+  ok("distorsion : le coin haut-gauche tiré suit exactement (80, 90)", proche(hg, 80, 90) < 0.01, proche(hg, 80, 90));
+  ok("distorsion : les autres coins restent", proche(hg, 300, 100) < 0.01 && proche(hg, 300, 200) < 0.01 && proche(hg, 100, 200) < 0.01);
+  const tous = def("distorsion", { coins: [[0, 0], [30, 0], [10, 40], [0, 0]] }).r;
+  ok("distorsion : haut-droit et bas-droit suivent (330, 100) et (310, 240)", proche(tous, 330, 100) < 0.01 && proche(tous, 310, 240) < 0.01);
+  // le milieu du bord haut suit la moyenne de ses deux coins (interpolation bilinéaire)
+  ok("distorsion : le milieu du bord haut suit la moyenne des deux coins du haut", proche(tous, 215, 100) < 1.01, proche(tous, 215, 100));
+  const d = doc(rect("a"));
+  const avant = JSON.stringify(d);
+  ok("distorsion : coins mal formés → refus traduit", refus(() => op_deformer(d, ["a"], "distorsion", { coins: [[0, 0], [1, 2]] })) === T("vectorlab.deformer.coins")
+     && refus(() => op_deformer(d, ["a"], "distorsion", { coins: [[0, 0], [0, 0], [0, 0], [0, "x"]] })) === T("vectorlab.deformer.coins")
+     && refus(() => op_deformer(d, ["a"], "distorsion", { coins: "non" })) === T("vectorlab.deformer.coins")
+     && refus(() => op_deformer(d, ["a"], "distorsion", { coins: [[0, 0], [0, 0], [0, 0], [0, "5"]] })) === T("vectorlab.deformer.coins") && JSON.stringify(d) === avant);
+  // le tableau de coins de l'appelant est copié : le modifier ensuite ne touche pas au document
+  const coins = [[1, 1], [0, 0], [0, 0], [0, 0]];
+  const dc = doc(rect("a"));
+  op_deformer(dc, ["a"], "distorsion", { coins });
+  coins[0][0] = 99;
+  ok("distorsion : les coins sont copiés", objets(dc)[0].deformation.params.coins[0][0] === 1);
+  // régler un coin garde les autres réglages… et l'effet reste la distorsion
+  const g = def("distorsion", { coins: [[5, 5], [0, 0], [0, 0], [0, 0]] });
+  op_deformation_regler(g.d, g.g.id, { coins: [[0, 0], [0, 0], [0, 0], [-7, 3]] });
+  ok("distorsion réglée : le coin bas-gauche (93, 203)", proche(resultat(objets(g.d)[0])[0], 93, 203) < 0.01);
+}
+{
+  const a0 = aire(rect("a"));
+  const t0 = def("torsion", { angle: 0 });
+  ok("torsion : réglage par défaut 45°", def("torsion", {}).g.deformation.params.angle === 45);
+  ok("torsion 0 : la forme d'origine", pres(aire(t0.r), a0, a0 * 0.005) && proche(t0.r, 100, 100) < 0.01);
+  const t90 = def("torsion", { angle: 90 }).r;
+  // le coin le plus loin du centre (200, 150) tourne de l'angle entier : (100, 100) → (250, 50)
+  ok("torsion 90° : le coin le plus éloigné a tourné de 90° autour du centre", proche(t90, 250, 50) < 0.6, proche(t90, 250, 50));
+  // le milieu du bord haut (200, 100), à 50 px du centre sur 111,8 : il tourne de 90 × 50 / 111,8 ≈ 40.25°
+  const mi = def("torsion", { angle: 90 }, { id: "a", type: "path", d: "M200 100 L300 100 L300 200 L100 200 L100 100 Z", style: { fond: "#888" } }).r;
+  const p0 = pts(mi)[0];
+  ok("torsion : l'angle croît avec la distance au centre (premier point exact)", pres(p0[0], 232.3057, 0.02) && pres(p0[1], 111.8379, 0.02), JSON.stringify(p0));
+  ok("torsion : l'aire est gardée (rotation par anneaux)", pres(aire(t90), a0, a0 * 0.03), aire(t90));
+  ok("torsion négative : sens inverse", proche(def("torsion", { angle: -90 }).r, 150, 250) < 0.6);
+  const d = doc(rect("a"));
+  ok("torsion : angle non numérique → refus traduit", refus(() => op_deformer(d, ["a"], "torsion", { angle: "x" })) === T("vectorlab.deformer.angle", { min: -3600, max: 3600 }));
 }
 
 if (echecs.length) {

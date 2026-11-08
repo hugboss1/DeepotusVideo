@@ -10,7 +10,7 @@
 import { T } from "./mod-i18n.js";
 import { polylignes_objet } from "./mod-bool.js";
 
-const EFFETS = new Set(["enveloppe"]);
+const EFFETS = new Set(["enveloppe", "distorsion", "torsion"]);
 const PAS_MAX = 2;                    // aucun segment déformé ne dépasse 2 px : une droite peut se courber
 const POINTS_MAX = 20000;
 const nbc = (x) => String(Math.round(x * 100) / 100 + 0);
@@ -39,6 +39,15 @@ function _params(effet, p = {}, base = {}) {
       distV: _nombre(v.distV, 0, -100, 100, "vectorlab.deformer.pourcent"),
     };
   }
+  if (effet === "distorsion") {
+    // haut-gauche, haut-droit, bas-droit, bas-gauche : le déplacement [dx, dy] de chaque coin de la boîte
+    const c = v.coins === undefined ? [[0, 0], [0, 0], [0, 0], [0, 0]] : v.coins;
+    const ok = Array.isArray(c) && c.length === 4 && c.every((q) => Array.isArray(q) && q.length === 2
+      && q.every((x) => typeof x === "number" && Number.isFinite(x) && Math.abs(x) <= 1e5));
+    if (!ok) throw new Error(T("vectorlab.deformer.coins"));
+    return { coins: c.map((q) => [q[0], q[1]]) };
+  }
+  if (effet === "torsion") return { angle: _nombre(v.angle, 45, -3600, 3600, "vectorlab.deformer.angle") };
   throw new Error(T("vectorlab.deformer.effet", { effet }));
 }
 
@@ -110,7 +119,26 @@ function _enveloppe(p, B) {
     return vert ? [ny, nx] : [nx, ny];
   };
 }
-const _TRANSFORMEES = { enveloppe: _enveloppe };
+/* ── T2 (t461) Distorsion libre : interpolation bilinéaire entre les quatre coins déplacés de la boîte ── */
+function _distorsion(p, B) {
+  const [hg, hd, bd, bg] = [[B.x, B.y], [B.x + B.w, B.y], [B.x + B.w, B.y + B.h], [B.x, B.y + B.h]]
+    .map((c, i) => [c[0] + p.coins[i][0], c[1] + p.coins[i][1]]);
+  return ([x, y]) => {
+    const u = B.w > 0 ? (x - B.x) / B.w : 0.5, v = B.h > 0 ? (y - B.y) / B.h : 0.5;
+    const a = (1 - u) * (1 - v), b = u * (1 - v), c = u * v, d = (1 - u) * v;
+    return [a * hg[0] + b * hd[0] + c * bd[0] + d * bg[0], a * hg[1] + b * hd[1] + c * bd[1] + d * bg[1]];
+  };
+}
+/* ── T2 (t461) Torsion : chaque point tourne autour du centre d'un angle proportionnel à sa distance (0 au centre,
+   l'angle entier à la demi-diagonale de la boîte) ── */
+function _torsion(p, B) {
+  const cx = B.x + B.w / 2, cy = B.y + B.h / 2, rmax = Math.hypot(B.w, B.h) / 2 || 1;
+  return ([x, y]) => {
+    const dx = x - cx, dy = y - cy, a = p.angle * Math.PI / 180 * Math.min(1, Math.hypot(dx, dy) / rmax);
+    return [cx + dx * Math.cos(a) - dy * Math.sin(a), cy + dx * Math.sin(a) + dy * Math.cos(a)];
+  };
+}
+const _TRANSFORMEES = { enveloppe: _enveloppe, distorsion: _distorsion, torsion: _torsion };
 
 /* ── le résultat ── */
 function _resultat(gid, source, effet, params, cache) {

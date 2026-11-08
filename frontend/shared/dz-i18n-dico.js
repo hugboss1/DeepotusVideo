@@ -19064,6 +19064,8 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "vectorlab.couleur.recentes": {"fr": "Récentes", "en": "Recent"},
   "vectorlab.couleur.sv": {"fr": "Saturation / valeur", "en": "Saturation / value"},
   "vectorlab.couleur.teinte": {"fr": "Teinte", "en": "Hue"},
+  "vectorlab.deformer.angle": {"fr": "Torsion : l'angle va de {min} à {max}°", "en": "Twist: the angle ranges from {min} to {max}°"},
+  "vectorlab.deformer.coins": {"fr": "Distorsion libre : il faut le déplacement des quatre coins (deux nombres chacun)", "en": "Free Distort: the offset of the four corners is needed (two numbers each)"},
   "vectorlab.deformer.effet": {"fr": "Déformer : effet inconnu « {effet} »", "en": "Distort: unknown effect “{effet}”"},
   "vectorlab.deformer.introuvable": {"fr": "Déformer : objet introuvable ({id})", "en": "Distort: object not found ({id})"},
   "vectorlab.deformer.orientation": {"fr": "Enveloppe : l'orientation est horizontale ou verticale", "en": "Envelope: the orientation is horizontal or vertical"},
