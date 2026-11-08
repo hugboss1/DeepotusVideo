@@ -19,6 +19,7 @@ import { initPersona } from "./mod-persona.js";
 import { initApparence2 } from "./mod-apparence2.js";
 import { initExportPlus } from "./mod-exportplus.js";
 import { initPanneaux } from "./mod-panneaux.js";
+import { initSections } from "./mod-sections.js";   // t459
 import { initInfobulle } from "./mod-infobulle.js";
 import { initTypo } from "./mod-typo.js";
 import { initFlyout } from "./mod-flyout.js";
@@ -844,6 +845,7 @@ initBarreOutils(VL); // relooking Affinity : familles d'outils, icônes fines, f
 initInfobulle(VL);  // bulles d'information stylées, centrées, bornées (remplacent le title natif au survol)
 initDidact(VL);     // finitions UI : fiches didactiques animées (survol long 900 ms, « ? »), aide/index.json
 initPanneaux(VL);   // sections du panneau de droite : état ouvert / replié mémorisé (dz_vl_panneaux)
+initSections(VL);   // t459 : les sections internes reconstruites gardent leur état ouvert / replié
 initCharpente(VL);  // relooking Affinity : barre de menus, onglet de document, barre d'état, cotes — en dernier (lit VL.hints, VL.actions)
 initPile(VL);       // relooking Affinity : la pile de droite à onglets — après tous les rendus (redistribue les rangées d'Apparence)
 initBarreContexte(VL); // relooking Affinity : la barre contextuelle par outil, Configuration du document, Paramètres de l'appli
