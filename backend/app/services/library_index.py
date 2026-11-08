@@ -63,6 +63,7 @@ _PREFIXES: list[tuple[str, str]] = [
     ("photolab_", "photolab"),      # t137 : photolab_<AAAAMMJJ-HHMMSS>_<nom>.png|jpg
     ("passe_", "passe"),            # t334 : passe_<plan>_<run>_<clay|look|profondeur|normales|masques>.png
     ("blender_", "blender"),        # t331 : blender_<AAAAMMJJ-HHMMSS-xxxx>.png
+    ("tuile_", "cardforge"),        # plateau : tuile_<base>_<did8>_r<RR>c<CC>.png
     ("gen_", "generation"),
 ]
 

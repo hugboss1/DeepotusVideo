@@ -14,17 +14,26 @@ Rang et colonne sont 1-based.
 """
 from __future__ import annotations
 
+import asyncio
 import math
+import os
 from dataclasses import dataclass
 
+from fastapi import APIRouter, HTTPException
+from loguru import logger
 from PIL import Image, ImageChops, ImageDraw
 
-from . import hexa
-from .contract import geom, is_hex
-from .depuis_images import IMAGES_MAX
+from app.services.noms import NOM_MAX
+
+from . import core, hexa
+from .contract import FORMATS, geom, is_hex
+from .depuis_images import (IMAGES_MAX, _CADRE_NU, _PREFIXE_PHOTOLAB,
+                            _images_dir, _nom_valide, _verifie_presente)
 
 __all__ = ["COTE_MAX", "TUILES_MAX", "Grille", "grille", "cadrage_couvrant",
-           "ppp_effectif", "decouper"]
+           "ppp_effectif", "decouper", "router"]
+
+router = APIRouter()
 
 COTE_MAX = 30                 # colonnes ou rangées, au plus
 TUILES_MAX = IMAGES_MAX       # = 500, le plafond d'un deck depuis des images
@@ -252,3 +261,148 @@ def decouper(src: Image.Image, g: Grille, cadrage: dict,
         tuile.putalpha(alpha)
         sortie.append((rang, col, tuile))
     return sortie
+
+
+# ── la route : POST /api/cards/decks/plateau ────────────────────────────────
+
+def _base(nom: str) -> str:
+    """Le nom source sans extension ni préfixe de retouche du Photolab."""
+    tige = os.path.splitext(nom)[0]
+    return _PREFIXE_PHOTOLAB.sub("", tige) or tige
+
+
+def _nombre(valeur, champ: str) -> float:
+    if isinstance(valeur, bool) or not isinstance(valeur, (int, float)) \
+            or not math.isfinite(valeur):
+        raise HTTPException(400, f"{champ} : un nombre attendu")
+    return float(valeur)
+
+
+def preparer(body) -> dict:
+    """Valide TOUT le corps et rend les paramètres de la découpe. Lève
+    HTTPException. Aucun effet de bord : appelée avant toute écriture."""
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Corps JSON attendu")
+    image = _nom_valide(body.get("image"), "image")
+    fmt_in = body.get("format")
+    if isinstance(fmt_in, str):
+        fmt_in = {"fmt": fmt_in}
+    if not isinstance(fmt_in, dict):
+        raise HTTPException(400, "format : un objet {fmt, …} attendu")
+    fmt_id = str(fmt_in.get("fmt") or "").strip().lower()
+    if fmt_id not in FORMATS:
+        raise HTTPException(400, f"format inconnu : {fmt_id!r}")
+    if not is_hex(fmt_id):
+        raise HTTPException(400, f"format non hexagonal : {fmt_id!r}")
+    fmt = dict(fmt_in)
+    fmt["fmt"] = fmt_id
+    cadrage_in = body.get("cadrage")
+    if cadrage_in is None:
+        cadrage = {}
+    elif isinstance(cadrage_in, dict):
+        cadrage = {k: _nombre(cadrage_in[k], f"cadrage.{k}")
+                   for k in ("zoom", "x", "y") if k in cadrage_in}
+    else:
+        raise HTTPException(400, "cadrage : un objet {zoom, x, y} attendu")
+    dpi = body.get("dpi", 300)
+    if isinstance(dpi, bool):
+        raise HTTPException(400, "dpi : un entier attendu")
+    try:
+        geom(fmt_id, dpi)                    # valide le dpi (bornes de contract)
+        g = grille(fmt_id, body.get("colonnes"), body.get("rangees"),
+                   fmt.get("bleed_mm"))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    commun = body.get("verso_commun")
+    if commun is not None:
+        _nom_valide(commun, "verso_commun")
+    for n in dict.fromkeys([image] + ([commun] if commun else [])):
+        _verifie_presente(n)
+    base = _base(image)
+    return {"image": image, "base": base, "grille": g, "format": fmt,
+            "cadrage": cadrage, "dpi": int(dpi), "dos": commun or "",
+            "name": core.clean_name(body.get("name"), f"Plateau — {base}")}
+
+
+def _nom_tuile(base: str, did: str, rang: int, col: int) -> str:
+    fin = f"_{did[-8:]}_r{rang:02d}c{col:02d}.png"
+    return "tuile_" + base[:NOM_MAX - len("tuile_") - len(fin)] + fin
+
+
+def _ecrire_tuile(tuile: Image.Image, chemin, dpi: int) -> None:
+    tuile.save(chemin, "PNG", dpi=(dpi, dpi))
+
+
+def _decouper_source(prep: dict) -> tuple[list, float]:
+    """Les tuiles et le ppp réel. La source est ouverte en LECTURE et
+    refermée ; rien n'est écrit."""
+    g, cad = prep["grille"], prep["cadrage"]
+    try:
+        with Image.open(_images_dir() / prep["image"]) as im:
+            im.load()
+            rect_w = cadrage_couvrant(
+                im.width, im.height, g.largeur_mm, g.hauteur_mm,
+                cad.get("zoom", 1.0), cad.get("x", 0.5), cad.get("y", 0.5))[2]
+            return (decouper(im, g, cad, prep["dpi"]),
+                    round(ppp_effectif(rect_w, g.largeur_mm), 1))
+    except (Image.UnidentifiedImageError, Image.DecompressionBombError):
+        raise HTTPException(400, f"image illisible : {prep['image']}")
+
+
+def _defaire(did: str, tuiles: list[str]) -> None:
+    racine = _images_dir()
+    for nom in tuiles:
+        try:
+            (racine / nom).unlink(missing_ok=True)
+        except OSError:
+            logger.exception("cards: tuile {} non retirée", nom)
+    core.delete_deck(did)
+
+
+def _fabriquer(prep: dict, tuiles: list) -> tuple[dict, list[str]]:
+    """Crée le jeu, écrit les tuiles, ensemence. Toute exception supprime les
+    tuiles déjà écrites ET le jeu avant de remonter."""
+    doc = core.create_deck(prep["name"])
+    did, noms, rows = doc["id"], [], []
+    largeur = 3 if len(tuiles) > 99 else 2
+    try:
+        racine = _images_dir()
+        for i, (rang, col, tuile) in enumerate(tuiles, 1):
+            nom = _nom_tuile(prep["base"], did, rang, col)
+            noms.append(nom)         # avant l'écriture : un fichier partiel part aussi
+            _ecrire_tuile(tuile, racine / nom, prep["dpi"])
+            rows.append([f"plateau-{i:0{largeur}d}", nom, prep["dos"],
+                         str(rang), str(col)])
+        out = core.patch_deck(did, {
+            "format": prep["format"],
+            "frame": dict(_CADRE_NU),
+            "type": {"slots": [], "seeded": True, "sel": ""},
+            "face": {"seeded": True, "fit": "cover", "src": None,
+                     "default_art": None},
+            "data": {"columns": ["nom", "art", "dos", "rang", "colonne"],
+                     "rows": rows, "map": {"art": "art", "dos": "back"}},
+        })
+        if out is not None:
+            out = core.poser_categorie(did, "plateau")
+        if out is None:
+            raise OSError("deck disparu après sa création")
+        return out, noms
+    except BaseException:
+        _defaire(did, noms)
+        raise
+
+
+@router.post("/decks/plateau")
+async def post_plateau(body: dict | None = None):
+    prep = await asyncio.to_thread(preparer, body)
+    try:
+        tuiles, ppp = await asyncio.to_thread(_decouper_source, prep)
+        deck, noms = await asyncio.to_thread(_fabriquer, prep, tuiles)
+    except OSError as e:
+        logger.exception("cards: découpe du plateau impossible")
+        raise HTTPException(500, "Création du plateau impossible : écriture "
+                                 f"refusée ({e.strerror or 'E/S'})")
+    from app.services import library_index
+    await library_index.noter(noms, "cardforge", deck_id=deck["id"],
+                              parent=prep["image"], relation="plateau")
+    return {"deck": deck, "tuiles": noms, "ppp": ppp}

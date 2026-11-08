@@ -14314,5 +14314,45 @@
  "La carte {v} mesure {v2}x{v3} px ; la géométrie du jeu impose {v4}x{v5} px": {
   "fr": "La carte {v} mesure {v2}x{v3} px ; la géométrie du jeu impose {v4}x{v5} px",
   "en": "Card {v} measures {v2}x{v3} px; the deck geometry requires {v4}x{v5} px"
+ },
+ "{nom} doit être un entier (reçu {valeur})": {
+  "fr": "{nom} doit être un entier (reçu {valeur})",
+  "en": "{nom} must be an integer (got {valeur})"
+ },
+ "Format non hexagonal : {fmt}": {
+  "fr": "Format non hexagonal : {fmt}",
+  "en": "Non-hexagonal format: {fmt}"
+ },
+ "colonnes et rangées doivent tenir entre 1 et {COTE_MAX}": {
+  "fr": "colonnes et rangées doivent tenir entre 1 et {COTE_MAX}",
+  "en": "columns and rows must be between 1 and {COTE_MAX}"
+ },
+ "{v} tuiles : {TUILES_MAX} au plus": {
+  "fr": "{v} tuiles : {TUILES_MAX} au plus",
+  "en": "{v} tiles: {TUILES_MAX} at most"
+ },
+ "{champ} : un nombre attendu": {
+  "fr": "{champ} : un nombre attendu",
+  "en": "{champ}: a number is expected"
+ },
+ "format non hexagonal : {fmt_id}": {
+  "fr": "format non hexagonal : {fmt_id}",
+  "en": "non-hexagonal format: {fmt_id}"
+ },
+ "dpi : un entier attendu": {
+  "fr": "dpi : un entier attendu",
+  "en": "dpi: an integer is expected"
+ },
+ "cadrage : un objet {zoom, x, y} attendu": {
+  "fr": "cadrage : un objet {zoom, x, y} attendu",
+  "en": "cadrage: an object {zoom, x, y} is expected"
+ },
+ "image illisible : {image}": {
+  "fr": "image illisible : {image}",
+  "en": "unreadable image: {image}"
+ },
+ "Création du plateau impossible : écriture refusée ({v})": {
+  "fr": "Création du plateau impossible : écriture refusée ({v})",
+  "en": "Board creation failed: write refused ({v})"
  }
 }
