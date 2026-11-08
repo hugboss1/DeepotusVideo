@@ -404,7 +404,7 @@ check("A1 la boîte « chapitres » porte lire_revue_plan (lecture), déclarée 
       B.BOITES.get("chapitres") == {"libelle": "agent.boites.chapitres",
                                     "outils": ["lire_revue_plan", "lire_bible", "lire_plans", "lire_passes_plan",
                                                "modeles_video"],   # t408
-                                    "agents": ["mcp"], "mobile": False}
+                                    "agents": ["mcp", "realisateur"], "mobile": False}   # t436 : + le Réalisateur
       and ao.OUTILS["lire_revue_plan"]["nature"] == "lecture" and B.verifier() == [], B.verifier())
 ctx = ao.Ctx(cid="c1")
 r = loop.run_until_complete(ao.lire_revue_plan(ctx, plan=s0))
