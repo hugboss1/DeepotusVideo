@@ -111,7 +111,7 @@ BOITES: dict[str, dict] = {
     "methodes": {
         "libelle": "agent.boites.methodes",
         "outils": ["methodes_lire"],
-        "agents": ["mcp"],
+        "agents": ["mcp", "monteur"],   # t435 : + le Monteur
         "mobile": False,
     },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
@@ -119,7 +119,15 @@ BOITES: dict[str, dict] = {
     "briques": {
         "libelle": "agent.boites.briques",
         "outils": ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"],
-        "agents": ["mcp"],
+        "agents": ["mcp", "monteur"],   # t435 : + le Monteur
+        "mobile": False,
+    },
+    # t435 (08/11/2026, lot M2) : l'agent métier Monteur — temps forts d'une musique, coupes calées, titre gravé par
+    # l'app ; locaux et gratuits ; seul le Monteur la déclare (poser_titre écrit une copie : pas pour « mcp »)
+    "monteur": {
+        "libelle": "agent.boites.monteur",
+        "outils": ["temps_forts_musique", "caler_coupes", "poser_titre"],
+        "agents": ["monteur"],
         "mobile": False,
     },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)

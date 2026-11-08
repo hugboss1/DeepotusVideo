@@ -14466,5 +14466,69 @@
  "Statut d'étape inconnu.": {
   "fr": "Statut d'étape inconnu.",
   "en": "Unknown step status."
+ },
+ "Cet agent métier n'est pas encore disponible.": {
+  "fr": "Cet agent métier n'est pas encore disponible.",
+  "en": "This specialist agent is not available yet."
+ },
+ "Conversation inconnue.": {
+  "fr": "Conversation inconnue.",
+  "en": "Unknown conversation."
+ },
+ "Message vide.": {
+  "fr": "Message vide.",
+  "en": "Empty message."
+ },
+ "L'agent répond déjà dans cette conversation.": {
+  "fr": "L'agent répond déjà dans cette conversation.",
+  "en": "The agent is already answering in this conversation."
+ },
+ "Les temps forts se mesurent sur un son ou une vidéo.": {
+  "fr": "Les temps forts se mesurent sur un son ou une vidéo.",
+  "en": "Beats are measured on a sound or a video."
+ },
+ "Les durées des plans sont des nombres de secondes.": {
+  "fr": "Les durées des plans sont des nombres de secondes.",
+  "en": "Shot durations are numbers of seconds."
+ },
+ "200 plans au plus.": {
+  "fr": "200 plans au plus.",
+  "en": "200 shots at most."
+ },
+ "Le titre se pose sur une vidéo.": {
+  "fr": "Le titre se pose sur une vidéo.",
+  "en": "A title goes on a video."
+ },
+ "Gabarit de titre inconnu.": {
+  "fr": "Gabarit de titre inconnu.",
+  "en": "Unknown title template."
+ },
+ "Titre vide ou horaires invalides (la fin doit suivre le début).": {
+  "fr": "Titre vide ou horaires invalides (la fin doit suivre le début).",
+  "en": "Empty title or invalid times (the end must follow the start)."
+ },
+ "Vidéo illisible.": {
+  "fr": "Vidéo illisible.",
+  "en": "Unreadable video."
+ },
+ "Le titre n'a pas pu être écrit.": {
+  "fr": "Le titre n'a pas pu être écrit.",
+  "en": "The title could not be written."
+ },
+ "ffmpeg (titre) : {v}": {
+  "fr": "ffmpeg (titre) : {v}",
+  "en": "ffmpeg (title): {v}"
+ },
+ "Aucune piste son lisible dans ce fichier.": {
+  "fr": "Aucune piste son lisible dans ce fichier.",
+  "en": "No readable sound track in this file."
+ },
+ "Musique vide : impossible de caler des coupes.": {
+  "fr": "Musique vide : impossible de caler des coupes.",
+  "en": "Empty music: cannot time cuts."
+ },
+ "Donne un nombre de plans ou leurs durées.": {
+  "fr": "Donne un nombre de plans ou leurs durées.",
+  "en": "Give a number of shots or their durations."
  }
 }

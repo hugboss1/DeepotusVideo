@@ -27,9 +27,11 @@
   };
   var FILTRES = ["famille", "agent", "ecran"];
 
-  var S = { reperes: null, liste: [], gen: 0, f: { famille: "", agent: "", ecran: "", q: "" }, slug: "" };
+  // t435 : S.agents = {id: true} pour les agents métier DISPONIBLES (GET /api/agents-metier) ; leur fiche propose alors
+  // « Parler au … » (conversation.js), sinon « bientôt »
+  var S = { reperes: null, liste: [], gen: 0, f: { famille: "", agent: "", ecran: "", q: "" }, slug: "", agents: {} };
   var Z = {};
-  window.__dzMethodes = { S: S, T: T };
+  window.__dzMethodes = { S: S, T: T, el: el, icone: icone, lire: lire, langue: langue };
 
   function el(tag, p, enfants) {
     var n = document.createElement(tag);
@@ -217,7 +219,11 @@
       el("div", { cls: "mt-agent-tete", texte: T(f.agent_outil ? "methodes.fiche.outil" : "methodes.fiche.agent") }),
       el("b", { texte: f.agent_libelle }),
       el("p", { texte: f.agent_role }),
-      el("p", { cls: "mt-agent-bientot", texte: T("methodes.fiche.bientot") })
+      S.agents[f.agent] && window.__dzMethodesConversation
+        ? el("button", { cls: "mt-btn mt-btn--accent", type: "button", a: { "data-dz-methodes-parler": f.agent },
+            on: { click: function () { window.__dzMethodesConversation.ouvrir(f); } } },
+            [icone("dz-action-lancer-recette", 14), el("span", { texte: T("methodes.agent.parler", { agent: f.agent_libelle }) })])
+        : el("p", { cls: "mt-agent-bientot", texte: T("methodes.fiche.bientot") })
     ]);
     var ecrans = el("div", { cls: "mt-ligne" }, [el("span", { cls: "mt-ligne-titre", texte: T("methodes.fiche.ecrans") })]
       .concat((f.ecrans_libelles || []).map(function (e) { return badge(e); })));
@@ -259,7 +265,11 @@
     if (!racine) return;
     lireAdresse();
     squelette(racine);
-    lire("/api/methodes/reperes?langue=" + langue()).then(function (R) {
+    var agentsPrets = lire("/api/agents-metier?langue=" + langue()).then(function (d) {
+      (d.agents || []).forEach(function (a) { if (a.disponible) S.agents[a.id] = true; });
+    }).catch(function () { /* sans la liste : toutes les fiches disent « bientôt » */ });
+    Promise.all([lire("/api/methodes/reperes?langue=" + langue()), agentsPrets]).then(function (res) {
+      var R = res[0];
       S.reperes = R;
       remplirFiltres();
       return charger();

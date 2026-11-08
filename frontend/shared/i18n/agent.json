@@ -49,6 +49,7 @@
   "agent.boites.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
   "agent.boites.scan": {"fr": "Scan", "en": "Scan"},
   "agent.boites.briques": {"fr": "Mesures, ancres et registre", "en": "Measures, anchors and log"},
+  "agent.boites.monteur": {"fr": "Monteur : musique, coupes, titres", "en": "Editor: music, cuts, titles"},
   "agent.boites.capture": {"fr": "Capture de l'app", "en": "App recording"},
   "agent.boites.recette": {"fr": "Recette exportable", "en": "Exportable recipe"},
   "agent.boites.fils": {"fr": "Fils suivis de News", "en": "Followed News feeds"},

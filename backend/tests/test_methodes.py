@@ -123,9 +123,9 @@ def main():
     print("\n[4] l'outil d'agent")
     from app.services import agent_outils as ao
     from app.services import agent_boites as B
-    check("4.1 boîte « methodes » : methodes_lire, agent « mcp » seul, pas sur le téléphone ; registre sain",
+    check("4.1 boîte « methodes » : methodes_lire, agents « mcp » et Monteur (t435), pas sur le téléphone ; registre sain",
           B.BOITES.get("methodes") == {"libelle": "agent.boites.methodes", "outils": ["methodes_lire"],
-                                       "agents": ["mcp"], "mobile": False} and B.verifier() == [], B.verifier())
+                                       "agents": ["mcp", "monteur"], "mobile": False} and B.verifier() == [], B.verifier())
     check("4.2 methodes_lire est en lecture et visible de « mcp », pas de Campagnes",
           ao.OUTILS["methodes_lire"]["nature"] == "lecture" and "methodes_lire" in B.outils_pour("mcp")
           and "methodes_lire" not in B.outils_pour("campagnes"))
