@@ -2,7 +2,7 @@
 Le module NEUF js/mod-decoupehex.js (hors table : il n'existait pas à la BASE) porte la logique ; les seules éditions
 du module de BASE sont consignées ICI, pour que la table reste réversible (test_i18n_l6 [2]) : l'import, le nom déposé
 (k arrondi à deux décimales), la règle d'opacité (`opts.opaque`, fonction transparentExport), le libellé et le clic du
-bouton #expPlateau (index.html porte le bouton vide, le texte vient de T) et l'exposition de rasteriser."""
+bouton #expPlateau (créé en JS après #expPng4 : index.html n'est pas modifié) et l'exposition de rasteriser."""
 from outils import L, S, X, H  # noqa: F401
 
 EXPORT = "js/mod-export.js"
@@ -27,9 +27,12 @@ ENTREES = [
     S(EXPORT, 80, 'const nom = `vector_${etat.docId}${opts.suffixe || ""}_${k}x${transparent ? "_t" : ""}.png`;',
       "const nom = nomExportPNG(etat.docId, opts.suffixe, k, transparent);", {}),
     S(EXPORT, 149, '  $("#expBible").addEventListener("click", garde(versBible));',
-      '  $("#expPlateau").textContent = T("vectorlab.export.plateau");\r\n'
-      '  $("#expPlateau").title = T("vectorlab.export.plateau_titre");\r\n'
-      '  $("#expPlateau").addEventListener("click", garde(() => decouperHex(VL, T)));\r\n'
+      '  const btnPlateau = document.createElement("button");   // créé ici : index.html reste intact (convention L6)\r\n'
+      '  btnPlateau.id = "expPlateau";\r\n'
+      '  btnPlateau.textContent = T("vectorlab.export.plateau");\r\n'
+      '  btnPlateau.title = T("vectorlab.export.plateau_titre");\r\n'
+      '  btnPlateau.addEventListener("click", garde(() => decouperHex(VL, T)));\r\n'
+      '  $("#expPng4").after(btnPlateau);\r\n'
       '  $("#expBible").addEventListener("click", garde(versBible));',
       {"vectorlab.export.plateau": ("Découper en hexagones…", "Cut into hexagons…"),
        "vectorlab.export.plateau_titre": (

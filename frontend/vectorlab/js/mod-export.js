@@ -158,9 +158,12 @@ export function initExport(VL) {
   $("#expPng1").addEventListener("click", garde(() => exporterPNG(1)));
   $("#expPng2").addEventListener("click", garde(() => exporterPNG(2)));
   $("#expPng4").addEventListener("click", garde(() => exporterPNG(4)));
-  $("#expPlateau").textContent = T("vectorlab.export.plateau");
-  $("#expPlateau").title = T("vectorlab.export.plateau_titre");
-  $("#expPlateau").addEventListener("click", garde(() => decouperHex(VL, T)));
+  const btnPlateau = document.createElement("button");   // créé ici : index.html reste intact (convention L6)
+  btnPlateau.id = "expPlateau";
+  btnPlateau.textContent = T("vectorlab.export.plateau");
+  btnPlateau.title = T("vectorlab.export.plateau_titre");
+  btnPlateau.addEventListener("click", garde(() => decouperHex(VL, T)));
+  $("#expPng4").after(btnPlateau);
   $("#expBible").addEventListener("click", garde(versBible));
   $("#expPrint3d").addEventListener("click", garde(imprimer3D));
 

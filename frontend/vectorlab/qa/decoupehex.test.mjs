@@ -100,10 +100,10 @@ function fabrique({ taille = { w: 1000, h: 700 }, nom = "Mon plateau" } = {}) {
 
 // 4. le bouton et le câblage
 {
-  check("4.1 bouton #expPlateau dans le menu Export, après #expPng4", /id="expPng4"[\s\S]*?id="expPlateau"/.test(html) && html.indexOf("expPlateau") < html.indexOf("expTransparent"));
+  check("4.1 bouton #expPlateau créé après #expPng4, index.html intact", /\$\("#expPng4"\)\.after\(btnPlateau\)/.test(source) && !html.includes("expPlateau"));
   check("4.2 libellé et infobulle FR/EN", ["vectorlab.export.plateau", "vectorlab.export.plateau_titre"].every((c) => dico[c] && dico[c].fr.trim() && dico[c].en.trim() && dico[c].fr !== dico[c].en), Object.keys(dico).filter((c) => c.includes("plateau")));
   check("4.3 libellé FR attendu", dico["vectorlab.export.plateau"].fr === "Découper en hexagones…" && dico["vectorlab.export.plateau"].en === "Cut into hexagons…");
-  check("4.4 câblage : clic -> garde(decouperHex), exporterPNG lit l'option opaque", /\$\("#expPlateau"\)\.addEventListener\("click", garde\(/.test(source) && /transparentExport\(opts, \$\("#expTransparent"\)\.checked\)/.test(source));
+  check("4.4 câblage : clic -> garde(decouperHex), exporterPNG passe par transparentExport", /btnPlateau\.addEventListener\("click", garde\(\(\) => decouperHex\(VL, T\)\)\)/.test(source) && /transparentExport\(opts, \$\("#expTransparent"\)\.checked\)/.test(source));
   check("4.5 les boutons existants ne passent pas l'option", /exporterPNG\(1\)/.test(source) && /exporterPNG\(2\)/.test(source) && /exporterPNG\(4\)/.test(source));
 }
 

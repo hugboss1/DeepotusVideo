@@ -3691,7 +3691,7 @@
    {
     "pos": 7030,
     "avant": "  $(\"#expBible\").addEventListener(\"click\", garde(versBible));",
-    "apres": "  $(\"#expPlateau\").textContent = T(\"vectorlab.export.plateau\");\r\n  $(\"#expPlateau\").title = T(\"vectorlab.export.plateau_titre\");\r\n  $(\"#expPlateau\").addEventListener(\"click\", garde(() => decouperHex(VL, T)));\r\n  $(\"#expBible\").addEventListener(\"click\", garde(versBible));",
+    "apres": "  const btnPlateau = document.createElement(\"button\");   // créé ici : index.html reste intact (convention L6)\r\n  btnPlateau.id = \"expPlateau\";\r\n  btnPlateau.textContent = T(\"vectorlab.export.plateau\");\r\n  btnPlateau.title = T(\"vectorlab.export.plateau_titre\");\r\n  btnPlateau.addEventListener(\"click\", garde(() => decouperHex(VL, T)));\r\n  $(\"#expPng4\").after(btnPlateau);\r\n  $(\"#expBible\").addEventListener(\"click\", garde(versBible));",
     "groupe": "plateau"
    },
    {

@@ -54,9 +54,9 @@ def test_le_dictionnaire_assemble_est_a_jour_et_copie_dans_dist():
 
 def test_cablage():
     html = _lire(VL / "index.html")
-    assert html.count('id="expPlateau"') == 1
-    assert html.index('id="expPng4"') < html.index('id="expPlateau"') < html.index('id="expTransparent"')
-    assert '$("#expPlateau").addEventListener("click", garde(() => decouperHex(VL, T)));' in EXPORT
+    assert "expPlateau" not in html          # convention L6 : index.html n'est pas modifié, le bouton est créé en JS
+    assert 'btnPlateau.id = "expPlateau";' in EXPORT and '$("#expPng4").after(btnPlateau);' in EXPORT
+    assert 'btnPlateau.addEventListener("click", garde(() => decouperHex(VL, T)));' in EXPORT
     assert 'T("vectorlab.export.plateau")' in EXPORT and 'T("vectorlab.export.plateau_titre")' in EXPORT
     assert 'transparentExport(opts, $("#expTransparent").checked)' in EXPORT
     assert "k: Math.round(k * 100) / 100" in EXPORT          # le toast affiche le k arrondi
