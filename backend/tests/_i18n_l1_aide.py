@@ -334,11 +334,22 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzmethodes(bundle: str) -> str:
+    """Le bundle d'avant l'écran « Méthodes » (maillon de queue patch_bundle_dzmethodes, t433, 08/11/2026, posé APRÈS
+    dzcreer3d : c'est la queue de la chaîne : entrée de rail après la Bibliothèque, iframe /methodes/, liste blanche des
+    vues) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzmethodes as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzcreer3d(bundle: str) -> str:
     """Le bundle d'avant l'écran Créer de l'onglet 3D (maillon de queue patch_bundle_dzcreer3d, t389, 31/10/2026,
     posé APRÈS dzapparence : c'est la queue de la chaîne : hôte de l'écran en tête de l'onglet 3D, ancien formulaire
     rangé dessous) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzcreer3d as _m
+    bundle = avant_dzmethodes(bundle)            # 08/11 (t433) : le maillon posé APRÈS dzcreer3d, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)
