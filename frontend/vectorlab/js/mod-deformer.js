@@ -10,7 +10,7 @@
 import { T } from "./mod-i18n.js";
 import { polylignes_objet } from "./mod-bool.js";
 
-const EFFETS = new Set(["enveloppe", "distorsion", "torsion", "rugosite", "zigzag"]);
+const EFFETS = new Set(["enveloppe", "distorsion", "torsion", "rugosite", "zigzag", "gonfler"]);
 const PAS_MAX = 2;                    // aucun segment déformé ne dépasse 2 px : une droite peut se courber
 const POINTS_MAX = 20000;
 const nbc = (x) => String(Math.round(x * 100) / 100 + 0);
@@ -59,6 +59,7 @@ function _params(effet, p = {}, base = {}) {
     lisse: !!v.lisse,
     graine: _entier(v.graine, 1, 0, 1e9),
   };
+  if (effet === "gonfler") return { pourcent: _nombre(v.pourcent, 30, -200, 200, "vectorlab.deformer.pourcent") };
   if (effet === "zigzag") return {
     taille: _nombre(v.taille, 5, 0, 1000, "vectorlab.deformer.valeur"),
     cretes: _entier(v.cretes, 4, 1, 100),
@@ -216,7 +217,24 @@ function _dLisse(q, ferme) {
   }
   return d + (ferme ? " Z" : "");
 }
-const _TRANSFORMEES = { enveloppe: _enveloppe, distorsion: _distorsion, torsion: _torsion, rugosite: _rugosite, zigzag: _zigzag };
+/* ── T4 (t463) Contraction et dilatation : chaque segment entre deux sommets devient une cubique ; par rapport au
+   centre de la boîte, les ancres se déplacent de −p/2 et les poignées (aux tiers du segment) de +p : dilatation
+   (p > 0) bombée, contraction (p < 0) en étoile, comme Contraction et dilatation d'Illustrator. Rend le tracé lui-même. */
+function _gonfler(p, B) {
+  const cx = B.x + B.w / 2, cy = B.y + B.h / 2, k = p.pourcent / 100;
+  const vers = ([x, y], f) => `${nbc(cx + (x - cx) * f)} ${nbc(cy + (y - cy) * f)}`;
+  return { ligne: (l) => {
+    const q = l.ferme ? l.points.concat([l.points[0]]) : l.points;
+    let d = "M" + vers(q[0], 1 - k / 2);
+    for (let i = 1; i < q.length; i++) {
+      const a = q[i - 1], b = q[i];
+      const h1 = [a[0] + (b[0] - a[0]) / 3, a[1] + (b[1] - a[1]) / 3], h2 = [a[0] + 2 * (b[0] - a[0]) / 3, a[1] + 2 * (b[1] - a[1]) / 3];
+      d += ` C${vers(h1, 1 + k)} ${vers(h2, 1 + k)} ${vers(b, 1 - k / 2)}`;
+    }
+    return { d: d + (l.ferme ? " Z" : "") };
+  } };
+}
+const _TRANSFORMEES = { enveloppe: _enveloppe, distorsion: _distorsion, torsion: _torsion, rugosite: _rugosite, zigzag: _zigzag, gonfler: _gonfler };
 
 /* ── le résultat ── */
 function _resultat(gid, source, effet, params, cache) {
@@ -230,7 +248,9 @@ function _resultat(gid, source, effet, params, cache) {
   return F.map((f, k) => {
     const d = f.lignes.map((l) => {
       // une fonction de point (enveloppe, distorsion, torsion) ou un traitement de ligne (rugosité, zigzag)
-      const { points: q, lisse } = typeof tr === "function" ? { points: _subdiviser(l, pas).map(tr), lisse: false } : tr.ligne(l, ni++);
+      const res = typeof tr === "function" ? { points: _subdiviser(l, pas).map(tr), lisse: false } : tr.ligne(l, ni++);
+      if (res.d !== undefined) return res.d;           // un effet qui écrit son tracé (contraction et dilatation)
+      const { points: q, lisse } = res;
       if (q.some(([x, y]) => !Number.isFinite(x) || !Number.isFinite(y))) throw new Error(T("vectorlab.deformer.sans_geometrie"));
       if (lisse) return _dLisse(q, l.ferme);
       return "M" + q.map(([x, y]) => `${nbc(x)} ${nbc(y)}`).join(" L") + (l.ferme ? " Z" : "");

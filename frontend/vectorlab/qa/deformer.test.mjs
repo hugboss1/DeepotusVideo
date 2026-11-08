@@ -3,6 +3,7 @@
 // l'Enveloppe par déformation prédéfinie (15 styles, courbure, distorsions, orientation).
 // T2 (t461) Distorsion libre (bilinéaire sur les quatre coins) et Torsion (angle proportionnel à la distance au centre).
 // T3 (t462) Rugosité (graine stable, taille, détails) et Zigzag (crêtes par segment, selon la normale) ; pointes ou lisse.
+// T4 (t463) Contraction et dilatation : chaque segment devient une courbe, ancres et poignées en sens opposés.
 import { createRequire } from "node:module";
 import { polylignes_objet, fournirMartinez, versMulti, aplatir_objet, aire_multi } from "../js/mod-bool.js";
 import { op_deformer, op_deformation_regler, op_deformation_editer, op_deformation_annuler, STYLES_ENVELOPPE } from "../js/mod-deformer.js";
@@ -243,6 +244,30 @@ const def = (effet, params, source = rect("a")) => { const d = doc(source); op_d
   const d = doc(rect("a"));
   ok("zigzag : crêtes 0 → refus", !!refus(() => op_deformer(d, ["a"], "zigzag", { cretes: 0 })));
   ok("zigzag : crêtes non entières → refus", !!refus(() => op_deformer(d, ["a"], "zigzag", { cretes: 2.5 })));
+}
+
+/* ── T4 (t463) Contraction et dilatation ── */
+{
+  const a0 = aire(rect("a"));
+  ok("contraction-dilatation : réglage par défaut 30 %", def("gonfler", {}).g.deformation.params.pourcent === 30);
+  const z = def("gonfler", { pourcent: 0 }).r;
+  ok("0 % : la forme d'origine", pres(aire(z), a0, a0 * 0.005) && proche(z, 100, 100) < 0.01);
+  const dil = def("gonfler", { pourcent: 50 }).r, con = def("gonfler", { pourcent: -50 }).r;
+  ok("dilatation : l'aire augmente", aire(dil) > a0 * 1.05, aire(dil));
+  ok("contraction : l'aire baisse", aire(con) < a0 * 0.95, aire(con));
+  ok("les ancres sont gardées : un segment courbe par côté (4 C)", (dil.d.match(/C/g) || []).length === 4 && !/L/.test(dil.d), dil.d);
+  // dilatation : les ancres se rapprochent du centre (200, 150) de 25 %, les poignées s'en éloignent de 50 %
+  const n = dil.d.match(/-?[\d.]+/g).map(Number);
+  ok("dilatation : la première ancre (coin haut-gauche) se rapproche du centre de 25 %", pres(n[0], 125, 0.01) && pres(n[1], 112.5, 0.01), n.slice(0, 2).join());
+  ok("dilatation : sa première poignée (au tiers du bord haut) s'éloigne du centre de 50 %", pres(n[2], 200 + (166.667 - 200) * 1.5, 0.02) && pres(n[3], 150 - 50 * 1.5, 0.02), n.slice(2, 4).join());
+  ok("dilatation : l'ancre de fin du premier segment (coin haut-droit) se rapproche aussi", pres(n[6], 275, 0.01) && pres(n[7], 112.5, 0.01), n.slice(6, 8).join());
+  const c = con.d.match(/-?[\d.]+/g).map(Number);
+  ok("contraction : la première ancre s'éloigne du centre de 25 %", pres(c[0], 75, 0.01) && pres(c[1], 87.5, 0.01), c.slice(0, 2).join());
+  // un chemin ouvert reste ouvert
+  const ouv = def("gonfler", { pourcent: 40 }, { id: "a", type: "path", d: "M0 0 L100 0 L100 100", style: { contour: "#000", epaisseur: 1 } }).r;
+  ok("un chemin ouvert reste ouvert (2 segments)", !/Z/.test(ouv.d) && (ouv.d.match(/C/g) || []).length === 2, ouv.d);
+  const d = doc(rect("a"));
+  ok("pourcentage hors bornes → refus traduit", refus(() => op_deformer(d, ["a"], "gonfler", { pourcent: 201 })) === T("vectorlab.deformer.pourcent", { min: -200, max: 200 }));
 }
 
 if (echecs.length) {
