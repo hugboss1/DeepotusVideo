@@ -31,12 +31,15 @@ from app.services import photolab_bibliotheques as PB
 from app.services import photolab_espaces as ESP
 from app.services import photolab_preferences as PREF
 from app.services import photolab_nuancier as NUA
+from app.services import noms as NOMS
 
 router = APIRouter()
 # Un nom ne finit ni par « . » ni par une espace : Windows les retire en silence (« a.png. » devient « a.png »), le
 # fichier copié n'aurait alors plus le nom qu'on ouvre.
-_NOM_IMAGE = re.compile(r"[A-Za-z0-9_]([A-Za-z0-9._ -]{0,179}[A-Za-z0-9_-])?")
-_NOM_SERVI = re.compile(r"[A-Za-z0-9_][A-Za-z0-9._-]{0,180}")
+# t421 (vague finale) : la garde est `noms.nom_image_valide` (app/services/noms.py), partagée avec la création d'un jeu
+# depuis des images : elle ne refuse que le dangereux (séparateurs, contrôles, interdits de Windows, fin en point ou en
+# espace) — « carte (1).png » ou « d'été.png », gardés tels quels par /images/upload, s'ouvrent.
+_NOM_SERVI = re.compile(r"[\w\u0300-\u036f][\w\u0300-\u036f._-]{0,180}")
 # t257 (M8) : + OpenRaster et PDF d'une page (aplati par le moteur) ; le TIFF à calques est « tif » + "calques": true.
 # t418 (N8) : + JPEG XL (sans perte, que le moteur ne relit pas), DDS, EXR, DPX, Cineon, HDR, BMP, GIF, QOI ; compression
 # par format (clé `compression`, posée sur tiffCompression / ddsCompression).
@@ -89,6 +92,17 @@ def _sur(souche: str) -> str:
     """Windows traite « CON », « NUL », « COM1 »… comme des périphériques, même avec une extension : on suffixe « _ »
     plutôt que de refuser un nom que l'utilisateur a légitimement choisi."""
     return souche + "_" if _PERIPHERIQUE.fullmatch(souche) else souche
+
+
+def _nom_entree(nom: str, souche: str, ext: str) -> str:
+    """t421 (vague finale) : le nom de la copie d'une image sous entrees/ — « <sha1 8 du nom>-<souche><ext> ». La souche
+    est TRANSLITTÉRÉE (NFKD -> ASCII, comme `_base_sure`) avant le remplacement : « âmes_fracturées » donne
+    « ames_fracturees », plus « -mes_fractur-es ». Préfixe = empreinte du NOM d'origine : stable (rouvrir réutilise la
+    copie), jamais deux noms qui se confondent après nettoyage (« a b.png » et « a-b.png », NFC et NFD)."""
+    h = hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
+    brut = unicodedata.normalize("NFKD", souche).encode("ascii", "ignore").decode()
+    sur = _sur(re.sub(r"[^A-Za-z0-9._-]", "-", brut) or "image")
+    return f"{h}-{sur}{re.sub(r'[^A-Za-z0-9.]', '-', ext)}"
 
 
 def _relatif(chemin: str) -> str:
@@ -163,7 +177,7 @@ async def _chemin_actif():
 def _image_biblio(nom):
     """Chemin d'une image de la Bibliothèque, ou None (nom refusé, hors du dossier — lien symbolique —, absente)."""
     from app.config import settings
-    if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
+    if not NOMS.nom_image_valide(nom):
         return None
     src = (settings.images_path / nom).resolve()
     return src if settings.images_path.resolve() in src.parents and src.is_file() else None
@@ -197,7 +211,7 @@ async def ouvrir(body: dict):
     calques = corps.get("calques", True)
     if not isinstance(calques, bool):
         raise HTTPException(400, "calques : booléen attendu")
-    if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
+    if not NOMS.nom_image_valide(nom):
         raise HTTPException(400, f"nom d'image refusé : {nom!r}")
     src = _image_biblio(nom)
     if src is None:
@@ -212,11 +226,7 @@ async def ouvrir(body: dict):
         src, souche, ext = travail, travail.stem, travail.suffix
     else:
         souche, ext = os.path.splitext(nom)
-    # Préfixe = empreinte du NOM d'origine : stable (rouvrir réutilise la copie), jamais deux noms qui se confondent
-    # après nettoyage (« a b.png » et « a-b.png »).
-    h = hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
-    sur = f"{h}-{_sur(re.sub(r'[^A-Za-z0-9._-]', '-', souche))}{re.sub(r'[^A-Za-z0-9.]', '-', ext)}"
-    chemin = _relatif(f"entrees/{sur}")                    # refus (400) AVANT de copier quoi que ce soit
+    chemin = _relatif(f"entrees/{_nom_entree(nom, souche, ext)}")   # refus (400) AVANT de copier quoi que ce soit
     await asyncio.to_thread(shutil.copyfile, src, PM.dossier_travail() / chemin)
     resultat, gen = await _appeler("doc.open", {"path": chemin})
     _retenir(chemin, nom)
@@ -369,6 +379,18 @@ def _base_sure(nom, defaut="photolab") -> str:
     # ASCII d'abord (« Photo d'été » -> « Photo-d-ete ») : Windows et le moteur ne se fient pas aux accents.
     brut = unicodedata.normalize("NFKD", str(nom or "")).encode("ascii", "ignore").decode()
     return _sur(re.sub(r"[^A-Za-z0-9_-]+", "-", brut).strip("-")[:80] or defaut)
+
+
+def _base_defaut(nom) -> str:
+    """t421 : la base de nom d'un document sans `nom` donné — le même nettoyage que `nomDocument` (mod-fichier.js) :
+    empreinte « <sha1 8>- » en tête, extension, préfixe « photolab_<horodatage>_ » et « -png »/« -jpg » du fichier de
+    travail ; puis `_base_sure` (ASCII, comme tout nom enregistré)."""
+    s = re.sub(r"^[0-9a-f]{8}-", "", str(nom or ""))
+    s = re.sub(r"\.[A-Za-z0-9]{2,6}$", "", s)
+    m = re.match(r"photolab_\d{8}-\d{6}_(.+)$", s)
+    if m:
+        s = re.sub(r"-(png|jpg)$", "", m.group(1))
+    return _base_sure(s, "image")
 
 
 def _compression(corps) -> dict:
@@ -713,7 +735,7 @@ async def actions_lot(body: dict):
     if inconnues:
         raise HTTPException(400, f"paramètre inconnu : {sorted(inconnues)[0]}")
     nom = corps.get("filename")
-    if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
+    if not NOMS.nom_image_valide(nom):
         raise HTTPException(400, f"nom d'image refusé : {nom!r}")
     fmt = corps.get("format", "png")
     if fmt not in ("png", "jpg"):
@@ -724,8 +746,7 @@ async def actions_lot(body: dict):
         raise HTTPException(404, f"image introuvable dans la Bibliothèque : {nom}")
     souche, ext = os.path.splitext(nom)
     base = _base_sure(f"{souche}-{corps.get('suffixe') or 'lot'}", "lot")
-    h = hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
-    chemin = _relatif(f"entrees/{h}-{_sur(re.sub(r'[^A-Za-z0-9._-]', '-', souche))}{re.sub(r'[^A-Za-z0-9.]', '-', ext)}")
+    chemin = _relatif(f"entrees/{_nom_entree(nom, souche, ext)}")
     reg = await _pool(lambda s: functools.partial(PM.registre, s))
     await asyncio.to_thread(shutil.copyfile, src, PM.dossier_travail() / chemin)
     async with _VERROU_EXPORT:
@@ -751,7 +772,7 @@ async def placer_route(body: dict):
     entrees/, collée au centre du document actif en objet dynamique (réduite si elle dépasse). t159 : les deux
     booléens viennent des préférences (Paramètres), vrais par défaut. -> {"layer", "bounds"}."""
     nom = (body or {}).get("filename")
-    if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
+    if not NOMS.nom_image_valide(nom):
         raise HTTPException(400, f"nom d'image refusé : {nom!r}")
     inconnues = set(body) - {"filename", "objetDynamique", "reduire"}
     if inconnues:
@@ -771,8 +792,7 @@ async def _vers_entrees_brut(nom):
     if src is None:
         raise HTTPException(404, f"image introuvable dans la Bibliothèque : {nom}")
     souche, ext = os.path.splitext(nom)
-    h = hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
-    chemin = _relatif(f"entrees/{h}-{_sur(re.sub(r'[^A-Za-z0-9._-]', '-', souche))}{re.sub(r'[^A-Za-z0-9.]', '-', ext)}")
+    chemin = _relatif(f"entrees/{_nom_entree(nom, souche, ext)}")
     await asyncio.to_thread(shutil.copyfile, src, PM.dossier_travail() / chemin)
     return chemin
 
@@ -786,7 +806,7 @@ async def objets_remplacer(body: dict):
     if inconnues:
         raise HTTPException(400, f"paramètre inconnu : {sorted(inconnues)[0]}")
     nom = corps.get("filename")
-    if not isinstance(nom, str) or not _NOM_IMAGE.fullmatch(nom):
+    if not NOMS.nom_image_valide(nom):
         raise HTTPException(400, f"nom d'image refusé : {nom!r}")
     chemin = await _vers_entrees_brut(nom)
     return _json(*await _pool(lambda s: functools.partial(PM.remplacer_contenu, s), chemin))
@@ -808,7 +828,7 @@ async def bibliotheque(body: dict):
     nom_doc = (body or {}).get("nom")
     if not nom_doc:
         nom_doc = (await _appeler("doc.inspect"))[0].get("name")      # sans document, le moteur refuse : 422 dit
-    base = _base_sure(nom_doc, "image")
+    base = _base_sure(nom_doc, "image") if (body or {}).get("nom") else _base_defaut(nom_doc)
     fichier, gen, _ = await _exporter(fmt, base, q)
     src = PM.dossier_travail() / "exports" / fichier
     dossier = settings.images_path
@@ -1460,8 +1480,7 @@ def _vers_entrees(nom: str, taille_max=None, taille_exacte=None) -> tuple[str, b
     if src is None:
         raise ValueError(f"image introuvable dans la Bibliothèque : {nom}")
     souche = os.path.splitext(nom)[0]
-    h = hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
-    chemin = PM.relatif(f"entrees/{h}-{_sur(re.sub(r'[^A-Za-z0-9._-]', '-', souche))}.png")
+    chemin = PM.relatif(f"entrees/{_nom_entree(nom, souche, '.png')}")
     with Image.open(src) as im:
         im.load()
         out = im.convert("RGBA")

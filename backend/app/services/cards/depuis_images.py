@@ -1,0 +1,202 @@
+# -*- coding: utf-8 -*-
+"""Card Forge — t421 : créer un deck « carte pleine » depuis des images.
+
+`POST /api/cards/decks/depuis-images` : N images de la Bibliothèque deviennent
+N cartes d'un deck NEUF, sans cadre ni texte (le visuel EST la carte),
+rectangulaire ou hexagonal. Les images ne sont jamais ouvertes en écriture ni
+copiées : le deck ne garde que leurs NOMS, dans la colonne `art` (et `dos`).
+
+Le deck est ensemencé comme `models.instancier` : `core.create_deck` puis
+`core.patch_deck` — le même chemin que l'autosave de l'écran. Tout est
+VALIDÉ avant `create_deck` : un refus ne laisse aucun deck derrière lui.
+
+Ce routeur est inclus AVANT `core` (cf. `__init__`) : `/decks/depuis-images`
+doit être apparié avant le joker `/{did}` de core.
+
+Il porte aussi `GET /gabarit/{fmt}.{svg|png}` (tâche 6) : le gabarit à
+télécharger d'un format hexagonal (deux segments : aucun conflit avec le joker
+`/{did}` de core). Un rectangle n'a pas de gabarit : 404.
+
+Aucune dépense IA, aucune écriture dans `images/`.
+"""
+from __future__ import annotations
+
+import asyncio
+import os
+import re
+
+from fastapi import APIRouter, HTTPException, Response
+from loguru import logger
+
+from app.services.noms import nom_image_valide
+
+from . import core, hexa
+from .contract import FORMATS, geom, is_hex
+
+__all__ = ["router"]
+
+router = APIRouter()
+
+# Même plafond que le traitement par lots de la Bibliothèque.
+IMAGES_MAX = 500
+
+# t421 (vague finale) : la garde du nom est celle du Photolab, partagée par
+# app/services/noms.py — elle ne refuse que le dangereux ; « carte (1).png »
+# ou « d'été.png », gardés tels quels par /images/upload, deviennent des cartes.
+
+# Le préfixe d'une retouche du Photolab : photolab_AAAAMMJJ-HHMMSS_<base>.
+_PREFIXE_PHOTOLAB = re.compile(r"^photolab_\d{8}-\d{6}_")
+
+# Le deck « carte pleine » : aucun habillage, aucune zone de texte.
+_CADRE_NU = {"family": "none", "gem": False, "banner": False,
+             "corner": "none", "line_mm": 0, "double": False, "metal": False}
+
+
+def _images_dir():
+    from app.config import settings
+    return settings.images_path
+
+
+def _nom_valide(nom, champ: str) -> str:
+    if not nom_image_valide(nom):
+        raise HTTPException(400, f"{champ} : nom d'image refusé : {nom!r}")
+    return nom
+
+
+def _verifie_presente(nom: str) -> None:
+    """404 nommant le fichier ; 400 s'il sort de la Bibliothèque (lien)."""
+    racine = _images_dir().resolve()
+    src = (_images_dir() / nom).resolve()
+    if racine not in src.parents:
+        raise HTTPException(400, f"image hors de la Bibliothèque : {nom}")
+    if not src.is_file():
+        raise HTTPException(404, f"image introuvable dans la Bibliothèque : {nom}")
+
+
+def _titre(nom: str) -> str:
+    """Le nom de la carte : le fichier sans extension ni préfixe de retouche du
+    Photolab (photolab_AAAAMMJJ-HHMMSS_, comme `nomDocument` du Photolab),
+    `_` -> espace. Miroir : `nomCarte` de js/depuis-images-logique.js."""
+    tige = os.path.splitext(nom)[0]
+    tige = _PREFIXE_PHOTOLAB.sub("", tige) or tige
+    return tige.replace("_", " ").strip() or nom
+
+
+def preparer(body) -> dict:
+    """Valide TOUT le corps et rend `{name, format, rows}`. Lève HTTPException.
+    Aucun effet de bord : appelée avant `create_deck`."""
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Corps JSON attendu")
+    images = body.get("images")
+    if not isinstance(images, list) or not images:
+        raise HTTPException(400, "images : une liste non vide de noms attendue")
+    if len(images) > IMAGES_MAX:
+        raise HTTPException(
+            400, f"images : {IMAGES_MAX} au plus ({len(images)} reçues)")
+    fmt_in = body.get("format")
+    if isinstance(fmt_in, str):
+        fmt_in = {"fmt": fmt_in}
+    if not isinstance(fmt_in, dict):
+        raise HTTPException(400, "format : un objet {fmt, …} attendu")
+    fmt_id = str(fmt_in.get("fmt") or "").strip().lower()
+    if fmt_id not in FORMATS:
+        raise HTTPException(400, f"format inconnu : {fmt_id!r}")
+    fond_perdu = body.get("fond_perdu", True)
+    if not isinstance(fond_perdu, bool):
+        raise HTTPException(400, "fond_perdu : booléen attendu")
+    versos = body.get("versos")
+    commun = body.get("verso_commun")
+    if versos is not None and commun is not None:
+        raise HTTPException(400, "versos et verso_commun s'excluent")
+    if versos is not None:
+        if not isinstance(versos, list) or len(versos) != len(images):
+            raise HTTPException(
+                400, "versos : une liste de la longueur de images attendue")
+    noms = [_nom_valide(n, "images") for n in images]
+    if commun is not None:
+        _nom_valide(commun, "verso_commun")
+    if versos is not None:
+        for v in versos:
+            # vague finale (M3) : ni None, ni "", ni une chaîne -> refus
+            if v is not None and not isinstance(v, str):
+                raise HTTPException(
+                    400, f"versos : un nom d'image, None ou \"\" attendu ({v!r})")
+    dos = ([v if v not in (None, "") else "" for v in versos]
+           if versos is not None else [commun or ""] * len(noms))
+    for v in dos:
+        if v:
+            _nom_valide(v, "versos")
+    for n in dict.fromkeys(noms + [v for v in dos if v]):
+        _verifie_presente(n)
+    fmt = dict(fmt_in)
+    fmt["fmt"] = fmt_id
+    if fond_perdu:
+        fmt.pop("bleed_mm", None)       # le fond perdu natif du format
+    else:
+        fmt["bleed_mm"] = 0             # `safe_mm` reste celui du corps / natif
+    return {"name": core.clean_name(body.get("name"), "Mes images"),
+            "format": fmt,
+            "rows": [[_titre(n), n, v] for n, v in zip(noms, dos)]}
+
+
+def creer(prep: dict) -> dict:
+    """Crée le deck et l'ensemence par `core.patch_deck`. Une OSError après la
+    création supprime le deck à moitié fait avant de remonter (vague finale,
+    M4) : un refus ne laisse aucun deck derrière lui."""
+    doc = core.create_deck(prep["name"])
+    try:
+        return _ensemencer(doc["id"], prep)
+    except OSError:
+        core.delete_deck(doc["id"])
+        raise
+
+
+def _ensemencer(did: str, prep: dict) -> dict:
+    out = core.patch_deck(did, {
+        "format": prep["format"],
+        "frame": dict(_CADRE_NU),
+        "type": {"slots": [], "seeded": True, "sel": ""},
+        "face": {"seeded": True, "fit": "cover", "src": None,
+                 "default_art": None},
+        "data": {"columns": ["nom", "art", "dos"], "rows": prep["rows"],
+                 "map": {"art": "art", "dos": "back"}},
+    })
+    if out is None:
+        raise OSError("deck disparu après sa création")
+    return out
+
+
+@router.post("/decks/depuis-images")
+async def post_depuis_images(body: dict | None = None):
+    prep = await asyncio.to_thread(preparer, body)
+    try:
+        doc = await asyncio.to_thread(creer, prep)
+    except OSError as e:
+        logger.exception("cards: création depuis images impossible")
+        raise HTTPException(500, "Création du deck impossible : écriture "
+                                 f"refusée ({e.strerror or 'E/S'})")
+    return {"deck": doc}
+
+
+@router.get("/gabarit/{fmt}.{ext}")
+async def get_gabarit(fmt: str, ext: str, dpi: int = 300,
+                      bleed_mm: float | None = None,
+                      safe_mm: float | None = None):
+    """Le gabarit d'un format hexagonal : PNG transparent à la taille de la
+    toile ou SVG en mm. Fond perdu par défaut : le natif du format (3 mm)."""
+    if ext not in ("svg", "png"):
+        raise HTTPException(404, f"gabarit : extension inconnue : {ext!r}")
+    if fmt not in FORMATS:
+        raise HTTPException(404, f"gabarit : format inconnu : {fmt!r}")
+    if not is_hex(fmt):
+        raise HTTPException(404, "gabarit : seul un format hexagonal en a un")
+    try:
+        g = geom(fmt, dpi, bleed_mm, safe_mm)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if ext == "svg":
+        corps, mime = hexa.gabarit_svg(g).encode("utf-8"), "image/svg+xml"
+    else:
+        corps, mime = await asyncio.to_thread(hexa.gabarit_png, g), "image/png"
+    return Response(corps, media_type=mime, headers={
+        "Content-Disposition": f'attachment; filename="gabarit-{fmt}.{ext}"'})

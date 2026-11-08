@@ -204,9 +204,11 @@ def test_zone_sure_micro_vaut_un_pouce_et_demi():
 
 
 def test_les_douze_formats_sont_livres():
-    """La table de la spec en compte douze. Pas onze."""
-    assert list(CT.FORMATS) == list(TABLE)
-    assert len(CT.FORMATS) == 12
+    """La table de la spec en compte douze. Pas onze. Depuis t421 (07/11/2026)
+    la table en compte VINGT : les douze rectangles, intacts et dans leur ordre,
+    puis les huit hexagones (leur banc : test_cards_hexa.py)."""
+    assert list(CT.FORMATS)[:12] == list(TABLE)
+    assert len(CT.FORMATS) == 20
 
 
 @pytest.mark.parametrize("fmt", list(NANDECK))
@@ -385,10 +387,13 @@ def _transpose(js: str) -> str:
 def _formats_js() -> list:
     """La table FORMATS recopiée à la main dans core.js, relue telle quelle."""
     src = CORE_JS.read_text(encoding="utf-8")
+    # t421 : `forme` et `orientation` (hexagones seulement) sont facultatives.
     rows = re.findall(
         r'\{\s*id:\s*"([^"]+)",\s*label:\s*"([^"]*)",\s*unit:\s*"(\w+)",'
-        r'\s*trim_mm:\s*\[\s*([\d.]+)\s*,\s*([\d.]+)\s*\]\s*\}', src)
-    return [(i, lab, u, (float(w), float(h))) for i, lab, u, w, h in rows]
+        r'\s*trim_mm:\s*\[\s*([\d.]+)\s*,\s*([\d.]+)\s*\]'
+        r'(?:,\s*forme:\s*"(\w+)",\s*orientation:\s*"(\w+)")?\s*\}', src)
+    return [(i, lab, u, (float(w), float(h)), f or None, o or None)
+            for i, lab, u, w, h, f, o in rows]
 
 
 def test_la_table_des_formats_est_la_meme_des_deux_cotes():
@@ -396,16 +401,19 @@ def test_la_table_des_formats_est_la_meme_des_deux_cotes():
     Une recopie que personne ne vérifie finit par diverger ; celle-ci est
     vérifiée."""
     js = _formats_js()
-    assert len(js) == 12, f"12 formats attendus dans core.js, {len(js)} lus"
-    py = [(f, m["label"], m["unit"], tuple(m["trim_mm"]))
+    # t421 (07/11/2026) : 12 rectangles + 8 hexagones = 20.
+    assert len(js) == 20, f"20 formats attendus dans core.js, {len(js)} lus"
+    py = [(f, m["label"], m["unit"], tuple(m["trim_mm"]),
+           m.get("forme"), m.get("orientation"))
           for f, m in CT.FORMATS.items()]
     assert js == py, "core.js et contract.py ne décrivent pas les mêmes formats"
 
 
 def test_parite_ecran_backend():
-    """Le bloc de core.js, transposé, contre `contract.geom` : 12 formats x
-    6 définitions x 5 fonds perdus x 4 zones sûres = 1440 géométries, 5 champs
-    de pixels chacune. Tolérance : 0 pixel."""
+    """Le bloc de core.js, transposé, contre `contract.geom` : 20 formats
+    (t421 : 12 rectangles + 8 hexagones, dont le rectangle de coupe suit la
+    même règle) x 6 définitions x 5 fonds perdus x 4 zones sûres = 2400
+    géométries, 5 champs de pixels chacune. Tolérance : 0 pixel."""
     src = _transpose(_bloc_js("CF-GEOM-FORMULA"))
     n = 0
     for fmt, meta in CT.FORMATS.items():
@@ -424,7 +432,7 @@ def test_parite_ecran_backend():
                     assert g.safe_px == ns["safe_px"], ctx
                     assert g.safe_off_px == ns["safe_off_px"], ctx
                     n += 1
-    assert n == 12 * 6 * 5 * 4
+    assert n == 20 * 6 * 5 * 4
 
 
 def test_l_arrondi_d_affichage_est_le_meme_des_deux_cotes():
@@ -2020,7 +2028,7 @@ def test_api_formats_repond_du_json_pas_du_html():
     assert "application/json" in r.headers.get("content-type", "")
     assert not r.text.lstrip().startswith("<"), "du HTML = le catch-all SPA"
     body = r.json()
-    assert len(body["formats"]) == 12
+    assert len(body["formats"]) == 20      # t421 : 12 rectangles + 8 hexagones
     par_id = {f["fmt"]: f for f in body["formats"]}
     assert par_id["poker_us"]["canvas_px"] == [825, 1125]
     assert par_id["poker_us"]["trim_px"] == [750, 1050]

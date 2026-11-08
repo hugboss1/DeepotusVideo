@@ -46,6 +46,7 @@ export function initEnvoi(VL) {
   VL.recevoirEnvoi = async () => {
     const r = recevoir("vectorlab");
     if (!r) return false;
+    if (r.refus) { VL.toast(T("commun.envoi.refuse", { nom: r.refus }), true); return false; }     // t421 : dit, n'ouvre rien
     try {
       const nat = await dimensions(r.image);
       const { w, h } = tailleDoc(nat.w, nat.h);
@@ -66,6 +67,7 @@ export function initEnvoi(VL) {
   VL.poserEnvoi = () => {
     const r = recevoir("vectorlab");
     if (!r) return;
+    if (r.refus) { VL.toast(T("commun.envoi.refuse", { nom: r.refus }), true); return; }
     VL.poserDepuisLibrary(r.image).catch((e) => VL.toast(e.message, true));
   };
 }

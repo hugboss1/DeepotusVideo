@@ -271,7 +271,10 @@ def test_l_encadre_de_regles_reste_dans_la_zone_sure_en_pixels():
 def test_les_gabarits_tiennent_dans_la_zone_sure_des_douze_formats():
     """12 formats x 3 définitions x 4 gabarits = 144 mises en page, zéro
     pixel hors zone sûre. C'est ce que garantit le repère : un gabarit est
-    écrit en fractions de la zone sûre EN PIXELS, pas de la rogne."""
+    écrit en fractions de la zone sûre EN PIXELS, pas de la rogne.
+    t421 (07/11/2026) : la table compte VINGT formats (les huit hexagones y
+    tiennent aussi, leur zone sûre rectangulaire est celle du rectangle de
+    coupe) : 20 x 3 x 4 = 240 mises en page."""
     n = 0
     for fmt in CT.FORMATS:
         for dpi in CT.DPI_CHOICES:
@@ -281,7 +284,7 @@ def test_les_gabarits_tiennent_dans_la_zone_sure_des_douze_formats():
                 assert rep["summary"]["ok"], \
                     f"{fmt}@{dpi} / {pid} : {rep['summary']['outside_safe']}"
                 n += 1
-    assert n == len(CT.FORMATS) * len(CT.DPI_CHOICES) * len(TY.PRESETS) == 144
+    assert n == len(CT.FORMATS) * len(CT.DPI_CHOICES) * len(TY.PRESETS) == 240
 
 
 def test_la_zone_sure_du_gabarit_est_celle_des_pixels_pas_des_millimetres():

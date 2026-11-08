@@ -86,7 +86,11 @@ def test_les_formats_servis_sont_exactement_ceux_verifies():
     assert set(CT.PRINTER_PROFILES["mpc"]["fmts"]) == set(MPC)
     assert set(CT.PRINTER_PROFILES["tgc"]["fmts"]) == set(TGC)
     assert tuple(CT.PRINTER_PROFILES["dtc"]["fmts"]) == ("poker_us",)
-    assert set(CT.PRINTER_PROFILES["maison"]["fmts"]) == set(CT.FORMATS)
+    # t421 (07/11/2026) : FORMATS compte 20 entrées dont 8 hexagones, qu'aucun
+    # profil d'imprimeur n'admet ; le profil maison garde les 12 rectangles.
+    assert set(CT.PRINTER_PROFILES["maison"]["fmts"]) == {
+        f for f in CT.FORMATS if CT.FORMATS[f].get("forme") != "hex"}
+    assert len(CT.PRINTER_PROFILES["maison"]["fmts"]) == 12
 
 
 def test_mpc_ecrit_36_px_et_non_un_huitieme_de_pouce():

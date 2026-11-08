@@ -3,6 +3,42 @@
  "fichiers": {
   "js/core.js": [
    {
+    "pos": 7704,
+    "avant": "trim_mm: [31.75, 44.45] },",
+    "apres": "trim_mm: [31.75, 44.45] },\r\n    /* t421 : les huit hexagones. `trim_mm` est le rectangle qui englobe l'hexagone ;\r\n       forme/orientation sont absentes des douze rectangles (absence = \"rect\"). */\r\n    { id: \"hex_p50\", label: \"Hexagone 50 mm, pointe en haut\", unit: \"mm\", trim_mm: [50.0, 57.735], forme: \"hex\", orientation: \"pointe\" },\r\n    { id: \"hex_p635\", label: \"Hexagone 63,5 mm, pointe en haut\", unit: \"mm\", trim_mm: [63.5, 73.323], forme: \"hex\", orientation: \"pointe\" },\r\n    { id: \"hex_p75\", label: \"Hexagone 75 mm, pointe en haut\", unit: \"mm\", trim_mm: [75.0, 86.603], forme: \"hex\", orientation: \"pointe\" },\r\n    { id: \"hex_p90\", label: \"Hexagone 90 mm, pointe en haut\", unit: \"mm\", trim_mm: [90.0, 103.923], forme: \"hex\", orientation: \"pointe\" },\r\n    { id: \"hex_f50\", label: \"Hexagone 50 mm, côté plat en haut\", unit: \"mm\", trim_mm: [57.735, 50.0], forme: \"hex\", orientation: \"plat\" },\r\n    { id: \"hex_f635\", label: \"Hexagone 63,5 mm, côté plat en haut\", unit: \"mm\", trim_mm: [73.323, 63.5], forme: \"hex\", orientation: \"plat\" },\r\n    { id: \"hex_f75\", label: \"Hexagone 75 mm, côté plat en haut\", unit: \"mm\", trim_mm: [86.603, 75.0], forme: \"hex\", orientation: \"plat\" },\r\n    { id: \"hex_f90\", label: \"Hexagone 90 mm, côté plat en haut\", unit: \"mm\", trim_mm: [103.923, 90.0], forme: \"hex\", orientation: \"plat\" },",
+    "groupe": "t421"
+   },
+   {
+    "pos": 7820,
+    "avant": "const MM_PER_INCH = 25.4;",
+    "apres": "/* t421 : libelles des hexagones, traduits (cles statiques, une par format) */\r\n  function hexLabel(id) {\r\n    return ({\r\n      hex_p50: dzT(\"cartes.core.fmt_hex_p50\"), hex_p635: dzT(\"cartes.core.fmt_hex_p635\"),\r\n      hex_p75: dzT(\"cartes.core.fmt_hex_p75\"), hex_p90: dzT(\"cartes.core.fmt_hex_p90\"),\r\n      hex_f50: dzT(\"cartes.core.fmt_hex_f50\"), hex_f635: dzT(\"cartes.core.fmt_hex_f635\"),\r\n      hex_f75: dzT(\"cartes.core.fmt_hex_f75\"), hex_f90: dzT(\"cartes.core.fmt_hex_f90\"),\r\n    })[id];\r\n  }\r\n\r\n  const MM_PER_INCH = 25.4;",
+    "groupe": "t421"
+   },
+   {
+    "pos": 15384,
+    "avant": "function geomOf(fmt, dpi, bleed_mm, safe_mm, corner_mm) {",
+    "apres": "/* ═══ CF-HEX-BEGIN ═══ */\r\n  /* t421 : le contour des cartes hexagonales, en mm.\r\n     MIROIR EXACT de backend/app/services/cards/hexa.py (et des proprietes de\r\n     CardGeom). `test_cards_hexa.py` extrait ce bloc, l'execute sous node et le\r\n     compare au Python a 0,001 mm pres. Autonome : aucune variable du fichier. */\r\n  /* sommets de la coupe, repere coin haut-gauche, sens horaire (y vers le bas) */\r\n  function hexSommets(trim_mm, orientation) {\r\n    const w = trim_mm[0], h = trim_mm[1];\r\n    if (orientation === \"pointe\") return [[w / 2, 0], [w, h / 4], [w, 3 * h / 4], [w / 2, h], [0, 3 * h / 4], [0, h / 4]];\r\n    if (orientation === \"plat\") return [[w / 4, 0], [3 * w / 4, 0], [w, h / 2], [3 * w / 4, h], [w / 4, h], [0, h / 2]];\r\n    return [[0, 0], [w, 0], [w, h], [0, h]];\r\n  }\r\n  /* decalage perpendiculaire d'un polygone convexe ; d > 0 vers l'exterieur ;\r\n     [] si le decalage retourne le polygone */\r\n  function hexDecale(pts, d) {\r\n    const n = pts.length;\r\n    if (n < 3) return [];\r\n    let cx = 0, cy = 0;\r\n    pts.forEach((p) => { cx += p[0]; cy += p[1]; });\r\n    cx /= n; cy /= n;\r\n    const L = [];\r\n    for (let i = 0; i < n; i++) {\r\n      const a = pts[i], b = pts[(i + 1) % n];\r\n      const dx = b[0] - a[0], dy = b[1] - a[1], ln = Math.sqrt(dx * dx + dy * dy);\r\n      const ux = dx / ln, uy = dy / ln;\r\n      let nx = uy, ny = -ux;\r\n      if (((a[0] + b[0]) / 2 - cx) * nx + ((a[1] + b[1]) / 2 - cy) * ny < 0) { nx = -nx; ny = -ny; }\r\n      L.push([a[0] + nx * d, a[1] + ny * d, ux, uy]);\r\n    }\r\n    const out = [];\r\n    for (let i = 0; i < n; i++) {\r\n      const P = L[(i + n - 1) % n], Q = L[i];\r\n      const den = P[2] * Q[3] - P[3] * Q[2];\r\n      if (Math.abs(den) < 1e-12) return [];\r\n      const t = ((Q[0] - P[0]) * Q[3] - (Q[1] - P[1]) * Q[2]) / den;\r\n      out.push([P[0] + P[2] * t, P[1] + P[3] * t]);\r\n    }\r\n    for (let i = 0; i < n; i++) {\r\n      const a = pts[i], b = pts[(i + 1) % n], c = out[i], e = out[(i + 1) % n];\r\n      if ((b[0] - a[0]) * (e[0] - c[0]) + (b[1] - a[1]) * (e[1] - c[1]) <= 0) return [];\r\n    }\r\n    return out;\r\n  }\r\n  /* Sutherland-Hodgman contre le rectangle [0, w] x [0, h] */\r\n  function hexDecoupe(poly, w, h) {\r\n    const coupe = (pts, dedans, croise) => {\r\n      const res = [];\r\n      for (let i = 0; i < pts.length; i++) {\r\n        const cur = pts[i], prev = pts[(i + pts.length - 1) % pts.length];\r\n        const a = dedans(prev), b = dedans(cur);\r\n        if (a && b) res.push(cur);\r\n        else if (a && !b) res.push(croise(prev, cur));\r\n        else if (b && !a) { res.push(croise(prev, cur)); res.push(cur); }\r\n      }\r\n      return res;\r\n    };\r\n    const surX = (x0) => (p, q) => [x0, p[1] + (q[1] - p[1]) * (x0 - p[0]) / (q[0] - p[0])];\r\n    const surY = (y0) => (p, q) => [p[0] + (q[0] - p[0]) * (y0 - p[1]) / (q[1] - p[1]), y0];\r\n    let pts = poly.slice();\r\n    [[(p) => p[0] >= 0, surX(0)], [(p) => p[0] <= w, surX(w)], [(p) => p[1] >= 0, surY(0)], [(p) => p[1] <= h, surY(h)]].forEach((c) => {\r\n      if (pts.length) pts = coupe(pts, c[0], c[1]);\r\n    });\r\n    return pts;\r\n  }\r\n  /* g : une geometrie de geomOf() d'un hexagone. Tout est rendu dans le repere\r\n     de la TOILE (coin haut-gauche de l'image, fond perdu compris), en mm :\r\n     coupe, fond (fond perdu tronque a la toile), sur (zone sure), milieux (des\r\n     six cotes de la coupe). */\r\n  function hexContours(g) {\r\n    const k = 25.4 / g.dpi, ox = g.bleed_off_px[0] * k, oy = g.bleed_off_px[1] * k;\r\n    const vers = (pts) => pts.map((p) => [p[0] + ox, p[1] + oy]);\r\n    const w = g.canvas_px[0] * k, h = g.canvas_px[1] * k, tol = k / 2;\r\n    /* le depassement d'un demi-pixel est du bruit de quantification de la toile :\r\n       on le ramene au bord ; celui des pointes (0,46 mm pour 3 mm) reste tronque. */\r\n    const cale = (v, hi) => (v >= -tol && v <= hi + tol ? Math.min(Math.max(v, 0), hi) : v);\r\n    const coupe = vers(g.contour_mm);\r\n    const fond = hexDecoupe(vers(hexDecale(g.contour_mm, g.bleed_mm)).map((p) => [cale(p[0], w), cale(p[1], h)]), w, h);\r\n    const sur = vers(hexDecale(g.contour_mm, -g.safe_mm));\r\n    const milieux = coupe.map((p, i) => { const q = coupe[(i + 1) % coupe.length]; return [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; });\r\n    return { coupe: coupe, fond: fond, sur: sur, milieux: milieux };\r\n  }\r\n  /* ═══ CF-HEX-END ═══ */\r\n\r\n  function geomOf(fmt, dpi, bleed_mm, safe_mm, corner_mm) {",
+    "groupe": "t421"
+   },
+   {
+    "pos": 18752,
+    "avant": "mm2px: mm2px, px2mm: px2mm,",
+    "apres": "/* t421 : contour de coupe arrondi a 3 decimales, comme to_dict() du backend\r\n         (qui ne l'ajoute qu'aux hexagones ; ici un rectangle rend ses 4 coins). */\r\n      forme: F.forme || \"rect\", orientation: F.orientation || null,\r\n      contour_mm: hexSommets(F.trim_mm, F.orientation).map((p) => [rnd(p[0], 3), rnd(p[1], 3)]),\r\n      mm2px: mm2px, px2mm: px2mm,",
+    "groupe": "t421"
+   },
+   {
+    "pos": 19443,
+    "avant": "safe_mm: b, corner_mm: 3 };",
+    "apres": "safe_mm: b, corner_mm: F.forme === \"hex\" ? 0 : 3 };",
+    "groupe": "t421"
+   },
+   {
+    "pos": 22442,
+    "avant": "out.bleed_mm = nat; out.safe_mm = nat;",
+    "apres": "out.bleed_mm = nat; out.safe_mm = nat;\r\n        /* t421 : meme regle que normalize_format du backend — un hexagone naît a coin 0,\r\n           et le quitter rend au rectangle son coin par defaut ; un corner_mm explicite\r\n           de l'appel, lu plus bas, l'emporte. */\r\n        const hexN = FMT_BY_ID[out.fmt].forme === \"hex\", hexA = FMT_BY_ID[f.fmt].forme === \"hex\";\r\n        if (hexN && !hexA) out.corner_mm = 0;\r\n        else if (!hexN && hexA) out.corner_mm = 3;",
+    "groupe": "t421"
+   },
+   {
     "pos": 22655,
     "avant": "throw new Error(\"cardforge: \" + k + \" doit etre un nombre\");",
     "apres": "throw new Error(dzT(\"cartes.core.pas_un_nombre\", { k: k }));",
@@ -15,6 +51,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 22912,
+    "avant": "    DOC.format = out;",
+    "apres": "    /* t421 (vague finale) : un hexagone est TOUJOURS a sommets vifs (coin 0), comme normalize_format */\r\n    if (FMT_BY_ID[out.fmt].forme === \"hex\") out.corner_mm = 0;\r\n    DOC.format = out;",
+    "groupe": "t421_finale"
+   },
+   {
     "pos": 31426,
     "avant": "\"gabarit vide\"",
     "apres": "dzT(\"cartes.core.gabarit_vide\")",
@@ -25,6 +67,18 @@
     "avant": "\"aucun painter enregistré\"",
     "apres": "dzT(\"cartes.core.aucun_painter\")",
     "groupe": "coque"
+   },
+   {
+    "pos": 31626,
+    "avant": "function guidesPainter(ctx, g) {",
+    "apres": "/* ═══ t421 : L'APERCU HEXAGONAL ═══════════════════════════════════════════\r\n     Le rendu reste rectangulaire (la toile du contrat) ; un hexagone est\r\n     ensuite DECOUPE : hors du polygone du fond perdu, la toile est\r\n     transparente. Les polygones viennent de hexContours (repere toile, mm). */\r\n  /* le chemin d'un polygone en mm (k = px par mm), sommets arrondis de r mm ;\r\n     le rayon est borne pour que deux arrondis ne se croisent pas sur un cote */\r\n  function hexChemin(ctx, pts, r, k) {\r\n    ctx.beginPath();\r\n    const n = pts.length;\r\n    if (n < 3) return;\r\n    const P = pts.map((p) => [p[0] * k, p[1] * k]);\r\n    const R = (r > 0) ? r * k : 0;\r\n    if (!R) {\r\n      ctx.moveTo(P[0][0], P[0][1]);\r\n      for (let i = 1; i < n; i++) ctx.lineTo(P[i][0], P[i][1]);\r\n      ctx.closePath();\r\n      return;\r\n    }\r\n    ctx.moveTo((P[n - 1][0] + P[0][0]) / 2, (P[n - 1][1] + P[0][1]) / 2);\r\n    for (let i = 0; i < n; i++) {\r\n      const a = P[i], b = P[(i + 1) % n], z = P[(i + n - 1) % n];\r\n      const la = Math.hypot(a[0] - z[0], a[1] - z[1]), lb = Math.hypot(b[0] - a[0], b[1] - a[1]);\r\n      if (la < 1e-9 || lb < 1e-9) { ctx.lineTo(a[0], a[1]); continue; }\r\n      const cos = ((z[0] - a[0]) * (b[0] - a[0]) + (z[1] - a[1]) * (b[1] - a[1])) / (la * lb);\r\n      const t = Math.tan(Math.acos(Math.max(-1, Math.min(1, cos))) / 2);\r\n      ctx.arcTo(a[0], a[1], b[0], b[1], Math.min(R, Math.min(la, lb) / 2 * t));\r\n    }\r\n    ctx.closePath();\r\n  }\r\n  /* rayons : la coupe suit corner_mm du DOCUMENT ; son decale de d garde les\r\n     memes tangentes avec un rayon r + d (0 reste 0 : un hexagone vif) */\r\n  function hexRayon(g, d) {\r\n    const r = Math.max(0, Number(g.corner_mm) || 0);\r\n    return r > 0 ? Math.max(0, r + d) : 0;\r\n  }\r\n  /* en fin de rendu : la toile est decoupee au polygone du fond perdu */\r\n  function hexMasque(ctx, g) {\r\n    const c = hexContours(g);\r\n    ctx.save();\r\n    ctx.setTransform(1, 0, 0, 1, 0, 0);\r\n    ctx.globalCompositeOperation = \"destination-in\";\r\n    ctx.globalAlpha = 1;\r\n    ctx.fillStyle = \"#000000\";\r\n    hexChemin(ctx, c.fond, hexRayon(g, g.bleed_mm), g.dpi / 25.4);\r\n    ctx.fill();\r\n    ctx.restore();\r\n  }\r\n  /* les reperes d'un hexagone : memes couleurs et memes traits que les\r\n     rectangles de guidesPainter */\r\n  function guidesHex(ctx, g, u) {\r\n    const c = hexContours(g), k = g.dpi / 25.4;\r\n    ctx.save();\r\n    ctx.lineWidth = u;\r\n    ctx.strokeStyle = \"#00b7ff\";                   /* fond perdu */\r\n    ctx.setLineDash([6 * u, 5 * u]);\r\n    hexChemin(ctx, c.fond, hexRayon(g, g.bleed_mm), k); ctx.stroke();\r\n    ctx.setLineDash([]);\r\n    ctx.strokeStyle = \"#ff2d92\";                   /* coupe */\r\n    hexChemin(ctx, c.coupe, hexRayon(g, 0), k); ctx.stroke();\r\n    if (c.sur.length) {\r\n      ctx.setLineDash([9 * u, 6 * u]);\r\n      ctx.strokeStyle = \"#33d18b\";                 /* zone sure */\r\n      hexChemin(ctx, c.sur, hexRayon(g, -g.safe_mm), k); ctx.stroke();\r\n    }\r\n    ctx.restore();\r\n  }\r\n  /* les pieces qui ne gerent PAS ENCORE l'hexagone : elles restent au rail et\r\n     le disent (leurs routes de production refusent un deck hexagonal en 409) */\r\n  const HORS_HEX = Object.freeze([\"frame\", \"solid\", \"texture\", \"gltf\", \"forge3d\", \"edition\", \"capture\"]);\r\n  function horsHex(id) { return HORS_HEX.indexOf(id) >= 0; }\r\n  function syncHorsHex() {\r\n    if (!hasDOM) return;\r\n    const hex = geom().forme === \"hex\";\r\n    Array.prototype.forEach.call(document.querySelectorAll(\".rail-item\"), (b) => {\r\n      const id = b.dataset.mod, on = hex && horsHex(id), m = REG[id];\r\n      const nom = m ? m.title : dzT(\"cartes.core.module_absent\", { id: id });\r\n      b.classList.toggle(\"hors-hex\", on);\r\n      b.title = on ? nom + \" — \" + dzT(\"cartes.hexa.non_gere\") : nom;\r\n    });\r\n    Array.prototype.forEach.call(document.querySelectorAll(\".cf-panel\"), (s) => {\r\n      const on = hex && horsHex(s.dataset.mod);\r\n      let n = s.querySelector(\".cf-hors-hex\");\r\n      if (on && !n) {\r\n        n = document.createElement(\"p\");\r\n        n.className = \"cf-hors-hex\";\r\n        n.setAttribute(\"role\", \"status\");\r\n        const h = s.querySelector(\".panel-head\");\r\n        s.insertBefore(n, h ? h.nextSibling : s.firstChild);\r\n      }\r\n      if (n) { n.textContent = on ? dzT(\"cartes.hexa.non_gere\") : \"\"; n.hidden = !on; }\r\n    });\r\n  }\r\n  /* ═══ fin t421 ═══ */\r\n\r\n  function guidesPainter(ctx, g) {",
+    "groupe": "t421_apercu"
+   },
+   {
+    "pos": 32135,
+    "avant": "const u = Math.max(1, g.dpi / 300);           /* epaisseur constante a l'oeil */",
+    "apres": "const u = Math.max(1, g.dpi / 300);           /* epaisseur constante a l'oeil */\r\n    if (g.forme === \"hex\") { guidesHex(ctx, g, u); return; }    /* t421 */",
+    "groupe": "t421_apercu"
    },
    {
     "pos": 33214,
@@ -43,6 +97,12 @@
     "avant": "\"a redimensionne la toile (la toile appartient au CORE)\"",
     "apres": "dzT(\"cartes.core.toile_redim\")",
     "groupe": "coque"
+   },
+   {
+    "pos": 36668,
+    "avant": "if (guides) {",
+    "apres": "/* t421 : la carte hexagonale est decoupee au fond perdu, AVANT les reperes */\r\n    if (g.forme === \"hex\") hexMasque(ctx, g);\r\n    if (guides) {",
+    "groupe": "t421_apercu"
    },
    {
     "pos": 38896,
@@ -111,6 +171,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 60519,
+    "avant": "c2.drawImage(FULL, 0, 0, out.width, out.height);",
+    "apres": "c2.drawImage(FULL, 0, 0, out.width, out.height);\r\n      out.classList.toggle(\"hex\", g.forme === \"hex\");     /* t421 : ombre qui suit l'alpha */",
+    "groupe": "t421_apercu"
+   },
+   {
     "pos": 60877,
     "avant": "'<span>toile @ ' + g.dpi + ' DPI</span>'",
     "apres": "'<span>' + dzT(\"cartes.core.toile_dpi\", { dpi: g.dpi }) + '</span>'",
@@ -131,8 +197,20 @@
    {
     "pos": 62241,
     "avant": "esc(f.label)",
-    "apres": "esc(f.id === \"square_eu\" ? dzT(\"cartes.core.fmt_carre\") : f.id === \"business\" ? dzT(\"cartes.core.fmt_visite\") : f.label)",
+    "apres": "esc(f.id === \"square_eu\" ? dzT(\"cartes.core.fmt_carre\") : f.id === \"business\" ? dzT(\"cartes.core.fmt_visite\") : f.forme === \"hex\" ? hexLabel(f.id) : f.label)",
     "groupe": "coque"
+   },
+   {
+    "pos": 63422,
+    "avant": "if (!hasDOM) return;\r\n    const g = geom(), f = DOC.format;",
+    "apres": "if (!hasDOM) return;\r\n    syncHorsHex();                     /* t421 */\r\n    const g = geom(), f = DOC.format;",
+    "groupe": "t421_apercu"
+   },
+   {
+    "pos": 63834,
+    "avant": "    const c1 = el(\"#cornerInp\"); if (c1) c1.value = f.corner_mm;",
+    "apres": "    const c1 = el(\"#cornerInp\"); if (c1) c1.value = f.corner_mm;\r\n    /* t421 (vague finale) : un hexagone garde des sommets vifs — le champ est grise et dit pourquoi */\r\n    if (c1) {\r\n      const lb = typeof c1.closest === \"function\" ? c1.closest(\"label\") : null;\r\n      if (g.forme === \"hex\") {\r\n        c1.disabled = true;\r\n        c1.title = dzT(\"cartes.core.coin_hex\");\r\n        if (lb) lb.title = c1.title;\r\n      } else if (c1.disabled) {\r\n        c1.disabled = false;\r\n        c1.removeAttribute(\"title\");\r\n        if (lb) lb.removeAttribute(\"title\");\r\n      }\r\n    }",
+    "groupe": "t421_finale"
    },
    {
     "pos": 64173,
@@ -217,6 +295,12 @@
     "avant": "\"La géométrie de l'écran ne correspond pas à celle de \"\r\n          + \"/api/cards/\" + DOC.id + \"/geom : \" + bad.join(\" · \")\r\n          + \". Le fichier exporté et la planche imprimée divergeraient — corriger AVANT de composer.\"",
     "apres": "dzT(\"cartes.core.geom_divergente_long\", { id: DOC.id, detail: bad.join(\" · \") })",
     "groupe": "coque"
+   },
+   {
+    "pos": 99390,
+    "avant": "c.globalAlpha = 0.5;\r\n    c.strokeStyle = galColor(pal.ink, \"#000000\");\r\n    c.lineWidth = 1;\r\n    c.strokeRect(0.5, 0.5, W - 1, H - 1);",
+    "apres": "/* t421 : la vignette d'un hexagone en a la silhouette (decoupe, puis trait) */\r\n    const hexV = fmt.forme === \"hex\" ? hexSommets(fmt.trim_mm, fmt.orientation) : null;\r\n    if (hexV) {\r\n      c.globalCompositeOperation = \"destination-in\";\r\n      hexChemin(c, hexV, 0, k); c.fill();\r\n      c.globalCompositeOperation = \"source-over\";\r\n    }\r\n    c.globalAlpha = 0.5;\r\n    c.strokeStyle = galColor(pal.ink, \"#000000\");\r\n    c.lineWidth = 1;\r\n    if (hexV) { hexChemin(c, hexV, 0, k); c.stroke(); }\r\n    else c.strokeRect(0.5, 0.5, W - 1, H - 1);",
+    "groupe": "t421_apercu"
    },
    {
     "pos": 100117,
@@ -315,6 +399,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 101731,
+    "avant": "    + '<div class=\"cf-gal-body\">'",
+    "apres": "    + '<div class=\"cf-gal-body\">'\r\n    /* t421 : « Nouveau jeu depuis des images » (js/depuis-images.js) */\r\n    + '<section class=\"cf-gal-sec cf-gal-images\"><h3>' + dzT(\"cartes.depuis.gal_titre\") + '</h3>'\r\n    + '<p class=\"cf-gal-note\">' + dzT(\"cartes.depuis.gal_note\") + '</p>'\r\n    + '<button class=\"btn strong sm\" id=\"galImages\" type=\"button\">' + dzT(\"cartes.depuis.gal_bouton\") + '</button></section>'",
+    "groupe": "t421_depuis"
+   },
+   {
     "pos": 101801,
     "avant": "<h3>Nouveau jeu depuis un modèle</h3>'",
     "apres": "<h3>' + dzT(\"cartes.core.gal_nouveau\") + '</h3>'",
@@ -343,6 +433,12 @@
     "avant": "root.innerHTML = GAL_SKELETON;",
     "apres": "root.innerHTML = GAL_SKELETON();",
     "groupe": "coque"
+   },
+   {
+    "pos": 103078,
+    "avant": "if (i) i.addEventListener(\"click\", galImport);",
+    "apres": "if (i) i.addEventListener(\"click\", galImport);\r\n    const gi = el(\"#galImages\"); if (gi) gi.addEventListener(\"click\", galImages);",
+    "groupe": "t421_depuis"
    },
    {
     "pos": 103872,
@@ -537,6 +633,12 @@
     "groupe": "coque"
    },
    {
+    "pos": 113800,
+    "avant": "/* « Importer une carte » : la galerie ferme et la piece 10 s'ouvre. Le",
+    "apres": "/* ── t421 : NOUVEAU JEU DEPUIS DES IMAGES ────────────────────────────────\r\n     Le dialogue vit dans js/depuis-images.js (window.CFDepuisImages) ; la\r\n     galerie lui cede la place. Ses dehors sont tenus ICI (§8) : la\r\n     Bibliotheque en lecture, l'import d'un fichier, la creation du deck. */\r\n  function galImages() {\r\n    const D = (typeof window !== \"undefined\") ? window.CFDepuisImages : null;\r\n    if (!D || typeof D.ouvrir !== \"function\") { toast(dzT(\"cartes.depuis.absent\"), true); return; }\r\n    closeGallery();\r\n    D.ouvrir();\r\n  }\r\n  const bibliotheque = Object.freeze({\r\n    /* GET /api/images : nom, dimensions (lues par le serveur), provenance */\r\n    async images() {\r\n      const d = await jsonNamed(\"GET\", \"/images\");\r\n      return (Array.isArray(d && d.images) ? d.images : []).filter(isPlain).map((x) => ({\r\n        filename: String(x.filename || \"\"), width: Number(x.width) || null, height: Number(x.height) || null,\r\n        source: String(x.source || \"\"),\r\n      })).filter((x) => x.filename);\r\n    },\r\n    async projets() {\r\n      const d = await jsonNamed(\"GET\", \"/library/projets\");\r\n      return (Array.isArray(d && d.projets) ? d.projets : []).filter(isPlain).map((p) => ({\r\n        id: String(p.id || \"\"), nom: String(p.nom || \"\"), n: Number(p.n) || 0,\r\n      })).filter((p) => p.id);\r\n    },\r\n    /* les items d'un projet : `ref` est le nom de fichier pour une image */\r\n    async projet(id) {\r\n      const d = await jsonNamed(\"GET\", \"/library/projets/\" + encodeURIComponent(String(id == null ? \"\" : id)));\r\n      return { id: String((d && d.id) || id), nom: String((d && d.nom) || \"\"),\r\n        refs: (Array.isArray(d && d.items) ? d.items : []).filter(isPlain).map((i) => String(i.ref || \"\")).filter(Boolean) };\r\n    },\r\n    /* UN fichier par appel (la route n'en prend qu'un) ; le nom RENDU fait foi\r\n       (un homonyme devient « nom-1.png ») */\r\n    async importer(file) {\r\n      if (typeof FormData === \"undefined\" || !file) throw new Error(dzT(\"cartes.depuis.import_impossible\"));\r\n      const fd = new FormData();\r\n      fd.append(\"file\", file, String(file.name || \"image.png\"));\r\n      const d = await jsonNamed(\"POST\", \"/images/upload\", fd);\r\n      return { filename: String((d && d.filename) || \"\") };\r\n    },\r\n    /* l'adresse SERVIE d'une image (GET /api/images/{nom}, routes.py) — pas\r\n       CF.imageURL, dont /api/images/file/ n'existe pas (mod-face.js) */\r\n    url(nom) { return \"/api/images/\" + encodeURIComponent(String(nom == null ? \"\" : nom)); },\r\n  });\r\n  /* corps : celui de POST /api/cards/decks/depuis-images. Le jeu ouvert est\r\n     ecrit d'abord ; le deck cree est OUVERT (la page part, `busy` reste au\r\n     voile) ; une phrase du serveur (404 qui nomme le fichier, 400) remonte. */\r\n  async function deckDepuisImages(corps) {\r\n    if (OFFLINE) throw new Error(dzT(\"cartes.depuis.hors_ligne\"));\r\n    await galFlush();\r\n    const d = await jsonNamed(\"POST\", \"/cards/decks/depuis-images\", isPlain(corps) ? corps : {});\r\n    const did = d && d.deck && d.deck.id;\r\n    if (!did) throw new Error(dzT(\"cartes.core.sans_did\"));\r\n    galGo(did);\r\n    return d.deck;\r\n  }\r\n  /* le libelle AFFICHE d'un format : la regle du selecteur de la barre */\r\n  function libelleFormat(id) {\r\n    const f = FMT_BY_ID[id];\r\n    if (!f) return String(id == null ? \"\" : id);\r\n    return id === \"square_eu\" ? dzT(\"cartes.core.fmt_carre\") : id === \"business\" ? dzT(\"cartes.core.fmt_visite\")\r\n      : f.forme === \"hex\" ? hexLabel(id) : f.label;\r\n  }\r\n  /* t421 (tache 6) : l'adresse du GABARIT de dessin d'un format hexagonal\r\n     (GET /api/cards/gabarit/{format}.{png|svg}) ; `opt` = { dpi, bleed_mm, safe_mm },\r\n     chacun facultatif (le serveur prend 300 dpi et le fond perdu natif). Un lien de\r\n     telechargement, pas un appel : le reseau reste au CORE (§8). */\r\n  function gabaritUrl(fmt, ext, opt) {\r\n    const o = opt || {}, q = [];\r\n    [\"dpi\", \"bleed_mm\", \"safe_mm\"].forEach((k) => { if (o[k] != null) q.push(k + \"=\" + encodeURIComponent(String(o[k]))); });\r\n    return \"/api/cards/gabarit/\" + encodeURIComponent(String(fmt == null ? \"\" : fmt)) + \".\" + (ext === \"svg\" ? \"svg\" : \"png\")\r\n      + (q.length ? \"?\" + q.join(\"&\") : \"\");\r\n  }\r\n\r\n  /* « Importer une carte » : la galerie ferme et la piece 10 s'ouvre. Le",
+    "groupe": "t421_depuis"
+   },
+   {
     "pos": 118617,
     "avant": "\"mod-\" + fautifs.join(\".js, mod-\") + \".js ne commence(nt) pas par \\\"use strict\\\" : \"\r\n      + \"dans ce mode une mutation du document est un no-op MUET (le module croit avoir écrit et relit \"\r\n      + \"l'ancienne valeur). Module non démarré, couches retirées. Règle 9 du lint — build rejeté.\"",
     "apres": "dzT(\"cartes.core.strict_msg\", { liste: \"mod-\" + fautifs.join(\".js, mod-\") + \".js\" })",
@@ -619,6 +721,24 @@
     "avant": "\"carte \" + (CUR + 1) + \" exportée à \" + geom().canvas_px.join(\" x \") + \" px\"",
     "apres": "dzT(\"cartes.core.carte_exportee\", { n: CUR + 1, taille: geom().canvas_px.join(\" x \") })",
     "groupe": "coque"
+   },
+   {
+    "pos": 132139,
+    "avant": "geom: geom, geomOf: geomOf, nativeBleed: nativeBleed,",
+    "apres": "geom: geom, geomOf: geomOf, nativeBleed: nativeBleed, hexContours: hexContours,",
+    "groupe": "t421"
+   },
+   {
+    "pos": 132198,
+    "avant": "cards: cards, card: card,",
+    "apres": "cards: cards, card: card,\r\n    /* t421 : les pieces qui ne gerent pas encore l'hexagone */\r\n    horsHex: horsHex,",
+    "groupe": "t421_apercu"
+   },
+   {
+    "pos": 132999,
+    "avant": "images: images, imageURL: imageURL, ApiMissing: ApiMissing,",
+    "apres": "images: images, imageURL: imageURL, ApiMissing: ApiMissing,\r\n    /* t421 : la Bibliotheque et la creation depuis des images (§8, au CORE) */\r\n    bibliotheque: bibliotheque, deckDepuisImages: deckDepuisImages, libelleFormat: libelleFormat,\r\n    gabaritUrl: gabaritUrl,",
+    "groupe": "t421_depuis"
    }
   ],
   "js/mod-capture.js": [
@@ -4361,6 +4481,12 @@
     "groupe": "face"
    },
    {
+    "pos": 101818,
+    "avant": "const w = CF.get(\"frame.art_window\", null) || CF.get(\"frame.window\", null);",
+    "apres": "/* t421 : sur un hexagone le Cadre dort ; sa fenetre (gardee dans doc.frame\r\n       pour le retour en rectangle) ne pose plus l'illustration */\r\n    if (g.forme === \"hex\") return null;\r\n    const w = CF.get(\"frame.art_window\", null) || CF.get(\"frame.window\", null);",
+    "groupe": "t421_apercu"
+   },
+   {
     "pos": 108940,
     "avant": "ppm + ' px/m (unité mètre) = <b>' + ppmToDpi(ppm).toFixed(4)\r\n      + ' DPI</b> — pHYs ne stocke que des entiers de pixels par mètre, et '\r\n      + dpi + ' DPI en vaut ' + (dpi / PHYS_METRE).toFixed(3) + '.'",
     "apres": "dzT(\"cartes.face.phys_ligne\", { ppm: ppm, dpif: ppmToDpi(ppm).toFixed(4), dpi: dpi, exact: (dpi / PHYS_METRE).toFixed(3) })",
@@ -4453,7 +4579,7 @@
    {
     "pos": 133360,
     "avant": "'\">Sur la carte imprimée : <b>' + fmt1(pv)\r\n      + ' % de la pose atteint le papier</b>'\r\n      + (pv + 0.05 < pw ? ' — le cadre et les textes en masquent ' + fmt1(pw - pv)\r\n        + ' points de plus.'",
-    "apres": "'\">' + dzT(\"cartes.face.papier_pct\", { p: fmt1(pv) })\r\n      + (pv + 0.05 < pw ? dzT(\"cartes.face.papier_masque\", { d: fmt1(pw - pv) })",
+    "apres": "'\">' + dzT(\"cartes.face.papier_pct\", { p: fmt1(pv) })\r\n      + (pv + 0.05 < pw ? (CF.geom().forme === \"hex\" ? dzT(\"cartes.face.papier_masque_hex\", { d: fmt1(pw - pv) })\r\n        : dzT(\"cartes.face.papier_masque\", { d: fmt1(pw - pv) }))",
     "groupe": "face"
    },
    {
@@ -7027,6 +7153,18 @@
     "avant": "\"Cadre\"",
     "apres": "dzT(\"cartes.frame1.titre\")",
     "groupe": "frame1"
+   },
+   {
+    "pos": 202673,
+    "avant": "const f = st(doc);\r\n          publishWindow(geom, f);",
+    "apres": "const f = st(doc);\r\n          /* t421 : le Cadre ne gere pas l'hexagone. Il DORT, recto comme verso : ni\r\n             peinture, ni publication (le document n'est pas touche, le cadre\r\n             revient tel quel en rectangle). Le verso de la carte (card.back)\r\n             reste peint par la piece 01, comme pour tout deck sans cadre. */\r\n          if (geom.forme === \"hex\") return;\r\n          publishWindow(geom, f);",
+    "groupe": "t421_apercu"
+   },
+   {
+    "pos": 204347,
+    "avant": "paintTop(ctx, geom, st(doc), card, side);",
+    "apres": "if (geom.forme !== \"hex\") paintTop(ctx, geom, st(doc), card, side);   /* t421 : le Cadre dort */",
+    "groupe": "t421_apercu"
    },
    {
     "pos": 206747,
@@ -11965,6 +12103,12 @@
     "groupe": "print"
    },
    {
+    "pos": 37338,
+    "avant": "function shell() {",
+    "apres": "function shell() {\r\n    if (HEXA) { shellHex(); return; }",
+    "groupe": "t421_impression"
+   },
+   {
     "pos": 37450,
     "avant": "'<span class=\"cf-print-free\">0 crédit — tout est calculé sur ce poste</span>'",
     "apres": "'<span class=\"cf-print-free\">' + dzT(\"cartes.print.gratuit\") + '</span>'",
@@ -12533,6 +12677,12 @@
     "avant": "\" (\" + sgn(dx) + \" / \" + sgn(dy) + \" µm du nominal)\"",
     "apres": "dzT(\"cartes.print.tip_ecart\", { dx: sgn(dx), dy: sgn(dy) })",
     "groupe": "print"
+   },
+   {
+    "pos": 58301,
+    "avant": "esc(f.label.replace(/\\s*\\d.*$/, \"\"))",
+    "apres": "esc(f.forme === \"hex\" && typeof CF.libelleFormat === \"function\" ? CF.libelleFormat(f.id) : f.label.replace(/\\s*\\d.*$/, \"\"))",
+    "groupe": "t421_impression"
    },
    {
     "pos": 59101,
@@ -13195,6 +13345,18 @@
     "groupe": "print"
    },
    {
+    "pos": 94740,
+    "avant": "function refresh(light) {",
+    "apres": "function refresh(light) {\r\n    if (HEXA) { syncHex(); schedulePlanHex(); return; }",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 95062,
+    "avant": "async function verify() {",
+    "apres": "async function verify() {\r\n    if (HEXA) return;",
+    "groupe": "t421_impression"
+   },
+   {
     "pos": 95285,
     "avant": "\"hors ligne — plan local\"",
     "apres": "dzT(\"cartes.print.hors_ligne\")",
@@ -13271,6 +13433,18 @@
     "avant": "\"plan vérifié backend · \" + BPLAN.sheet_px[0] + \"x\"\r\n        + BPLAN.sheet_px[1] + \" px · gouttière \" + fx(BPLAN.gutter_pt, 2).replace(\".\", \",\")\r\n        + \" pt · toile \" + g.canvas_px.join(\"x\") + \" px\"\r\n        + (BPLAN.duplex ? \" · miroir R/V \" + nfx(BPLAN.mirror_um, 1) + \" µm\" : \"\")",
     "apres": "dzT(\"cartes.print.plan_verifie\", { w: BPLAN.sheet_px[0], h: BPLAN.sheet_px[1], g: fx(BPLAN.gutter_pt, 2).replace(\".\", \",\"), toile: g.canvas_px.join(\"x\") })\r\n        + (BPLAN.duplex ? dzT(\"cartes.print.plan_verifie_miroir\", { um: nfx(BPLAN.mirror_um, 1) }) : \"\")",
     "groupe": "print"
+   },
+   {
+    "pos": 102147,
+    "avant": "function schedulePreflight() {",
+    "apres": "function schedulePreflight() {\r\n    if (HEXA) return;",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 102287,
+    "avant": "async function preflight() {",
+    "apres": "async function preflight() {\r\n    if (HEXA) return;",
+    "groupe": "t421_impression"
    },
    {
     "pos": 102431,
@@ -13597,6 +13771,30 @@
     "groupe": "print"
    },
    {
+    "pos": 127143,
+    "avant": "function wire() {",
+    "apres": "/* ══ t421 (tâche 8) : L'IMPRESSION HEXAGONALE ══════════════════════════════\r\n     Un jeu hexagonal a SON panneau : feuille, marge, gouttière, recto verso,\r\n     trait de coupe imprimé, un aperçu de page dessiné depuis le plan du\r\n     SERVEUR (POST hex/plan) et deux téléchargements, le PDF d'impression\r\n     (hex/pdf) et le fichier de coupe (hex/coupe : un ZIP de SVG + DXF). Ce\r\n     panneau n'appelle ni layoutOf, ni layout, ni preflight : ils ne savent\r\n     que la grille rectangulaire. Le panneau rectangulaire reste tel quel —\r\n     `shell` ne se détourne que pour un hexagone. Les réglages vivent sous la\r\n     seule clé `doc.print.hexa`, hors DEFAULTS : `st()` et la spec\r\n     rectangulaire ne la voient pas. ══════════════════════════════════════ */\r\n  let HEXA = false, HEXPLAN = null, HEXERR = \"\", HEXATTENTE = false, HEXSEQ = 0, HEXRETRY = 0;\r\n  let HEXBUSY = false, hxtimer = null;\r\n  const HEX_FEUILLES = [[\"a4\", \"A4\"], [\"letter\", \"Letter\"], [\"a3\", \"A3\"]];\r\n  function estHex() { const g = CF.geom(); return !!g && g.forme === \"hex\"; }\r\n  function hexStocke() { const p = CF.doc().print; return (p && p.hexa) || {}; }\r\n  function hexReglages() {\r\n    const h = hexStocke(), b = Number(CF.geom().bleed_mm) || 0;\r\n    const nb = (v, d) => (v != null && v !== \"\" && isFinite(Number(v)) ? Number(v) : d);\r\n    return {\r\n      sheet: HEX_FEUILLES.some((f) => f[0] === h.sheet) ? h.sheet : \"a4\",\r\n      marge_mm: nb(h.marge_mm, 12),\r\n      /* LA GOUTTIÈRE PAR DÉFAUT VAUT DEUX FONDS PERDUS : en dessous, le\r\n         serveur refuse (les fonds perdus de deux voisines se\r\n         chevaucheraient). Celle du panneau rectangulaire (4 mm) serait\r\n         refusée pour 3 mm de fond perdu. */\r\n      gouttiere_mm: nb(h.gouttiere_mm, Math.round(2 * b * 1000) / 1000),\r\n      trait: !!h.trait, duplex: !!h.duplex,\r\n    };\r\n  }\r\n  /* le corps des trois routes hex/* : le MÊME pour le plan, le PDF et la coupe */\r\n  function hexCorps() {\r\n    const r = hexReglages();\r\n    return { sheet: r.sheet, marge_mm: r.marge_mm, gouttiere_mm: r.gouttiere_mm,\r\n      n_cards: CF.cards().length, trait: r.trait, duplex: r.duplex };\r\n  }\r\n  function setHex(partial) { M.patch({ hexa: Object.assign({}, hexStocke(), partial) }); }\r\n\r\n  function shellHex() {\r\n    const h = hexReglages();\r\n    const num = (k, label, min, max, step) => '<label class=\"fld\"><span class=\"lbl\">' + esc(label) + '</span>'\r\n      + '<span class=\"cf-print-num\"><input type=\"number\" data-hx=\"' + k + '\" min=\"' + min + '\" max=\"' + max\r\n      + '\" step=\"' + step + '\" value=\"' + esc(h[k]) + '\"><i class=\"cf-print-px\">mm</i></span></label>';\r\n    const chk = (k, label) => '<label class=\"check tiny\"><input type=\"checkbox\" data-hx=\"' + k + '\"'\r\n      + (h[k] ? \" checked\" : \"\") + '><span>' + esc(label) + '</span></label>';\r\n    HOST.innerHTML = ''\r\n      + '<div class=\"cf-print-top\">'\r\n      + '<span class=\"cf-print-free\">' + dzT(\"cartes.print.gratuit\") + '</span>'\r\n      + '</div>'\r\n\r\n      /* ── GABARIT DE DESSIN (tâche 6) ── */\r\n      + '<div class=\"cf-print-gabhex\" data-role=\"gabhex\" hidden>'\r\n      + '<details class=\"grp\" open><summary>' + dzT(\"cartes.print.gabhex_titre\") + '</summary><div class=\"grp-body\">'\r\n      + '<div class=\"btn-row\">'\r\n      + '<a class=\"btn sm\" data-role=\"gabhex-png\" href=\"#\" download>' + ICO(\"dz-action-telecharger\", 16, \"cf-ic\") + dzT(\"cartes.print.gabhex_png\") + '</a>'\r\n      + '<a class=\"btn sm\" data-role=\"gabhex-svg\" href=\"#\" download>' + ICO(\"dz-action-telecharger\", 16, \"cf-ic\") + dzT(\"cartes.print.gabhex_svg\") + '</a>'\r\n      + '</div>'\r\n      + '<p class=\"hint\">' + dzT(\"cartes.print.gabhex_aide\") + '</p>'\r\n      + '</div></details></div>'\r\n\r\n      /* ── LA PLANCHE EN NID D'ABEILLES ── */\r\n      + '<div class=\"cf-print-hex\" data-role=\"hex\">'\r\n      + '<details class=\"grp\" open><summary>' + dzT(\"cartes.print.hex_titre\") + '</summary><div class=\"grp-body\">'\r\n      + '<p class=\"hint\" data-role=\"hex-format\"></p>'\r\n      + '<label class=\"fld\"><span class=\"lbl\">' + dzT(\"cartes.print.planche\") + '</span>'\r\n      + '<div class=\"seg sm\" data-hxseg=\"sheet\">' + HEX_FEUILLES.map((f) => '<button class=\"seg-b'\r\n        + (f[0] === h.sheet ? \" active\" : \"\") + '\" type=\"button\" data-v=\"' + f[0] + '\">' + f[1] + '</button>').join(\"\")\r\n      + '</div></label>'\r\n      + '<div class=\"grid2\">' + num(\"marge_mm\", dzT(\"cartes.print.marge\"), 0, 60, 0.5)\r\n      + num(\"gouttiere_mm\", dzT(\"cartes.print.gouttiere\"), 0, 40, 0.5) + '</div>'\r\n      + '<div class=\"grid2\">' + chk(\"duplex\", dzT(\"cartes.print.recto_verso\"))\r\n      + chk(\"trait\", dzT(\"cartes.print.hex_trait\")) + '</div>'\r\n      + '<div class=\"cf-print-plan\">'\r\n      + '<canvas class=\"cf-print-canvas\" data-role=\"hex-plan\" width=\"264\" height=\"330\"></canvas>'\r\n      + '<div class=\"cf-print-side\">'\r\n      + '<dl class=\"cf-print-read\" data-role=\"hex-read\"></dl>'\r\n      + '<div class=\"cf-print-warns\" data-role=\"hex-err\"></div>'\r\n      + '</div></div>'\r\n      + '<div class=\"btn-row\">'\r\n      + '<button class=\"btn strong\" type=\"button\" data-act=\"hexpdf\">' + dzT(\"cartes.print.hex_btn_pdf\") + '</button>'\r\n      + '<button class=\"btn strong\" type=\"button\" data-act=\"hexcoupe\">' + dzT(\"cartes.print.hex_btn_coupe\") + '</button>'\r\n      + '</div>'\r\n      + '<p class=\"hint cf-print-hex-rappel\">' + dzT(\"cartes.print.hex_aide_coupe\") + '</p>'\r\n      + '<p class=\"hint\">' + dzT(\"cartes.print.hex_aide_gouttiere\") + '</p>'\r\n      + '<p class=\"hint\">' + dzT(\"cartes.print.hex_aide_duplex\") + '</p>'\r\n      + '</div></details></div>'\r\n\r\n      /* ── JOURNAL (le même que le panneau rectangulaire) ── */\r\n      + '<details class=\"grp\"><summary>' + dzT(\"cartes.print.titre_journal\") + '</summary><div class=\"grp-body\">'\r\n      + '<div class=\"cf-print-log\" data-role=\"log\"></div></div></details>';\r\n    hintImpression();\r\n  }\r\n\r\n  /* vague finale (C5) : le sous-titre de l'onglet Impression (index.html) suit la forme — un hexagone n'a ni\r\n     TrimBox / BleedBox ni contrôle avant vol. Le texte d'un rectangle n'est touché qu'au retour d'un hexagone. */\r\n  function hintImpression() {\r\n    const panneau = HOST && typeof HOST.closest === \"function\" ? HOST.closest(\".cf-panel\") : null;\r\n    const p = panneau ? panneau.querySelector(\".panel-head .hint\") : null;\r\n    if (!p) return;\r\n    if (HEXA) { p.textContent = dzT(\"cartes.print.hex_hint\"); p.dataset.dzHex = \"1\"; }\r\n    else if (p.dataset.dzHex) { p.textContent = dzT(\"cartes.page.print_hint\"); delete p.dataset.dzHex; }\r\n  }\r\n\r\n  /* les champs suivent le document (annulation, autre onglet, format) */\r\n  function syncHex() {\r\n    const h = hexReglages(), g = CF.geom(), f = q('[data-role=\"hex-format\"]');\r\n    if (f) {\r\n      const lib = typeof CF.libelleFormat === \"function\" ? CF.libelleFormat(g.fmt) : g.fmt;\r\n      f.innerHTML = dzT(\"cartes.print.hex_format\", { format: esc(lib), b: nf(g.bleed_mm, 2), g: nf(2 * g.bleed_mm, 2) });\r\n    }\r\n    [\"marge_mm\", \"gouttiere_mm\"].forEach((k) => { const i = q('[data-hx=\"' + k + '\"]'); if (i) i.value = h[k]; });\r\n    [\"duplex\", \"trait\"].forEach((k) => { const i = q('[data-hx=\"' + k + '\"]'); if (i) i.checked = !!h[k]; });\r\n    const sg = q('[data-hxseg=\"sheet\"]');\r\n    if (sg) sg.querySelectorAll(\".seg-b\").forEach((b) => { b.classList.toggle(\"active\", b.dataset.v === h.sheet); });\r\n  }\r\n\r\n  function schedulePlanHex(ms) {\r\n    clearTimeout(hxtimer);\r\n    hxtimer = setTimeout(() => { planHex().catch(() => { }); }, ms == null ? 250 : ms);\r\n  }\r\n  /* L'ENREGISTREMENT DU CORE EST DIFFÉRÉ DE 900 ms et le serveur lit la\r\n     géométrie du jeu ENREGISTRÉ : juste après un changement de format, il\r\n     sert encore le plan de l'ancien. Un tel plan n'est ni montré ni\r\n     exporté — on redemande. */\r\n  function hexPlanAJour(p) {\r\n    const g = CF.geom(), pg = (p && p.geom) || {};\r\n    return pg.fmt === g.fmt && Number(pg.dpi) === Number(g.dpi) && String(pg.canvas_px) === String(g.canvas_px);\r\n  }\r\n  /* LE PLAN DU SERVEUR, ou SA phrase : un refus (gouttière < 2 × fond\r\n     perdu, marge trop petite pour les repères…) est affiché tel quel. */\r\n  async function planHex() {\r\n    const seq = ++HEXSEQ;\r\n    let p = null, err = \"\";\r\n    try { p = await M.api.post(\"hex/plan\", hexCorps()); } catch (e) { err = String((e && e.message) || e); }\r\n    if (seq !== HEXSEQ || !HEXA) return null;\r\n    if (p && !hexPlanAJour(p)) {\r\n      HEXPLAN = null; HEXERR = \"\"; HEXATTENTE = true;\r\n      if (HEXRETRY++ < 5) schedulePlanHex(1000);\r\n      paintHex();\r\n      return null;\r\n    }\r\n    HEXRETRY = 0; HEXATTENTE = false;\r\n    HEXPLAN = p; HEXERR = err;\r\n    paintHex();\r\n    return p;\r\n  }\r\n  function paintHex() {\r\n    const p = HEXPLAN, d = q('[data-role=\"hex-read\"]'), w = q('[data-role=\"hex-err\"]');\r\n    const ligne = (dt, v) => '<dt>' + dt + '</dt><dd class=\"big\">' + v + '</dd>';\r\n    if (d) {\r\n      d.innerHTML = p ? ligne(dzT(\"cartes.print.hex_par_page\"), p.par_page) + ligne(dzT(\"cartes.print.hex_cartes\"), p.n_cartes)\r\n        + ligne(dzT(\"cartes.print.hex_pages\"), p.pages) + ligne(dzT(\"cartes.print.hex_pages_pdf\"), p.out_pages)\r\n        + ligne(dzT(\"cartes.print.hex_feuille\"), nf(p.size_mm[0], 1) + \" x \" + nf(p.size_mm[1], 1) + \" mm\")\r\n        : '<dt>' + dzT(\"cartes.print.dt_plan\") + '</dt><dd class=\"dim\">' + dzT(\"cartes.print.hex_aucun_plan\") + '</dd>';\r\n    }\r\n    if (w) {\r\n      w.innerHTML = HEXERR ? '<div class=\"cf-print-w err\"><span>' + esc(HEXERR) + '</span></div>'\r\n        : HEXATTENTE ? '<div class=\"cf-print-w info\"><span>' + dzT(\"cartes.print.hex_attente\") + '</span></div>' : '';\r\n    }\r\n    qa('[data-act=\"hexpdf\"], [data-act=\"hexcoupe\"]').forEach((b) => { b.disabled = !p; });\r\n    dessinePlanHex();\r\n  }\r\n  /* L'APERÇU : la page 1 recto, à l'échelle, d'après les cases, le contour\r\n     et les repères SERVIS — aucun pas de nid d'abeilles n'est calculé ici. */\r\n  function dessinePlanHex() {\r\n    const cv = q('[data-role=\"hex-plan\"]'), p = HEXPLAN;\r\n    if (!cv || typeof cv.getContext !== \"function\") return;\r\n    const ctx = cv.getContext(\"2d\");\r\n    if (!ctx) return;\r\n    ctx.setTransform(1, 0, 0, 1, 0, 0);\r\n    ctx.clearRect(0, 0, cv.width, cv.height);\r\n    if (!p) return;\r\n    const sc = Math.min(264 / p.size_mm[0], 330 / p.size_mm[1]);\r\n    const dpr = Math.min(2, (typeof devicePixelRatio === \"number\" ? devicePixelRatio : 1) || 1);\r\n    const wCss = Math.round(p.size_mm[0] * sc), hCss = Math.round(p.size_mm[1] * sc);\r\n    cv.width = Math.round(wCss * dpr); cv.height = Math.round(hCss * dpr);\r\n    cv.style.width = wCss + \"px\"; cv.style.height = hCss + \"px\";\r\n    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);\r\n    const soft = tone(\"--ink-muted\", \"#888\"), acc = tone(\"--accent\", \"#e8a33d\");\r\n    ctx.fillStyle = \"#ffffff\";\r\n    ctx.fillRect(0, 0, wCss, hCss);\r\n    ctx.lineWidth = 1; ctx.strokeStyle = soft;\r\n    ctx.strokeRect(0.5, 0.5, wCss - 1, hCss - 1);\r\n    const contour = (p.geom && p.geom.contour_mm) || [];\r\n    const pleines = Math.min(p.par_page, p.n_cartes);\r\n    (p.cases || []).forEach((c, k) => {\r\n      ctx.beginPath();\r\n      contour.forEach((s, i) => {\r\n        const x = (c[0] + s[0]) * sc, y = (c[1] + s[1]) * sc;\r\n        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);\r\n      });\r\n      ctx.closePath();\r\n      if (k < pleines) {\r\n        ctx.setLineDash([]);\r\n        ctx.globalAlpha = 0.3; ctx.fillStyle = acc; ctx.fill(); ctx.globalAlpha = 1;\r\n        ctx.strokeStyle = p.trait ? \"#111111\" : acc;\r\n      } else {\r\n        ctx.setLineDash([3, 3]); ctx.strokeStyle = soft;\r\n      }\r\n      ctx.stroke();\r\n    });\r\n    ctx.setLineDash([]);\r\n    ctx.fillStyle = \"#111111\";\r\n    const r = (Number(p.repere_diametre_mm) || 5) / 2 * sc;\r\n    (p.reperes_mm || []).forEach((m) => {\r\n      ctx.beginPath(); ctx.arc(m[0] * sc, m[1] * sc, r, 0, Math.PI * 2); ctx.fill();\r\n    });\r\n  }\r\n\r\n  /* LE PDF : les cartes rendues par CF.cardBlob (renderAll, comme l'export\r\n     rectangulaire), versos compris en recto verso, puis POST hex/pdf. Le\r\n     plan est redemandé d'abord : un refus du serveur arrive avec SA phrase,\r\n     avant le moindre rendu. */\r\n  /* M.api.blob ne garde d'un refus que « 400 Bad Request » : la PHRASE du\r\n     serveur (taille de carte, recto verso sans verso, PDF impossible…) est\r\n     relue sur la MÊME demande par M.api.raw. Le fichier, lui, ne part que par\r\n     M.api.blob : c'est le seul blob que CF.download accepte (provenance). */\r\n  async function blobHex(sub, corps) {\r\n    try { return await M.api.blob(\"POST\", sub, corps); } catch (e) {\r\n      if (e && e.missing) throw e;\r\n      let detail = \"\";\r\n      try {\r\n        const r = await M.api.raw(\"POST\", sub, corps);\r\n        if (!r.ok) {\r\n          const d = await r.json();\r\n          const x = d && (d.detail != null ? d.detail : d.error);\r\n          detail = x == null ? \"\" : (typeof x === \"string\" ? x : JSON.stringify(x));\r\n        }\r\n      } catch (e2) { /* pas de JSON : on garde le code HTTP */ }\r\n      throw new Error(detail || String((e && e.message) || e));\r\n    }\r\n  }\r\n  /* un export refusé : la phrase, encadrée par l'action, dans le panneau ET le toast */\r\n  function refusHex(cle, e) {\r\n    HEXERR = dzT(cle, { e: String((e && e.message) || e) });\r\n    paintHex();\r\n    CF.toast(HEXERR, true);\r\n  }\r\n  async function exportHexPdf() {\r\n    if (HEXBUSY) return;\r\n    HEXBUSY = true;\r\n    try {\r\n      const p = await planHex();\r\n      if (!p) { CF.toast(HEXERR || dzT(\"cartes.print.hex_attente\"), true); return; }\r\n      const corps = hexCorps();\r\n      const r = await renderAll(!!corps.duplex);\r\n      CF.busy(true, dzT(\"cartes.print.busy_pdf\"));\r\n      const out = await blobHex(\"hex/pdf\", formData(corps, r.fronts, r.backs));\r\n      const name = deckSlug() + \"_planches_hex.pdf\";\r\n      CF.download(out, name);\r\n      logLine(name, out.size, dzT(\"cartes.print.hex_log_pdf\", { n: r.fronts.length, p: p.out_pages, pp: p.par_page }));\r\n      CF.toast(dzT(\"cartes.print.hex_toast_pdf\", { n: r.fronts.length, p: p.out_pages }));\r\n    } catch (e) { refusHex(\"cartes.print.hex_err_pdf\", e); }\r\n    finally { CF.busy(false); HEXBUSY = false; }\r\n  }\r\n  /* LE FICHIER DE COUPE : un ZIP (page-01.svg, page-01.dxf…), en mm, qui\r\n     suit la page RECTO — on coupe recto dessus. */\r\n  async function exportHexCoupe() {\r\n    if (HEXBUSY) return;\r\n    HEXBUSY = true;\r\n    try {\r\n      const p = await planHex();\r\n      if (!p) { CF.toast(HEXERR || dzT(\"cartes.print.hex_attente\"), true); return; }\r\n      CF.busy(true, dzT(\"cartes.print.hex_busy_coupe\"));\r\n      const out = await blobHex(\"hex/coupe\", hexCorps());\r\n      const name = deckSlug() + \"_coupe.zip\";\r\n      CF.download(out, name);\r\n      logLine(name, out.size, dzT(\"cartes.print.hex_log_coupe\", { p: p.pages }));\r\n      CF.toast(dzT(\"cartes.print.hex_toast_coupe\", { p: p.pages }));\r\n    } catch (e) { refusHex(\"cartes.print.hex_err_coupe\", e); }\r\n    finally { CF.busy(false); HEXBUSY = false; }\r\n  }\r\n\r\n  function clicHex(ev) {\r\n    if (!HEXA) return false;\r\n    const sb = ev.target.closest(\"[data-hxseg] .seg-b\");\r\n    if (sb) {\r\n      if (sb.closest(\"[data-hxseg]\").dataset.hxseg === \"sheet\") setHex({ sheet: String(sb.dataset.v) });\r\n      return true;\r\n    }\r\n    const act = ev.target.closest(\"[data-act]\"), a = act && act.dataset.act;\r\n    if (a === \"hexpdf\") { exportHexPdf(); return true; }\r\n    if (a === \"hexcoupe\") { exportHexCoupe(); return true; }\r\n    return false;\r\n  }\r\n  function changeHex(t) {\r\n    if (!HEXA || !t || !t.dataset || !t.dataset.hx) return false;\r\n    const k = t.dataset.hx, o = {};\r\n    if (k === \"duplex\" || k === \"trait\") o[k] = !!t.checked;\r\n    else {\r\n      const v = Number(t.value);\r\n      if (t.value === \"\" || !isFinite(v)) { syncHex(); return true; }\r\n      o[k] = v;\r\n    }\r\n    setHex(o);\r\n    return true;\r\n  }\r\n  /* LA FORME CHANGE : le panneau se rebâtit (rectangle <-> hexagone). Rend\r\n     vrai si le jeu est hexagonal — le reste de `core:geom` est alors sauté. */\r\n  function geomHex() {\r\n    const h = estHex();\r\n    if (h !== HEXA) {\r\n      HEXA = h; HEXPLAN = null; HEXERR = \"\"; HEXATTENTE = false; HEXRETRY = 0;\r\n      PROBE = null; PF = null;     /* la sonde de couleur et le contrôle avant vol datent de l'ancien panneau */\r\n      shell();\r\n      paintIntents(); paintFormats(); paintIcc(); paintAudit(); paintPreflight(); paintGabarits();\r\n      if (!h) { wirePlanDrag(); hintImpression(); }\r\n    }\r\n    if (!HEXA) return false;\r\n    sync();\r\n    refresh();\r\n    return true;\r\n  }\r\n\r\n  function wire() {",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 127166,
+    "avant": "HOST.addEventListener(\"click\", (ev) => {",
+    "apres": "HOST.addEventListener(\"click\", (ev) => {\r\n      if (clicHex(ev)) return;",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 128661,
+    "avant": "HOST.addEventListener(\"change\", (ev) => {",
+    "apres": "HOST.addEventListener(\"change\", (ev) => {\r\n      if (changeHex(ev.target)) return;",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 130516,
+    "avant": "if (!visible()) return;",
+    "apres": "if (!visible() || HEXA) return;",
+    "groupe": "t421_impression"
+   },
+   {
     "pos": 131737,
     "avant": "\"repères indisponibles\"",
     "apres": "dzT(\"cartes.print.reperes_indispo\")",
@@ -13609,6 +13807,12 @@
     "groupe": "print"
    },
    {
+    "pos": 132135,
+    "avant": "function sync() {\r\n    const s = currentState(), f = CF.doc().format, g = CF.geom();",
+    "apres": "/* t421 : les liens du gabarit de dessin suivent le format, le DPI et le fond perdu du jeu ;\r\n     le bloc n'est visible que pour un hexagone. */\r\n  function syncGabaritHex(g) {\r\n    const box = q('[data-role=\"gabhex\"]');\r\n    if (!box) return;\r\n    const hex = !!g && g.forme === \"hex\";\r\n    box.hidden = !hex;\r\n    if (!hex) return;\r\n    const fmt = CF.doc().format.fmt, opt = { dpi: g.dpi, bleed_mm: g.bleed_mm, safe_mm: g.safe_mm };\r\n    [\"png\", \"svg\"].forEach((ext) => {\r\n      const a = q('[data-role=\"gabhex-' + ext + '\"]');\r\n      if (a) a.setAttribute(\"href\", CF.gabaritUrl(fmt, ext, opt));\r\n    });\r\n  }\r\n\r\n  function sync() {\r\n    const s = currentState(), f = CF.doc().format, g = CF.geom();\r\n    syncGabaritHex(g);",
+    "groupe": "t421_gabarit"
+   },
+   {
     "pos": 133162,
     "avant": "\"Couleur des repères\"\r\n        : \"Couleur des repères (inutilisée : \" + MARK_SPACE_LABEL[s.mark_space] + \")\"",
     "apres": "dzT(\"cartes.print.couleur_reperes\")\r\n        : dzT(\"cartes.print.couleur_inutilisee\", { e: MARK_SPACE_LABEL[s.mark_space] })",
@@ -13619,6 +13823,24 @@
     "avant": "\"Impression\"",
     "apres": "dzT(\"cartes.print.titre\")",
     "groupe": "print"
+   },
+   {
+    "pos": 134148,
+    "avant": "state: Object.assign({}, DEFAULTS),",
+    "apres": "/* t421 : `hexa` = les réglages de la planche hexagonale, HORS DEFAULTS */\r\n    state: Object.assign({}, DEFAULTS, { hexa: {} }),",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 134217,
+    "avant": "HOST = host;",
+    "apres": "HOST = host;\r\n      HEXA = estHex();",
+    "groupe": "t421_impression"
+   },
+   {
+    "pos": 135165,
+    "avant": "CF.on(\"core:geom\", () => { paintFormats();",
+    "apres": "CF.on(\"core:geom\", () => { if (geomHex()) return; paintFormats();",
+    "groupe": "t421_impression"
    }
   ],
   "js/mod-solid.js": [

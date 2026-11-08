@@ -23,6 +23,7 @@ from loguru import logger
 
 from . import edition_vtt as VTT
 from .contract import deck_dir, is_valid_did
+from . import hexa                          # t421 : refus des sorties hors hexagone
 
 router = APIRouter()
 
@@ -92,6 +93,7 @@ async def post_tts(did: str, spec: str = Form("{}"),
     l'objet sauvegardé qui pointe vers elles (chemins locaux), un ZIP de tout.
     Les fichiers restent dans le dossier du jeu : l'objet les retrouve."""
     doc = _deck(did)
+    hexa.refuser_si_hex(_geom(doc), "L'export Tabletop Simulator")
     body = _json_form(spec)
     if not fronts:
         raise HTTPException(400, "Aucune carte reçue : le navigateur doit rendre les cartes avant l'export")
@@ -126,6 +128,7 @@ async def post_tabletopia(did: str, spec: str = Form("{}"),
     plus sur le côté long, et le manifeste — en ZIP. Rien n'est écrit sur le PC
     hors du téléchargement : Tabletopia se charge par son éditeur en ligne."""
     doc = _deck(did)
+    hexa.refuser_si_hex(_geom(doc), "L'export Tabletopia")
     body = _json_form(spec)
     if not fronts:
         raise HTTPException(400, "Aucune carte reçue : le navigateur doit rendre les cartes avant l'export")
@@ -186,6 +189,7 @@ async def post_tts_poser(did: str):
     Objects > Saved Objects. Écrit HORS des données de l'appli — décision de
     l'utilisateur (04/10), et seulement quand on le demande."""
     doc = _deck(did)
+    hexa.refuser_si_hex(_geom(doc), "L'export Tabletop Simulator")
     s = VTT.slug(str(doc.get("name") or "Jeu"))
     src = _dossier_tts(did)
     js, th = src / f"{s}.json", src / f"{s}.png"
@@ -252,6 +256,7 @@ async def post_livret(did: str, spec: str = Form("{}"), images: list[UploadFile]
     """Le livret de règles en PDF, pages composées à 300 DPI : le texte n'est PAS sélectionnable, et l'en-tête
     `X-CF-Texte: raster` le dit avec le fichier qui part."""
     doc = _deck(did)
+    hexa.refuser_si_hex(_geom(doc), "Le livret")
     body = _json_form(spec)
     from . import edition_livret as LIV
     ims = await _images_recues(images, "la planche", LIV.IMAGES_MAX)
@@ -278,6 +283,7 @@ async def post_livret(did: str, spec: str = Form("{}"), images: list[UploadFile]
 async def post_mockup(did: str, spec: str = Form("{}"), images: list[UploadFile] = File(default=[])):
     """Le visuel de communication : un éventail 2D de cartes rendues (5 au plus), aux formats des réseaux."""
     doc = _deck(did)
+    hexa.refuser_si_hex(_geom(doc), "Le mockup")
     body = _json_form(spec)
     from . import edition_livret as LIV
     ims = await _images_recues(images, "le mockup", LIV.MOCKUP_MAX)

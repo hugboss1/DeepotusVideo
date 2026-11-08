@@ -74,6 +74,7 @@ from .contract import (
     THICKNESS_MM_DEFAULT, THICKNESS_MM_MAX, THICKNESS_MM_MIN, UV_ISLANDS,
     _tangents, deck_dir, geom as geom_of, is_valid_did, rnd,
 )
+from . import hexa                          # t421 : refus des sorties hors hexagone
 
 __all__ = [
     "router", "card_mesh", "solid_settings", "card_dims_mm",
@@ -1064,6 +1065,7 @@ async def solid_mesh(did: str, fmt: str | None = None, dpi: str | None = None,
     """
     _did(did)
     g = _q_geom(fmt, dpi)
+    hexa.refuser_si_hex(g, "Le volume")
     rep = mesh_report(g, {"thickness_mm": thickness_mm, "corner_mm": corner_mm,
                           "segments": segments, "bevel_mm": bevel_mm})
     cap = 1536

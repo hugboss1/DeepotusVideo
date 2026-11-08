@@ -14198,5 +14198,121 @@
  "ce calque n'est pas un cadre : {calque}": {
   "fr": "ce calque n'est pas un cadre : {calque}",
   "en": "this layer is not a frame: {calque}"
+ },
+ "{champ} : nom d'image refusé : {nom}": {
+  "fr": "{champ} : nom d'image refusé : {nom}",
+  "en": "{champ}: image name refused: {nom}"
+ },
+ "images : une liste non vide de noms attendue": {
+  "fr": "images : une liste non vide de noms attendue",
+  "en": "images: a non-empty list of names is expected"
+ },
+ "images : {IMAGES_MAX} au plus ({images} reçues)": {
+  "fr": "images : {IMAGES_MAX} au plus ({images} reçues)",
+  "en": "images: {IMAGES_MAX} at most ({images} received)"
+ },
+ "format : un objet {fmt, …} attendu": {
+  "fr": "format : un objet {fmt, …} attendu",
+  "en": "format: an object {fmt, …} is expected"
+ },
+ "format inconnu : {fmt_id}": {
+  "fr": "format inconnu : {fmt_id}",
+  "en": "unknown format: {fmt_id}"
+ },
+ "fond_perdu : booléen attendu": {
+  "fr": "fond_perdu : booléen attendu",
+  "en": "fond_perdu: a boolean is expected"
+ },
+ "versos et verso_commun s'excluent": {
+  "fr": "versos et verso_commun s'excluent",
+  "en": "versos and verso_commun are mutually exclusive"
+ },
+ "gabarit : extension inconnue : {ext}": {
+  "fr": "gabarit : extension inconnue : {ext}",
+  "en": "template: unknown extension: {ext}"
+ },
+ "gabarit : format inconnu : {fmt}": {
+  "fr": "gabarit : format inconnu : {fmt}",
+  "en": "template: unknown format: {fmt}"
+ },
+ "gabarit : seul un format hexagonal en a un": {
+  "fr": "gabarit : seul un format hexagonal en a un",
+  "en": "template: only a hexagonal format has one"
+ },
+ "versos : une liste de la longueur de images attendue": {
+  "fr": "versos : une liste de la longueur de images attendue",
+  "en": "versos: a list as long as images is expected"
+ },
+ "versos : un nom d'image, None ou \"\" attendu ({v})": {
+  "fr": "versos : un nom d'image, None ou \"\" attendu ({v})",
+  "en": "versos: an image name, None or \"\" is expected ({v})"
+ },
+ "{sortie} {NON_GERE} : repassez le jeu à un format rectangulaire pour l'utiliser.": {
+  "fr": "{sortie} {NON_GERE} : repassez le jeu à un format rectangulaire pour l'utiliser.",
+  "en": "{sortie} {NON_GERE}: switch the deck back to a rectangular format to use it."
+ },
+ "Il faut au moins une carte pour faire une planche (reçu {n}).": {
+  "fr": "Il faut au moins une carte pour faire une planche (reçu {n}).",
+  "en": "At least one card is needed to make a sheet (received {n})."
+ },
+ "Une planche hexagonale compte au plus 10 000 cartes (reçu {n}).": {
+  "fr": "Une planche hexagonale compte au plus 10 000 cartes (reçu {n}).",
+  "en": "A hexagonal sheet holds at most 10,000 cards (received {n})."
+ },
+ "La planche en nid d'abeilles ne sert que les cartes hexagonales : ce jeu est rectangulaire, utiliser l'export PDF habituel.": {
+  "fr": "La planche en nid d'abeilles ne sert que les cartes hexagonales : ce jeu est rectangulaire, utiliser l'export PDF habituel.",
+  "en": "The honeycomb sheet only serves hexagonal cards: this deck is rectangular, use the usual PDF export."
+ },
+ "Le nombre de cartes doit être un entier (reçu {brut}).": {
+  "fr": "Le nombre de cartes doit être un entier (reçu {brut}).",
+  "en": "The number of cards must be an integer (received {brut})."
+ },
+ "{quoi} doit tenir entre 0 et {hi} mm (reçu {v})": {
+  "fr": "{quoi} doit tenir entre 0 et {hi} mm (reçu {v})",
+  "en": "{quoi} must be between 0 and {hi} mm (received {v})"
+ },
+ "Le plan en nid d'abeilles ne sert que les cartes hexagonales : ce format est rectangulaire.": {
+  "fr": "Le plan en nid d'abeilles ne sert que les cartes hexagonales : ce format est rectangulaire.",
+  "en": "The honeycomb plan only serves hexagonal cards: this format is rectangular."
+ },
+ "La planche en nid d'abeilles s'imprime sur une feuille (A4, Letter, A3), pas carte par carte.": {
+  "fr": "La planche en nid d'abeilles s'imprime sur une feuille (A4, Letter, A3), pas carte par carte.",
+  "en": "The honeycomb sheet is printed on a sheet (A4, Letter, A3), not card by card."
+ },
+ "Il faut au moins une carte pour faire une planche.": {
+  "fr": "Il faut au moins une carte pour faire une planche.",
+  "en": "At least one card is needed to make a sheet."
+ },
+ "La gouttière ({gout} mm) doit valoir au moins deux fois le fond perdu ({v} mm) : en dessous, les fonds perdus de deux cartes voisines se chevauchent, et un hexagone ne se rogne pas.": {
+  "fr": "La gouttière ({gout} mm) doit valoir au moins deux fois le fond perdu ({v} mm) : en dessous, les fonds perdus de deux cartes voisines se chevauchent, et un hexagone ne se rogne pas.",
+  "en": "The gutter ({gout} mm) must be at least twice the bleed ({v} mm): below that, the bleeds of two neighbouring cards overlap, and a hexagon cannot be trimmed."
+ },
+ "La marge ({marge} mm) doit faire au moins {mini} mm : elle loge les repères de calage (Ø {REPERE_DIAMETRE_MM} mm) à {jeu} mm au moins de la coupe des cartes, hors de leur fond perdu ({b} mm).": {
+  "fr": "La marge ({marge} mm) doit faire au moins {mini} mm : elle loge les repères de calage (Ø {REPERE_DIAMETRE_MM} mm) à {jeu} mm au moins de la coupe des cartes, hors de leur fond perdu ({b} mm).",
+  "en": "The margin ({marge} mm) must be at least {mini} mm: it holds the registration marks (Ø {REPERE_DIAMETRE_MM} mm) at least {jeu} mm from the card cut, outside their bleed ({b} mm)."
+ },
+ "Aucune carte {W} x {H} mm n'entre sur la feuille {label} avec une marge de {marge} mm.": {
+  "fr": "Aucune carte {W} x {H} mm n'entre sur la feuille {label} avec une marge de {marge} mm.",
+  "en": "No {W} x {H} mm card fits on the {label} sheet with a {marge} mm margin."
+ },
+ "La page {v} n'a pas de carte {v2}": {
+  "fr": "La page {v} n'a pas de carte {v2}",
+  "en": "Page {v} has no {v2} card"
+ },
+ "Côté inconnu : {cote} (recto ou verso)": {
+  "fr": "Côté inconnu : {cote} (recto ou verso)",
+  "en": "Unknown side: {cote} (front or back)"
+ },
+ "{quoi} doit être un nombre de millimètres": {
+  "fr": "{quoi} doit être un nombre de millimètres",
+  "en": "{quoi} must be a number of millimetres"
+ },
+ "Le nombre de cartes doit être un entier (reçu {n})": {
+  "fr": "Le nombre de cartes doit être un entier (reçu {n})",
+  "en": "The number of cards must be an integer (received {n})"
+ },
+ "La carte {v} mesure {v2}x{v3} px ; la géométrie du jeu impose {v4}x{v5} px": {
+  "fr": "La carte {v} mesure {v2}x{v3} px ; la géométrie du jeu impose {v4}x{v5} px",
+  "en": "Card {v} measures {v2}x{v3} px; the deck geometry requires {v4}x{v5} px"
  }
 }

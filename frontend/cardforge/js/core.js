@@ -122,9 +122,29 @@
     { id: "business", label: "Carte de visite 2 x 3,5 in", unit: "in", trim_mm: [50.8, 88.9] },
     { id: "jumbo", label: "Jumbo 3,5 x 5,5 in", unit: "in", trim_mm: [88.9, 139.7] },
     { id: "micro", label: "Micro 1,25 x 1,75 in", unit: "in", trim_mm: [31.75, 44.45] },
+    /* t421 : les huit hexagones. `trim_mm` est le rectangle qui englobe l'hexagone ;
+       forme/orientation sont absentes des douze rectangles (absence = "rect"). */
+    { id: "hex_p50", label: "Hexagone 50 mm, pointe en haut", unit: "mm", trim_mm: [50.0, 57.735], forme: "hex", orientation: "pointe" },
+    { id: "hex_p635", label: "Hexagone 63,5 mm, pointe en haut", unit: "mm", trim_mm: [63.5, 73.323], forme: "hex", orientation: "pointe" },
+    { id: "hex_p75", label: "Hexagone 75 mm, pointe en haut", unit: "mm", trim_mm: [75.0, 86.603], forme: "hex", orientation: "pointe" },
+    { id: "hex_p90", label: "Hexagone 90 mm, pointe en haut", unit: "mm", trim_mm: [90.0, 103.923], forme: "hex", orientation: "pointe" },
+    { id: "hex_f50", label: "Hexagone 50 mm, côté plat en haut", unit: "mm", trim_mm: [57.735, 50.0], forme: "hex", orientation: "plat" },
+    { id: "hex_f635", label: "Hexagone 63,5 mm, côté plat en haut", unit: "mm", trim_mm: [73.323, 63.5], forme: "hex", orientation: "plat" },
+    { id: "hex_f75", label: "Hexagone 75 mm, côté plat en haut", unit: "mm", trim_mm: [86.603, 75.0], forme: "hex", orientation: "plat" },
+    { id: "hex_f90", label: "Hexagone 90 mm, côté plat en haut", unit: "mm", trim_mm: [103.923, 90.0], forme: "hex", orientation: "plat" },
   ];
   const FMT_BY_ID = {};
   FORMATS.forEach((f) => { FMT_BY_ID[f.id] = f; });
+
+  /* t421 : libelles des hexagones, traduits (cles statiques, une par format) */
+  function hexLabel(id) {
+    return ({
+      hex_p50: dzT("cartes.core.fmt_hex_p50"), hex_p635: dzT("cartes.core.fmt_hex_p635"),
+      hex_p75: dzT("cartes.core.fmt_hex_p75"), hex_p90: dzT("cartes.core.fmt_hex_p90"),
+      hex_f50: dzT("cartes.core.fmt_hex_f50"), hex_f635: dzT("cartes.core.fmt_hex_f635"),
+      hex_f75: dzT("cartes.core.fmt_hex_f75"), hex_f90: dzT("cartes.core.fmt_hex_f90"),
+    })[id];
+  }
 
   const MM_PER_INCH = 25.4;
   const BLEED_METRIC_MM = 3.0, BLEED_IMPERIAL_MM = 3.175;   /* 0.125 in */
@@ -267,6 +287,89 @@
      sorties sur 12 formats x 6 definitions x 5 fonds perdus x 4 zones sures.
      ═══════════════════════════════════════════════════════════════════════ */
 
+  /* ═══ CF-HEX-BEGIN ═══ */
+  /* t421 : le contour des cartes hexagonales, en mm.
+     MIROIR EXACT de backend/app/services/cards/hexa.py (et des proprietes de
+     CardGeom). `test_cards_hexa.py` extrait ce bloc, l'execute sous node et le
+     compare au Python a 0,001 mm pres. Autonome : aucune variable du fichier. */
+  /* sommets de la coupe, repere coin haut-gauche, sens horaire (y vers le bas) */
+  function hexSommets(trim_mm, orientation) {
+    const w = trim_mm[0], h = trim_mm[1];
+    if (orientation === "pointe") return [[w / 2, 0], [w, h / 4], [w, 3 * h / 4], [w / 2, h], [0, 3 * h / 4], [0, h / 4]];
+    if (orientation === "plat") return [[w / 4, 0], [3 * w / 4, 0], [w, h / 2], [3 * w / 4, h], [w / 4, h], [0, h / 2]];
+    return [[0, 0], [w, 0], [w, h], [0, h]];
+  }
+  /* decalage perpendiculaire d'un polygone convexe ; d > 0 vers l'exterieur ;
+     [] si le decalage retourne le polygone */
+  function hexDecale(pts, d) {
+    const n = pts.length;
+    if (n < 3) return [];
+    let cx = 0, cy = 0;
+    pts.forEach((p) => { cx += p[0]; cy += p[1]; });
+    cx /= n; cy /= n;
+    const L = [];
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], b = pts[(i + 1) % n];
+      const dx = b[0] - a[0], dy = b[1] - a[1], ln = Math.sqrt(dx * dx + dy * dy);
+      const ux = dx / ln, uy = dy / ln;
+      let nx = uy, ny = -ux;
+      if (((a[0] + b[0]) / 2 - cx) * nx + ((a[1] + b[1]) / 2 - cy) * ny < 0) { nx = -nx; ny = -ny; }
+      L.push([a[0] + nx * d, a[1] + ny * d, ux, uy]);
+    }
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const P = L[(i + n - 1) % n], Q = L[i];
+      const den = P[2] * Q[3] - P[3] * Q[2];
+      if (Math.abs(den) < 1e-12) return [];
+      const t = ((Q[0] - P[0]) * Q[3] - (Q[1] - P[1]) * Q[2]) / den;
+      out.push([P[0] + P[2] * t, P[1] + P[3] * t]);
+    }
+    for (let i = 0; i < n; i++) {
+      const a = pts[i], b = pts[(i + 1) % n], c = out[i], e = out[(i + 1) % n];
+      if ((b[0] - a[0]) * (e[0] - c[0]) + (b[1] - a[1]) * (e[1] - c[1]) <= 0) return [];
+    }
+    return out;
+  }
+  /* Sutherland-Hodgman contre le rectangle [0, w] x [0, h] */
+  function hexDecoupe(poly, w, h) {
+    const coupe = (pts, dedans, croise) => {
+      const res = [];
+      for (let i = 0; i < pts.length; i++) {
+        const cur = pts[i], prev = pts[(i + pts.length - 1) % pts.length];
+        const a = dedans(prev), b = dedans(cur);
+        if (a && b) res.push(cur);
+        else if (a && !b) res.push(croise(prev, cur));
+        else if (b && !a) { res.push(croise(prev, cur)); res.push(cur); }
+      }
+      return res;
+    };
+    const surX = (x0) => (p, q) => [x0, p[1] + (q[1] - p[1]) * (x0 - p[0]) / (q[0] - p[0])];
+    const surY = (y0) => (p, q) => [p[0] + (q[0] - p[0]) * (y0 - p[1]) / (q[1] - p[1]), y0];
+    let pts = poly.slice();
+    [[(p) => p[0] >= 0, surX(0)], [(p) => p[0] <= w, surX(w)], [(p) => p[1] >= 0, surY(0)], [(p) => p[1] <= h, surY(h)]].forEach((c) => {
+      if (pts.length) pts = coupe(pts, c[0], c[1]);
+    });
+    return pts;
+  }
+  /* g : une geometrie de geomOf() d'un hexagone. Tout est rendu dans le repere
+     de la TOILE (coin haut-gauche de l'image, fond perdu compris), en mm :
+     coupe, fond (fond perdu tronque a la toile), sur (zone sure), milieux (des
+     six cotes de la coupe). */
+  function hexContours(g) {
+    const k = 25.4 / g.dpi, ox = g.bleed_off_px[0] * k, oy = g.bleed_off_px[1] * k;
+    const vers = (pts) => pts.map((p) => [p[0] + ox, p[1] + oy]);
+    const w = g.canvas_px[0] * k, h = g.canvas_px[1] * k, tol = k / 2;
+    /* le depassement d'un demi-pixel est du bruit de quantification de la toile :
+       on le ramene au bord ; celui des pointes (0,46 mm pour 3 mm) reste tronque. */
+    const cale = (v, hi) => (v >= -tol && v <= hi + tol ? Math.min(Math.max(v, 0), hi) : v);
+    const coupe = vers(g.contour_mm);
+    const fond = hexDecoupe(vers(hexDecale(g.contour_mm, g.bleed_mm)).map((p) => [cale(p[0], w), cale(p[1], h)]), w, h);
+    const sur = vers(hexDecale(g.contour_mm, -g.safe_mm));
+    const milieux = coupe.map((p, i) => { const q = coupe[(i + 1) % coupe.length]; return [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]; });
+    return { coupe: coupe, fond: fond, sur: sur, milieux: milieux };
+  }
+  /* ═══ CF-HEX-END ═══ */
+
   function geomOf(fmt, dpi, bleed_mm, safe_mm, corner_mm) {
     const F = FMT_BY_ID[fmt];
     if (!F) throw new Error("cardforge: format inconnu \"" + fmt + "\"");
@@ -322,6 +425,10 @@
       trim_px: trim_px, canvas_px: canvas_px, bleed_off_px: bleed_off_px,
       safe_px: safe_px, safe_off_px: safe_off_px,
       corner_px: rnd(corner_mm / MM_PER_INCH * dpi, 1),
+      /* t421 : contour de coupe arrondi a 3 decimales, comme to_dict() du backend
+         (qui ne l'ajoute qu'aux hexagones ; ici un rectangle rend ses 4 coins). */
+      forme: F.forme || "rect", orientation: F.orientation || null,
+      contour_mm: hexSommets(F.trim_mm, F.orientation).map((p) => [rnd(p[0], 3), rnd(p[1], 3)]),
       mm2px: mm2px, px2mm: px2mm,
     });
   }
@@ -342,7 +449,7 @@
   function blankFormat(fmt) {
     const F = FMT_BY_ID[fmt] || FMT_BY_ID[DEFAULT_FMT];
     const b = nativeBleed(F.id);
-    return { fmt: F.id, dpi: 300, bleed_mm: b, safe_mm: b, corner_mm: 3 };
+    return { fmt: F.id, dpi: 300, bleed_mm: b, safe_mm: b, corner_mm: F.forme === "hex" ? 0 : 3 };
   }
 
   const DOC = { v: 1, id: null, name: "Nouveau jeu", format: blankFormat(DEFAULT_FMT) };
@@ -408,6 +515,12 @@
       if (out.fmt !== f.fmt) {
         const nat = nativeBleed(out.fmt);
         out.bleed_mm = nat; out.safe_mm = nat;
+        /* t421 : meme regle que normalize_format du backend — un hexagone naît a coin 0,
+           et le quitter rend au rectangle son coin par defaut ; un corner_mm explicite
+           de l'appel, lu plus bas, l'emporte. */
+        const hexN = FMT_BY_ID[out.fmt].forme === "hex", hexA = FMT_BY_ID[f.fmt].forme === "hex";
+        if (hexN && !hexA) out.corner_mm = 0;
+        else if (!hexN && hexA) out.corner_mm = 3;
       }
     }
     ["dpi", "bleed_mm", "safe_mm", "corner_mm"].forEach((k) => {
@@ -417,6 +530,8 @@
       if (v < LIM[k][0] || v > LIM[k][1]) throw new Error(dzT("cartes.core.hors_bornes", { k: k, min: LIM[k][0], max: LIM[k][1] }));
       out[k] = (k === "dpi") ? Math.round(v) : v;
     });
+    /* t421 (vague finale) : un hexagone est TOUJOURS a sommets vifs (coin 0), comme normalize_format */
+    if (FMT_BY_ID[out.fmt].forme === "hex") out.corner_mm = 0;
     DOC.format = out;
     GEOM = null;
     touch();
@@ -609,6 +724,100 @@
     ctx.restore();
   }
 
+  /* ═══ t421 : L'APERCU HEXAGONAL ═══════════════════════════════════════════
+     Le rendu reste rectangulaire (la toile du contrat) ; un hexagone est
+     ensuite DECOUPE : hors du polygone du fond perdu, la toile est
+     transparente. Les polygones viennent de hexContours (repere toile, mm). */
+  /* le chemin d'un polygone en mm (k = px par mm), sommets arrondis de r mm ;
+     le rayon est borne pour que deux arrondis ne se croisent pas sur un cote */
+  function hexChemin(ctx, pts, r, k) {
+    ctx.beginPath();
+    const n = pts.length;
+    if (n < 3) return;
+    const P = pts.map((p) => [p[0] * k, p[1] * k]);
+    const R = (r > 0) ? r * k : 0;
+    if (!R) {
+      ctx.moveTo(P[0][0], P[0][1]);
+      for (let i = 1; i < n; i++) ctx.lineTo(P[i][0], P[i][1]);
+      ctx.closePath();
+      return;
+    }
+    ctx.moveTo((P[n - 1][0] + P[0][0]) / 2, (P[n - 1][1] + P[0][1]) / 2);
+    for (let i = 0; i < n; i++) {
+      const a = P[i], b = P[(i + 1) % n], z = P[(i + n - 1) % n];
+      const la = Math.hypot(a[0] - z[0], a[1] - z[1]), lb = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (la < 1e-9 || lb < 1e-9) { ctx.lineTo(a[0], a[1]); continue; }
+      const cos = ((z[0] - a[0]) * (b[0] - a[0]) + (z[1] - a[1]) * (b[1] - a[1])) / (la * lb);
+      const t = Math.tan(Math.acos(Math.max(-1, Math.min(1, cos))) / 2);
+      ctx.arcTo(a[0], a[1], b[0], b[1], Math.min(R, Math.min(la, lb) / 2 * t));
+    }
+    ctx.closePath();
+  }
+  /* rayons : la coupe suit corner_mm du DOCUMENT ; son decale de d garde les
+     memes tangentes avec un rayon r + d (0 reste 0 : un hexagone vif) */
+  function hexRayon(g, d) {
+    const r = Math.max(0, Number(g.corner_mm) || 0);
+    return r > 0 ? Math.max(0, r + d) : 0;
+  }
+  /* en fin de rendu : la toile est decoupee au polygone du fond perdu */
+  function hexMasque(ctx, g) {
+    const c = hexContours(g);
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#000000";
+    hexChemin(ctx, c.fond, hexRayon(g, g.bleed_mm), g.dpi / 25.4);
+    ctx.fill();
+    ctx.restore();
+  }
+  /* les reperes d'un hexagone : memes couleurs et memes traits que les
+     rectangles de guidesPainter */
+  function guidesHex(ctx, g, u) {
+    const c = hexContours(g), k = g.dpi / 25.4;
+    ctx.save();
+    ctx.lineWidth = u;
+    ctx.strokeStyle = "#00b7ff";                   /* fond perdu */
+    ctx.setLineDash([6 * u, 5 * u]);
+    hexChemin(ctx, c.fond, hexRayon(g, g.bleed_mm), k); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "#ff2d92";                   /* coupe */
+    hexChemin(ctx, c.coupe, hexRayon(g, 0), k); ctx.stroke();
+    if (c.sur.length) {
+      ctx.setLineDash([9 * u, 6 * u]);
+      ctx.strokeStyle = "#33d18b";                 /* zone sure */
+      hexChemin(ctx, c.sur, hexRayon(g, -g.safe_mm), k); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  /* les pieces qui ne gerent PAS ENCORE l'hexagone : elles restent au rail et
+     le disent (leurs routes de production refusent un deck hexagonal en 409) */
+  const HORS_HEX = Object.freeze(["frame", "solid", "texture", "gltf", "forge3d", "edition", "capture"]);
+  function horsHex(id) { return HORS_HEX.indexOf(id) >= 0; }
+  function syncHorsHex() {
+    if (!hasDOM) return;
+    const hex = geom().forme === "hex";
+    Array.prototype.forEach.call(document.querySelectorAll(".rail-item"), (b) => {
+      const id = b.dataset.mod, on = hex && horsHex(id), m = REG[id];
+      const nom = m ? m.title : dzT("cartes.core.module_absent", { id: id });
+      b.classList.toggle("hors-hex", on);
+      b.title = on ? nom + " — " + dzT("cartes.hexa.non_gere") : nom;
+    });
+    Array.prototype.forEach.call(document.querySelectorAll(".cf-panel"), (s) => {
+      const on = hex && horsHex(s.dataset.mod);
+      let n = s.querySelector(".cf-hors-hex");
+      if (on && !n) {
+        n = document.createElement("p");
+        n.className = "cf-hors-hex";
+        n.setAttribute("role", "status");
+        const h = s.querySelector(".panel-head");
+        s.insertBefore(n, h ? h.nextSibling : s.firstChild);
+      }
+      if (n) { n.textContent = on ? dzT("cartes.hexa.non_gere") : ""; n.hidden = !on; }
+    });
+  }
+  /* ═══ fin t421 ═══ */
+
   function guidesPainter(ctx, g) {
     /* Reperes prepresse : fond perdu (bord de toile), coupe (trim), zone sure.
        Couleurs FIXES et non tokenisees : cette couche se pose sur une
@@ -617,6 +826,7 @@
        seul l'apercu du CORE appelle `renderRaw` avec. */
     const b = g.bleed_off_px, s = g.safe_off_px, t = g.trim_px, sp = g.safe_px, c = g.canvas_px;
     const u = Math.max(1, g.dpi / 300);           /* epaisseur constante a l'oeil */
+    if (g.forme === "hex") { guidesHex(ctx, g, u); return; }    /* t421 */
     ctx.save();
     ctx.setLineDash([]);
     ctx.lineWidth = u;
@@ -709,6 +919,8 @@
       }
       ctx.restore();
     }
+    /* t421 : la carte hexagonale est decoupee au fond perdu, AVANT les reperes */
+    if (g.forme === "hex") hexMasque(ctx, g);
     if (guides) {
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1213,6 +1425,7 @@
       try { c2.imageSmoothingQuality = "high"; } catch (e) { /* moteurs anciens */ }
       c2.clearRect(0, 0, out.width, out.height);
       c2.drawImage(FULL, 0, 0, out.width, out.height);
+      out.classList.toggle("hex", g.forme === "hex");     /* t421 : ombre qui suit l'alpha */
       const rd = el("#stageRead");
       if (rd) {
         /* les MESURES seulement — les mm restent les mm : rien ici ne lit le
@@ -1247,7 +1460,7 @@
   function buildFormatWidget() {
     const sel = el("#fmtSel");
     if (!sel) return;
-    sel.innerHTML = FORMATS.map((f) => '<option value="' + f.id + '">' + esc(f.id === "square_eu" ? dzT("cartes.core.fmt_carre") : f.id === "business" ? dzT("cartes.core.fmt_visite") : f.label) + '</option>').join("");
+    sel.innerHTML = FORMATS.map((f) => '<option value="' + f.id + '">' + esc(f.id === "square_eu" ? dzT("cartes.core.fmt_carre") : f.id === "business" ? dzT("cartes.core.fmt_visite") : f.forme === "hex" ? hexLabel(f.id) : f.label) + '</option>').join("");
     const dpiSeg = el("#dpiSeg");
     dpiSeg.innerHTML = DPIS.map((d) => '<button class="seg-b" type="button" data-v="' + d + '">' + d + '</button>').join("");
     sel.addEventListener("change", () => setFormatInternal({ fmt: sel.value }));
@@ -1272,6 +1485,7 @@
   }
   function syncFormatWidget() {
     if (!hasDOM) return;
+    syncHorsHex();                     /* t421 */
     const g = geom(), f = DOC.format;
     const sel = el("#fmtSel"); if (sel) sel.value = f.fmt;
     Array.prototype.forEach.call(document.querySelectorAll("#dpiSeg .seg-b"), (b) => {
@@ -1280,6 +1494,19 @@
     const b1 = el("#bleedInp"); if (b1) b1.value = f.bleed_mm;
     const s1 = el("#safeInp"); if (s1) s1.value = f.safe_mm;
     const c1 = el("#cornerInp"); if (c1) c1.value = f.corner_mm;
+    /* t421 (vague finale) : un hexagone garde des sommets vifs — le champ est grise et dit pourquoi */
+    if (c1) {
+      const lb = typeof c1.closest === "function" ? c1.closest("label") : null;
+      if (g.forme === "hex") {
+        c1.disabled = true;
+        c1.title = dzT("cartes.core.coin_hex");
+        if (lb) lb.title = c1.title;
+      } else if (c1.disabled) {
+        c1.disabled = false;
+        c1.removeAttribute("title");
+        if (lb) lb.removeAttribute("title");
+      }
+    }
     const rd = el("#fmtRead");
     if (rd) {
       /* les trois unites ensemble, toujours : un imprimeur ne travaille pas
@@ -1951,10 +2178,18 @@
       c.fill();
       c.globalAlpha = 1;
     });
+    /* t421 : la vignette d'un hexagone en a la silhouette (decoupe, puis trait) */
+    const hexV = fmt.forme === "hex" ? hexSommets(fmt.trim_mm, fmt.orientation) : null;
+    if (hexV) {
+      c.globalCompositeOperation = "destination-in";
+      hexChemin(c, hexV, 0, k); c.fill();
+      c.globalCompositeOperation = "source-over";
+    }
     c.globalAlpha = 0.5;
     c.strokeStyle = galColor(pal.ink, "#000000");
     c.lineWidth = 1;
-    c.strokeRect(0.5, 0.5, W - 1, H - 1);
+    if (hexV) { hexChemin(c, hexV, 0, k); c.stroke(); }
+    else c.strokeRect(0.5, 0.5, W - 1, H - 1);
     c.globalAlpha = 1;
   }
 
@@ -1987,6 +2222,10 @@
     + '<span class="cf-gal-note">' + dzT("cartes.core.gal_sans_illus") + '</span>'
     + '</div>'
     + '<div class="cf-gal-body">'
+    /* t421 : « Nouveau jeu depuis des images » (js/depuis-images.js) */
+    + '<section class="cf-gal-sec cf-gal-images"><h3>' + dzT("cartes.depuis.gal_titre") + '</h3>'
+    + '<p class="cf-gal-note">' + dzT("cartes.depuis.gal_note") + '</p>'
+    + '<button class="btn strong sm" id="galImages" type="button">' + dzT("cartes.depuis.gal_bouton") + '</button></section>'
     + '<section class="cf-gal-sec"><h3>' + dzT("cartes.core.gal_nouveau") + '</h3>'
     + '<p class="cf-gal-note">' + dzT("cartes.core.gal_vignette") + '</p>'
     + '<div class="cf-gal-grid" id="galModels"></div></section>'
@@ -2010,6 +2249,7 @@
     root.addEventListener("click", (e) => { if (e.target === root) closeGallery(); });
     const c = el("#galClose"); if (c) c.addEventListener("click", () => closeGallery());
     const i = el("#galImport"); if (i) i.addEventListener("click", galImport);
+    const gi = el("#galImages"); if (gi) gi.addEventListener("click", galImages);
     const d = el("#galDup"); if (d) d.addEventListener("click", () => { galDuplicate(); });
     const so = el("#galSaveOpen"); if (so) so.addEventListener("click", () => galSaveToggle(true));
     const sc = el("#galSaveCancel"); if (sc) sc.addEventListener("click", () => galSaveToggle(false));
@@ -2246,6 +2486,80 @@
     } catch (e) { toast(galMsg(e), true); }
     finally { busy(false); }
   }
+  /* ── t421 : NOUVEAU JEU DEPUIS DES IMAGES ────────────────────────────────
+     Le dialogue vit dans js/depuis-images.js (window.CFDepuisImages) ; la
+     galerie lui cede la place. Ses dehors sont tenus ICI (§8) : la
+     Bibliotheque en lecture, l'import d'un fichier, la creation du deck. */
+  function galImages() {
+    const D = (typeof window !== "undefined") ? window.CFDepuisImages : null;
+    if (!D || typeof D.ouvrir !== "function") { toast(dzT("cartes.depuis.absent"), true); return; }
+    closeGallery();
+    D.ouvrir();
+  }
+  const bibliotheque = Object.freeze({
+    /* GET /api/images : nom, dimensions (lues par le serveur), provenance */
+    async images() {
+      const d = await jsonNamed("GET", "/images");
+      return (Array.isArray(d && d.images) ? d.images : []).filter(isPlain).map((x) => ({
+        filename: String(x.filename || ""), width: Number(x.width) || null, height: Number(x.height) || null,
+        source: String(x.source || ""),
+      })).filter((x) => x.filename);
+    },
+    async projets() {
+      const d = await jsonNamed("GET", "/library/projets");
+      return (Array.isArray(d && d.projets) ? d.projets : []).filter(isPlain).map((p) => ({
+        id: String(p.id || ""), nom: String(p.nom || ""), n: Number(p.n) || 0,
+      })).filter((p) => p.id);
+    },
+    /* les items d'un projet : `ref` est le nom de fichier pour une image */
+    async projet(id) {
+      const d = await jsonNamed("GET", "/library/projets/" + encodeURIComponent(String(id == null ? "" : id)));
+      return { id: String((d && d.id) || id), nom: String((d && d.nom) || ""),
+        refs: (Array.isArray(d && d.items) ? d.items : []).filter(isPlain).map((i) => String(i.ref || "")).filter(Boolean) };
+    },
+    /* UN fichier par appel (la route n'en prend qu'un) ; le nom RENDU fait foi
+       (un homonyme devient « nom-1.png ») */
+    async importer(file) {
+      if (typeof FormData === "undefined" || !file) throw new Error(dzT("cartes.depuis.import_impossible"));
+      const fd = new FormData();
+      fd.append("file", file, String(file.name || "image.png"));
+      const d = await jsonNamed("POST", "/images/upload", fd);
+      return { filename: String((d && d.filename) || "") };
+    },
+    /* l'adresse SERVIE d'une image (GET /api/images/{nom}, routes.py) — pas
+       CF.imageURL, dont /api/images/file/ n'existe pas (mod-face.js) */
+    url(nom) { return "/api/images/" + encodeURIComponent(String(nom == null ? "" : nom)); },
+  });
+  /* corps : celui de POST /api/cards/decks/depuis-images. Le jeu ouvert est
+     ecrit d'abord ; le deck cree est OUVERT (la page part, `busy` reste au
+     voile) ; une phrase du serveur (404 qui nomme le fichier, 400) remonte. */
+  async function deckDepuisImages(corps) {
+    if (OFFLINE) throw new Error(dzT("cartes.depuis.hors_ligne"));
+    await galFlush();
+    const d = await jsonNamed("POST", "/cards/decks/depuis-images", isPlain(corps) ? corps : {});
+    const did = d && d.deck && d.deck.id;
+    if (!did) throw new Error(dzT("cartes.core.sans_did"));
+    galGo(did);
+    return d.deck;
+  }
+  /* le libelle AFFICHE d'un format : la regle du selecteur de la barre */
+  function libelleFormat(id) {
+    const f = FMT_BY_ID[id];
+    if (!f) return String(id == null ? "" : id);
+    return id === "square_eu" ? dzT("cartes.core.fmt_carre") : id === "business" ? dzT("cartes.core.fmt_visite")
+      : f.forme === "hex" ? hexLabel(id) : f.label;
+  }
+  /* t421 (tache 6) : l'adresse du GABARIT de dessin d'un format hexagonal
+     (GET /api/cards/gabarit/{format}.{png|svg}) ; `opt` = { dpi, bleed_mm, safe_mm },
+     chacun facultatif (le serveur prend 300 dpi et le fond perdu natif). Un lien de
+     telechargement, pas un appel : le reseau reste au CORE (§8). */
+  function gabaritUrl(fmt, ext, opt) {
+    const o = opt || {}, q = [];
+    ["dpi", "bleed_mm", "safe_mm"].forEach((k) => { if (o[k] != null) q.push(k + "=" + encodeURIComponent(String(o[k]))); });
+    return "/api/cards/gabarit/" + encodeURIComponent(String(fmt == null ? "" : fmt)) + "." + (ext === "svg" ? "svg" : "png")
+      + (q.length ? "?" + q.join("&") : "");
+  }
+
   /* « Importer une carte » : la galerie ferme et la piece 10 s'ouvre. Le
      bouton a tenu la place d'un panneau absent (un toast qui disait
      honnetement « l'import arrive ») ; le panneau existe, le toast meurt.
@@ -2601,8 +2915,10 @@
     LIM: deepFreeze(JSON.parse(JSON.stringify(LIM))),
     register: register,
     doc: doc, get: get,
-    geom: geom, geomOf: geomOf, nativeBleed: nativeBleed,
+    geom: geom, geomOf: geomOf, nativeBleed: nativeBleed, hexContours: hexContours,
     cards: cards, card: card,
+    /* t421 : les pieces qui ne gerent pas encore l'hexagone */
+    horsHex: horsHex,
     current: () => CUR,
     side: () => SIDE,
     renderCard: renderCard, cardBlob: cardBlob,
@@ -2620,6 +2936,9 @@
        lue gardée `typeof` par les pièces, comme le chevron. */
     icone: icone,
     images: images, imageURL: imageURL, ApiMissing: ApiMissing,
+    /* t421 : la Bibliotheque et la creation depuis des images (§8, au CORE) */
+    bibliotheque: bibliotheque, deckDepuisImages: deckDepuisImages, libelleFormat: libelleFormat,
+    gabaritUrl: gabaritUrl,
     /* les dehors /api/vector et /api/print3d — routes et verbes figes au
        CORE (§8) : aucune piece ne formule de requete arbitraire. */
     vector: vector, print3d: print3d,

@@ -3744,6 +3744,11 @@
       {
         z: 40, async fn(ctx, geom, doc, card, side) {
           const f = st(doc);
+          /* t421 : le Cadre ne gere pas l'hexagone. Il DORT, recto comme verso : ni
+             peinture, ni publication (le document n'est pas touche, le cadre
+             revient tel quel en rectangle). Le verso de la carte (card.back)
+             reste peint par la piece 01, comme pour tout deck sans cadre. */
+          if (geom.forme === "hex") return;
           publishWindow(geom, f);
           publishDecor(geom, f);
           if (side !== "back") {
@@ -3775,7 +3780,7 @@
       },
       {
         z: 70, fn(ctx, geom, doc, card, side) {
-          paintTop(ctx, geom, st(doc), card, side);
+          if (geom.forme !== "hex") paintTop(ctx, geom, st(doc), card, side);   /* t421 : le Cadre dort */
         },
       },
     ],

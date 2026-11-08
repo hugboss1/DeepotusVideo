@@ -1,0 +1,87 @@
+/* t421 (cartes hexagonales, 07/11/2026, tâche 5) — le dialogue « Nouveau jeu
+   depuis des images » (js/depuis-images.js). Même voile et même boîte que la
+   galerie (cardforge.css, bloc .cf-gal) ; tout vient des jetons de la charte,
+   angles vifs : aucun rayon littéral, seulement var(--r). */
+.cf-di { position: fixed; inset: 0; z-index: 61; display: flex; padding: 22px;
+  align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--bg-base) 78%, transparent); }
+.cf-di-box { display: flex; flex-direction: column; min-height: 0; width: min(1080px, 100%);
+  height: min(780px, 100%); background: var(--bg-panel); border: 1px solid var(--stroke-strong);
+  border-radius: var(--r); box-shadow: var(--shadow-1); overflow: hidden; }
+.cf-di-head { display: flex; align-items: center; gap: 14px; flex: none; padding: 11px 14px;
+  border-bottom: 1px solid var(--stroke); background: var(--bg-panel-2); }
+.cf-di-head b { color: var(--ink-strong); font-size: 13.5px; white-space: nowrap; }
+.cf-di-fermer { margin-left: auto; }
+
+/* les quatre temps */
+.cf-di-etapes { display: flex; gap: 4px; margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
+.cf-di-etape { display: flex; align-items: center; gap: 6px; background: transparent;
+  border: 1px solid transparent; border-radius: var(--r); color: var(--ink-muted);
+  padding: 3px 8px; font-family: inherit; font-size: 11.5px; cursor: pointer; }
+.cf-di-etape i { font-style: normal; color: var(--ink-soft); }
+.cf-di-etapes li.fait .cf-di-etape { color: var(--ink); }
+.cf-di-etapes li.cur .cf-di-etape { color: var(--ink-strong); border-color: var(--accent); }
+.cf-di-etapes li.cur .cf-di-etape i { color: var(--accent); }
+.cf-di-etape:disabled { cursor: default; }
+
+.cf-di-corps { flex: 1; min-height: 0; overflow-y: auto; padding: 14px;
+  display: flex; flex-direction: column; gap: 10px; }
+.cf-di-note { margin: 0; font-size: 11.5px; line-height: 1.55; color: var(--ink-muted); }
+.cf-di-note.ko, .cf-di-msg.ko, .cf-di-import.ko { color: var(--red); }
+
+/* champs */
+.cf-di-champ { display: flex; flex-direction: column; gap: 4px; max-width: 460px; }
+.cf-di-champ .lbl { color: var(--ink-soft); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.cf-di-champ input, .cf-di-champ select, .cf-di-outils input, .cf-di-outils select {
+  background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: var(--r);
+  color: var(--ink-strong); padding: 5px 9px; font-size: 12.5px; font-family: var(--f-ui); }
+
+/* la grille de la Bibliothèque */
+.cf-di-outils { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: none; }
+.cf-di-recherche { flex: 1; min-width: 180px; }
+.cf-di-projet { max-width: 260px; }
+.cf-di-ligne { display: flex; align-items: center; gap: 14px; flex: none; font-size: 11.5px; color: var(--ink-soft); }
+.cf-di-grille { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.cf-di-tuile { display: flex; flex-direction: column; gap: 4px; padding: 6px; text-align: left;
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: var(--r);
+  color: var(--ink); font-family: inherit; cursor: pointer; min-width: 0; }
+.cf-di-tuile[hidden] { display: none; }
+.cf-di-tuile:hover { border-color: var(--ink-soft); }
+.cf-di-tuile.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-base)); }
+.cf-di-tuile img { width: 100%; aspect-ratio: 5 / 7; object-fit: contain; background: var(--bg-panel-3); }
+.cf-di-nom { font-size: 10.5px; line-height: 1.35; color: var(--ink-strong); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.cf-di-dims { font-size: 9.5px; color: var(--ink-muted); }
+
+/* le verso */
+.cf-di-modes { display: flex; flex-direction: column; gap: 6px; max-width: 640px; }
+.cf-di-mode, .cf-di-case { display: flex; align-items: flex-start; gap: 10px; padding: 9px 11px;
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: var(--r); cursor: pointer; }
+.cf-di-mode.on { border-color: var(--accent); }
+.cf-di-mode-t, .cf-di-case > span { display: flex; flex-direction: column; gap: 3px; }
+.cf-di-mode b, .cf-di-case b { color: var(--ink-strong); font-size: 12.5px; font-weight: 500; }
+.cf-di-apercu { width: 140px; aspect-ratio: 5 / 7; object-fit: contain;
+  border: 1px solid var(--stroke); background: var(--bg-panel-3); }
+
+/* le récapitulatif */
+.cf-di-recap { display: grid; grid-template-columns: max-content 1fr; gap: 5px 16px; margin: 0; font-size: 12.5px; }
+.cf-di-recap dt { color: var(--ink-soft); }
+.cf-di-recap dd { margin: 0; color: var(--ink-strong); }
+.cf-di-case { max-width: 640px; }
+/* t421 : le gabarit de dessin d'un format hexagonal */
+.cf-di-gabarit { display: flex; flex-direction: column; gap: 6px; max-width: 640px; padding: 9px 11px;
+  background: var(--bg-base); border: 1px solid var(--stroke); }
+.cf-di-gabarit b { color: var(--ink-strong); font-size: 12.5px; font-weight: 500; }
+.cf-di-gabarit-liens { display: flex; gap: 8px; flex-wrap: wrap; }
+.cf-di-gabarit a.btn { text-decoration: none; }
+.cf-di-avert { margin: 0; padding: 8px 11px; font-size: 11.5px; line-height: 1.5; color: var(--ink);
+  border-left: 3px solid var(--amber); background: color-mix(in srgb, var(--amber) 9%, var(--bg-panel)); }
+.cf-di-liste { font-size: 11.5px; color: var(--ink); }
+.cf-di-liste summary { cursor: pointer; color: var(--ink-strong); }
+.cf-di-liste.avert summary { color: var(--amber); }
+.cf-di-liste ul, .cf-di-liste ol { margin: 6px 0 0; padding-left: 22px; max-height: 180px; overflow-y: auto; }
+
+/* le pied */
+.cf-di-pied { display: flex; align-items: center; gap: 8px; flex: none; padding: 10px 14px;
+  border-top: 1px solid var(--stroke); background: var(--bg-panel-2); }
+.cf-di-msg { font-size: 11.5px; color: var(--ink-soft); }

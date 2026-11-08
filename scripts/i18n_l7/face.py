@@ -211,11 +211,16 @@ ENTREES = [
              '      + (pv + 0.05 < pw ? \' — le cadre et les textes en masquent \' + fmt1(pw - pv)\n'
              '        + \' points de plus.\'',
        '\'">\' + dzT("cartes.face.papier_pct", { p: fmt1(pv) })\n'
-       '      + (pv + 0.05 < pw ? dzT("cartes.face.papier_masque", { d: fmt1(pw - pv) })',
+       # t421 (vague finale, C3) : sur un hexagone (ni cadre ni texte), ce qui n'atteint pas le papier, ce sont les
+       # coins hors de l'hexagone ; la phrase d'un rectangle est inchangée
+       '      + (pv + 0.05 < pw ? (CF.geom().forme === "hex" ? dzT("cartes.face.papier_masque_hex", { d: fmt1(pw - pv) })\n'
+       '        : dzT("cartes.face.papier_masque", { d: fmt1(pw - pv) }))',
        {"papier_pct": ("Sur la carte imprimée : <b>{p} % de la pose atteint le papier</b>",
                        "On the printed card: <b>{p} % of the placed image reaches the paper</b>"),
         "papier_masque": (" — le cadre et les textes en masquent {d} points de plus.",
-                          " — the frame and text boxes hide {d} more points.")}),
+                          " — the frame and text boxes hide {d} more points."),
+        "papier_masque_hex": (" — les coins hors de l'hexagone ne sont pas imprimés : {d} points de plus.",
+                              " — the corners outside the hexagon are not printed: {d} more points.")}),
     SS(2828, '\'<span class="mono">Compté par le moteur : \' + MASK.vis.toLocaleString("fr-FR")\n'
              '      + \' px sur \' + (meme\n'
              '        ? \'une pose qui couvre la carte entière, \' + carte\n'
