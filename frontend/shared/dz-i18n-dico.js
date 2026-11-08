@@ -20394,6 +20394,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "vectorlab.trace.valider": {"fr": "Valider", "en": "Confirm"},
   "vectorlab.trace.valider_titre": {"fr": "Pose les chemins dans un calque neuf « vectorisé » (une commande, annulable)", "en": "Places the paths in a new “vectorisé” layer (one command, undoable)"},
   "vectorlab.trace.vendor_absent": {"fr": "imagetracerjs indisponible (vendor non chargé)", "en": "imagetracerjs unavailable (vendor not loaded)"},
+  "vectorlab.traces.sans_contour": {"fr": "Vectoriser le contour : sélectionnez un tracé, une forme ou une ligne qui a un contour plein (épaisseur > 0, sans pointillés)", "en": "Outline Stroke: select a path, shape or line with a solid stroke (width > 0, not dashed)"},
   "vectorlab.tranches.calques": {"fr": "Chaque calque visible", "en": "Each visible layer"},
   "vectorlab.tranches.dessinees": {"fr": "Tranches dessinées", "en": "Drawn slices"},
   "vectorlab.tranches.document": {"fr": "Document entier", "en": "Whole document"},

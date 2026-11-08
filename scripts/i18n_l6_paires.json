@@ -1009,6 +1009,12 @@
     "groupe": "outils_lab"
    },
    {
+    "pos": 1996,
+    "avant": "const _pt = (m, x, y) => [m[0] * x + m[2] * y + m[4],\r\n                          m[1] * x + m[3] * y + m[5]];",
+    "apres": "const _net = (v) => Math.round(v * 1e9) / 1e9 + 0;   // t422 : 6e-15 → 0 (sinon martinez boucle)\r\nconst _pt = (m, x, y) => [_net(m[0] * x + m[2] * y + m[4]),\r\n                          _net(m[1] * x + m[3] * y + m[5])];",
+    "groupe": "t422"
+   },
+   {
     "pos": 3256,
     "avant": "\"chemin sans M initial\"",
     "apres": "T(\"vectorlab.bool.sans_m\")",
@@ -1025,6 +1031,12 @@
     "avant": "`type non aplatissable: ${objet.type}`",
     "apres": "T(\"vectorlab.bool.non_aplatissable\", { type: objet.type })",
     "groupe": "outils_lab"
+   },
+   {
+    "pos": 8088,
+    "avant": "const _dDeMulti = (mp) => mp.map(_dDePoly).filter(Boolean).join(\" \");",
+    "apres": "const _dDeMulti = (mp) => mp.map(_dDePoly).filter(Boolean).join(\" \");\r\n// t422 : lus par mod-traces.js (lot D1 « Tracés ») — l'écriture d'un multipolygone et les cibles déverrouillées\r\nexport const multi_vers_d = (mp) => _dDeMulti(mp);\r\nexport const cibles_b = (doc, ids) => _ciblesB(doc, ids);",
+    "groupe": "t422"
    },
    {
     "pos": 10489,
