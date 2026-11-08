@@ -2077,6 +2077,18 @@
     "groupe": "fiches"
    },
    {
+    "pos": 2571,
+    "avant": "/* ── DOM ── */",
+    "apres": "// t259 : la position de l'encart. Une option DANS un menu (flyout du Photolab) le reçoit à CÔTÉ du menu — dessous, il\r\n// couvrirait les lignes suivantes que l'utilisateur veut encore survoler ; ailleurs, la position de la bulle courte.\r\nexport function didact_position(el, menu, taille, fenetre, marge = 8) {\r\n  if (!menu) return bulle_position(el, taille, fenetre, marge);\r\n  let x = menu.x + menu.w + marge;\r\n  if (x + taille.w > fenetre.w - marge) x = Math.max(marge, menu.x - marge - taille.w);\r\n  const y = Math.max(marge, Math.min(fenetre.h - marge - taille.h, el.y));\r\n  return { x, y, dessous: false };\r\n}\r\n\r\n/* ── DOM ── */",
+    "groupe": "posterieures_t259_t421"
+   },
+   {
+    "pos": 3142,
+    "avant": "const r = el.getBoundingClientRect();\r\n    const p = bulle_position({ x: r.left, y: r.top, w: r.width, h: r.height }, { w: encart.offsetWidth, h: encart.offsetHeight },\r\n                             { w: window.innerWidth, h: window.innerHeight }, 8);",
+    "apres": "const r = el.getBoundingClientRect(), m = el.closest('[role=\"menu\"]'), rm = m ? m.getBoundingClientRect() : null;\r\n    const p = didact_position({ x: r.left, y: r.top, w: r.width, h: r.height }, rm && { x: rm.left, y: rm.top, w: rm.width, h: rm.height },\r\n                              { w: encart.offsetWidth, h: encart.offsetHeight }, { w: window.innerWidth, h: window.innerHeight }, 8);",
+    "groupe": "posterieures_t259_t421"
+   },
+   {
     "pos": 7502,
     "avant": "\"Aide : \" + f.titre",
     "apres": "T(\"vectorlab.didact.aide\", { titre: f.titre })",
@@ -3573,10 +3585,22 @@
     "groupe": "export"
    },
    {
+    "pos": 2183,
+    "avant": "if (!r) return false;",
+    "apres": "if (!r) return false;\r\n    if (r.refus) { VL.toast(T(\"commun.envoi.refuse\", { nom: r.refus }), true); return false; }     // t421 : dit, n'ouvre rien",
+    "groupe": "posterieures_t259_t421"
+   },
+   {
     "pos": 2730,
     "avant": "`Envoi vers le Vectorlab : ${e.message}`",
     "apres": "T(\"vectorlab.envoi.echec\", { m: e.message })",
     "groupe": "export"
+   },
+   {
+    "pos": 2969,
+    "avant": "if (!r) return;",
+    "apres": "if (!r) return;\r\n    if (r.refus) { VL.toast(T(\"commun.envoi.refuse\", { nom: r.refus }), true); return; }",
+    "groupe": "posterieures_t259_t421"
    }
   ],
   "js/mod-export.js": [
