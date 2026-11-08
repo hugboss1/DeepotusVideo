@@ -144,7 +144,7 @@ async def main():
           - set(_B.BOITES["scan"]["outils"]) - set(_B.BOITES["capture"]["outils"])
           - set(_B.BOITES["assets3d"]["outils"]) - set(_B.BOITES["chapitres"]["outils"])
           - set(_B.BOITES["plateau"]["outils"]) - set(_B.BOITES["blender"]["outils"])
-          - set(_B.BOITES["methodes"]["outils"]) - set(_B.BOITES["briques"]["outils"]) - set(_B.BOITES["monteur"]["outils"]) - set(_B.BOITES["retouche"]["outils"]) - set(_B.BOITES["acteurs"]["outils"]) - set(_B.BOITES["publicite"]["outils"]) - set(_B.BOITES["sprites_qc"]["outils"]) == DIX   # t433 : « methodes » ; t434 : « briques » ; t435 : « monteur »
+          - set(_B.BOITES["methodes"]["outils"]) - set(_B.BOITES["briques"]["outils"]) - set(_B.BOITES["monteur"]["outils"]) - set(_B.BOITES["retouche"]["outils"]) - set(_B.BOITES["acteurs"]["outils"]) - set(_B.BOITES["publicite"]["outils"]) - set(_B.BOITES["sprites_qc"]["outils"]) - set(_B.BOITES["web3d"]["outils"]) == DIX   # t433 : « methodes » ; t434 : « briques » ; t435 : « monteur »
              # t319 : boîte « capture » ; t342 : boîte « assets3d » ; t337 : boîte « chapitres » ; t333 : boîte « plateau »
           and set(_B.outils_pour("campagnes")) == DIX, str(sorted(ao.OUTILS)))
     defs = ao.definitions()

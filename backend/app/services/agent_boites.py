@@ -112,7 +112,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.methodes",
         "outils": ["methodes_lire"],
         "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
-                   "publicitaire", "artiste_2d"],   # t435-t440 : les agents métier
+                   "publicitaire", "artiste_2d", "artiste_3d"],   # t435-t441 : les agents métier
         "mobile": False,
     },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
@@ -121,7 +121,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.briques",
         "outils": ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"],
         "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
-                   "publicitaire", "artiste_2d"],   # t435-t440 : les agents métier
+                   "publicitaire", "artiste_2d", "artiste_3d"],   # t435-t441 : les agents métier
         "mobile": False,
     },
     # t435 (08/11/2026, lot M2) : l'agent métier Monteur — temps forts d'une musique, coupes calées, titre gravé par
@@ -163,12 +163,19 @@ BOITES: dict[str, dict] = {
         "agents": ["artiste_2d"],
         "mobile": False,
     },
+    # t441 (08/11/2026, lot M8) : le rapport de poids web d'un GLB (lecture, local, gratuit)
+    "web3d": {
+        "libelle": "agent.boites.web3d",
+        "outils": ["rapport_web_glb"],
+        "agents": ["artiste_3d"],
+        "mobile": False,
+    },
     # t342 : pièces mobiles et budgets de triangles (lecture seule) ; aucun agent ne la déclare encore (comme « scan »)
     "assets3d": {
         "libelle": "agent.boites.assets3d",
         "outils": ["pieces_analyser", "budgets_triangles", "comparatif3d_lire",   # t344 : + le tableau d'un comparatif
                    "mouvement_lire"],   # t343 : + le mouvement sur le rig (lecture)
-        "agents": ["mcp"],   # t345 : Claude Code lit pièces, budgets et comparatifs (lecture)
+        "agents": ["mcp", "artiste_3d"],   # t345 : Claude Code lit pièces, budgets et comparatifs ; t441 : + l'Artiste 3D
         "mobile": False,
     },
 }

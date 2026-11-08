@@ -14598,5 +14598,17 @@
  "Image trop grande pour ce contrôle (4096 px au plus).": {
   "fr": "Image trop grande pour ce contrôle (4096 px au plus).",
   "en": "Image too large for this check (4096 px at most)."
+ },
+ "Le rapport de poids lit un modèle .glb.": {
+  "fr": "Le rapport de poids lit un modèle .glb.",
+  "en": "The weight report reads a .glb model."
+ },
+ "Budget invalide.": {
+  "fr": "Budget invalide.",
+  "en": "Invalid budget."
+ },
+ "GLB illisible : {v}": {
+  "fr": "GLB illisible : {v}",
+  "en": "Unreadable GLB: {v}"
  }
 }

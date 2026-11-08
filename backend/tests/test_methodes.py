@@ -126,7 +126,7 @@ def main():
     check("4.1 boîte « methodes » : methodes_lire, agents « mcp » et Monteur (t435), pas sur le téléphone ; registre sain",
           B.BOITES.get("methodes") == {"libelle": "agent.boites.methodes", "outils": ["methodes_lire"],
                                        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
-                                                  "publicitaire", "artiste_2d"], "mobile": False} and B.verifier() == [], B.verifier())
+                                                  "publicitaire", "artiste_2d", "artiste_3d"], "mobile": False} and B.verifier() == [], B.verifier())
     check("4.2 methodes_lire est en lecture et visible de « mcp », pas de Campagnes",
           ao.OUTILS["methodes_lire"]["nature"] == "lecture" and "methodes_lire" in B.outils_pour("mcp")
           and "methodes_lire" not in B.outils_pour("campagnes"))
