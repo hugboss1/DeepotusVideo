@@ -229,22 +229,26 @@ un groupe ordinaire, dont les copies reçoivent des ids `o<n>` neufs (`_idLibre`
   `test_vectorlab_guide_devis` 17.
 - Fiches didactiques animées : non (même décision qu'en D1).
 
-### T9 (t458) — Preuve et livraison
+### T9 (t458) — Preuve et livraison (FAIT)
 
-- `node qa/run.mjs` vert en entier, plus les bancs Python touchés (i18n L6, icônes G3, catalogue, guide).
-- Preuve sur une instance isolée 8799 (config `preuve-vl-d1` du `.claude/launch.json` principal) :
-  - rosace de 12, grille hexagonale 5 × 5, miroir ;
-  - fusion carré → cercle sur un arc ;
-  - éditer la source et voir suivre ;
-  - Ctrl+Z ; décomposer ;
-  - export SVG relu ;
-  - FR puis EN.
-- PR unique. **Installation dans %LOCALAPPDATA% seulement sur accord de l'utilisateur**, selon la procédure
-  `git hash-object` + instantané `git archive` + sauvegarde.
+- `origin/main` (chantier Méthodes, découpage hexagonal du plateau) fusionnée dans la branche sans conflit ;
+  générateur L6, catalogue et guide relancés : rien ne change.
+- Bancs : `node qa/run.mjs` vert, bancs `frontend/shared/qa` verts ; `test_i18n_l6` 24 (il a attrapé une clé de
+  libellé de poignée construite par concaténation — corrigé), `test_icones_g3_vectorlab` 18, `test_agent_catalogue`
+  117, `test_agent_connaissance` 12, `test_agent_aide` 23, `test_agent_ecran` 21, `test_guide_v3` 494,
+  `test_vectorlab_guide_devis` 17.
+- Preuve 8799 sur le code fusionné : rosace de 12, grille hexagonale 5 × 5, miroir à écart 5, fusion carré → cercle
+  sur un arc, 7 étapes orientées ; la source change → les copies suivent, Ctrl+Z ; export SVG valide (13 ellipses,
+  35 tracés, aucune trace des recettes ; la trajectoire invisible y est un tracé sans couleur) ; enregistré puis
+  rechargé depuis le serveur : les quatre objets restent vivants ; Décomposer au menu → copies `o<n>` qui ne suivent
+  plus. Menus, dialogues, Apparence et poignées vus en FR et EN aux tâches T6 et T7.
+- PR unique. **Installation dans %LOCALAPPDATA% seulement sur accord de l'utilisateur.**
 
 ## Hors lot (lignes de suivi)
 
 - Interpolation des dégradés et des motifs dans la fusion.
 - Fusion de plus de deux objets (A → B → C).
 - Répétition le long d'un chemin quelconque : Illustrator ne la fait pas, mais une frise de carte en profiterait.
+- Poignées de la grille (écarts) et de la fusion ; trajectoire d'une fusion sélectionnable sur la toile.
+- Icônes des nouvelles entrées du menu Vecteur.
 - Copies non stockées, calculées au rendu, si la taille des documents devient un problème.
