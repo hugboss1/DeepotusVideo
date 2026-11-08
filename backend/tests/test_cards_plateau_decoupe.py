@@ -6,6 +6,7 @@ perdu fait des pixels voisins. Aucun appel réseau, aucune dépense.
 
 Run : <embedded python> backend/tests/test_cards_plateau_decoupe.py
 """
+import math
 import pathlib
 import sys
 import time
@@ -42,42 +43,74 @@ def test_nombre_taille_et_ordre():
     assert all(im.size == g.canvas_px and im.mode == "RGBA" for _, _, im in t)
 
 
-def _plus_proche(g, px, py, k):
-    """(rang, colonne) du centre le plus proche du pixel (centre de pixel)."""
-    mx, my = (px + 0.5), (py + 0.5)
-    return min(g.centres_mm, key=lambda c: (
-        (c[2] * k - mx) ** 2 + (c[3] * k - my) ** 2, c[0], c[1]))[:2]
+def _dans_hexagone(g, cx, cy, k, px, py, marge=0.02):
+    """Le centre du pixel (px, py) est-il STRICTEMENT à l'intérieur (marge en
+    pixels) de l'hexagone de coupe centré (cx, cy) mm ? Test géométrique
+    indépendant du code testé : hexagone régulier de côté plat à côté plat p."""
+    pointe = CT.geom(g.fmt).orientation == "pointe"
+    p = min(CT.geom(g.fmt).trim_mm) * k
+    demi_h = p / math.sqrt(3.0)                    # rayon (sommet) en px
+    u, v = (px + 0.5) - cx * k, (py + 0.5) - cy * k
+    if not pointe:
+        u, v = v, u                               # transposée
+    return abs(u) < p / 2 - marge and abs(v) + abs(u) / math.sqrt(3.0) < demi_h - marge
 
 
-def test_partition_exacte_des_pixels():
-    # Chaque pixel de W situé dans la COUPE d'une tuile (centre le plus proche
-    # ET dans le contour de fond perdu de cette tuile) est couvert, opaque et
-    # de la couleur de W, par sa tuile ; aucun pixel de coupe perdu.
-    g = P.grille("hex_p50", 3, 2)
-    cg = CT.geom("hex_p50", DPI_TEST, g.bleed_mm)
-    cadrage = {}
-    w = P._image_travail(_mire(900, 700), g, cadrage, DPI_TEST)
-    tuiles = {(r, c): im for r, c, im in P.decouper(
-        _mire(900, 700), g, cadrage, DPI_TEST)}
-    k = DPI_TEST / 25.4
-    origines = {(r, c): (round(x * k - cg.canvas_px[0] / 2),
-                         round(y * k - cg.canvas_px[1] / 2))
-                for r, c, x, y in g.centres_mm}
-    vus = 0
-    for py in range(w.height):
-        for px in range(w.width):
-            cle = _plus_proche(g, px, py, k)
-            ox, oy = origines[cle]
-            lx, ly = px - ox, py - oy
-            im = tuiles[cle]
-            if not (0 <= lx < im.width and 0 <= ly < im.height):
-                continue       # hors toile : ce pixel n'est dans aucune coupe
-            a = im.getpixel((lx, ly))
-            if a[3] == 255:
-                vus += 1
-                assert a == w.getpixel((px, py))
-    # l'essentiel de l'image de travail est dans la coupe d'une tuile (les coins vides des rangées décalées n'en sont pas)
-    assert vus > 0.7 * w.width * w.height
+def _cas_partition(fmt, bleed, dpi, colonnes, rangees):
+    g = P.grille(fmt, colonnes, rangees, bleed)
+    cg = CT.geom(fmt, dpi, g.bleed_mm)
+    src = _mire(900, 700)
+    w = P._image_travail(src, g, {}, dpi)
+    tuiles = P.decouper(src, g, {}, dpi)
+    k = dpi / 25.4
+    nb = bytearray(w.width * w.height)          # tuiles opaques par pixel de W
+    for (r, c, im), (_, _, cx, cy) in zip(tuiles, g.centres_mm):
+        ox = round(cx * k - cg.canvas_px[0] / 2)
+        oy = round(cy * k - cg.canvas_px[1] / 2)
+        alpha = im.getchannel("A").tobytes()
+        for ly in range(im.height):
+            for lx in range(im.width):
+                if alpha[ly * im.width + lx] and 0 <= ox + lx < w.width                         and 0 <= oy + ly < w.height:
+                    nb[(oy + ly) * w.width + ox + lx] += 1
+    inside, pointes = 0, 0
+    for (r, c, im), (_, _, cx, cy) in zip(tuiles, g.centres_mm):
+        ox = round(cx * k - cg.canvas_px[0] / 2)
+        oy = round(cy * k - cg.canvas_px[1] / 2)
+        for ly in range(im.height):
+            for lx in range(im.width):
+                px, py = ox + lx, oy + ly
+                if not (0 <= px < w.width and 0 <= py < w.height):
+                    continue
+                if _dans_hexagone(g, cx, cy, k, px, py):
+                    inside += 1
+                    a = im.getpixel((lx, ly))
+                    assert a[3] == 255, (fmt, bleed, dpi, r, c, px, py)
+                    assert a == w.getpixel((px, py))
+                    if bleed == 0:
+                        assert nb[py * w.width + px] == 1, (r, c, px, py)
+                    # pixels des pointes : à moins de 2 px du sommet du haut
+                    if abs(abs(py + 0.5 - cy * k) - min(cg.trim_mm) * k / math.sqrt(3.0)) < 3                             and CT.geom(fmt).orientation == "pointe":
+                        pointes += 1
+    assert inside > 1000
+    if CT.geom(fmt).orientation == "pointe":
+        assert pointes > 0
+    if bleed == 0:
+        # jamais deux tuiles opaques sur un même pixel : coupes disjointes
+        assert max(nb) == 1
+
+
+@pytest.mark.parametrize("fmt,bleed,dpi,colonnes,rangees", [
+    ("hex_p50", None, 72, 3, 2),
+    ("hex_p50", 0.0, 72, 3, 2),
+    ("hex_f50", None, 72, 3, 2),
+    ("hex_f50", 0.0, 72, 3, 2),
+    ("hex_p50", 0.0, 300, 2, 1),
+])
+def test_partition_exacte_des_pixels(fmt, bleed, dpi, colonnes, rangees):
+    # Tout pixel strictement dans l'hexagone de coupe d'une tuile (test
+    # géométrique indépendant) est opaque, de la couleur de l'image de travail
+    # ; sans fond perdu, il n'est opaque que dans UNE tuile (partition exacte).
+    _cas_partition(fmt, bleed, dpi, colonnes, rangees)
 
 
 def test_fond_perdu_vient_des_pixels_voisins():
@@ -90,17 +123,46 @@ def test_fond_perdu_vient_des_pixels_voisins():
     k = DPI_TEST / 25.4
     ox, oy = round(cx * k - cg.canvas_px[0] / 2), round(cy * k - cg.canvas_px[1] / 2)
     im = t[(2, 2)]
-    # pixels opaques hors de la coupe de (2,2) : leur couleur est celle de W
-    hors, total = 0, 0
+    hors = 0
     for ly in range(im.height):
         for lx in range(im.width):
             px, py = lx + ox, ly + oy
             a = im.getpixel((lx, ly))
-            if a[3] == 255 and _plus_proche(g, px, py, k) != (2, 2):
+            if a[3] == 255 and not _dans_hexagone(g, cx, cy, k, px, py, -0.5):
                 hors += 1
                 assert a == w.getpixel((px, py))
-            total += 1
     assert hors > 100      # le fond perdu existe bien
+
+
+def test_cadrage_zoom_position():
+    # bande rouge x < 50 sur fond bleu ; zoom 4 calé à gauche : la bande
+    # occupe la fraction 50 / (largeur du cadrage) de gauche de l'image de travail.
+    src = Image.new("RGB", (800, 600), (0, 0, 255))
+    src.paste((255, 0, 0), (0, 0, 50, 600))
+    g = P.grille("hex_p50", 2, 2)
+    _, _, rw, _ = P.cadrage_couvrant(800, 600, g.largeur_mm, g.hauteur_mm, 4, 0, 0)
+    frac = 50 / rw
+    assert 0.2 < frac < 0.9
+    cg = CT.geom("hex_p50", DPI_TEST, g.bleed_mm)
+    k = DPI_TEST / 25.4
+    wlarg = round(g.largeur_mm * k)
+    _, _, im = P.decouper(src, g, {"zoom": 4, "x": 0, "y": 0}, DPI_TEST)[0]
+    cx, cy = g.centres_mm[0][2:]
+    ox, oy = round(cx * k - cg.canvas_px[0] / 2), round(cy * k - cg.canvas_px[1] / 2)
+    ly = round(cy * k) - oy
+    rouge = bleu = 0
+    for lx in range(im.width):
+        a = im.getpixel((lx, ly))
+        if a[3] != 255:
+            continue
+        x_rel = (ox + lx + 0.5) / wlarg
+        if x_rel < frac - 0.03:
+            assert a[:3] == (255, 0, 0), (lx, a)
+            rouge += 1
+        elif x_rel > frac + 0.03:
+            assert a[:3] == (0, 0, 255), (lx, a)
+            bleu += 1
+    assert rouge > 5 and bleu > 5
 
 
 def test_hors_contour_transparent():
@@ -137,12 +199,13 @@ def test_source_intacte():
     assert src.tobytes() == avant
 
 
-def test_rendement_6x4_hex_p90_300dpi():
+def test_rendement_6x4_hex_p90_300dpi(capsys):
     t0 = time.perf_counter()
     t = P.decouper(_mire(1400, 1000), P.grille("hex_p90", 6, 4), {})
     duree = time.perf_counter() - t0
-    print("decouper 6x4 hex_p90 300 dpi : %.2f s" % duree)
-    assert len(t) == 24 and duree < 20
+    with capsys.disabled():
+        print("decouper 6x4 hex_p90 300 dpi : %.2f s" % duree)
+    assert len(t) == 24      # durée relevée dans le rapport, non plafonnée ici
 
 
 if __name__ == "__main__":

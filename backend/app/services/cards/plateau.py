@@ -17,7 +17,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 from . import hexa
 from .contract import geom, is_hex
@@ -147,11 +147,58 @@ def _image_travail(src: Image.Image, g: Grille, cadrage: dict,
         taille, Image.LANCZOS, box=(gauche, haut, gauche + w, haut + h))
 
 
-def _origine_tuile(g: Grille, cx_mm: float, cy_mm: float, dpi: int,
+def _origine_tuile(cx_mm: float, cy_mm: float, dpi: int,
                    canvas: tuple[int, int]) -> tuple[int, int]:
     """Coin haut-gauche (pixels de l'image de travail) de la toile d'une tuile."""
     k = dpi / 25.4
     return (round(cx_mm * k - canvas[0] / 2), round(cy_mm * k - canvas[1] / 2))
+
+
+_Q = 1024     # les centres sont quantifiés au 1/1024 de pixel : tests exacts
+
+
+def _masque_coupe(index: int, centres: list[tuple[int, int]],
+                  origine: tuple[int, int], canvas: tuple[int, int]) -> Image.Image:
+    """Pixels de la toile (centre de pixel) dont le centre de grille le plus
+    proche est la tuile `index` ; égalité : plus petit index (= plus petit
+    (rang, colonne)). Calcul exact en entiers, rangée par rangée : chaque
+    autre centre ne retient qu'un intervalle de colonnes."""
+    cw, ch = canvas
+    ox, oy = origine
+    tx, ty = centres[index]
+    # un centre plus loin que la diagonale de la toile ne peut pas gagner
+    rayon = 2 * math.hypot(cw, ch) * _Q
+    voisins = []
+    for j, (ux, uy) in enumerate(centres):
+        if j != index and math.hypot(ux - tx, uy - ty) <= rayon:
+            voisins.append((ux - tx, uy - ty, tx * tx + ty * ty - ux * ux - uy * uy,
+                            index < j))
+    masque = Image.new("L", canvas, 0)
+    dessin = ImageDraw.Draw(masque)
+    for ly in range(ch):
+        py = _Q * (oy + ly) + _Q // 2
+        bas, haut = ox, ox + cw - 1            # colonnes globales candidates
+        for dx, dy, dk, gagne_egalite in voisins:
+            # d(X) = A·X + B  ;  la tuile gagne si d < 0 (ou d <= 0 à égalité)
+            a_ = 2 * _Q * dx
+            b_ = 2 * (_Q // 2) * dx + 2 * py * dy + dk
+            if a_ == 0:
+                if b_ > 0 or (b_ == 0 and not gagne_egalite):
+                    bas, haut = 1, 0
+                    break
+                continue
+            if a_ > 0:
+                lim = (-b_) // a_ if gagne_egalite else (-b_ - 1) // a_
+                haut = min(haut, lim)
+            else:
+                m = -a_
+                lim = -((-b_) // m) if gagne_egalite else b_ // m + 1
+                bas = max(bas, lim)
+            if bas > haut:
+                break
+        if bas <= haut:
+            dessin.line([(bas - ox, ly), (haut - ox, ly)], fill=255)
+    return masque
 
 
 def decouper(src: Image.Image, g: Grille, cadrage: dict,
@@ -159,24 +206,47 @@ def decouper(src: Image.Image, g: Grille, cadrage: dict,
     """Découpe `src` en tuiles RGBA (rang, colonne, image), ordre de lecture.
 
     Chaque tuile est une fenêtre de l'image de travail à la taille de la toile
-    du format (`geom(fmt, dpi, bleed).canvas_px`) ; l'alpha vaut 255 à
-    l'intérieur du contour de fond perdu de la tuile (`hexa.contour_toile_mm`)
-    et 0 ailleurs. Les pixels de la coupe d'une tuile (centre de grille le
-    plus proche) ne sont donc dans aucune autre coupe, et le fond perdu est
-    fait des pixels réels des voisines, jamais d'un prolongement. Fonction
-    pure : `src` n'est pas modifié, rien n'est écrit."""
+    du format (`geom(fmt, dpi, bleed).canvas_px`). Alpha 255 = COUPE (pixel
+    dont le centre de grille le plus proche, sur les centres FLOTTANTS de toute
+    la grille, est cette tuile) ∪ FOND PERDU (intérieur du contour de fond
+    perdu, posé sur le vrai centre et non sur l'origine arrondie) ; 0 ailleurs.
+    Chaque pixel de coupe est ainsi dans une seule tuile, même sans fond perdu,
+    et le fond perdu est fait des pixels réels des voisines. La coupe est
+    bornée à l'hexagone de coupe élargi d'un pixel (les tuiles du bord n'ont
+    pas de cellule infinie). Fonction pure : `src` n'est pas modifié."""
     cg = geom(g.fmt, dpi, g.bleed_mm)
     canvas = cg.canvas_px
     travail = _image_travail(src, g, cadrage, dpi)
     k = dpi / 25.4
-    contour = [(x * k, y * k) for x, y in hexa.contour_toile_mm(cg)]
-    # Masque de fond perdu, identique pour toutes les tuiles du format.
-    masque = Image.new("L", canvas, 0)
-    ImageDraw.Draw(masque).polygon(contour, fill=255)
+    mm = 25.4 / dpi
+    # centre de l'hexagone dans le repère toile (mm) et contours (repère toile)
+    ccx = cg.bleed_off_px[0] * mm + cg.trim_mm[0] / 2
+    ccy = cg.bleed_off_px[1] * mm + cg.trim_mm[1] / 2
+    ox_c, oy_c = cg.bleed_off_px[0] * mm, cg.bleed_off_px[1] * mm
+    bleed_toile = hexa.contour_toile_mm(cg)
+    coupe_large = [(x + ox_c, y + oy_c) for x, y in
+                   hexa.decale(cg.contour_mm, mm)]    # coupe élargie de 1 px
+    centres_q = [(round(cx * k * _Q), round(cy * k * _Q))
+                 for _, _, cx, cy in g.centres_mm]
     sortie = []
-    for rang, col, cx, cy in g.centres_mm:
-        ox, oy = _origine_tuile(g, cx, cy, dpi, canvas)
-        tuile = travail.crop((ox, oy, ox + canvas[0], oy + canvas[1]))
+    for i, (rang, col, cx, cy) in enumerate(g.centres_mm):
+        origine = _origine_tuile(cx, cy, dpi, canvas)
+        # position du vrai centre dans la toile de la tuile (px, flottant)
+        vx, vy = cx * k - origine[0], cy * k - origine[1]
+
+        def local(pts):
+            return [((x - ccx) * k + vx, (y - ccy) * k + vy) for x, y in pts]
+
+        fond = Image.new("L", canvas, 0)
+        if g.bleed_mm > 0:      # sans fond perdu, le contour n'est que la coupe
+            ImageDraw.Draw(fond).polygon(local(bleed_toile), fill=255)
+        borne = Image.new("L", canvas, 0)
+        ImageDraw.Draw(borne).polygon(local(coupe_large), fill=255)
+        coupe = ImageChops.multiply(
+            _masque_coupe(i, centres_q, origine, canvas), borne)
+        masque = ImageChops.lighter(fond, coupe)
+        tuile = travail.crop((origine[0], origine[1],
+                              origine[0] + canvas[0], origine[1] + canvas[1]))
         alpha = Image.new("L", canvas, 0)
         alpha.paste(tuile.getchannel("A"), mask=masque)
         tuile.putalpha(alpha)
