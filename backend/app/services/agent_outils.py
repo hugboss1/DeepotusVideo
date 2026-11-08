@@ -806,6 +806,17 @@ async def verifier_planche(ctx: Ctx, chemin: str, colonnes: int, lignes: int) ->
     return _res(True, f"planche {r['verdict']}" + (f" ({', '.join(r['problemes'])} bouge(nt) de plus de "
                                                    f"{r['tolerance_px']} px)" if r["problemes"] else "")
                 + f", {r['vides']} case(s) vide(s)", r)
+# ---- t441 (08/11/2026, lot M8) : le rapport de poids web d'un GLB (boîte « web3d », lecture) ----------------------
+async def rapport_web_glb(ctx: Ctx, chemin: str, budget_mo: float = 5.0, budget_tris: int = 100000) -> dict:
+    """t441 : poids, triangles mesurés, textures, compressions d'un .glb contre un budget web. Local, gratuit."""
+    from app.services import web3d_qc as _W3
+    try:
+        r = await asyncio.to_thread(_W3.rapport, chemin, budget_mo, budget_tris)
+    except (ValueError, RuntimeError, OSError) as e:
+        return _res(False, str(e)[:300])
+    return _res(True, f"{r['mo']} Mo, {r['triangles']} triangles, textures {round(r['part_textures'] * 100)} % : "
+                      f"{'dans le budget' if r['dans_le_budget'] else 'hors budget'}"
+                      + (f" ; {'; '.join(r['conseils'])}" if r["conseils"] else ""), r)
 # ---- t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (boîte « plateau ») -------------------
 # Lecture et PROPOSITION seulement : la légende de la previs (couleur par entité / matière, faisceaux exclus) et les
 # trois caméras de couverture CALCULÉES depuis la caméra du plan — rien n'est rangé, capturé ni créé (ces gestes
@@ -2459,6 +2470,15 @@ OUTILS: dict[str, dict] = {
                                        "colonnes": {"type": "integer", "minimum": 1, "maximum": 64},
                                        "lignes": {"type": "integer", "minimum": 1, "maximum": 64}},
                                       ["chemin", "colonnes", "lignes"])},
+    # t441 : le rapport de poids web d'un GLB (boîte « web3d », lecture)
+    "rapport_web_glb": {"nature": "lecture", "fn": rapport_web_glb,
+                        "description": "Lit un modèle .glb et le compare à un budget web : poids, triangles et "
+                                       "sommets MESURÉS, textures (part du poids, PNG), compressions présentes "
+                                       "(meshopt, Draco, WebP, KTX2) ; dit quoi faire pour tenir le budget. Gratuit.",
+                        "schema": _o({"chemin": dict(_T, description="le .glb"),
+                                      "budget_mo": {"type": "number", "description": "budget de poids en Mo (5)"},
+                                      "budget_tris": {"type": "integer", "description": "budget de triangles (100000)"}},
+                                     ["chemin"])},
     # t433 : le catalogue des méthodes (boîte « methodes », lecture)
     "methodes_lire": {"nature": "lecture", "fn": methodes_lire,
                       "description": "Les méthodes de l'application (fiches pas à pas : étapes, contrôles qualité, "

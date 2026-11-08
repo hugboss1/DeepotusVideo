@@ -54,6 +54,7 @@
   "agent.boites.acteurs": {"fr": "Répliques et voix", "en": "Lines and voice"},
   "agent.boites.publicite": {"fr": "Formats des pubs", "en": "Ad formats"},
   "agent.boites.sprites_qc": {"fr": "Contrôle des sprites", "en": "Sprite checks"},
+  "agent.boites.web3d": {"fr": "Poids web des modèles 3D", "en": "Web weight of 3D models"},
   "agent.boites.capture": {"fr": "Capture de l'app", "en": "App recording"},
   "agent.boites.recette": {"fr": "Recette exportable", "en": "Exportable recipe"},
   "agent.boites.fils": {"fr": "Fils suivis de News", "en": "Followed News feeds"},

@@ -291,7 +291,7 @@ def main():
     from app.services import agent_outils as ao
     noms = ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"]
     check("O1 boîte « briques » : cinq outils de lecture, agents mcp et Monteur (t435), registre sain",
-          B.BOITES.get("briques") == {"libelle": "agent.boites.briques", "outils": noms, "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs", "publicitaire", "artiste_2d"],
+          B.BOITES.get("briques") == {"libelle": "agent.boites.briques", "outils": noms, "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs", "publicitaire", "artiste_2d", "artiste_3d"],
                                       "mobile": False}
           and all(ao.OUTILS[x]["nature"] == "lecture" for x in noms) and B.verifier() == [], B.verifier())
     check("O2 visibles de mcp, pas de Campagnes", all(x in B.outils_pour("mcp") for x in noms)
