@@ -46,6 +46,7 @@ _ID = re.compile(r"^am_[0-9a-f]{12}$")
 # l'agent -> sa catégorie de dépense (plafonds.CATEGORIES : l'écran qui l'héberge) ; les lots M3-M9 en ajoutent
 ACTIFS: dict[str, dict] = {
     "monteur": {"categorie": "montage"},
+    "realisateur": {"categorie": "chapitres"},   # t436 : Chapitres, Plateau 3D, Scène Blender
 }
 _ROLES = Path(__file__).resolve().parent.parent.parent.parent / "docs" / "agent" / "metiers"
 _VERROUS: dict[str, asyncio.Lock] = {}

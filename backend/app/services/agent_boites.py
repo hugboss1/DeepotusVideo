@@ -86,7 +86,7 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.chapitres",
         "outils": ["lire_revue_plan", "lire_bible", "lire_plans", "lire_passes_plan",   # t334 : + les passes Blender du plan
                    "modeles_video"],   # t408 : + les modèles vidéo des menus et leur prix
-        "agents": ["mcp"],
+        "agents": ["mcp", "realisateur"],   # t436 : + le Réalisateur
         "mobile": False,
     },
     # t333 + t338 (29/10/2026) : la previs colorée et la couverture d'un plan (lecture, proposition) ; aucun agent ne
@@ -94,7 +94,7 @@ BOITES: dict[str, dict] = {
     "plateau": {
         "libelle": "agent.boites.plateau",
         "outils": ["plateau_previs"],
-        "agents": [],
+        "agents": ["realisateur"],   # t436 : le Réalisateur (agent métier) la déclare
         "mobile": False,
     },
     # t331 (29/10/2026) : le Blender ouvert en LECTURE (scène, capture) par le pont MCP local ; aucun agent ne la déclare
@@ -103,7 +103,7 @@ BOITES: dict[str, dict] = {
     "blender": {
         "libelle": "agent.boites.blender",
         "outils": ["blender_scene", "blender_regarder", "blender_retour"],   # t332 : + le dernier retour d'un plan
-        "agents": [],
+        "agents": ["realisateur"],   # t436 : le Réalisateur lit la scène ouverte (lecture, local)
         "mobile": False,
     },
     # t433 (08/11/2026, lot M0) : le catalogue des méthodes (lecture, gratuit) ; Claude Code (« mcp ») le lit ; les agents
@@ -111,7 +111,7 @@ BOITES: dict[str, dict] = {
     "methodes": {
         "libelle": "agent.boites.methodes",
         "outils": ["methodes_lire"],
-        "agents": ["mcp", "monteur"],   # t435 : + le Monteur
+        "agents": ["mcp", "monteur", "realisateur"],   # t435 : + le Monteur ; t436 : + le Réalisateur
         "mobile": False,
     },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
@@ -119,7 +119,7 @@ BOITES: dict[str, dict] = {
     "briques": {
         "libelle": "agent.boites.briques",
         "outils": ["mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire"],
-        "agents": ["mcp", "monteur"],   # t435 : + le Monteur
+        "agents": ["mcp", "monteur", "realisateur"],   # t435 : + le Monteur ; t436 : + le Réalisateur
         "mobile": False,
     },
     # t435 (08/11/2026, lot M2) : l'agent métier Monteur — temps forts d'une musique, coupes calées, titre gravé par
