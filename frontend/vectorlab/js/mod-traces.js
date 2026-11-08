@@ -2,7 +2,10 @@
 // tracé reprises d'Illustrator, en opérations PURES sur le modèle. Règle de mod-bool : tout se CALCULE avant de
 // muter — un refus ne laisse aucune trace ; l'UI les appelle par VL.executer (annulation comprise).
 import { T } from "./mod-i18n.js";
-import { contour_en_multi, multi_vers_d, cibles_b } from "./mod-bool.js";
+import { contour_en_multi, multi_vers_d, cibles_b, polylignes_objet } from "./mod-bool.js";
+import { chemin_parser, chemin_serialiser } from "./mod-doc.js";
+import { forme_d } from "./mod-formes.js";
+import { simplifier } from "./mod-crayon.js";
 
 // les types dont le contour se vectorise (un texte se vectorise d'abord par Texte › Convertir en courbes ; un
 // groupe porte des enfants de styles différents : dégrouper d'abord)
@@ -60,4 +63,111 @@ export function op_contour_vectoriser(doc, ids) {
     poses.push(pose.id);
   }
   return poses;
+}
+
+/* ── T2 (t423) Objet › Tracé › Simplifier… ──
+   Le tracé est aplati (0,25 px) dans SES coordonnées (le transform reste porté par l'objet), réduit par
+   Ramer–Douglas–Peucker (simplifier de mod-crayon) à une tolérance tirée de la précision, puis relissé en cubiques
+   qui passent PAR les points gardés (Catmull-Rom). Un point dont la direction tourne de plus de ANGLE_COIN degrés
+   reste un ANGLE : ses deux segments partent droits, comme le « seuil d'angle » d'Illustrator. `droites` rend des
+   segments seulement. Jamais plus de points que l'original : sans gain, l'objet est laissé tel quel. */
+const ANGLE_COIN = 60;
+const TYPES_SIMPLIFIABLES = new Set(["path", "forme", "rect", "ellipse"]);
+
+// points d'ancrage d'un d : par sous-chemin le M et chaque fin de segment ; un retour EXPLICITE au départ avant Z
+// ne compte pas (c'est le même point)
+export function compter_ancres(d) {
+  let n = 0, sous = [], ferme = false;
+  const fin = () => {
+    if (ferme && sous.length > 1) {
+      const a = sous[0], b = sous[sous.length - 1];
+      if (Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6) sous.pop();
+    }
+    n += sous.length; sous = []; ferme = false;
+  };
+  for (const g of chemin_parser(d)) {
+    if (g.c === "M") { fin(); sous.push(g.p.slice(0, 2)); }
+    else if (g.c === "Z") { ferme = true; fin(); }
+    else sous.push(g.p.slice(-2));
+  }
+  fin();
+  return n;
+}
+
+function _ancresAvant(o) {
+  if (o.type === "path") return compter_ancres(o.d);
+  if (o.type === "forme") return compter_ancres(forme_d(o));
+  return 4;                                                   // rect, ellipse
+}
+
+const _egaux = (a, b) => Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
+
+// tourne de plus de ANGLE_COIN degrés en p (venant de a, allant vers b) ?
+function _estCoin(a, p, b) {
+  const ux = p[0] - a[0], uy = p[1] - a[1], vx = b[0] - p[0], vy = b[1] - p[1];
+  const nu = Math.hypot(ux, uy), nv = Math.hypot(vx, vy);
+  if (!nu || !nv) return true;
+  const c = Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (nu * nv)));
+  return Math.acos(c) * 180 / Math.PI > ANGLE_COIN;
+}
+
+// une polyligne réduite → segments (M, L/C…, Z)
+function _segments(pts, ferme, droites) {
+  const n = pts.length, segs = [{ c: "M", p: [...pts[0]] }];
+  const nSeg = ferme ? n : n - 1;
+  const P = (i) => pts[((i % n) + n) % n];
+  const coin = (i) => (!ferme && (i === 0 || i === n - 1)) || _estCoin(P(i - 1), P(i), P(i + 1));
+  for (let i = 0; i < nSeg; i++) {
+    const p1 = P(i), p2 = P(i + 1), c1Coin = coin(i), c2Coin = coin((i + 1) % n === 0 && !ferme ? n - 1 : i + 1);
+    if (droites || (c1Coin && c2Coin)) { segs.push({ c: "L", p: [...p2] }); continue; }
+    // voisins : à un angle, le voisin est le MIROIR de l'autre extrémité (tangente = la corde)
+    const p0 = c1Coin ? [2 * p1[0] - p2[0], 2 * p1[1] - p2[1]] : P(i - 1);
+    const p3 = c2Coin ? [2 * p2[0] - p1[0], 2 * p2[1] - p1[1]] : P(i + 2);
+    const k = 1 / 6;
+    segs.push({ c: "C", p: [p1[0] + (p2[0] - p0[0]) * k, p1[1] + (p2[1] - p0[1]) * k,
+                            p2[0] - (p3[0] - p1[0]) * k, p2[1] - (p3[1] - p1[1]) * k, p2[0], p2[1]] });
+  }
+  if (ferme) segs.push({ c: "Z", p: [] });
+  return segs;
+}
+
+// -> { d, avant, apres } ; d = null quand il n'y a rien à gagner (précision 100 %, ou pas moins de points)
+export function simplifier_apercu(objet, { precision = 50, droites = false } = {}) {
+  const avant = _ancresAvant(objet);
+  const p = Math.max(0, Math.min(100, Number(precision)));
+  if (!TYPES_SIMPLIFIABLES.has(objet.type) || p >= 100) return { d: null, avant, apres: avant };
+  const local = { ...objet }; delete local.transform;          // la géométrie reste dans les coordonnées de l'objet
+  const lignes = polylignes_objet(local);
+  const tous = lignes.flatMap((l) => l.points);
+  if (!tous.length) return { d: null, avant, apres: avant };
+  const xs = tous.map((q) => q[0]), ys = tous.map((q) => q[1]);
+  const diag = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  const tol = Math.max(0.05, (100 - p) / 100 * 0.04 * diag);
+  const segs = [];
+  for (const l of lignes) {
+    let pts = l.points.filter((q, i, a) => i === 0 || !_egaux(q, a[i - 1]));
+    if (l.ferme && pts.length > 1 && _egaux(pts[0], pts[pts.length - 1])) pts.pop();
+    let r = l.ferme ? simplifier([...pts, pts[0]], tol).slice(0, -1) : simplifier(pts, tol);
+    if (r.length < (l.ferme ? 3 : 2)) return { d: null, avant, apres: avant };   // le sous-chemin s'effondrerait
+    segs.push(..._segments(r, l.ferme, droites));
+  }
+  const d = chemin_serialiser(segs);
+  const apres = compter_ancres(d);
+  return apres < avant ? { d, avant, apres } : { d: null, avant, apres: avant };
+}
+
+// -> ids simplifiés ; refus traduit (aucune trace) si rien n'est simplifiable ou si rien n'y gagne
+export function op_simplifier(doc, ids, opts = {}) {
+  const cibles = cibles_b(doc, ids).filter((c) => TYPES_SIMPLIFIABLES.has(c.objet.type));
+  if (!cibles.length) throw new Error(T("vectorlab.traces.simplifier_rien"));
+  const calculs = cibles.map((c) => ({ ...c, r: simplifier_apercu(c.objet, opts) })).filter((c) => c.r.d);
+  if (!calculs.length) throw new Error(T("vectorlab.traces.simplifier_deja"));
+  for (const c of calculs) {
+    const o = c.objet;
+    const neuf = o.type === "path" ? { ...o, d: c.r.d }
+      : { id: o.id, type: "path", d: c.r.d, style: { ...(o.style || {}) },
+          ...(o.nom ? { nom: o.nom } : {}), ...(o.transform ? { transform: o.transform } : {}) };
+    c.calque.objets.splice(c.calque.objets.indexOf(o), 1, neuf);
+  }
+  return calculs.map((c) => c.objet.id);
 }

@@ -27,4 +27,9 @@ ENTREES = [
       "Vectoriser le contour : sélectionnez un tracé, une forme ou une ligne qui a un contour plein (épaisseur > 0, "
       "sans pointillés)",
       "Outline Stroke: select a path, shape or line with a solid stroke (width > 0, not dashed)"),
+    # t423 Simplifier
+    H("vectorlab.traces.simplifier_rien", "Simplifier : sélectionnez un tracé ou une forme (pas un texte ni un groupe)",
+      "Simplify: select a path or a shape (not a text or a group)"),
+    H("vectorlab.traces.simplifier_deja", "Simplifier : ces tracés ont déjà le moins de points possible à cette précision",
+      "Simplify: these paths already have the fewest points at this precision"),
 ]

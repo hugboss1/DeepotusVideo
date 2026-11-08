@@ -2,9 +2,11 @@
 // js/mod-traces.js. Martinez vendorisé en vrai, comme opsbool2.
 // T1 (t422) Vectoriser le contour : le trait devient une surface pleine de la couleur du trait ; un objet rempli
 // devient un groupe [fond sans contour, contour vectorisé] à la même place ; refus sans trace.
+// T2 (t423) Simplifier : moins de points, forme tenue, angles gardés, jamais plus de points que l'original.
 import { createRequire } from "node:module";
 import { fournirMartinez, aplatir_objet, versMulti, aire_multi } from "../js/mod-bool.js";
-import { op_contour_vectoriser } from "../js/mod-traces.js";
+import { op_contour_vectoriser, op_simplifier, simplifier_apercu } from "../js/mod-traces.js";
+import { chemin_parser } from "../js/mod-doc.js";
 import { T } from "../js/mod-i18n.js";
 
 fournirMartinez(createRequire(import.meta.url)("../vendor/martinez.umd.js"));
@@ -109,6 +111,98 @@ const refus = (fn) => { try { fn(); return null; } catch (e) { return e.message;
   const avantV = JSON.stringify(v);
   ok("T1 calque verrouillé : refus et document intact", refus(() => op_contour_vectoriser(v, ["a"])) !== null
      && JSON.stringify(v) === avantV);
+}
+
+/* ── T2 : Simplifier ── */
+// points d'ancrage : par sous-chemin, le M et chaque fin de segment ; un retour EXPLICITE au départ avant Z ne compte pas
+const ancres = (d) => { let n = 0, sous = [];
+  const fin = () => { if (sous.length > 1 && sous.ferme) { const a = sous[0], b = sous[sous.length - 1]; if (Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6) sous.pop(); } n += sous.length; sous = []; };
+  for (const g of chemin_parser(d)) { if (g.c === "M") { fin(); sous.push(g.p.slice(0, 2)); } else if (g.c === "Z") { sous.ferme = true; fin(); } else sous.push(g.p.slice(-2)); }
+  fin(); return n; };
+const polyD = (pts, fermer) => "M " + pts.map((p) => p.map((v) => v.toFixed(3)).join(" ")).join(" L ") + (fermer ? " Z" : "");
+const cercle = (n, r = 50, cx = 100, cy = 100) => Array.from({ length: n }, (_, k) => [cx + r * Math.cos(2 * Math.PI * k / n), cy + r * Math.sin(2 * Math.PI * k / n)]);
+const bbox = (o) => { const p = aplatir_objet(o).flat(); const xs = p.map((q) => q[0]), ys = p.map((q) => q[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
+{
+  const d = doc({ id: "c", type: "path", d: polyD(cercle(200), true), style: { fond: "#0047AB", contour: "#000", epaisseur: 1 }, nom: "Cercle" });
+  const avant = ancres(objets(d)[0].d);
+  const ap = simplifier_apercu(objets(d)[0], { precision: 50 });
+  ok("T2 aperçu : nombre de points avant → après", ap.avant === avant && ap.apres < avant && ap.apres === ancres(ap.d), JSON.stringify([ap.avant, ap.apres]));
+  const ids = op_simplifier(d, ["c"], { precision: 50 });
+  const o = objets(d)[0];
+  ok("T2 cercle de 200 points → au moins 10 fois moins de points (mesuré : 16)", ids.length === 1 && ancres(o.d) <= 20 && ancres(o.d) >= 4, ancres(o.d));
+  ok("T2 cercle : aire tenue (± 1 %)", pres(aire(o), Math.PI * 2500, 1), aire(o));
+  const b = bbox(o);
+  ok("T2 cercle : boîte tenue (± 1,5 px)", Math.abs(b[0] - 50) <= 1.5 && Math.abs(b[1] - 50) <= 1.5 && Math.abs(b[2] - 150) <= 1.5 && Math.abs(b[3] - 150) <= 1.5, JSON.stringify(b));
+  ok("T2 cercle : courbes, fermé", /C/.test(o.d) && /Z\s*$/.test(o.d), o.d.slice(0, 80));
+  ok("T2 id, nom et style gardés", o.id === "c" && o.nom === "Cercle" && o.style.fond === "#0047AB" && o.style.epaisseur === 1);
+  ok("T2 l'aperçu rend exactement ce que pose la commande", o.d === ap.d);
+}
+{
+  const d0 = polyD(cercle(200), true);
+  const d = doc({ id: "c", type: "path", d: d0, style: { fond: "#eee" } });
+  const m = refus(() => op_simplifier(d, ["c"], { precision: 100 }));
+  ok("T2 précision 100 % : rien à gagner, refus « déjà simple », tracé inchangé", m === T("vectorlab.traces.simplifier_deja") && objets(d)[0].d === d0, m);
+}
+{
+  // carré dont les côtés portent 40 points alignés : 4 angles, côtés droits, aire exacte
+  const pts = [];
+  for (const [a, b] of [[[0, 0], [100, 0]], [[100, 0], [100, 100]], [[100, 100], [0, 100]], [[0, 100], [0, 0]]]) {
+    for (let k = 0; k < 10; k++) pts.push([a[0] + (b[0] - a[0]) * k / 10, a[1] + (b[1] - a[1]) * k / 10]);
+  }
+  const d = doc({ id: "q", type: "path", d: polyD(pts, true), style: { fond: "#eee" } });
+  op_simplifier(d, ["q"], { precision: 50 });
+  const o = objets(d)[0];
+  ok("T2 carré : 4 points (les angles sont gardés)", ancres(o.d) === 4, o.d);
+  ok("T2 carré : aire exacte (± 0,1 %)", pres(aire(o), 10000, 0.1), aire(o));
+  ok("T2 carré : entre deux angles, un segment droit (L), pas une courbe", !/C/.test(o.d), o.d);
+  const e = doc({ id: "q", type: "path", d: polyD(pts, true), style: { fond: "#eee" } });
+  op_simplifier(e, ["q"], { precision: 50, droites: true });
+  ok("T2 lignes droites : que des segments L", !/C/.test(objets(e)[0].d) && ancres(objets(e)[0].d) === 4, objets(e)[0].d);
+}
+{
+  // ligne bruitée ouverte (± 0,2 px) : deux points, pas de fermeture
+  const pts = Array.from({ length: 100 }, (_, k) => [k * 3, (k % 2 ? 0.2 : -0.2)]);
+  const d = doc({ id: "l", type: "path", d: polyD(pts, false), style: { fond: "none", contour: "#000", epaisseur: 1 } });
+  op_simplifier(d, ["l"], { precision: 50 });
+  const o = objets(d)[0];
+  ok("T2 ligne bruitée : 2 points, ouverte", ancres(o.d) === 2 && !/Z/.test(o.d), o.d);
+}
+{
+  // deux sous-chemins : deux M ; le transform est gardé, la géométrie reste locale
+  const d = doc({ id: "p", type: "path", d: polyD(cercle(120, 20, 30, 30), true) + " " + polyD(cercle(120, 20, 130, 30), true),
+                  transform: "rotate(30 80 30)", style: { fond: "#eee" } });
+  op_simplifier(d, ["p"], { precision: 50 });
+  const o = objets(d)[0];
+  ok("T2 deux sous-chemins gardés", chemin_parser(o.d).filter((s) => s.c === "M").length === 2, o.d.slice(0, 60));
+  ok("T2 transform gardé tel quel", o.transform === "rotate(30 80 30)");
+  const ms = chemin_parser(o.d).filter((s) => s.c === "M").map((s) => s.p);
+  ok("T2 géométrie restée locale : chaque sous-chemin part de son point d'origine NON tourné (50 30) et (150 30)",
+     Math.hypot(ms[0][0] - 50, ms[0][1] - 30) < 0.5 && Math.hypot(ms[1][0] - 150, ms[1][1] - 30) < 0.5, JSON.stringify(ms));
+}
+{
+  // jamais PLUS de points : un cercle en 4 cubiques reste tel quel ; une forme / ellipse non plus
+  const k = 27.6142;
+  const d4 = `M 50 0 C 50 ${k} ${k} 50 0 50 C ${-k} 50 -50 ${k} -50 0 C -50 ${-k} ${-k} -50 0 -50 C ${k} -50 50 ${-k} 50 0 Z`;
+  const d = doc({ id: "a", type: "path", d: d4, style: { fond: "#eee" } }, { id: "e", type: "ellipse", cx: 0, cy: 0, rx: 30, ry: 20, style: { fond: "#eee" } });
+  const avant = JSON.stringify(d);
+  const m = refus(() => op_simplifier(d, ["a", "e"], { precision: 50 }));
+  ok("T2 rien à gagner : refus « déjà simple » et document intact", m === T("vectorlab.traces.simplifier_deja") && JSON.stringify(d) === avant, m);
+}
+{
+  // une forme paramétrique devient un chemin quand elle gagne à être simplifiée ; texte et groupe sont ignorés
+  const pts = cercle(300);
+  const d = doc({ id: "t", type: "texte", x: 0, y: 0, texte: "A", style: { fond: "#000" } },
+                { id: "p", type: "path", d: polyD(pts, true), style: { fond: "#eee" } });
+  const ids = op_simplifier(d, ["t", "p"], { precision: 30 });
+  ok("T2 sélection mêlée : seul le tracé change", ids.length === 1 && ids[0] === "p" && objets(d)[0].type === "texte");
+  const v = doc({ id: "t", type: "texte", x: 0, y: 0, texte: "A", style: { fond: "#000" } });
+  const avantV = JSON.stringify(v);
+  ok("T2 rien de simplifiable : refus traduit, document intact", refus(() => op_simplifier(v, ["t"], { precision: 50 })) === T("vectorlab.traces.simplifier_rien") && JSON.stringify(v) === avantV);
+  ok("T2 les clés existent", T("vectorlab.traces.simplifier_rien") !== "vectorlab.traces.simplifier_rien" && T("vectorlab.traces.simplifier_deja") !== "vectorlab.traces.simplifier_deja");
+  // précision plus basse = moins de points
+  const a = simplifier_apercu({ id: "x", type: "path", d: polyD(cercle(300), true), style: {} }, { precision: 20 });
+  const b = simplifier_apercu({ id: "x", type: "path", d: polyD(cercle(300), true), style: {} }, { precision: 80 });
+  ok("T2 précision 20 % donne moins de points que 80 %", a.apres < b.apres, JSON.stringify([a.apres, b.apres]));
 }
 
 if (echecs.length) {
