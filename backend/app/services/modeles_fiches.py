@@ -126,8 +126,11 @@ def bloc_membres(liste: list[dict], langue: str = "fr") -> str:
     lignes = ["## " + _MEMBRES[_langue(langue)], "", "| " + " | ".join(tete) + " |",
               "|" + "---|" * len(tete)]
     for m in liste:
+        # sans prix : « prix à mesurer », jamais « gratuit » — sauf la voie LOCALE, gratuite pour de vrai (comme
+        # DzModelesIA, t186)
         prix = f"${float(m.get('usd') or 0):g}/{m.get('unite') or ''}" if m.get("usd") else (
-            "price to be measured" if en else "prix à mesurer")
+            ("free (local)" if en else "gratuit (local)") if m.get("voie") == "local" else
+            ("price to be measured" if en else "prix à mesurer"))
         cle = (m.get("cle") or ("none" if en else "aucune")) + ("" if m.get("dispo") else (" (missing)" if en
                                                                                           else " (absente)"))
         cells = [m["id"], m.get("label") or "", m.get("voie") or "", prix, cle]

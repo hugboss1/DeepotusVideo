@@ -1,0 +1,8 @@
+{
+  "modeles.fiche.commun": {"fr": "Règles communes", "en": "Shared rules"},
+  "modeles.fiche.erreur": {"fr": "Fiche indisponible", "en": "Sheet unavailable"},
+  "modeles.fiche.fermer": {"fr": "Fermer la fiche", "en": "Close the sheet"},
+  "modeles.fiche.ouvrir": {"fr": "Fiche du modèle", "en": "Model sheet"},
+  "modeles.fiche.releve": {"fr": "Relevé du {date}", "en": "Checked on {date}"},
+  "modeles.fiche.titre": {"fr": "Fiche : {famille}", "en": "Sheet: {famille}"}
+}

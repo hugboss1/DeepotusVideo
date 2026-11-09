@@ -120,6 +120,23 @@
     el.value = valeurInitiale(mods, opts.valeur);
     return el.value;
   }
+  /* t476 (lot F1 « Fiches modèle ») : le « ? » de la fiche du modèle choisi, posé après le <select> par
+     /shared/dz-fiche-modele.js, chargé au premier besoin (aucune page ne le charge par une balise). Le bouton reste
+     caché tant que le modèle choisi n'a pas de fiche. */
+  function ficheModele(el) {
+    var D = el.ownerDocument || W.document;
+    if (!D || !D.createElement || !el.parentNode) return null;
+    if (W.DzFicheModele) return W.DzFicheModele.bouton(el);
+    if (!W.__dzFicheModeleP) {
+      W.__dzFicheModeleP = new Promise(function (ok) {
+        var s = D.createElement("script");
+        s.src = "/shared/dz-fiche-modele.js";
+        s.onload = ok; s.onerror = ok;
+        (D.head || D.documentElement).appendChild(s);
+      });
+    }
+    return W.__dzFicheModeleP.then(function () { return W.DzFicheModele ? W.DzFicheModele.bouton(el) : null; });
+  }
   /* charge le catalogue puis remplit ; un échec de lecture REJETTE la promesse
      et laisse le <select> tel quel (l'appelant garde son repli) */
   function select(el, nature, opts) {
@@ -127,6 +144,7 @@
     return charger(nature).then(function (tous) {
       var mods = filtrer(tous, opts);
       remplir(el, mods, opts);
+      if (opts.fiche !== false) ficheModele(el);
       if (opts.onChange && !el.__dzModelesIA) {
         el.__dzModelesIA = true;
         el.addEventListener("change", function () {
@@ -138,5 +156,6 @@
     });
   }
   W.DzModelesIA = { grouper: grouper, prix: prix, prixUsd: prixUsd, texte: texte, libelle: libelle, filtrer: filtrer, charger: charger,
-                    valeurInitiale: valeurInitiale, remplir: remplir, select: select, rang: rang, ORDRE: ORDRE };
+                    valeurInitiale: valeurInitiale, remplir: remplir, select: select, rang: rang, ORDRE: ORDRE,
+                    ficheModele: ficheModele };
 })(typeof window !== "undefined" ? window : globalThis);

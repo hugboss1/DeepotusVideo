@@ -21,3 +21,4 @@ Pour les mainteneurs. Ni l'assistant ni l'utilisateur ne lisent ce fichier ; auc
 | Date | Lot | Contenu |
 |---|---|---|
 | 2026-11-09 | F0 (t475) | Contrat, tronc commun FR/EN, service `modeles_fiches`, banc et mutations |
+| 2026-11-09 | F1 (t476) | Routes /api/modeles, outils modeles_lister / modele_fiche, boîte « modeles », « ? » des sélecteurs et de la pastille |

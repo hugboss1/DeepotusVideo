@@ -192,6 +192,10 @@ def main():
                               "dispo": False}], "fr")
     check("3.13 prix nul = « prix à mesurer », clé absente dite", "prix à mesurer" in lignes and "(absente)" in lignes
           and "gratuit" not in lignes)
+    loc = M.bloc_membres([{"id": "l", "label": "L", "voie": "local", "usd": 0, "unite": "image", "cle": None,
+                           "dispo": True}], "en")
+    check("3.14 voie locale sans prix = « free (local) », jamais « à mesurer »", "free (local)" in loc
+          and "measured" not in loc)
 
     print("[4] noms de modèles")
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="noms_essai_"))

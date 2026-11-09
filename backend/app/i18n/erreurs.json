@@ -238,6 +238,7 @@
   "erreur.1192de0714": {"fr": "mode : ajouter ou remplacer", "en": "mode: add or replace", "src": "fr"},
   "erreur.11976e5e04": {"fr": "HDR : bloc littéral RLE invalide", "en": "HDR: invalid RLE literal block", "src": "fr"},
   "erreur.11b1342484": {"fr": "aucun triangle à écrire", "en": "no triangle to write", "src": "fr"},
+  "erreur.11ee2084ba": {"fr": "fiche modèle inconnue", "en": "unknown model sheet", "src": "fr"},
   "erreur.11ee48583f": {"fr": "numéro WhatsApp invalide", "en": "invalid WhatsApp number", "src": "fr"},
   "erreur.11fc98bf16": {"fr": "Maillage sans texture : Meshy refuse le rig — texture-le d'abord (POST …/texturer).", "en": "Untextured mesh: Meshy refuses the rig — texture it first (POST …/texturer).", "src": "fr"},
   "erreur.12453f55e1": {"fr": "XML du classeur illisible : {e}", "en": "Unreadable workbook XML: {e}", "src": "fr"},

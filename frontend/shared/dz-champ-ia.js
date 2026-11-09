@@ -178,6 +178,11 @@
     ".dzia-modele:focus-visible,.dzia-micro:focus-visible{outline:2px solid #3b82f6;outline-offset:1px}",
     ".dzia-opt[aria-selected=true]{background:rgba(139,92,246,.24);color:#fff}",
     ".dzia-opt[aria-disabled=true]{opacity:.42;cursor:not-allowed;background:transparent}",
+    /* t476 : pied de la liste, la fiche du modèle choisi (seulement quand sa famille en a une) */
+    ".dzia-fiche{position:sticky;bottom:-4px;display:block;width:100%;margin:4px 0 -4px;padding:6px 8px;border:0;border-top:1px solid rgba(139,92,246,.35);" +
+      "border-radius:var(--r);background:#15171c;color:#c4b5fd;font:12px/1.25 system-ui,-apple-system,'Segoe UI',sans-serif;text-align:left;cursor:pointer}",
+    ".dzia-fiche:hover{background:#1d2333;color:#fff}",
+    ".dzia-fiche[hidden]{display:none}",
     ".dzia-oprix{opacity:.72;font-variant-numeric:tabular-nums;flex-shrink:0}",
     /* t182 : la mention d'un modèle choisissable dont la clé reste à ajouter */
     ".dzia-ocle{display:block;opacity:.7;font-size:10.5px;color:#fbbf24}",
@@ -1133,6 +1138,21 @@
     ouverte.b.removeAttribute("aria-activedescendant");
     ouverte = null;
   }
+  /* t476 : charge /shared/dz-fiche-modele.js une seule fois ; rend DzFicheModele (null si le chargement échoue) */
+  var ficheP = null;
+  function chargerFiche() {
+    if (W.DzFicheModele) return Promise.resolve(W.DzFicheModele);
+    if (!ficheP) {
+      ficheP = new Promise(function (ok) {
+        var s = D.createElement("script");
+        s.src = "/shared/dz-fiche-modele.js";
+        s.onload = function () { ok(W.DzFicheModele || null); };
+        s.onerror = function () { ficheP = null; ok(null); };
+        (D.head || D.documentElement).appendChild(s);
+      });
+    }
+    return ficheP;
+  }
   function ouvrirListe(el, b) {
     if (ouverte && ouverte.b === b) { fermerListe(); return; }
     fermerListe();
@@ -1209,6 +1229,28 @@
       });
       L.appendChild(o);
     });
+    /* t476 (lot F1 « Fiches modèle ») : la fiche du modèle choisi, en pied de liste ; caché tant que sa famille n'a
+       pas de fiche (/api/modeles/index) ; /shared/dz-fiche-modele.js se charge au premier besoin */
+    if (cour) {
+      var pied = D.createElement("button");
+      pied.setAttribute("type", "button");
+      pied.setAttribute("tabindex", "-1");
+      pied.className = "dzia-fiche";
+      pied.hidden = true;
+      pied.setAttribute("data-dzia-fiche", cour);
+      pied.textContent = "? " + TP("modeles.fiche.ouvrir", "Fiche du modèle");
+      pied.setAttribute("title", TP("modeles.fiche.ouvrir", "Fiche du modèle"));
+      pied.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
+      pied.addEventListener("click", function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        fermerListe();
+        chargerFiche().then(function (F) { if (F) F.ouvrir(cour, b); });
+      });
+      L.appendChild(pied);
+      chargerFiche().then(function (F) {
+        if (F) F.familleDe(cour).then(function (f) { if (f) pied.hidden = false; });
+      });
+    }
     if (!l.length) {
       var v = D.createElement("div");
       v.className = "dzia-ovide";
