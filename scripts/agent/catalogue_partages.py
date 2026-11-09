@@ -45,6 +45,9 @@ PARTAGES = {
     # t311 (27/10/2026) : le panneau « Agent WhatsApp » de Réglages › Espaces ; son « Fermer » est commun
     "frontend/shared/dz-whatsapp-espace.js": ("whatsapp.espace.",),
     "frontend/shared/dz-methodes-pont.js": ("methodes.pont.",),   # t443 : la pastille « Méthodes » des écrans
+    # t477 (09/11/2026) : le « ? » de la fiche d'un modèle d'IA (à côté des sélecteurs, en pied de la pastille) et le
+    # « × » de son panneau
+    "frontend/shared/dz-fiche-modele.js": ("modeles.fiche.ouvrir", "modeles.fiche.fermer"),
     # t315 (28/10/2026) : l'enregistreur de l'app (bouton de la barre, boîte de départ, pastille, boîte de fin)
     "frontend/shared/dz-capture.js": ("capture.",),
     # t316 (28/10/2026) : les skins de la capture (groupe « Habillage » de la boîte de départ, éditeur de skins)

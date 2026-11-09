@@ -140,6 +140,9 @@ def main():
             {"videoessai": vid_fr.replace("Écrire en phrases.", "Plans de 4 à 12 secondes.")},
             {"videoessai": entete("videoessai", ["video_i2v"], ["seedance-2"], "Use when testing.") + CORPS_EN},
             "plafond de durée")
+    signale("2.20 prix recopié dans une fiche",
+            {"essai": bon_fr.replace("Écrire en phrases.", "Compter $0.30 par seconde.")}, {"essai": bon_en},
+            "prix recopié")
     signale("2.17 nom de famille invalide",
             {"Essai_2": bon_fr.replace("famille: essai", "famille: Essai_2")},
             {"Essai_2": bon_en.replace("famille: essai", "famille: Essai_2")}, "nom de famille invalide")
@@ -172,6 +175,14 @@ def main():
               "## Membres" in f["texte"] and f"{min(dur)}–{max(dur)}" in f["texte"]
               and f"{min(dur)}–{max(dur)}" not in vfr)
         check("3.5 natures cumulées (i2v + fin)", f["membres"][0]["natures"] == ["video_i2v", "video_fl"])
+        km = {m["id"]: m for m in f["membres"]}
+        check("3.5b négatif et son lus au registre (Kling v3 Pro : négatif, son coupé)",
+              km["kling-v3-pro"]["negatif"] is True and km["kling-v3-pro"]["son_coupe"] is True
+              and km["seedance-2"]["negatif"] is False and "| nég. | son |" in f["texte"]
+              and "| oui | coupé |" in f["texte"])
+        k4 = M.membres({"natures": ["video_i2v"], "ids": ["kling-v4"]})
+        check("3.5c sans interrupteur de son (Kling 4.0) : dit « sans interrupteur »", k4 and k4[0]["son_coupe"] is False
+              and "sans interrupteur" in M.bloc_membres(k4, "fr") and "no switch" in M.bloc_membres(k4, "en"))
         check("3.6 tronc commun joint", "## Référence rapide" in f["commun"])
         fe = M.fiche("seedance-2", "en")
         check("3.7 fiche par id, en anglais : « Members »", fe is not None and fe["famille"] == "videoessai"
