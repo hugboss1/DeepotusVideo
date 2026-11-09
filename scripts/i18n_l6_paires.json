@@ -2235,6 +2235,18 @@
     "groupe": "import"
    },
    {
+    "pos": 593,
+    "avant": "motif_valider, motif_svg,",
+    "apres": "motif_valider as _motifValiderParam, motif_svg,",
+    "groupe": "t478"
+   },
+   {
+    "pos": 685,
+    "avant": "from \"./mod-effets.js\";",
+    "apres": "from \"./mod-effets.js\";\r\nimport { motif_objets_valider, motif_objets_svg, motifs_fermeture, motifs_cycle } from \"./mod-motifs.js\";   // t478\r\n// t478 : un motif fait d'objets (type « objets ») est validé par mod-motifs ; les autres restent paramétriques\r\nconst motif_valider = (m) => (m && m.type === \"objets\" ? motif_objets_valider(m) : _motifValiderParam(m));",
+    "groupe": "t478"
+   },
+   {
     "pos": 1070,
     "avant": "\"Mer\"",
     "apres": "T(\"vectorlab.doc.terrain_mer\")",
@@ -2557,6 +2569,12 @@
     "avant": "\"document: motifs = {id: motif}\"",
     "apres": "T(\"vectorlab.doc.doc_motifs\")",
     "groupe": "doc"
+   },
+   {
+    "pos": 13609,
+    "avant": "    for (const [id, m] of Object.entries(doc.motifs)) {",
+    "apres": "    motifs_cycle(doc.motifs);   // t478 : un motif ne se contient pas, même indirectement\r\n    for (const [id, m] of Object.entries(doc.motifs)) {",
+    "groupe": "t478"
    },
    {
     "pos": 13719,
@@ -3559,6 +3577,18 @@
     "avant": "\"formule : division par zéro\"",
     "apres": "T(\"vectorlab.doc.formule_zero\")",
     "groupe": "doc"
+   },
+   {
+    "pos": 102466,
+    "avant": "  const degs = doc.degrades || {}, mots = doc.motifs || {};",
+    "apres": "  const degs = doc.degrades || {}, mots = doc.motifs || {};\r\n  motifs_fermeture(doc, motifs, refs);   // t478 : les motifs et dégradés employés DANS un motif d'objets",
+    "groupe": "t478"
+   },
+   {
+    "pos": 103956,
+    "avant": "morceaux.push(motif_svg(id, {",
+    "apres": "morceaux.push(mots[id].type === \"objets\" ? motif_objets_svg(id, mots[id], (o) => compilerObjet(o, { ...ctx, sansId: true }), (c) => _couleur(c, ctx)) : motif_svg(id, {",
+    "groupe": "t478"
    },
    {
     "pos": 104826,
@@ -7739,6 +7769,12 @@
     "groupe": "import"
    },
    {
+    "pos": 1771,
+    "avant": "import { hex_centre, hex_d } from \"./mod-grille.js\";",
+    "apres": "import { hex_centre, hex_d } from \"./mod-grille.js\";\r\nimport { motif_objets_pdf } from \"./mod-motifs.js\";   // t478",
+    "groupe": "t478"
+   },
+   {
     "pos": 2793,
     "avant": "`transform illisible : ${src}`",
     "apres": "T(\"vectorlab.pdf.transform_illisible\", { src })",
@@ -7823,6 +7859,12 @@
     "groupe": "export"
    },
    {
+    "pos": 13244,
+    "avant": "function _motif(ctx, spec) {",
+    "apres": "function _motif(ctx, spec) {\r\n  if (spec && spec.type === \"objets\") return motif_objets_pdf(ctx, spec, { dessiner: _objet, raison: _raison, matrice_mul, matrice_inverse, nb });   // t478",
+    "groupe": "t478"
+   },
+   {
     "pos": 24117,
     "avant": "\"pdf : aucune page\"",
     "apres": "T(\"vectorlab.pdf.aucune_page\")",
@@ -7833,6 +7875,18 @@
     "avant": "`pdf : le raster ${r.nom} (${r.id}, ${r.raison}) n'a pas d'image`",
     "apres": "T(\"vectorlab.pdf.raster_sans_image\", { nom: r.nom, id: r.id, raison: r.raison })",
     "groupe": "export"
+   },
+   {
+    "pos": 26995,
+    "avant": "/XStep ${nb(P.pas)} ",
+    "apres": "/XStep ${nb(P.pasX ?? P.pas)} ",
+    "groupe": "t478"
+   },
+   {
+    "pos": 27029,
+    "avant": "/YStep ${nb(P.pas)} /Resources << /ProcSet [/PDF] >> ",
+    "apres": "/YStep ${nb(P.pasY ?? P.pas)} /Resources ${P.ressources ? ressources + \" 0 R\" : \"<< /ProcSet [/PDF] >>\"} ",
+    "groupe": "t478"
    }
   ],
   "js/mod-persona.js": [
