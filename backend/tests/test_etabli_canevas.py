@@ -6087,10 +6087,13 @@ def test_la_MARQUE_relie_la_selection_a_l_ORIGINE_et_BORNE_son_compte():
     x, y, z = q
     # LE SECOND CHEMIN : l'ensemble attendu, écrit d'après la demande et non
     # d'après le code — la descente, les deux jambes, les trois bras.
+    # t484 : l'origine du repère est posée sur le SOL du modèle (son bas, −2,55 pour le modèle de test) : la
+    # descente s'arrête au sol, et les deux jambes y courent jusqu'au pied de l'axe Y.
+    sol = -2.55
     attendu = {
-        (("y",) + tuple(sorted([(x, y, z), (x, 0.0, z)]))),
-        (("x",) + tuple(sorted([(x, 0.0, z), (0.0, 0.0, z)]))),
-        (("z",) + tuple(sorted([(0.0, 0.0, z), (0.0, 0.0, 0.0)]))),
+        (("y",) + tuple(sorted([(x, y, z), (x, sol, z)]))),
+        (("x",) + tuple(sorted([(x, sol, z), (0.0, sol, z)]))),
+        (("z",) + tuple(sorted([(0.0, sol, z), (0.0, sol, 0.0)]))),
         (("x",) + tuple(sorted([(x - croix, y, z), (x + croix, y, z)]))),
         (("y",) + tuple(sorted([(x, y - croix, z), (x, y + croix, z)]))),
         (("z",) + tuple(sorted([(x, y, z - croix), (x, y, z + croix)]))),
@@ -6800,8 +6803,9 @@ def test_les_AXES_traversent_l_ORIGINE_et_le_repere_n_est_DECALE_de_rien():
         quat: groupe.quaternion.toArray(),
         echelle: groupe.scale.toArray(),
         monde: Array.from(groupe.matrixWorld.elements),
-        /* la trame aussi vit à l'origine : seule sa ROTATION peut bouger */
-        poseTrame: e.trame.position.toArray() }));
+        /* t484 : la trame et les axes se posent sur le SOL du modèle (son bas), pas à y = 0 */
+        poseTrame: e.trame.position.toArray(), poseAxes: e.axes.position.toArray(),
+        sol: api.sol }));
     """))
     portee = sortie["cases"] * sortie["pas"]
     assert portee > 0, sortie
@@ -6825,9 +6829,63 @@ def test_les_AXES_traversent_l_ORIGINE_et_le_repere_n_est_DECALE_de_rien():
     assert sortie["pose"] == [0, 0, 0], sortie["pose"]
     assert sortie["quat"] == [0, 0, 0, 1], sortie["quat"]
     assert sortie["echelle"] == [1, 1, 1], sortie["echelle"]
-    assert sortie["poseTrame"] == [0, 0, 0], sortie["poseTrame"]
+    # t484 (09/11/2026, demande de l'utilisateur) : LE SOL EST SOUS LE MODÈLE. Le modèle de test (hauteur 1,1,
+    # centre y = −2) a son bas à −2,55 : la trame et les axes s'y posent, seulement en Y. Le GROUPE reste à
+    # l'identité (ci-dessus et ci-dessous) : rien d'autre ne bouge, et les coordonnées des outils non plus.
+    assert abs(sortie["sol"] + 2.55) < 1e-6, sortie["sol"]
+    for cle in ("poseTrame", "poseAxes"):
+        x, y, z = sortie[cle]
+        assert x == 0 and z == 0 and abs(y - sortie["sol"]) < 1e-12, (cle, sortie[cle])
     identite = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
     assert sortie["monde"] == identite, sortie["monde"]
+
+
+def test_le_SOL_est_sous_le_MODELE_et_le_modele_ne_BOUGE_pas():
+    """t484 (09/11/2026, demande de l'utilisateur) : « quand on ouvre un sujet, il se pose au centre du sujet sur le
+    plan horizontal ». Un GLB dont l'origine est au MILIEU (cas courant des moteurs de génération et des imports)
+    avait la moitié basse sous la grille.
+
+    La règle : `cadrer()` relève le bas du modèle (`api.sol`) et `majRepere()` pose la trame et les axes à cette
+    hauteur — à CHAQUE appel, même quand le mémo évite de reconstruire (un second modèle de même échelle garde
+    pas, cases et plan, mais pas sa hauteur). `vider()` ramène le sol à 0.
+
+    ET LE MODÈLE NE BOUGE PAS : le pinceau d'Affiner, les jointures du Rig, les mesures et coupes de l'Établi
+    prennent les points de la scène pour des coordonnées du fichier. Un modèle décalé les fausserait tous.
+    """
+    sortie = json.loads(_node_trois(
+        "cadrer, majRepere, vider", """
+      let cris = 0;
+      const api = monter(860, 824);
+      api.renderer.domElement.dispatchEvent = () => { cris++; return true; };
+      /* 1. un cube de 1 CENTRÉ sur l'origine : son bas est à −0,5 */
+      poserModele(api, 1, 1, 1, 0, 0, 0);
+      cadrer(api);
+      let e = majRepere(api);
+      const un = { sol: api.sol, trame: e.trame.position.y, axes: e.axes.position.y,
+                   racine: api.racine.position.toArray(), enfant: api.racine.children[0].position.toArray() };
+      /* 2. le MÊME cube posé plus haut (bas à 2) : même échelle, donc mémo — et pourtant le sol suit */
+      api.scene.remove(api.racine);
+      poserModele(api, 1, 1, 1, 0, 2.5, 0);
+      cadrer(api);
+      const avantCris = cris, trameAvant = e.trame;
+      e = majRepere(api);
+      const deux = { sol: api.sol, trame: e.trame.position.y, axes: e.axes.position.y,
+                     memeTrame: e.trame === trameAvant, crisDeplus: cris - avantCris };
+      /* 3. vider : plus de modèle, le sol revient à l'origine */
+      vider(api);
+      e = majRepere(api);
+      const trois = { sol: api.sol, trame: e.trame.position.y, axes: e.axes.position.y };
+      console.log(JSON.stringify({ un, deux, trois }));
+    """))
+    un, deux, trois = sortie["un"], sortie["deux"], sortie["trois"]
+    assert abs(un["sol"] + 0.5) < 1e-6 and abs(un["trame"] - un["sol"]) < 1e-12 \
+        and abs(un["axes"] - un["sol"]) < 1e-12, un
+    # le modèle n'a pas été déplacé : ni sa racine, ni son maillage
+    assert un["racine"] == [0, 0, 0] and un["enfant"] == [0, 0, 0], un
+    assert abs(deux["sol"] - 2.0) < 1e-6 and abs(deux["trame"] - 2.0) < 1e-6 and abs(deux["axes"] - 2.0) < 1e-6, deux
+    # même échelle : la trame N'EST PAS reconstruite (aucun cri de graduation), elle est seulement reposée
+    assert deux["memeTrame"] is True and deux["crisDeplus"] == 0, deux
+    assert trois["sol"] == 0 and trois["trame"] == 0 and trois["axes"] == 0, trois
 
 
 def test_la_TRAME_DESSINEE_porte_le_PAS_ANNONCE():

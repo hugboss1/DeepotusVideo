@@ -20,6 +20,7 @@ from loguru import logger
 
 from app.config import settings, APP_VERSION, SSL_VERIFY
 from app.services import library_index as LI
+from app.services import pricing as _PRX   # t478 : paliers de qualité des images
 from app.models.schemas import (
     GenerateRequest,
     GenerateResponse,
@@ -10988,7 +10989,10 @@ def _recette_generation(body: dict, out: dict) -> dict:
          "model": out.get("model") or (str(body.get("model") or "").strip().lower() or None),
          "size": body.get("size") or "portrait_16_9",
          "seed": int(seed) if isinstance(seed, (int, float)) and not isinstance(seed, bool) else None,
-         "background": (str(body.get("background") or "").strip().lower() or None),
+         "background": (out.get("background") or str(body.get("background") or "").strip().lower() or None),
+         "qualite": out.get("qualite"),          # t478 : le palier SERVI (absent pour un modèle sans palier)
+         "reecriture": out.get("reecriture"),    # t479 : la réécriture CHOISIE (absente = défaut du fournisseur)
+         "resolution": out.get("resolution"),    # t481 : la résolution CHOISIE (absente = défaut 1K)
          "le": datetime.now(_tz.utc).isoformat(timespec="seconds")}
     if out.get("prompt") and out.get("prompt") != r["prompt"]:
         r["prompt_envoye"] = out["prompt"]
@@ -11003,6 +11007,55 @@ def _erreur_fournisseur(model: str, e: Exception) -> HTTPException:
     logger.error(f"fournisseur d'image {model} : {type(e).__name__}: {e}")
     return HTTPException(502, f"{model} : échec du fournisseur "
                               f"({type(e).__name__}).")
+
+
+async def _qualite_image_choisie(body: dict, model: str) -> str | None:
+    """t478 (F6.1) : le palier de qualité CHOISI pour `model` — celui du corps (`qualite`), sinon celui enregistré
+    pour ce modèle (réglage d'Atelier `image_qualite:<model>`, posé par le sélecteur), sinon None (le défaut du
+    modèle, `high` pour ceux que la table chiffre). La validation contre les paliers permis se fait au devis et au
+    tir (pricing.qualite_image) : un palier inconnu y retombe sur `high`, jamais en erreur."""
+    q = str((body or {}).get("qualite") or "").strip().lower()
+    if q or not _PRX.qualite_image(model):
+        return q or None
+    try:
+        async with async_session_factory() as _s:
+            return (await _atelier_setting(_s, "image_qualite:" + model)).strip().lower() or None
+    except Exception:  # noqa: BLE001 — un réglage illisible vaut « pas de choix »
+        return None
+
+
+async def _resolution_choisie(body: dict, model: str) -> str | None:
+    """t481 (F6.4) : la résolution CHOISIE pour `model` (Nano Banana Pro et 2.1) — `resolution` du corps, sinon le
+    réglage d'Atelier `image_resolution:<id>` (posé par la pastille), sinon None (le défaut, 1K). Validée au devis et
+    au tir (pricing.resolution_image)."""
+    if not _PRX.resolution_image(model):
+        return None
+    r = str((body or {}).get("resolution") or "").strip()
+    if r:
+        return r
+    try:
+        async with async_session_factory() as _s:
+            return (await _atelier_setting(_s, "image_resolution:" + model)).strip() or None
+    except Exception:  # noqa: BLE001 — un réglage illisible vaut « pas de choix »
+        return None
+
+
+async def _reecriture_choisie(body: dict, model: str) -> bool | None:
+    """t479 (F6.2) : la réécriture du prompt par le fournisseur (Ideogram « magic prompt »), CHOISIE pour `model` —
+    le booléen `reecriture` du corps, sinon le réglage d'Atelier `image_reecriture:<id>` (« 0 » / « 1 », posé par la
+    pastille), sinon None : le défaut du fournisseur (réécriture active). None aussi pour un modèle sans interrupteur."""
+    from app.services import image_providers as _IP
+    if not _IP.accepte_reecriture(model):
+        return None
+    v = (body or {}).get("reecriture")
+    if isinstance(v, bool):
+        return v
+    try:
+        async with async_session_factory() as _s:
+            r = (await _atelier_setting(_s, "image_reecriture:" + model)).strip()
+    except Exception:  # noqa: BLE001 — un réglage illisible vaut « pas de choix »
+        return None
+    return {"0": False, "1": True}.get(r)
 
 
 async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
@@ -11058,16 +11111,42 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         if manque:
             raise HTTPException(503, f"{manque} non configurée (Réglages) "
                                      f"pour {model}.")
-        await _plafond({"kind": "image", "n": n, "model": model}, _categorie_image(body))   # tâche #16
+        qualite = await _qualite_image_choisie(body, model)       # t478 (F6.1)
+        resolution = await _resolution_choisie(body, model)       # t481 (F6.4)
+        await _plafond({"kind": "image", "n": n, "model": model, "qualite": qualite, "resolution": resolution},
+                       _categorie_image(body))   # tâche #16
         background = (body.get("background") or "").strip().lower() or None
+        # t488 (F6.10) : un fond transparent écrit dans le prompt (« transparent background », « sans fond »…) ne sort
+        # jamais du texte : le champ `background` est posé d'office quand le modèle l'a ; sinon on le DIT (notes),
+        # et l'image sortira opaque — le détourage est la suite.
+        notes_fond: list[str] = []
+        if background == "transparent" or IP.fond_transparent_demande(prompt):
+            if IP.accepte_transparent(model):
+                background = "transparent"
+            else:
+                notes_fond.append(_msg_g("ia.image.fond_opaque", None, modele=model))
+        reecriture = await _reecriture_choisie(body, model)      # t479 (F6.2)
         try:
             out = await IP.generate(model, prompt, size, n,
-                                    background=background, sortie=sortie)
+                                    background=background, sortie=sortie,
+                                    qualite=qualite, reecriture=reecriture,
+                                    resolution=resolution)
         except RuntimeError as e:
             raise HTTPException(502, str(e))
         except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502, pas 500
             raise _erreur_fournisseur(model, e)
-        return {"images": out["images"], "prompt": prompt, "model": model}
+        res = {"images": out["images"], "prompt": prompt, "model": model}
+        if _PRX.qualite_image(model, qualite):
+            res["qualite"] = _PRX.qualite_image(model, qualite)
+        if reecriture is not None:
+            res["reecriture"] = reecriture
+        if resolution and _PRX.resolution_image(model, resolution):
+            res["resolution"] = _PRX.resolution_image(model, resolution)
+        if background == "transparent" and IP.accepte_transparent(model):
+            res["background"] = "transparent"                  # t488 : le fond SERVI
+        if notes_fond:
+            res["notes"] = notes_fond
+        return res
 
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
     if model.startswith("gpt-image") or model.startswith("dall-e"):
@@ -11075,10 +11154,13 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
             # t182 : même forme que les autres refus « clé absente » (nomme la
             # clé, renvoie aux Réglages) — AVANT la garde de dépense ; t192 : dans la langue de l'interface
             raise HTTPException(503, _msg_g("ia.cle.non_configuree", None, nom_cle="OPENAI_API_KEY", modele=model))
-        await _plafond({"kind": "image", "n": n, "model": model}, _categorie_image(body))   # tâche #16
+        qualite = await _qualite_image_choisie(body, model)       # t478 (F6.1)
+        await _plafond({"kind": "image", "n": n, "model": model, "qualite": qualite}, _categorie_image(body))   # tâche #16
         osize = ("1024x1536" if "portrait" in size
                  else "1536x1024" if "landscape" in size else "1024x1024")
         payload = {"model": model, "prompt": prompt, "n": n, "size": osize}
+        if qualite and _PRX.qualite_image(model, qualite):     # palier écrit seulement s'il est CHOISI
+            payload["quality"] = _PRX.qualite_image(model, qualite)
         try:
             async with _httpx.AsyncClient(verify=SSL_VERIFY, timeout=180.0) as client:
                 resp = await client.post(
@@ -11370,11 +11452,10 @@ async def _process_image_core(body: dict):
             # t206 : les références de l'identité de l'espace (mascotte, produits) — seulement pour un modèle qui
             # prend PLUSIEURS images ; refusé AVANT la garde de dépense (aucune ligne écrite)
             from app.services import identite as _idv, espaces as _es
-            if not (model in ("nano-banana", "nano-banana-pro")
-                    or (model in IP.FAL_IMAGES and IP.FAL_IMAGES[model].get("edit"))):
+            if not IP.multi_references(model):          # t480 : GPT Image via fal compris
                 raise HTTPException(400, f"{model or 'FLUX Kontext'} ne prend qu'une image : choisissez un modèle à "
                                          "références multiples (Nano Banana…) pour garder l'identité.")
-            refs_idv = _idv.references(_es.espace_courant(), n=IP.REF_MAX - 1)
+            refs_idv = _idv.references(_es.espace_courant(), n=IP.ref_max(model) - 1)   # t481 : 14 / 16 selon le modèle
             if not refs_idv:
                 raise HTTPException(400, "Aucune image de référence dans l'identité de l'espace (Réglages › Espaces).")
             prompt = f"{prompt} Keep the character and the products exactly as in the reference images."
@@ -11386,13 +11467,20 @@ async def _process_image_core(body: dict):
             if manque:
                 raise HTTPException(503, f"{manque} non configurée "
                                          f"(Réglages) pour {model}.")
-            await _plafond({"kind": "image", "n": n, "model": model}, _categorie_image(body))
+            # t480 (F6.3) : les références comptent au devis (GPT Image via fal les facture en entrée)
+            # t481 (F6.4) : la retouche suit aussi la qualité et la résolution choisies pour ce modèle
+            qualite = await _qualite_image_choisie(body, model)
+            resolution = await _resolution_choisie(body, model)
+            await _plafond({"kind": "image", "n": n, "model": model, "refs": 1 + len(refs_idv), "qualite": qualite,
+                            "resolution": resolution}, _categorie_image(body))
             # cadre demandé = aspect_ratio de l'edit ; sans `size` explicite, l'edit suit l'image d'entrée
             # (sans lui, fal choisissait : une composition 16:9 sortait en 752×1408)
             ratio = _EDIT_RATIO.get(body.get("size"))
             try:
-                out = await (IP.generate(model, prompt, size, n, image_paths=[src] + refs_idv, ratio=ratio) if refs_idv
-                             else IP.generate(model, prompt, size, n, image_path=src, ratio=ratio))
+                out = await (IP.generate(model, prompt, size, n, image_paths=[src] + refs_idv, ratio=ratio,
+                                         qualite=qualite, resolution=resolution) if refs_idv
+                             else IP.generate(model, prompt, size, n, image_path=src, ratio=ratio,
+                                              qualite=qualite, resolution=resolution))
             except RuntimeError as e:
                 raise HTTPException(502, str(e))
             except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502
@@ -11603,10 +11691,34 @@ async def list_image_models():
         e = par_id.get(m["id"]) or {}
         m.update(voie=e.get("voie", m.get("provider")), cle=e.get("cle"),
                  usd=e.get("usd", 0.0), sortie=e.get("sortie", "raster"))
+    # t478 (F6.1) : le palier ENREGISTRÉ par modèle (réglage `image_qualite:<id>`), pour que le sélecteur le montre
+    choisies = {}
+    async with async_session_factory() as _s:
+        for e in tous:
+            if e.get("qualites"):
+                v = (await _atelier_setting(_s, "image_qualite:" + e["id"])).strip().lower()
+                if v in e["qualites"]:
+                    choisies[e["id"]] = v
+    # t479 (F6.2) : la réécriture du prompt enregistrée (« 0 » / « 1 ») pour les modèles qui ont l'interrupteur
+    reecritures = {}
+    async with async_session_factory() as _s:
+        for e in tous:
+            if e.get("reecriture"):
+                v = (await _atelier_setting(_s, "image_reecriture:" + e["id"])).strip()
+                if v in ("0", "1"):
+                    reecritures[e["id"]] = v == "1"
+    # t481 (F6.4) : la résolution enregistrée pour les modèles qui en ont une
+    resolutions = {}
+    async with async_session_factory() as _s:
+        for e in tous:
+            if e.get("resolutions"):
+                v = (await _atelier_setting(_s, "image_resolution:" + e["id"])).strip().upper()
+                if v in e["resolutions"]:
+                    resolutions[e["id"]] = v
     return {"models": out, "configured": configured,
             "default": configured or ("flux" if settings.FAL_KEY
                                       else (out[0]["id"] if out else "")),
-            "tous": tous}
+            "tous": tous, "qualites": choisies, "reecritures": reecritures, "resolutions": resolutions}
 
 
 @router.get("/ia/catalogue")
@@ -12257,6 +12369,21 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
                             for p in (recipe.get("panels") or [])}
         elif not recipe:
             pass
+        # t489 (FDA, banc comparatif de l'Atelier DA) : la MÉTHODE de la planche. « actuel » (défaut) = le code
+        # d'avant, à l'octet ; « ancre » = héros validé + base identique + clause de vue ; « ancre_multi » = « ancre »
+        # + plusieurs références par vue de corps (modèles qui en prennent plusieurs). Interne : aucune page ne
+        # l'envoie ; la recette la garde (un rejeu garde sa méthode). Voir board_service.methode_planche.
+        methode = str(body.get("methode") or (recipe or {}).get("methode") or "actuel").strip().lower()
+        if methode not in BS.METHODES:
+            raise HTTPException(400, f"methode inconnue : {methode!r} ({', '.join(BS.METHODES)})")
+        if methode != "actuel" and e.kind != "character":
+            raise HTTPException(400, f"la méthode {methode!r} ne vaut que pour une planche de personnage")
+        # t489 : un visage MAÎTRE fourni (le banc partage le même maître entre ses bras) — panneau face_front non tiré
+        face_maitre = Path(str(body.get("face_maitre") or "")).name
+        if face_maitre and not (settings.images_path / face_maitre).is_file():
+            raise HTTPException(400, f"face_maitre introuvable : {face_maitre}")
+        if face_maitre and e.kind != "character":
+            raise HTTPException(400, "face_maitre ne vaut que pour une planche de personnage")
         # t182 : une planche est RASTER — un modèle vectoriel (réglage DA ou
         # recette) est refusé AVANT la garde de dépense, qui écrit une ligne
         # de dépense (sinon dépense fantôme suivie d'un 502).
@@ -12272,6 +12399,9 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
         _manque = IP.missing_key(provider)
         if _manque:
             raise _refus_cle(_manque, provider, http)
+        if methode == "ancre_multi" and (provider == "flux" or not IP.multi_references(provider)):
+            raise HTTPException(400, f"la méthode « ancre_multi » demande un générateur à références multiples "
+                                     f"(Nano Banana…) : {provider} n'en prend qu'une")
         desc = (e.description or "").strip()
         if not desc and not (recipe and recipe.get("v") in (2, 3)):
             raise HTTPException(400, "Add a description before generating")
@@ -12304,8 +12434,18 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
                                                           "canon_lessons"))
         lesson_hint = PQC.lesson_hint(lessons, canon_key)
         # tâche #16 : un tir par panneau de la planche, au fournisseur du projet
-        await _plafond({"kind": "image", "n": len(plan["panels"]), "model": provider}, "atelier")
+        await _plafond({"kind": "image", "n": len(plan["panels"]) - (1 if face_maitre else 0), "model": provider},
+                       "atelier")
+        # t489 : la BASE des panneaux dérivés en méthode « ancre » — écrite UNE fois, identique à l'octet d'un
+        # panneau à l'autre ; seule la clause de vue (finale) change
+        base_ancre = BS.base_ancre(e.name, desc, style_src) if methode != "actuel" else ""
+        controle_heros = None
         for key, ptxt, chain_on, p1size in plan["panels"]:
+            if face_maitre and key == "face_front":
+                panels[key] = face_maitre
+                recipe_panels.append({"key": key, "prompt": "", "seed": None, "model": "fourni",
+                                      "file": face_maitre})
+                continue
             # injection du canon: proportions du corps ({PROPORTIONS}) et
             # traits du visage ({FACE}) selon le style de la DA.
             is_body = p1size == "CANON"      # panneau corps en pied (v7)
@@ -12318,7 +12458,21 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
             ptxt = ptxt.replace("{PROPORTIONS}", prop) \
                        .replace("{FACE}", canon["face"])
             ratio = None
-            if chain_on:
+            refs_multi = None
+            if chain_on and methode != "actuel":
+                # t489 : base + clause de vue ; le canon reste injecté dans la clause du corps de face
+                prompt = BS.prompt_ancre(base_ancre, key, methode, prop)
+                if is_body and lesson_hint:
+                    prompt += " " + lesson_hint
+                img = settings.images_path / panels[chain_on]
+                if methode == "ancre_multi" and key in BS.VUES_MULTI:
+                    refs_multi = [settings.images_path / panels[k] for k in BS.VUES_MULTI[key]]
+                if is_body:
+                    size = canon["frame"]
+                    ratio = _EDIT_RATIO.get(size)
+                else:
+                    size = "landscape_16_9"
+            elif chain_on:
                 prompt = ptxt + style
                 if is_body and lesson_hint:
                     prompt += ". " + lesson_hint
@@ -12365,6 +12519,9 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
                         guidance=(3.5 if is_body and img is not None
                                   else None))
                 try:
+                    if refs_multi:                       # t489 : plusieurs références, rôle par position
+                        return provider, await IP.generate(
+                            provider, p, size, 1, seed=seed, image_paths=refs_multi, ratio=ratio)
                     return provider, await IP.generate(
                         provider, p, size, 1, seed=seed,
                         image_path=img, ratio=ratio)
@@ -12405,11 +12562,33 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
                         lessons = PQC.record_success(lessons, canon_key)
                     await put_atelier_settings(
                         {"canon_lessons": PQC.dump_lessons(lessons)})
+            # t489 : HÉROS VALIDÉ (méthode ancre) — le corps de face ne sert d'ancre qu'après un contrôle d'identité
+            # face au visage maître (similarité CLIP locale, gratuite) ; sous le seuil, UNE régénération, on garde la
+            # meilleure. Sans moteur CLIP installé, le contrôle est dit « indisponible » dans la recette.
+            if methode != "actuel" and key == "front" and e.kind == "character" and not seeds_by_key:
+                import asyncio as _aio
+                sim = await _aio.to_thread(BS.similarite_identite, settings.images_path, panels["face_front"],
+                                           out["images"][0])
+                controle_heros = {"sim": sim, "seuil": BS.SEUIL_HEROS, "essais": 1}
+                if sim is not None and sim < BS.SEUIL_HEROS:
+                    model2, out2 = await _gen(prompt)
+                    sim2 = await _aio.to_thread(BS.similarite_identite, settings.images_path,
+                                                panels["face_front"], out2["images"][0])
+                    controle_heros.update(essais=2, sim_relance=sim2)
+                    if sim2 is not None and sim2 > sim:
+                        model, out = model2, out2
+                        controle_heros["sim"] = sim2
+                controle_heros["valide"] = (controle_heros["sim"] is not None
+                                            and controle_heros["sim"] >= BS.SEUIL_HEROS)
             panels[key] = out["images"][0]
             recipe_panels.append({"key": key, "prompt": prompt,
                                   "seed": out.get("seed"), "model": model,
                                   # v3 (tâche #62) : LE FICHIER — une mosaïque n'est pas quatre références
                                   "file": out["images"][0]})
+            if methode != "actuel":
+                recipe_panels[-1]["profondeur"] = BS.profondeur(key, methode)
+                if refs_multi:
+                    recipe_panels[-1]["refs"] = [p.name for p in refs_multi]
         # profils droits = miroir logiciel du profil gauche (direction
         # opposée garantie — la diffusion confond gauche/droite)
         mirrors_files: dict[str, str] = {}
@@ -12428,11 +12607,14 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
         e.ref_image = board
         e.face_image = None            # tout est dans la planche composite
         e.seed = recipe_panels[0].get("seed")
-        e.prompt_recipe = _json.dumps(
-            {"v": 3, "kind": e.kind, "ref_file": insp_file,
-             "provider": provider, "style_ref": style_ref or None,
-             "canon": canon_key, "panels": recipe_panels,
-             "mirrors": mirrors_files, "board": board}, ensure_ascii=False)
+        rec = {"v": 3, "kind": e.kind, "ref_file": insp_file,
+               "provider": provider, "style_ref": style_ref or None,
+               "canon": canon_key, "panels": recipe_panels,
+               "mirrors": mirrors_files, "board": board}
+        if methode != "actuel":                 # t489 : la méthode et le contrôle du héros, gardés pour le rejeu
+            rec["methode"] = methode
+            rec["controle_heros"] = controle_heros
+        e.prompt_recipe = _json.dumps(rec, ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)

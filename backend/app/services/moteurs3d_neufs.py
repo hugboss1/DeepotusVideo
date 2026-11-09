@@ -80,11 +80,17 @@ MOTEURS = {
              "valeurs": ["Gen-2.5-Minimum", "Gen-2.5-Extreme-Low", "Gen-2.5-Low", "Gen-2.5-Medium", "Gen-2.5-High",
                          "Gen-2.5-Extreme-High"]},
             {"cle": "material", "type": "enum", "defaut": "PBR", "valeurs": ["PBR", "Shaded", "All", "None"]},
+            # t485 (F6.7, schéma relu le 09/11/2026) : 100K et 200K Quad, 50K, 1M et 2M Triangle ajoutés par fal ; les
+            # nombres de faces permis dépendent du palier `tier` (fal le dit, il refuse au besoin)
             {"cle": "quality_mesh_option", "type": "enum", "defaut": "Auto",
-             "valeurs": ["Auto", "4K Quad", "8K Quad", "18K Quad", "50K Quad", "2K Triangle", "20K Triangle",
-                         "150K Triangle", "500K Triangle"]},
+             "valeurs": ["Auto", "4K Quad", "8K Quad", "18K Quad", "50K Quad", "100K Quad", "200K Quad", "2K Triangle",
+                         "20K Triangle", "50K Triangle", "150K Triangle", "500K Triangle", "1M Triangle",
+                         "2M Triangle"]},
             {"cle": "geometry_file_format", "type": "enum", "defaut": "glb", "valeurs": ["glb", "fbx", "obj", "stl", "usdz"]},
             {"cle": "hd_texture", "type": "bool", "defaut": False},
+            # t485 (F6.7) : l'add-on HighPack (`addons`, page fal relue le 09/11/2026 : « If HighPack is added to the
+            # addons, it will cost an additional $0.8 per generation ») — textures et densité supérieures
+            {"cle": "highpack", "type": "bool", "defaut": False, "surcout": 0.80},
             {"cle": "seed", "type": "int", "defaut": None, "min": 0, "max": 65535},
         ],
     },
@@ -94,8 +100,9 @@ MOTEURS = {
         "cle_image": "image_url", "formats": ["glb", "fbx", "obj", "usdz"],
         "note": "Meshy 7.1 par fal : topologie, polycount, symétrie, pose, remaillage, texture et PBR.",
         "reglages": [
-            {"cle": "model_type", "type": "enum", "defaut": "standard",
-             "valeurs": ["standard", "lowpoly", "smart-topology", "smart-topology-t2"]},
+            # t485 (F6.7, schéma relu le 09/11/2026) : `model_type` est une CONSTANTE « standard » (« Only 'standard' is
+            # supported; Smart Topology has its own endpoints ») ; lowpoly et smart-topology partaient refusés
+            {"cle": "model_type", "type": "enum", "defaut": "standard", "valeurs": ["standard"]},
             {"cle": "topology", "type": "enum", "defaut": "triangle", "valeurs": ["triangle", "quad"]},
             {"cle": "target_polycount", "type": "int", "defaut": 30000, "min": 100, "max": 300000},
             {"cle": "symmetry_mode", "type": "enum", "defaut": "auto", "valeurs": ["auto", "on", "off"]},
@@ -145,6 +152,11 @@ def valider(moteur: str, reglages: dict | None) -> dict:
             if not r["min"] <= v <= r["max"]:
                 raise ValueError(f"{moteur}.{k} : {v} hors de [{r['min']}, {r['max']}]")
         out[k] = v
+    # t485 (F6.7) : chez Meshy, `target_polycount` n'agit QUE pendant le remaillage (« should_remesh », vrai par
+    # défaut) : un polycount demandé avec le remaillage coupé serait payé et ignoré — refusé, jamais envoyé
+    if moteur == "meshy-7.1" and out.get("should_remesh") is False and out.get("target_polycount") is not None:
+        raise ValueError(f"{moteur}.target_polycount : sans effet quand should_remesh est coupé "
+                         f"(activer le remaillage, ou ne pas fixer de polycount)")
     return out
 
 
@@ -152,6 +164,8 @@ def args(moteur: str, image_urls: list[str], opts: dict) -> dict:
     """Les arguments fal d'un tir : l'image (ou le prompt en mode texte), les réglages validés, la pose."""
     m = MOTEURS[moteur]
     a = dict(valider(moteur, opts.get("reglages")))
+    if moteur == "rodin-2.5" and a.pop("highpack", False):     # t485 : réglage de l'app -> champ fal `addons`
+        a["addons"] = ["HighPack"]
     if opts.get("textures") is False and moteur in COUPE_TEXTURE:
         k, v = COUPE_TEXTURE[moteur]
         a.setdefault(k, v)
@@ -208,7 +222,10 @@ def prix(moteur: str, reglages: dict | None) -> list[tuple[str, float]]:
     if moteur == "trellis-2":
         return [(f"TRELLIS 2 {v('resolution')}p", {512: 0.25, 1024: 0.30, 1536: 0.35}[v("resolution")])]
     if moteur == "rodin-2.5":
-        return [("Rodin 2.5", 0.40)]
+        lignes = [("Rodin 2.5", 0.40)]
+        if v("highpack"):
+            lignes.append(("HighPack", 0.80))                  # t485 : page fal relue le 09/11/2026
+        return lignes
     if moteur == "meshy-7.1":
         return [("Meshy 7.1 " + ("texturé" if v("should_texture") is not False else "sans texture"),
                  1.20 if v("should_texture") is not False else 0.80)]

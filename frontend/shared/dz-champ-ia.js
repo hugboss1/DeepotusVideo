@@ -178,6 +178,16 @@
     ".dzia-modele:focus-visible,.dzia-micro:focus-visible{outline:2px solid #3b82f6;outline-offset:1px}",
     ".dzia-opt[aria-selected=true]{background:rgba(139,92,246,.24);color:#fff}",
     ".dzia-opt[aria-disabled=true]{opacity:.42;cursor:not-allowed;background:transparent}",
+    /* t476 : pied de la liste, la fiche du modèle choisi (seulement quand sa famille en a une) */
+    ".dzia-fiche{position:sticky;bottom:-4px;display:block;width:100%;margin:4px 0 -4px;padding:6px 8px;border:0;border-top:1px solid rgba(139,92,246,.35);" +
+      "border-radius:var(--r);background:#15171c;color:#c4b5fd;font:12px/1.25 system-ui,-apple-system,'Segoe UI',sans-serif;text-align:left;cursor:pointer}",
+    ".dzia-fiche:hover{background:#1d2333;color:#fff}",
+    ".dzia-fiche[hidden]{display:none}",
+    ".dzia-qual{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:6px 8px 2px;border-top:1px solid rgba(139,92,246,.35)}",
+    ".dzia-qtit{font-size:11px;opacity:.75;margin-right:4px}",
+    ".dzia-qbtn{padding:2px 7px;font-size:11px;border:1px solid rgba(139,92,246,.45);border-radius:var(--r);background:transparent;color:inherit;cursor:pointer}",
+    ".dzia-qbtn:hover{background:#1d2333;color:#fff}",
+    ".dzia-qbtn[aria-pressed=true]{background:rgba(139,92,246,.35);color:#fff}",
     ".dzia-oprix{opacity:.72;font-variant-numeric:tabular-nums;flex-shrink:0}",
     /* t182 : la mention d'un modèle choisissable dont la clé reste à ajouter */
     ".dzia-ocle{display:block;opacity:.7;font-size:10.5px;color:#fbbf24}",
@@ -658,6 +668,9 @@
       var st = ev.target && ev.target.__dzia;
       if (st && st.modele && st.modele.charge && st.modele.charge.indexOf("atelier") >= 0) charger("atelier", true);
     }, true);
+    /* « Appliquer » dans 🎨 DA : les pastilles des encarts (style, entités, plans) suivent AUSSITÔT le générateur choisi,
+       sans attendre qu'on reclique dans un champ */
+    W.addEventListener("dz:atelier-maj", function () { charger("atelier", true); });
     D.addEventListener("focusout", planifierSync, true);
     D.addEventListener("scroll", planifierSync, true);
     if (suivis.length) veiller();
@@ -785,7 +798,16 @@
              nom · prix · mention de clé — c'est lui que la pastille relit et rejoue */
           return { id: e.id, label: e.label || e.id, dispo: !sans, cle: e.cle || "", voie: e.voie || "",
                    prix: px, vue: (e.label || e.id) + " · " + px + (sans && e.cle ? " · " + CLE_A_AJOUTER(e.cle) : ""),
-                   sansCle: sans };   // t182 : choisissable sans sa clé (refus 503 au tir)
+                   sansCle: sans,     // t182 : choisissable sans sa clé (refus 503 au tir)
+                   /* t478 (F6.1) : paliers de qualité {palier: $/image} et palier enregistré pour ce modèle */
+                   qualites: e.qualites || null,
+                   qchoisie: (d.qualites || {})[e.id] || e.qualite_defaut || "",
+                   /* t479 (F6.2) : interrupteur de réécriture du prompt (Ideogram) ; absent du réglage = actif */
+                   reecriture: !!e.reecriture,
+                   rchoisie: (d.reecritures || {})[e.id] !== false,
+                   /* t481 (F6.4) : résolutions {1K: $/image…} (Nano Banana Pro et 2.1) et la choisie */
+                   resolutions: e.resolutions || null,
+                   reschoisie: (d.resolutions || {})[e.id] || e.resolution_defaut || "" };
         }));
         return { defaut: d.default || "", modeles: mods };
       });
@@ -1133,6 +1155,21 @@
     ouverte.b.removeAttribute("aria-activedescendant");
     ouverte = null;
   }
+  /* t476 : charge /shared/dz-fiche-modele.js une seule fois ; rend DzFicheModele (null si le chargement échoue) */
+  var ficheP = null;
+  function chargerFiche() {
+    if (W.DzFicheModele) return Promise.resolve(W.DzFicheModele);
+    if (!ficheP) {
+      ficheP = new Promise(function (ok) {
+        var s = D.createElement("script");
+        s.src = "/shared/dz-fiche-modele.js";
+        s.onload = function () { ok(W.DzFicheModele || null); };
+        s.onerror = function () { ficheP = null; ok(null); };
+        (D.head || D.documentElement).appendChild(s);
+      });
+    }
+    return ficheP;
+  }
   function ouvrirListe(el, b) {
     if (ouverte && ouverte.b === b) { fermerListe(); return; }
     fermerListe();
@@ -1209,6 +1246,134 @@
       });
       L.appendChild(o);
     });
+    /* t476 (lot F1 « Fiches modèle ») : la fiche du modèle choisi, en pied de liste ; caché tant que sa famille n'a
+       pas de fiche (/api/modeles/index) ; /shared/dz-fiche-modele.js se charge au premier besoin */
+    if (cour) {
+      var pied = D.createElement("button");
+      pied.setAttribute("type", "button");
+      pied.setAttribute("tabindex", "-1");
+      pied.className = "dzia-fiche";
+      pied.hidden = true;
+      pied.setAttribute("data-dzia-fiche", cour);
+      pied.textContent = "? " + TP("modeles.fiche.ouvrir", "Fiche du modèle");
+      pied.setAttribute("title", TP("modeles.fiche.ouvrir", "Fiche du modèle"));
+      pied.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
+      pied.addEventListener("click", function (ev) {
+        ev.preventDefault(); ev.stopPropagation();
+        fermerListe();
+        chargerFiche().then(function (F) { if (F) F.ouvrir(cour, b); });
+      });
+      /* t478 (F6.1) : le PALIER DE QUALITÉ du modèle d'image choisi (GPT Image, Ideogram) — brouillon bas, final
+         haut. Enregistré par modèle dans les réglages d'Atelier (`image_qualite:<id>`) : tout écran qui tire ce
+         modèle le sert, le devis et la garde de dépense le chiffrent. */
+      var mq = m.liste === "image" ? modeleDe("image", cour) : null;
+      if (mq && mq.qualites) {
+        var rang = D.createElement("div");
+        rang.className = "dzia-qual";
+        rang.setAttribute("role", "group");
+        rang.setAttribute("aria-label", TP("ia.qualite.titre", "Qualité"));
+        var qt = D.createElement("span");
+        qt.className = "dzia-qtit";
+        qt.textContent = TP("ia.qualite.titre", "Qualité");
+        rang.appendChild(qt);
+        Object.keys(mq.qualites).forEach(function (q) {
+          var qb = D.createElement("button");
+          qb.setAttribute("type", "button");
+          qb.setAttribute("tabindex", "-1");
+          qb.className = "dzia-qbtn";
+          qb.setAttribute("data-qualite", q);
+          qb.textContent = TP("ia.qualite." + q, q);
+          qb.setAttribute("title", TP("ia.qualite." + q, q) + " · " + (prixUsd(mq.qualites[q], "image") || aMesurer()));
+          qb.setAttribute("aria-pressed", q === mq.qchoisie ? "true" : "false");
+          qb.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
+          qb.addEventListener("click", function (ev) {
+            ev.preventDefault(); ev.stopPropagation();
+            var corps = {}; corps["image_qualite:" + cour] = q;
+            W.fetch("/api/atelier/settings", { method: "PUT", headers: { "Content-Type": "application/json" },
+                                               body: JSON.stringify(corps) }).then(function (r) {
+              if (!r.ok) return;
+              mq.qchoisie = q;
+              var bs = rang.querySelectorAll(".dzia-qbtn");
+              for (var i = 0; i < bs.length; i++)
+                bs[i].setAttribute("aria-pressed", bs[i].getAttribute("data-qualite") === q ? "true" : "false");
+            }, function () {});
+          });
+          rang.appendChild(qb);
+        });
+        L.appendChild(rang);
+      }
+      /* t481 (F6.4) : la RÉSOLUTION de sortie (Nano Banana Pro et 2.1 : 1K, 2K, 4K), prix en infobulle ; enregistrée
+         par modèle (`image_resolution:<id>`) comme le palier de qualité */
+      if (mq && mq.resolutions) {
+        var rres = D.createElement("div");
+        rres.className = "dzia-qual";
+        rres.setAttribute("role", "group");
+        rres.setAttribute("aria-label", TP("ia.resolution.titre", "Résolution"));
+        var rt = D.createElement("span");
+        rt.className = "dzia-qtit";
+        rt.textContent = TP("ia.resolution.titre", "Résolution");
+        rres.appendChild(rt);
+        Object.keys(mq.resolutions).forEach(function (r) {
+          var xb = D.createElement("button");
+          xb.setAttribute("type", "button");
+          xb.setAttribute("tabindex", "-1");
+          xb.className = "dzia-qbtn dzia-resbtn";
+          xb.setAttribute("data-resolution", r);
+          xb.textContent = r;
+          xb.setAttribute("title", r + " · " + (prixUsd(mq.resolutions[r], "image") || aMesurer()));
+          xb.setAttribute("aria-pressed", r === mq.reschoisie ? "true" : "false");
+          xb.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
+          xb.addEventListener("click", function (ev) {
+            ev.preventDefault(); ev.stopPropagation();
+            var corps = {}; corps["image_resolution:" + cour] = r;
+            W.fetch("/api/atelier/settings", { method: "PUT", headers: { "Content-Type": "application/json" },
+                                               body: JSON.stringify(corps) }).then(function (rp) {
+              if (!rp.ok) return;
+              mq.reschoisie = r;
+              var bs = rres.querySelectorAll(".dzia-resbtn");
+              for (var i = 0; i < bs.length; i++)
+                bs[i].setAttribute("aria-pressed", bs[i].getAttribute("data-resolution") === r ? "true" : "false");
+            }, function () {});
+          });
+          rres.appendChild(xb);
+        });
+        L.appendChild(rres);
+      }
+      /* t479 (F6.2) : la RÉÉCRITURE DU PROMPT par le fournisseur (Ideogram « magic prompt »), active par défaut ;
+         la couper garde le texte exact du prompt (slogan, nom de marque). Enregistrée par modèle
+         (`image_reecriture:<id>` = « 0 » / « 1 »). */
+      if (mq && mq.reecriture) {
+        var rr = D.createElement("div");
+        rr.className = "dzia-qual";
+        var rb = D.createElement("button");
+        rb.setAttribute("type", "button");
+        rb.setAttribute("tabindex", "-1");
+        rb.className = "dzia-qbtn dzia-rbtn";
+        var etiq = function () {
+          rb.textContent = TP("ia.reecriture.titre", "Réécriture du prompt") + " : "
+            + (mq.rchoisie ? TP("ia.reecriture.oui", "oui") : TP("ia.reecriture.non", "non"));
+          rb.setAttribute("aria-pressed", mq.rchoisie ? "true" : "false");
+        };
+        etiq();
+        rb.setAttribute("title", TP("ia.reecriture.aide", "Le fournisseur réécrit le prompt avant de dessiner ; couper pour garder un texte exact"));
+        rb.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
+        rb.addEventListener("click", function (ev) {
+          ev.preventDefault(); ev.stopPropagation();
+          var nv = !mq.rchoisie, corps = {}; corps["image_reecriture:" + cour] = nv ? "1" : "0";
+          W.fetch("/api/atelier/settings", { method: "PUT", headers: { "Content-Type": "application/json" },
+                                             body: JSON.stringify(corps) }).then(function (r) {
+            if (!r.ok) return;
+            mq.rchoisie = nv; etiq();
+          }, function () {});
+        });
+        rr.appendChild(rb);
+        L.appendChild(rr);
+      }
+      L.appendChild(pied);
+      chargerFiche().then(function (F) {
+        if (F) F.familleDe(cour).then(function (f) { if (f) pied.hidden = false; });
+      });
+    }
     if (!l.length) {
       var v = D.createElement("div");
       v.className = "dzia-ovide";

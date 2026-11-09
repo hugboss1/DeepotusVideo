@@ -67,7 +67,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   de l'interface »). → [POINT:reglages.defauts] [GUIDE:installer]
 - **Limiter les dépenses** : Réglages › Tarifs et budget, saisir les tarifs puis un plafond global ou par moteur.
   → [POINT:reglages.budget] [GUIDE:budget]
-- **Lire une liste de modèles** (quelle clé sert, quel prix). → [GUIDE:modeles-et-cles]
+- **Lire une liste de modèles** (quelle clé sert, quel prix ; « ? » = sa fiche). → [GUIDE:modeles-et-cles]
 - **Changer d'espace de marque** : Réglages › Espaces de marque. → [POINT:reglages.espaces] [GUIDE:marques]
 - **Créer un espace (marque, produit ou client) avec ses canaux** : Réglages › Espaces de marque › Créer l'espace
   ouvre l'assistant en quatre temps (type et identité, fiche client, canaux, récapitulatif). « Vérifier » teste un

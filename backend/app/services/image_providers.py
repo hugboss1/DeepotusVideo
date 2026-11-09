@@ -12,6 +12,7 @@ sur (1) le chaînage par image-édition, (2) les prompts de recette conservés,
 (3) le style global injecté partout — c'est indiqué dans l'UI.
 """
 import base64
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -75,7 +76,14 @@ _FAL_GPT = {"gpt-image-2-fal": "gpt-image-2",
 # `background: "transparent"` — par VOIE, d'après la doc de chacune (27/09) :
 # fal l'accepte pour flare ET sunburst (t2i et edit, auto/transparent/opaque) ;
 # la doc OpenAI ne le dit que de flare, sunburst direct reste donc fermé.
-_TRANSPARENT_OK_FAL = ("gpt-image-2.5-flare", "gpt-image-2.5-sunburst")
+# t488 (F6.10, schéma relu le 09/11/2026) : openai/gpt-image-2 et son /edit ont aussi
+# `background` auto | transparent | opaque chez fal -> gpt-image-2 (via fal) ouvert.
+# Aucun autre modèle d'image du registre n'a de champ de fond (Nano Banana, FLUX 3,
+# Seedream, Ideogram, Qwen : schémas relus le même jour).
+_TRANSPARENT_OK_FAL = ("gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst")
+# t480 (F6.3) : les edits GPT servis par fal prennent PLUSIEURS références (`image_urls`, 16 au plus d'après le
+# schéma relu le 09/11/2026 ; chacune facturée en entrée, environ 0,008 à 0,012 $). Seule une image partait avant.
+REF_MAX_GPT_FAL = 16
 _TRANSPARENT_OK_OPENAI = ("gpt-image-2.5-flare",)
 
 
@@ -146,7 +154,8 @@ async def _download(urls: list[str], ext: str = ".png") -> list[str]:
 
 def build_openai_request(model: str, prompt: str, size: str, n: int,
                          has_image: bool,
-                         background: str | None = None) -> tuple[str, dict]:
+                         background: str | None = None,
+                         qualite: str | None = None) -> tuple[str, dict]:
     """(url, payload_gen) — payload des /generations; les /edits partent en
     multipart construit à l'appel. Exposé pur pour les tests.
     GPT Image 2.5 : la qualité `high` est ÉCRITE (c'est elle que la table de
@@ -155,10 +164,12 @@ def build_openai_request(model: str, prompt: str, size: str, n: int,
     osize = _OPENAI_SIZE.get(size, "1024x1024")
     payload = {"model": model, "prompt": prompt, "n": n, "size": osize}
     if model.startswith("gpt-image-2.5"):
-        payload["quality"] = "high"
+        payload["quality"] = qualite or "high"
         if background == "transparent" and model in _TRANSPARENT_OK_OPENAI:
             payload["background"] = "transparent"
             payload["output_format"] = "png"
+    elif qualite:      # t478 : gpt-image-2 direct n'écrit un palier que s'il est choisi (défaut OpenAI sinon)
+        payload["quality"] = qualite
     if has_image:
         return ("https://api.openai.com/v1/images/edits", payload)
     return ("https://api.openai.com/v1/images/generations", payload)
@@ -166,10 +177,12 @@ def build_openai_request(model: str, prompt: str, size: str, n: int,
 
 async def _openai_generate(model: str, prompt: str, size: str, n: int,
                            image_path: Path | None,
-                           background: str | None = None) -> list[str]:
+                           background: str | None = None,
+                           qualite: str | None = None) -> list[str]:
     url, payload = build_openai_request(model, prompt, size, n,
                                         image_path is not None,
-                                        background=background)
+                                        background=background,
+                                        qualite=qualite)
     headers = {"Authorization": f"Bearer {settings.OPENAI_API_KEY}"}
     async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=240.0) as c:
         if image_path is not None:
@@ -193,12 +206,25 @@ async def _openai_generate(model: str, prompt: str, size: str, n: int,
 # ───────────────────── Nano Banana (Gemini via fal) ─────────────────────
 
 REF_MAX = 9   # tâche #62 : fal ne documente aucun maximum pour `image_urls` (doc lue le 02/10) — 9 est notre prudence
+# t481 (F6.4) : Nano Banana Pro et 2.1 combinent jusqu'à 14 références (page fal relue le 09/11/2026 : « combine up
+# to 14 reference images », « 14 reference images add about $0.028 »). Les autres gardent la prudence de REF_MAX.
+REF_MAX_MODELE = {"nano-banana-pro": 14, "nano-banana-2.1": 14}
+
+
+def ref_max(model: str) -> int:
+    """t481 : le nombre de références qu'on envoie au plus à `model` (16 pour GPT via fal, 14 pour Nano Banana Pro
+    et 2.1, REF_MAX sinon)."""
+    m = str(model or "").strip().lower()
+    if m in _FAL_GPT:
+        return REF_MAX_GPT_FAL
+    return REF_MAX_MODELE.get(m, REF_MAX)
 
 
 def build_banana_request(prompt: str, size: str, n: int,
                          image_url: list[str] | str | None,
                          ratio: str | None = None,
-                         pro: bool = False) -> tuple[str, dict]:
+                         pro: bool = False,
+                         resolution: str | None = None) -> tuple[str, dict]:
     """(model_id, arguments) fal pour Nano Banana. Exposé pur pour les tests.
     `ratio` (ex. "9:16") force le cadre de sortie d'un EDIT — par défaut
     l'edit suit le cadre de l'image d'entrée (leçon tests canons: un corps
@@ -208,31 +234,34 @@ def build_banana_request(prompt: str, size: str, n: int,
     endpoint = "fal-ai/nano-banana-pro" if pro else "fal-ai/nano-banana"
     # tâche #62 : une LISTE de références (une chaîne seule reste acceptée), ordre gardé, tronquée à REF_MAX
     urls = [image_url] if isinstance(image_url, str) else list(image_url or [])
-    urls = [u for u in urls if u][:REF_MAX]
+    urls = [u for u in urls if u][:ref_max("nano-banana-pro" if pro else "nano-banana")]
+    # t481 (F6.4) : la résolution n'existe que chez Pro ; sans choix, rien n'est écrit (défaut fal 1K)
+    res = {"resolution": resolution} if (pro and resolution) else {}
     if urls:
         args = {"prompt": prompt, "image_urls": urls,
-                "num_images": n, "output_format": "png"}
+                "num_images": n, "output_format": "png", **res}
         if ratio:
             args["aspect_ratio"] = ratio
         return (endpoint + "/edit", args)
     return (endpoint,
             {"prompt": prompt, "num_images": n, "output_format": "png",
-             "aspect_ratio": _BANANA_ASPECT.get(size, "1:1")})
+             "aspect_ratio": _BANANA_ASPECT.get(size, "1:1"), **res})
 
 
 async def _banana_generate(prompt: str, size: str, n: int,
                            image_path: Path | list[Path] | None,
                            ratio: str | None = None,
-                           pro: bool = False) -> list[str]:
+                           pro: bool = False,
+                           resolution: str | None = None) -> list[str]:
     import fal_client
     chemins = list(image_path) if isinstance(image_path, (list, tuple)) else ([image_path] if image_path is not None else [])
     urls: list[str] = []
     if chemins:
         from app.services.fal_service import FalSeedanceClient
-        for ch in chemins[:REF_MAX]:
+        for ch in chemins[:ref_max("nano-banana-pro" if pro else "nano-banana")]:
             urls.append(await FalSeedanceClient.upload_image(ch))
     model, arguments = build_banana_request(prompt, size, n, urls, ratio,
-                                            pro)
+                                            pro, resolution=resolution)
     result = await fal_client.subscribe_async(model, arguments=arguments)
     urls = [im.get("url") for im in (result or {}).get("images", [])
             if im.get("url")]
@@ -246,7 +275,8 @@ async def _banana_generate(prompt: str, size: str, n: int,
 def build_fal_gpt_request(prompt: str, size: str, n: int,
                           image_url: str | None,
                           model: str = "gpt-image-2",
-                          background: str | None = None) -> tuple[str, dict]:
+                          background: str | None = None,
+                          qualite: str = "high") -> tuple[str, dict]:
     """(model_id, arguments) fal pour GPT Image servi par fal. Exposé pur
     pour les tests. Les identifiants de taille du projet SONT les presets
     fal (`portrait_4_3`…) : ils passent tels quels. La qualité `high` est
@@ -258,35 +288,45 @@ def build_fal_gpt_request(prompt: str, size: str, n: int,
     `openai/gpt-image-2.5/{variante}/{text-to-image|edit}`, doc fal du
     27/09/2026). `background="transparent"` part pour Flare et Sunburst
     (doc fal), jamais pour gpt-image-2."""
-    args = {"prompt": prompt, "image_size": size, "quality": "high",
+    args = {"prompt": prompt, "image_size": size, "quality": qualite or "high",
             "num_images": n, "output_format": "png"}
     if model.startswith("gpt-image-2.5-"):
         variante = model[len("gpt-image-2.5-"):]
         base = f"openai/gpt-image-2.5/{variante}"
         t2i = base + "/text-to-image"
-        if background == "transparent" and model in _TRANSPARENT_OK_FAL:
-            args["background"] = "transparent"
     else:
         base = "openai/gpt-image-2"
         t2i = base
-    if image_url:
-        args["image_urls"] = [image_url]
+    # t488 : le fond transparent, pour tout modèle GPT que fal sert avec `background` (2, 2.5 Flare, 2.5 Sunburst)
+    if background == "transparent" and model in _TRANSPARENT_OK_FAL:
+        args["background"] = "transparent"
+    # t480 (F6.3) : une URL (forme d'avant) ou une LISTE de références, ordre gardé, tronquée à REF_MAX_GPT_FAL
+    urls = [image_url] if isinstance(image_url, str) else list(image_url or [])
+    urls = [u for u in urls if u][:REF_MAX_GPT_FAL]
+    if urls:
+        args["image_urls"] = urls
         return (base + "/edit", args)
     return (t2i, args)
 
 
 async def _fal_gpt_generate(prompt: str, size: str, n: int,
-                            image_path: Path | None,
+                            image_path: Path | list[Path] | None,
                             model: str = "gpt-image-2",
-                            background: str | None = None) -> list[str]:
+                            background: str | None = None,
+                            qualite: str = "high") -> list[str]:
     import fal_client
-    image_url = None
-    if image_path is not None:
+    # t480 (F6.3) : un chemin (forme d'avant) ou une LISTE de références, toutes téléversées
+    chemins = list(image_path) if isinstance(image_path, (list, tuple)) else (
+        [image_path] if image_path is not None else [])
+    image_url: list[str] = []
+    if chemins:
         from app.services.fal_service import FalSeedanceClient
-        image_url = await FalSeedanceClient.upload_image(image_path)
+        for ch in chemins[:REF_MAX_GPT_FAL]:
+            image_url.append(await FalSeedanceClient.upload_image(ch))
     endpoint, arguments = build_fal_gpt_request(prompt, size, n, image_url,
                                                 model=model,
-                                                background=background)
+                                                background=background,
+                                                qualite=qualite)
     result = await fal_client.subscribe_async(endpoint, arguments=arguments)
     urls = [im.get("url") for im in (result or {}).get("images", [])
             if im.get("url")]
@@ -322,7 +362,11 @@ FAL_IMAGES = {
     "ideogram-4.5": {"t2i": "ideogram/v4.5", "edit": "ideogram/v4.5/edit",
                      "taille": "image_size", "edit_champ": "image_url",
                      # qualité ÉCRITE : c'est elle que la clé de prix chiffre
-                     "extra": {"quality": "high"}},
+                     "extra": {"quality": "high"},
+                     # t479 (F6.2) : la réécriture du prompt par le fournisseur (« magic prompt »,
+                     # `enable_prompt_expansion`, vrai par défaut chez fal ; texte → image
+                     # seulement, l'edit n'a pas ce champ — schéma relu le 09/11/2026)
+                     "reecriture": "enable_prompt_expansion"},
     "qwen-image-3": {"t2i": "alibaba/qwen-image-3/text-to-image",
                      "edit": "alibaba/qwen-image-3/edit",
                      "taille": "image_size",
@@ -333,13 +377,52 @@ FAL_IMAGES = {
 }
 
 
+def multi_references(model: str) -> bool:
+    """t480 (F6.3) : vrai si le modèle prend PLUSIEURS images de référence en retouche (Nano Banana, les modèles
+    fal à retouche, GPT Image servi par fal). GPT Image direct (OpenAI) n'en envoie qu'une."""
+    m = str(model or "").strip().lower()
+    return (m in ("nano-banana", "nano-banana-pro") or m in _FAL_GPT
+            or bool((FAL_IMAGES.get(m) or {}).get("edit")))
+
+
+def accepte_transparent(model: str) -> bool:
+    """t488 (F6.10) : vrai si l'id du REGISTRE rend un vrai fond transparent (champ `background`) — GPT Image via fal
+    (2, 2.5 Flare et Sunburst) et GPT Image 2.5 Flare direct. Les autres rendent un fond opaque, quoi que dise le
+    prompt."""
+    m = str(model or "").strip().lower()
+    if m in _FAL_GPT:
+        return _FAL_GPT[m] in _TRANSPARENT_OK_FAL
+    return m in _TRANSPARENT_OK_OPENAI
+
+
+# t488 : un fond transparent DEMANDÉ DANS LE TEXTE du prompt (FR/EN). Le modèle ne le rend jamais par le texte : il
+# faut le champ `background` (posé d'office quand le modèle l'a), sinon le dire.
+_FOND_TRANSPARENT_RX = re.compile(
+    r"\b(transparent\s+(background|bg|png)|background\s*:?\s*transparent|no\s+background|"
+    r"alpha\s+channel|png\s+(with|à)\s+(alpha|transparen\w*)|fonds?\s+transparents?|sans\s+fond|"
+    r"fond\s+alpha|d[ée]tour[ée]e?s?\s+sur\s+fond\s+transparent)\b", re.I)
+
+
+def fond_transparent_demande(prompt: str) -> bool:
+    """t488 : le prompt demande-t-il un fond transparent, en toutes lettres ?"""
+    return bool(_FOND_TRANSPARENT_RX.search(str(prompt or "")))
+
+
+def accepte_reecriture(model: str) -> bool:
+    """t479 (F6.2) : vrai si le modèle a un interrupteur de réécriture du prompt."""
+    return bool((FAL_IMAGES.get(str(model or "").strip().lower()) or {}).get("reecriture"))
+
+
 def build_fal_image_request(model: str, prompt: str, size: str,
                             image_urls: list[str],
-                            n: int = 1) -> tuple[str, dict]:
+                            n: int = 1,
+                            qualite: str | None = None,
+                            reecriture: bool | None = None,
+                            resolution: str | None = None) -> tuple[str, dict]:
     """(endpoint, arguments) pour un id de FAL_IMAGES. Pur : aucun réseau.
     ValueError si une image est donnée à un modèle sans retouche."""
     m = FAL_IMAGES[model]
-    urls = [u for u in (image_urls or []) if u][:REF_MAX]
+    urls = [u for u in (image_urls or []) if u][:ref_max(model)]
     edit = bool(urls)
     if edit and not m["edit"]:
         raise ValueError(f"{model} : pas de retouche (texte → image seulement).")
@@ -347,11 +430,17 @@ def build_fal_image_request(model: str, prompt: str, size: str,
     if m["taille"] == "aspect":
         args["aspect_ratio"] = _BANANA_ASPECT.get(size, "1:1")
         args["resolution"] = m["resolution"]
+        if resolution:                         # t481 : résolution choisie (validée par pricing.resolution_image)
+            args["resolution"] = resolution
     else:
         args["image_size"] = size if size in _BANANA_ASPECT else "square_hd"
     if m.get("multi", True):
         args["num_images"] = max(1, int(n))
     args.update(m.get("extra", {}))
+    if qualite and "quality" in m.get("extra", {}):     # t478 : palier choisi, sur un modèle qui en écrit un
+        args["quality"] = qualite
+    if reecriture is not None and m.get("reecriture") and not edit:   # t479 : sans choix, le défaut fal
+        args[m["reecriture"]] = bool(reecriture)
     if edit:
         if m.get("edit_champ") == "image_url":
             args["image_url"] = urls[0]
@@ -364,6 +453,9 @@ def build_fal_image_request(model: str, prompt: str, size: str,
 
 async def _fal_image_generate(model: str, prompt: str, size: str, n: int,
                               image_paths: list[Path] | None = None,
+                              qualite: str | None = None,
+                              reecriture: bool | None = None,
+                              resolution: str | None = None,
                               **kw) -> list[str]:
     """Couture des modèles FAL_IMAGES (les bancs l'espionnent) : téléverse
     les références, tire (n appels si le schéma n'a pas de `num_images`),
@@ -375,9 +467,12 @@ async def _fal_image_generate(model: str, prompt: str, size: str, n: int,
     urls: list[str] = []
     if image_paths:
         from app.services.fal_service import FalSeedanceClient
-        for ch in list(image_paths)[:REF_MAX]:
+        for ch in list(image_paths)[:ref_max(model)]:
             urls.append(await FalSeedanceClient.upload_image(ch))
-    endpoint, arguments = build_fal_image_request(model, prompt, size, urls, n)
+    endpoint, arguments = build_fal_image_request(model, prompt, size, urls, n,
+                                                  qualite=qualite,
+                                                  reecriture=reecriture,
+                                                  resolution=resolution)
     tirs = 1 if m.get("multi", True) else max(1, int(n))
     trouves: list[str] = []
     result = None
@@ -404,7 +499,10 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
                    ratio: str | None = None,
                    background: str | None = None,
                    image_paths: list[Path] | None = None,
-                   sortie: str = "raster") -> dict:
+                   sortie: str = "raster",
+                   qualite: str | None = None,
+                   reecriture: bool | None = None,
+                   resolution: str | None = None) -> dict:
     """Génère via le provider choisi. Retour: {"images":[filenames],
     "seed": int|None} (seed None = provider non déterministe). `ratio`
     (ex. "9:16") force le cadre des EDITS (image_path fourni) — sinon le
@@ -416,15 +514,23 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
     if est_vectoriel(provider) and sortie != "svg":
         raise RuntimeError(f"{provider} rend du SVG : à utiliser depuis le "
                            f"Vectorlab.")
+    # t478 (F6.1) : le palier de qualité, validé contre le registre des prix
+    # (`high` pour un palier vide ou inconnu, None pour un modèle sans palier).
+    from app.services.pricing import qualite_image, resolution_image
+    q = qualite_image(provider, qualite)
+    # t481 (F6.4) : la résolution n'est ÉCRITE que si elle est demandée (sinon le défaut d'avant, à l'octet)
+    res = resolution_image(provider, resolution) if resolution else None
     # LES CHEMINS FAL D'ABORD : les « gpt-image-…-fal » commencent par
     # « gpt-image » — testés après le préfixe OpenAI, ils partiraient chez
     # OpenAI avec la mauvaise clé ET la mauvaise facture.
     if provider in _FAL_GPT:
         if not settings.FAL_KEY:
             raise RuntimeError("FAL_KEY manquante (Réglages).")
-        imgs = await _fal_gpt_generate(prompt, size, n, image_path,
+        refs_gpt = list(image_paths) if image_paths else image_path   # t480 : plusieurs références
+        imgs = await _fal_gpt_generate(prompt, size, n, refs_gpt,
                                        model=_FAL_GPT[provider],
-                                       background=background)
+                                       background=background,
+                                       qualite=q or "high")
         return {"images": imgs, "seed": None}
     # t182 : AVANT le cas nano-banana — « nano-banana-2.1 » n'est pas
     # « nano-banana » et ne doit jamais retomber sur l'ancien endpoint.
@@ -435,7 +541,9 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
             [image_path] if image_path is not None else [])
         try:
             imgs = await _fal_image_generate(provider, prompt, size, n,
-                                             image_paths=refs)
+                                             image_paths=refs, qualite=q,
+                                             reecriture=reecriture,
+                                             resolution=res)
         except ValueError as e:      # recraft : pas de retouche
             raise RuntimeError(str(e))
         return {"images": imgs, "seed": None}
@@ -443,13 +551,17 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
         if not settings.FAL_KEY:
             raise RuntimeError("FAL_KEY manquante (Réglages).")
         refs = list(image_paths) if image_paths else image_path     # tâche #62 : plusieurs références
+        # t481 : `resolution` passé SEULEMENT s'il est choisi (l'appel d'avant reste identique)
         imgs = await _banana_generate(prompt, size, n, refs, ratio,
-                                      pro=(provider == "nano-banana-pro"))
+                                      pro=(provider == "nano-banana-pro"),
+                                      **({"resolution": res} if res else {}))
         return {"images": imgs, "seed": None}
     if provider.startswith("gpt-image") or provider.startswith("dall-e"):
         if not settings.OPENAI_API_KEY:
             raise RuntimeError("OPENAI_API_KEY manquante (Réglages).")
+        # gpt-image-2 direct : un palier n'est écrit que s'il est DEMANDÉ
+        q_dir = q if (qualite or provider.startswith("gpt-image-2.5")) else None
         imgs = await _openai_generate(provider, prompt, size, n, image_path,
-                                      background=background)
+                                      background=background, qualite=q_dir)
         return {"images": imgs, "seed": None}
     raise RuntimeError(f"Générateur inconnu: {provider}")

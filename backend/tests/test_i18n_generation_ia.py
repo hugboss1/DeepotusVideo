@@ -673,7 +673,8 @@ def main():
         "devis musique ace-step": "Musique (ACE-Step (paroles)) 45 s x2",
         "devis musique elevenlabs-music-2.5": "Musique (ElevenLabs Music 2.5) 90 s = 2 min x1",
         "devis musique mureka-9.5 paroles": "Musique (Mureka 9.5 avec paroles) x1",
-        "devis musique lyria-3.5": "Musique (Lyria 3.5 (Google)) — prix à mesurer x1",
+        # t486 (F6.8) : le prix de Lyria 3.5 est publié (0,10 $) : le libellé perd « prix à mesurer »
+        "devis musique lyria-3.5": "Musique (Lyria 3.5 (Google)) x1",
         "MT.note_prix('pixelcut-video')": "",
         "MT.USD_NOTE": "prix à mesurer : fal n'affiche que « $0 per compute second » (06/10/2026) — lire le montant sur le tableau de bord fal après ce tir, puis l'écrire dans pricing.birefnet_video_usd_per_s",
         "musique : notes lyria3 durée + graine": "Lyria 3 (Google) impose sa durée (30 s) — la durée demandée a été ignorée. | Lyria 3 (Google) n'accepte pas de graine — le résultat n'est pas reproductible.",

@@ -247,7 +247,8 @@ check("temoin_fal_gpt2_endpoint_inchange", m == "openai/gpt-image-2", m)
 check("temoin_fal_gpt2_sans_background", "background" not in a, repr(a))
 m, a = IP.build_fal_gpt_request("p", "portrait_4_3", 1, None,
                                 background="transparent")
-check("temoin_fal_gpt2_background_ferme", "background" not in a, repr(a))
+# t488 (F6.10) : schéma fal relu le 09/11/2026 — openai/gpt-image-2 a `background` auto|transparent|opaque : ouvert
+check("fal_gpt2_background_ouvert_t488", a.get("background") == "transparent", repr(a))
 for var in ("flare", "sunburst"):
     try:
         m, a = IP.build_fal_gpt_request("p", "square_hd", 1, None,

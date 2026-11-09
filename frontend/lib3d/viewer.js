@@ -148,6 +148,7 @@ export function vider(api) {
   });
   api.scene.remove(api.racine);
   api.racine = null;
+  api.sol = 0;            /* t484 : plus de modèle, le sol revient à l'origine (voir cadrer) */
   /* ET LA MARQUE DU REPÈRE AVEC LUI, parce qu'elle DÉCRIT LE MODÈLE — là où
      la trame et les axes décrivent le REGARD et survivent délibérément.
      Sans cette ligne : charger() fait vider() PUIS attend le téléchargement,
@@ -715,6 +716,12 @@ export function majRepere(api) {
         >= COS_AXE_TENU) plan = planDeTrame(avant, e.plan);
     else _vueAxiale.delete(api);
   }
+  /* t484 : la trame et les axes se posent sur le SOL du modèle (api.sol, relevé par cadrer). Repositionnés à
+     CHAQUE appel, avant le mémo : un nouveau modèle de même échelle garde (pas, cases, plan) mais pas sa hauteur. */
+  const sol = Number.isFinite(api.sol) ? api.sol : 0;
+  e.sol = sol;
+  if (e.trame) e.trame.position.y = sol;
+  if (e.axes) e.axes.position.y = sol;
   if (e.pas === pas && e.cases === cases && e.plan === plan) return e;
   e.pas = pas;
   e.cases = cases;
@@ -736,6 +743,8 @@ export function majRepere(api) {
   const r = ROTATION_TRAME[plan];
   e.trame.rotation.set(r.x, r.y, r.z);
   e.axes = construireAxes(cases * pas);
+  e.trame.position.y = sol;
+  e.axes.position.y = sol;
   e.groupe.add(e.trame);
   e.groupe.add(e.axes);
   /* `demiTrame` ET NON `portee` : quarante lignes plus haut, `portee` nomme la
@@ -785,17 +794,19 @@ export function marquerAuRepere(api, points) {
   };
   const croix = e.pas / 4;
   const normale = e.plan;
+  /* t484 : l'origine du repère est posée sur le sol du modèle (voir cadrer et majRepere) */
+  const zero = { x: 0, y: Number.isFinite(e.sol) ? e.sol : 0, z: 0 };
   const [a1, a2] = ["x", "y", "z"].filter((a) => a !== normale);
   for (const q of liste) {
     /* Le PIED : le point ramené sur le plan de la trame. Puis on annule a1, puis
        a2 — et l'on est à l'origine. */
     const pied = { x: q.x, y: q.y, z: q.z };
-    pied[normale] = 0;
+    pied[normale] = zero[normale];
     const jambe = { x: pied.x, y: pied.y, z: pied.z };
-    jambe[a1] = 0;
+    jambe[a1] = zero[a1];
     pousser(q, pied, COULEUR_AXE[normale]);
     pousser(pied, jambe, COULEUR_AXE[a1]);
-    pousser(jambe, { x: 0, y: 0, z: 0 }, COULEUR_AXE[a2]);
+    pousser(jambe, zero, COULEUR_AXE[a2]);
     for (const axe of ["x", "y", "z"]) {
       const a = { x: q.x, y: q.y, z: q.z }, b = { x: q.x, y: q.y, z: q.z };
       a[axe] -= croix;
@@ -1149,6 +1160,12 @@ export function cadrer(api, marge = 1.35) {
   const boite = new THREE.Box3().setFromObject(api.racine);
   const taille = boite.getSize(new THREE.Vector3());
   const centre = boite.getCenter(new THREE.Vector3());
+  /* t484 — LE SOL EST SOUS LE MODÈLE, PAS À SON CENTRE. Un GLB dont l'origine est au milieu (cas courant des
+     moteurs de génération et des imports) avait la moitié basse sous la grille. On ne DÉPLACE PAS le modèle :
+     le pinceau d'Affiner, les jointures du Rig, les mesures et coupes de l'Établi prennent les points de la
+     scène pour des coordonnées du fichier, et un décalage les fausserait tous. C'est la grille et les axes
+     (majRepere) qui se posent à la hauteur du bas du modèle ; les coordonnées restent celles du fichier. */
+  api.sol = Number.isFinite(boite.min.y) ? boite.min.y : 0;
   const rayon = Math.max(taille.x, taille.y, taille.z) * 0.5 || 1;
   const aspect = aspectDe(api);
   const o = orientationDe(api.vueCadrage);

@@ -52,6 +52,24 @@ def strip_tags(text: str) -> str:
     return " ".join(_TAG_RX.sub(" ", text or "").split())
 
 
+def retirer_balises_v3(text: str) -> tuple[str, list[str]]:
+    """t487 (F6.9) : (texte, balises retirées) — retire les SEULES balises connues d'Eleven v3 (et `[strong X
+    accent]`), jamais un autre crochet (« [Scène 2] » reste : c'est du texte de l'auteur). Sert de dernière porte avant
+    un moteur qui ne les interprète pas (Multilingual v2, Flash v2.5, Voicebox), qui les LIRAIT à voix haute."""
+    retirees: list[str] = []
+
+    def sub(m):
+        t = m.group(0)
+        if is_known(t):
+            retirees.append(t)
+            return " "
+        return t
+    out = _TAG_RX.sub(sub, text or "")
+    if not retirees:
+        return text, []
+    return " ".join(out.split()), retirees
+
+
 def clamp_style(raw) -> dict:
     """{tags, stability} : balises connues seulement, au plus MAX_TAGS (au-delà
     le modèle les lit comme du texte qui traîne), stabilité snappée sur les
