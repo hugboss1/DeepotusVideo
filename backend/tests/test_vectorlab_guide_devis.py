@@ -45,6 +45,7 @@ async def main():
     from app.api import routes as R
     from app.services import image_providers as IP
     from app.services import library_index as LI
+    from app.services import pricing as PR
 
     GUIDE = "vector_d1_guide_c3_k.png"
     Image.new("RGB", (64, 48), (240, 200, 40)).save(_tmp / "images" / GUIDE)
@@ -79,10 +80,18 @@ async def main():
                      "size": "landscape_4_3", "source": "vectorlab"}
             r = await client.post("/api/images/process", json=corps)
             check(f"[{modele}] op edit : 200", r.status_code == 200, r.text)
-            # le devis du panneau : {kind: "image", model, n: 1} (devisCorps) — la garde reçoit la même op
+            # le devis du panneau : {kind: "image", model, n: 1} (devisCorps). Depuis t480/t481 (F6.3/F6.4), la garde
+            # de l'edit par la façade reçoit cette op PLUS l'image guide comptée en référence (refs: 1) et le palier /
+            # la résolution choisis (None ici : rien de choisi) ; Kontext garde l'op nue. Ce qui doit rester vrai :
+            # le MÊME chiffre au devis et à la garde.
             devis = {"kind": "image", "model": modele, "n": 1}
-            check(f"[{modele}] la garde reçoit l'op du devis du panneau {devis}",
-                  gardes == [{"kind": "image", "n": 1, "model": op_garde}] and op_garde == devis["model"], gardes)
+            attendu = dict(devis, model=op_garde) if modele == "flux" else                 dict(devis, refs=1, qualite=None, resolution=None)
+            check(f"[{modele}] la garde reçoit l'op du devis du panneau {devis} (+ refs/qualité/résolution)",
+                  gardes == [attendu] and op_garde == devis["model"], gardes)
+            usd_devis = PR.estimate(devis)["total_usd"]
+            usd_garde = PR.estimate(gardes[0])["total_usd"] if gardes else None
+            check(f"[{modele}] la garde chiffre le même montant que le devis du panneau ({usd_devis} $)",
+                  usd_garde == usd_devis, (usd_devis, usd_garde))
             check(f"[{modele}] le modèle part de l'image GUIDE, au format demandé",
                   len(tirs) == 1 and tirs[0]["image"] == GUIDE and tirs[0]["size"] == "landscape_4_3", tirs)
             n = notes[-1] if notes else {}
