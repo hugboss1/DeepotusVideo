@@ -215,6 +215,20 @@ class VoiceoverService:
             raise RuntimeError(
                 "Aucune voix disponible : configure une clé ElevenLabs "
                 "(Réglages) ou lance Voicebox en local.")
+        # t487 (F6.9) : DERNIÈRE PORTE. Les balises d'émotion en ligne ([whispers], [laughs]…) ne sont interprétées que
+        # par Eleven v3 ; Multilingual v2, Flash v2.5 et Voicebox les LIRAIENT à voix haute. La route voix off et la
+        # narration des Chapitres les retiraient déjà (et le disent) ; la narration d'épisode, les voix témoins de
+        # l'animatique, la lecture de l'assistant ne le faisaient pas. Seules les balises CONNUES partent.
+        if provider == "voicebox" or resolve_model(model_id) != "eleven_v3":
+            from app.services import voice_direction as VD
+            propre, retirees = VD.retirer_balises_v3(text)
+            if retirees:
+                logger.info(f"balises Eleven v3 retirées avant {provider} "
+                            f"({'Voicebox' if provider == 'voicebox' else resolve_model(model_id)}) : "
+                            f"{', '.join(retirees[:6])}")
+                if not propre.strip():
+                    raise ValueError("Empty narration text")
+                text = propre
         if provider == "voicebox":
             # voice_id = profil Voicebox; les ids ElevenLabs hérités sont
             # ignorés proprement (repli profil par défaut) dans la façade.
