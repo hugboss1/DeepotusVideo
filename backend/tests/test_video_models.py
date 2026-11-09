@@ -82,6 +82,8 @@ EXPECTED_IDS = {
     "kling-v4", "flux-3-max",
     # t408 : LTX 2.5 Pro (variante qualité de LTX 2.5)
     "ltx-2.5-pro",
+    # t482 (F6.5) : Seedance 2.5 en 1080p, membre à part (servi seulement à qui le choisit)
+    "seedance-2.5-1080p",
 }
 # t406 : les Veo Google, arrêtés le 22/10/2026, restent au registre mais sortent de /video-models
 RETIRES = {"veo-3.1-google", "veo-3.1-fast-google", "veo-3.1-lite-google"}
@@ -295,6 +297,20 @@ check("prix_fast_1080_colonne_max", pricing.video_rate("seedance-2-fast", "1080p
 check("prix_s25_480", pricing.video_rate("seedance-2.5", "480p", p) == 0.2205)
 check("prix_s25_720", pricing.video_rate("seedance-2.5", "720p", p) == 0.473)
 check("prix_s25_1080_colonne_max", pricing.video_rate("seedance-2.5", "1080p", p) == 0.473)
+# t482 (F6.5) : la 1080p de Seedance 2.5 est un membre À PART. « seedance-2.5 » reste plafonné à 720p (la résolution
+# par défaut de l'app est « 1080p » : sans membre à part, chaque tir par défaut coûterait 2,5 fois plus).
+_s25, _s25h = VIDEO_MODELS["seedance-2.5"], VIDEO_MODELS["seedance-2.5-1080p"]
+check("s25_reste_720_par_defaut", _s25["resolutions"] == ["480p", "720p"]
+      and clamp_resolution(_s25, "1080p") == "720p")
+check("s25h_meme_endpoint_meme_famille", _s25h["endpoint"] == _s25["endpoint"] and _s25h["family"] == _s25["family"]
+      and _s25h["durations"] == _s25["durations"] and _s25h["end_image"] and _s25h["audio_param"] == _s25["audio_param"])
+check("s25h_toujours_1080", _s25h["resolutions"] == ["1080p"] and clamp_resolution(_s25h, "720p") == "1080p")
+check("prix_s25h_1080", pricing.video_rate("seedance-2.5-1080p", "1080p", p) == 1.164
+      and pricing.video_rate("seedance-2.5-1080p", "720p", p) == 1.164)
+_e25h, _a25h, _n25h = args("seedance-2.5-1080p", image_url="u", prompt="p", duration=5)
+check("s25h_args_resolution_1080", _e25h == "bytedance/seedance-2.5/image-to-video" and _a25h.get("resolution") == "1080p" and "draft" not in _a25h, repr((_e25h, _a25h)))
+check("s25_args_inchanges_720", args("seedance-2.5", image_url="u", prompt="p", duration=5)[1].get("resolution")
+      == "720p")
 check("prix_inconnu_none", pricing.video_rate("unknown-model", "1080p", p) is None)
 # t407 — pages fal relues le 01/11/2026. Kling 4.0 : 0,157 $/s 720p, 0,235 $/s 1080p. FLUX 3 Max : tarif PLEIN
 # (0,17 / 0,29 $/s), pas la promo -75 % affichée jusqu'au 07/11 — la garde ne suppose pas une remise.

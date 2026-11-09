@@ -1,7 +1,7 @@
 ---
 famille: seedance
 natures: [video_i2v, video_fl]
-ids: [seedance-v1-pro, seedance-2, seedance-2-fast, seedance-2.5]
+ids: [seedance-v1-pro, seedance-2, seedance-2-fast, seedance-2.5, seedance-2.5-1080p]
 voies: [fal]
 releve: 2026-11-09
 source: scenario-seedance, scenario-seedance-drafts, scenario-seedance-storyboard, scenario-seedance-music-video (scenario-labs/skills, MIT) ; registre fal_service
@@ -46,6 +46,8 @@ le membre par défaut ; Seedance 1.0 Pro est le seul membre qui accepte un seed.
   deux membres avant une série.
 - [COÛT] Brouillon : 2.5 au palier bas ou 2.0 Fast, à la durée finale. Il valide le prompt et le mouvement ; le
   final, au palier haut, est une nouvelle prise.
+- [COÛT] La 1080p de Seedance 2.5 est un membre à part, « Seedance 2.5 (1080p) », servi seulement si on le choisit ;
+  elle coûte bien plus que la 720p (lire Membres). La réserver à la prise finale d'un plan validé.
 - [COÛT] Seedance 2.5 est facturé aux jetons : le devis est une estimation, la facture peut s'en écarter. Couper
   le son ne change pas son prix.
 - [CHOIX] Avec une image de fin, Seedance 1.0 Pro est servi par sa variante Lite, pas par Pro.

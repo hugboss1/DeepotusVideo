@@ -126,6 +126,24 @@ VIDEO_MODELS: dict = {
         "resolutions": ["480p", "720p"], "end_image": True, "seed": False,
         "audio_param": "generate_audio",
     },
+    # t482 (F6.5, schéma et page fal relus le 09/11/2026) : la 1080p de
+    # Seedance 2.5 est chiffrée (« roughly $1.164 per second », 2,5 fois la
+    # 720p). Elle est un MEMBRE À PART, servi seulement à qui le choisit : la
+    # résolution par défaut de l'app est « 1080p » partout (schéma, écrans,
+    # agents) et `clamp_resolution` la ramène à 720p pour « seedance-2.5 » —
+    # l'ajouter à ce membre-là ferait passer chaque tir par défaut à 2,5 fois
+    # le prix. Même endpoint, même famille, mêmes champs.
+    # Le mode brouillon (`draft: true` -> 480p + `draft_id`) n'est PAS branché :
+    # fal ne publie aucun endpoint qui finalise un `draft_id` (aucun schéma ne
+    # le prend en entrée ; …/draft-complete répond 404) — un brouillon vaut un
+    # tir 480p ordinaire, déjà possible.
+    "seedance-2.5-1080p": {
+        "label": "Seedance 2.5 (1080p)", "provider": "fal", "family": "seedance25",
+        "endpoint": "bytedance/seedance-2.5/image-to-video",
+        "durations": list(range(4, 31)), "ratios": None,
+        "resolutions": ["1080p"], "end_image": True, "seed": False,
+        "audio_param": "generate_audio",
+    },
     "kling-v3-pro": {
         "label": "Kling v3 Pro", "provider": "fal", "family": "kling",
         "endpoint": "fal-ai/kling-video/v3/pro/image-to-video",

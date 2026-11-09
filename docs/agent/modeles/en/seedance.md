@@ -1,7 +1,7 @@
 ---
 famille: seedance
 natures: [video_i2v, video_fl]
-ids: [seedance-v1-pro, seedance-2, seedance-2-fast, seedance-2.5]
+ids: [seedance-v1-pro, seedance-2, seedance-2-fast, seedance-2.5, seedance-2.5-1080p]
 voies: [fal]
 releve: 2026-11-09
 source: scenario-seedance, scenario-seedance-drafts, scenario-seedance-storyboard, scenario-seedance-music-video (scenario-labs/skills, MIT) ; fal_service registry
@@ -45,6 +45,8 @@ is the default member; Seedance 1.0 Pro is the only member that takes a seed.
   members before a series.
 - [COST] Draft: 2.5 at the low tier or 2.0 Fast, at the final duration. It validates the prompt and the motion; the
   final, at the high tier, is a new take.
+- [COST] Seedance 2.5 at 1080p is a separate member, « Seedance 2.5 (1080p) », served only when chosen; it costs
+  far more than 720p (read Members). Keep it for the final take of an approved shot.
 - [COST] Seedance 2.5 is billed by tokens: the quote is an estimate, the invoice may differ. Dropping the sound does
   not change its price.
 - [CHOICE] With an end image, Seedance 1.0 Pro is served by its Lite variant, not by Pro.

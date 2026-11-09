@@ -115,6 +115,9 @@ DEFAULTS = {
         # prix avec ou sans audio (doc fal du 26/09) : pas de colonne
         # « audio off » pour ce modèle.
         "seedance-2.5":        {"480p": 0.2205, "720p": 0.473},
+        # t482 (F6.5) : page fal relue le 09/11/2026, « for 1080p, roughly
+        # $1.164 per second » (0,0234 $/1k tokens) ; membre à part (fal_service)
+        "seedance-2.5-1080p":  {"1080p": 1.164},
         "kling-v3-pro":        {"*": 0.112},
         "kling-v3-standard":   {"*": 0.084},
         "pixverse-v6":         {"720p": 0.045, "1080p": 0.090},
