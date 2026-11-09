@@ -19756,7 +19756,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "vectorlab.importer.r_cache": {"fr": "éléments cachés", "en": "hidden elements"},
   "vectorlab.importer.r_chemin": {"fr": "tracés illisibles", "en": "unreadable paths"},
   "vectorlab.importer.r_decoupe": {"fr": "découpes", "en": "clipping paths"},
-  "vectorlab.importer.r_degrade": {"fr": "dégradés (1re couleur gardée)", "en": "gradients (first colour kept)"},
+  "vectorlab.importer.r_degrade": {"fr": "dégradés (1re couleur gardée)", "en": "gradients (first color kept)"},
   "vectorlab.importer.r_filtre": {"fr": "filtres", "en": "filters"},
   "vectorlab.importer.r_image": {"fr": "images liées", "en": "linked images"},
   "vectorlab.importer.r_inconnu": {"fr": "éléments inconnus", "en": "unknown elements"},

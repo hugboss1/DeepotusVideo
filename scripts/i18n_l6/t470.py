@@ -37,7 +37,7 @@ ENTREES = [
     H("vectorlab.importer.r_filtre", "filtres", "filters"),
     H("vectorlab.importer.r_decoupe", "découpes", "clipping paths"),
     H("vectorlab.importer.r_masque", "masques", "masks"),
-    H("vectorlab.importer.r_degrade", "dégradés (1re couleur gardée)", "gradients (first colour kept)"),
+    H("vectorlab.importer.r_degrade", "dégradés (1re couleur gardée)", "gradients (first color kept)"),
     H("vectorlab.importer.r_use", "références absentes", "missing references"),
     H("vectorlab.importer.r_chemin", "tracés illisibles", "unreadable paths"),
 ]
