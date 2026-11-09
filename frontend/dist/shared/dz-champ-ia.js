@@ -801,7 +801,10 @@
                    sansCle: sans,     // t182 : choisissable sans sa clé (refus 503 au tir)
                    /* t478 (F6.1) : paliers de qualité {palier: $/image} et palier enregistré pour ce modèle */
                    qualites: e.qualites || null,
-                   qchoisie: (d.qualites || {})[e.id] || e.qualite_defaut || "" };
+                   qchoisie: (d.qualites || {})[e.id] || e.qualite_defaut || "",
+                   /* t479 (F6.2) : interrupteur de réécriture du prompt (Ideogram) ; absent du réglage = actif */
+                   reecriture: !!e.reecriture,
+                   rchoisie: (d.reecritures || {})[e.id] !== false };
         }));
         return { defaut: d.default || "", modeles: mods };
       });
@@ -1295,6 +1298,36 @@
           rang.appendChild(qb);
         });
         L.appendChild(rang);
+      }
+      /* t479 (F6.2) : la RÉÉCRITURE DU PROMPT par le fournisseur (Ideogram « magic prompt »), active par défaut ;
+         la couper garde le texte exact du prompt (slogan, nom de marque). Enregistrée par modèle
+         (`image_reecriture:<id>` = « 0 » / « 1 »). */
+      if (mq && mq.reecriture) {
+        var rr = D.createElement("div");
+        rr.className = "dzia-qual";
+        var rb = D.createElement("button");
+        rb.setAttribute("type", "button");
+        rb.setAttribute("tabindex", "-1");
+        rb.className = "dzia-qbtn dzia-rbtn";
+        var etiq = function () {
+          rb.textContent = TP("ia.reecriture.titre", "Réécriture du prompt") + " : "
+            + (mq.rchoisie ? TP("ia.reecriture.oui", "oui") : TP("ia.reecriture.non", "non"));
+          rb.setAttribute("aria-pressed", mq.rchoisie ? "true" : "false");
+        };
+        etiq();
+        rb.setAttribute("title", TP("ia.reecriture.aide", "Le fournisseur réécrit le prompt avant de dessiner ; couper pour garder un texte exact"));
+        rb.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
+        rb.addEventListener("click", function (ev) {
+          ev.preventDefault(); ev.stopPropagation();
+          var nv = !mq.rchoisie, corps = {}; corps["image_reecriture:" + cour] = nv ? "1" : "0";
+          W.fetch("/api/atelier/settings", { method: "PUT", headers: { "Content-Type": "application/json" },
+                                             body: JSON.stringify(corps) }).then(function (r) {
+            if (!r.ok) return;
+            mq.rchoisie = nv; etiq();
+          }, function () {});
+        });
+        rr.appendChild(rb);
+        L.appendChild(rr);
       }
       L.appendChild(pied);
       chargerFiche().then(function (F) {

@@ -330,7 +330,11 @@ FAL_IMAGES = {
     "ideogram-4.5": {"t2i": "ideogram/v4.5", "edit": "ideogram/v4.5/edit",
                      "taille": "image_size", "edit_champ": "image_url",
                      # qualité ÉCRITE : c'est elle que la clé de prix chiffre
-                     "extra": {"quality": "high"}},
+                     "extra": {"quality": "high"},
+                     # t479 (F6.2) : la réécriture du prompt par le fournisseur (« magic prompt »,
+                     # `enable_prompt_expansion`, vrai par défaut chez fal ; texte → image
+                     # seulement, l'edit n'a pas ce champ — schéma relu le 09/11/2026)
+                     "reecriture": "enable_prompt_expansion"},
     "qwen-image-3": {"t2i": "alibaba/qwen-image-3/text-to-image",
                      "edit": "alibaba/qwen-image-3/edit",
                      "taille": "image_size",
@@ -341,10 +345,16 @@ FAL_IMAGES = {
 }
 
 
+def accepte_reecriture(model: str) -> bool:
+    """t479 (F6.2) : vrai si le modèle a un interrupteur de réécriture du prompt."""
+    return bool((FAL_IMAGES.get(str(model or "").strip().lower()) or {}).get("reecriture"))
+
+
 def build_fal_image_request(model: str, prompt: str, size: str,
                             image_urls: list[str],
                             n: int = 1,
-                            qualite: str | None = None) -> tuple[str, dict]:
+                            qualite: str | None = None,
+                            reecriture: bool | None = None) -> tuple[str, dict]:
     """(endpoint, arguments) pour un id de FAL_IMAGES. Pur : aucun réseau.
     ValueError si une image est donnée à un modèle sans retouche."""
     m = FAL_IMAGES[model]
@@ -363,6 +373,8 @@ def build_fal_image_request(model: str, prompt: str, size: str,
     args.update(m.get("extra", {}))
     if qualite and "quality" in m.get("extra", {}):     # t478 : palier choisi, sur un modèle qui en écrit un
         args["quality"] = qualite
+    if reecriture is not None and m.get("reecriture") and not edit:   # t479 : sans choix, le défaut fal
+        args[m["reecriture"]] = bool(reecriture)
     if edit:
         if m.get("edit_champ") == "image_url":
             args["image_url"] = urls[0]
@@ -376,6 +388,7 @@ def build_fal_image_request(model: str, prompt: str, size: str,
 async def _fal_image_generate(model: str, prompt: str, size: str, n: int,
                               image_paths: list[Path] | None = None,
                               qualite: str | None = None,
+                              reecriture: bool | None = None,
                               **kw) -> list[str]:
     """Couture des modèles FAL_IMAGES (les bancs l'espionnent) : téléverse
     les références, tire (n appels si le schéma n'a pas de `num_images`),
@@ -390,7 +403,8 @@ async def _fal_image_generate(model: str, prompt: str, size: str, n: int,
         for ch in list(image_paths)[:REF_MAX]:
             urls.append(await FalSeedanceClient.upload_image(ch))
     endpoint, arguments = build_fal_image_request(model, prompt, size, urls, n,
-                                                  qualite=qualite)
+                                                  qualite=qualite,
+                                                  reecriture=reecriture)
     tirs = 1 if m.get("multi", True) else max(1, int(n))
     trouves: list[str] = []
     result = None
@@ -418,7 +432,8 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
                    background: str | None = None,
                    image_paths: list[Path] | None = None,
                    sortie: str = "raster",
-                   qualite: str | None = None) -> dict:
+                   qualite: str | None = None,
+                   reecriture: bool | None = None) -> dict:
     """Génère via le provider choisi. Retour: {"images":[filenames],
     "seed": int|None} (seed None = provider non déterministe). `ratio`
     (ex. "9:16") force le cadre des EDITS (image_path fourni) — sinon le
@@ -454,7 +469,8 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
             [image_path] if image_path is not None else [])
         try:
             imgs = await _fal_image_generate(provider, prompt, size, n,
-                                             image_paths=refs, qualite=q)
+                                             image_paths=refs, qualite=q,
+                                             reecriture=reecriture)
         except ValueError as e:      # recraft : pas de retouche
             raise RuntimeError(str(e))
         return {"images": imgs, "seed": None}

@@ -264,6 +264,60 @@ def bloc_ecran():
         check("6.8 node --check (node absent)", True)
 
 
+async def bloc_reecriture():
+    """t479 (F6.2) : réécriture du prompt d'Ideogram (`enable_prompt_expansion`, texte → image seulement)."""
+    print("\n[7] réécriture du prompt (Ideogram « magic prompt »)")
+    check("7.1 Ideogram a l'interrupteur ; Qwen et GPT non",
+          IP.accepte_reecriture("ideogram-4.5") and not IP.accepte_reecriture("qwen-image-3")
+          and not IP.accepte_reecriture("gpt-image-2-fal"))
+    _, a = IP.build_fal_image_request("ideogram-4.5", "p", "square_hd", [], 1)
+    check("7.2 sans choix : aucun champ (défaut fal, inchangé)", "enable_prompt_expansion" not in a)
+    _, a = IP.build_fal_image_request("ideogram-4.5", "p", "square_hd", [], 1, reecriture=False)
+    check("7.3 coupée : enable_prompt_expansion=false", a.get("enable_prompt_expansion") is False)
+    _, a = IP.build_fal_image_request("ideogram-4.5", "p", "square_hd", [], 1, reecriture=True)
+    check("7.4 active : enable_prompt_expansion=true", a.get("enable_prompt_expansion") is True)
+    _, a = IP.build_fal_image_request("ideogram-4.5", "p", "square_hd", ["http://x"], 1, reecriture=False)
+    check("7.5 retouche : le champ n'est jamais envoyé (absent du schéma edit)", "enable_prompt_expansion" not in a)
+    _, a = IP.build_fal_image_request("qwen-image-3", "p", "square_hd", [], 1, reecriture=False)
+    check("7.6 Qwen : rien d'ajouté", "enable_prompt_expansion" not in a)
+    par = {e["id"]: e for e in CI.lister("image")}
+    check("7.7 catalogue : reecriture sur Ideogram seulement",
+          par["ideogram-4.5"].get("reecriture") is True and "reecriture" not in par["qwen-image-3"])
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+        r = await c.post("/api/images/generate", json={"prompt": "o", "model": "ideogram-4.5"})
+        check("7.8 route sans choix : aucun champ", "enable_prompt_expansion" not in FAL_CALLS[-1]["arguments"]
+              and "reecriture" not in r.json(), FAL_CALLS[-1:])
+        r = await c.post("/api/images/generate", json={"prompt": "o", "model": "ideogram-4.5", "reecriture": False})
+        check("7.9 corps reecriture=false : envoyé false, rendu", FAL_CALLS[-1]["arguments"].get("enable_prompt_expansion") is False
+              and r.json().get("reecriture") is False)
+        await c.put("/api/atelier/settings", json={"image_reecriture:ideogram-4.5": "0"})
+        await c.post("/api/images/generate", json={"prompt": "o", "model": "ideogram-4.5"})
+        check("7.10 réglage « 0 » suivi sans corps", FAL_CALLS[-1]["arguments"].get("enable_prompt_expansion") is False)
+        await c.post("/api/images/generate", json={"prompt": "o", "model": "ideogram-4.5", "reecriture": True})
+        check("7.11 le corps prime sur le réglage", FAL_CALLS[-1]["arguments"].get("enable_prompt_expansion") is True)
+        await c.post("/api/images/generate", json={"prompt": "o", "model": "ideogram-4.5", "reecriture": "non"})
+        check("7.12 corps non booléen ignoré -> réglage", FAL_CALLS[-1]["arguments"].get("enable_prompt_expansion") is False)
+        r = await c.get("/api/image-models")
+        check("7.13 /image-models rend la réécriture enregistrée", r.json().get("reecritures") == {"ideogram-4.5": False},
+              r.json().get("reecritures"))
+        await c.put("/api/atelier/settings", json={"image_reecriture:ideogram-4.5": "peut-être"})
+        await c.post("/api/images/generate", json={"prompt": "o", "model": "ideogram-4.5"})
+        check("7.14 réglage illisible : défaut fal (aucun champ)", "enable_prompt_expansion" not in FAL_CALLS[-1]["arguments"])
+        r = await c.get("/api/image-models")
+        check("7.15 réglage illisible non rendu", r.json().get("reecritures") == {})
+        n = len(FAL_CALLS)
+        await c.post("/api/images/generate", json={"prompt": "o", "model": "qwen-image-3", "reecriture": False})
+        check("7.16 Qwen avec corps : rien envoyé", len(FAL_CALLS) == n + 1 and "enable_prompt_expansion" not in FAL_CALLS[-1]["arguments"])
+    check("7.17 recette : la réécriture choisie est gardée",
+          R._recette_generation({"prompt": "o"}, {"images": ["a"], "reecriture": False}).get("reecriture") is False)
+    t = (ROOT / "frontend/shared/dz-champ-ia.js").read_text(encoding="utf-8")
+    check("7.18 pastille : interrupteur enregistré par modèle (« 0 » / « 1 »)",
+          '"image_reecriture:" + cour' in t and 'nv ? "1" : "0"' in t and "mq && mq.reecriture" in t)
+    check("7.19 pastille : absent du réglage = actif", "(d.reecritures || {})[e.id] !== false" in t)
+    dico = (ROOT / "frontend/shared/i18n/commun.json").read_text(encoding="utf-8")
+    check("7.20 clés i18n de la réécriture", all(f'"ia.reecriture.{k}"' in dico for k in ("titre", "oui", "non", "aide")))
+
+
 if __name__ == "__main__":
     bloc_registre()
     bloc_devis()
@@ -271,5 +325,6 @@ if __name__ == "__main__":
     bloc_catalogue()
     asyncio.run(bloc_route())
     bloc_ecran()
+    asyncio.run(bloc_reecriture())
     print(f"\n{ok} PASS, {fail} FAIL")
     sys.exit(1 if fail else 0)

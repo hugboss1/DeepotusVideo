@@ -88,6 +88,8 @@ def _images() -> list[dict]:
         if facteurs:
             out[-1]["qualites"] = {q: round(usd * f, 5) for q, f in facteurs.items()}
             out[-1]["qualite_defaut"] = P.QUALITE_DEFAUT
+        if IP.accepte_reecriture(mid):          # t479 (F6.2) : interrupteur de réécriture du prompt
+            out[-1]["reecriture"] = True
     return out
 
 
