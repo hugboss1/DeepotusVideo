@@ -198,6 +198,9 @@ async def lire_planificateur(ctx: Ctx, campagne: bool = False, limite: int = 100
         if campagne:
             q = q.where(ScheduledPost.plan_id == ctx.cid)
         posts = list((await s.execute(q)).scalars().all())
+    # t491 : la croissance de chaque post (jalons, « × habituel », gagnant), par canal ; lecture seule
+    from app.services import metrics_service as _ms
+    cr = await _ms.croissance_posts([p.id for p in posts])
     out = []
     for p in posts:
         try:
@@ -206,7 +209,8 @@ async def lire_planificateur(ctx: Ctx, campagne: bool = False, limite: int = 100
             chiffres = None
         out.append({"id": p.id, "titre": p.title, "statut": p.status, "quand": p.run_at.isoformat() if p.run_at else None,
                     "canaux": [c for c in (p.channels or "").split(",") if c], "caption": (p.caption or "")[:500],
-                    "job_id": p.job_id, "campagne": p.plan_id == ctx.cid, "chiffres": chiffres})
+                    "job_id": p.job_id, "campagne": p.plan_id == ctx.cid, "chiffres": chiffres,
+                    "croissance": cr.get(p.id) or None})
     return _res(True, f"{len(out)} post(s) de l'espace" + (" pour cette campagne" if campagne else ""), {"posts": out})
 
 

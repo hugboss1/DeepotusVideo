@@ -113,6 +113,31 @@ TEMOIN = ("## Campagne TÉMOIN (espace démonstration)\n"
           "coûts : propose peu de rendus payants, chacun par sa carte de devis. Ne promets ni prix ni délai de prestation.")
 
 
+# t491 (09/11/2026) : les fiches de compétences (docs/agent/campagnes/competence-*.md), choisies par rôle. Elles
+# voyagent dans le paquet du compagnon comme tout fichier de DOCS, et le téléphone reçoit le MÊME système.
+COMPETENCES = {
+    "campagnes": ("accroches", "script-court", "formats-instagram", "fil-x", "mesures", "recyclage"),
+    "bilan": ("mesures", "recyclage"),
+    "orienteur": (),
+    "demonstrateur": (),
+}
+COMPETENCES_TELEPHONE = ("orienteur", "campagnes")   # les rôles que le compagnon mène loin du PC
+
+
+def _competences(role: str, espace_id) -> list[str]:
+    """L'index puis les fiches du rôle ; la fiche client si un client gouverne l'espace ; la fiche du téléphone pour
+    les rôles que le compagnon mène. Le démonstrateur n'en reçoit aucune. Pure (lecture de fichiers)."""
+    if role == "demonstrateur":
+        return []
+    noms = list(COMPETENCES.get(role, ()))
+    if isinstance(espace_id, str) and espace_id and espaces.client_responsable(espace_id):
+        noms.append("client")
+    if role in COMPETENCES_TELEPHONE:
+        noms.append("compagnon")
+    fiches = [_doc(f"competence-{x}.md") for x in noms]
+    return [_doc("competences.md")] + fiches if any(fiches) else []
+
+
 def systeme_pour(role, espace_id, langue: str) -> str:
     """CAMPAGNES.md + le rôle + l'espace (persona, mots interdits) + conformite-crypto.md pour l'espace du jeton
     SEULEMENT + la langue de réponse. Pure : la boucle (`systeme`) et le paquet du téléphone (L4.1) l'appellent, le
@@ -123,6 +148,7 @@ def systeme_pour(role, espace_id, langue: str) -> str:
         modele = _doc("dossier-modele.md")
         if modele:
             parts.append("## dossier-modele.md\n" + modele)
+    parts.extend(_competences(role, espace_id))
     parts.append(_partie_espace(espace_id))
     if espaces.est_demonstration(espace_id):
         parts.append(TEMOIN)
