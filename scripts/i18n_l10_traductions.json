@@ -14650,5 +14650,45 @@
  "Texte vide pour la langue {lg}.": {
   "fr": "Texte vide pour la langue {lg}.",
   "en": "Empty text for language {lg}."
+ },
+ "depot_fal : vrai ou faux": {
+  "fr": "depot_fal : vrai ou faux",
+  "en": "depot_fal: true or false"
+ },
+ "forme inconnue": {
+  "fr": "forme inconnue",
+  "en": "unknown form"
+ },
+ "graduation inconnue": {
+  "fr": "graduation inconnue",
+  "en": "unknown graduation"
+ },
+ "images : une liste de {CARROUSEL_MAX} noms au plus": {
+  "fr": "images : une liste de {CARROUSEL_MAX} noms au plus",
+  "en": "images: a list of at most {CARROUSEL_MAX} names"
+ },
+ "images : des noms simples de la Bibliothèque (png, jpg, webp)": {
+  "fr": "images : des noms simples de la Bibliothèque (png, jpg, webp)",
+  "en": "images: plain Library file names (png, jpg, webp)"
+ },
+ "image(s) absente(s) de la Bibliothèque : {v}": {
+  "fr": "image(s) absente(s) de la Bibliothèque : {v}",
+  "en": "image(s) missing from the Library: {v}"
+ },
+ "post déjà publié : son format ne change plus": {
+  "fr": "post déjà publié : son format ne change plus",
+  "en": "post already published: its format can no longer change"
+ },
+ "{name} : plus de 8 Mo même compressée": {
+  "fr": "{name} : plus de 8 Mo même compressée",
+  "en": "{name}: over 8 MB even when compressed"
+ },
+ "{name} : rapport {l}×{h} hors de 4:5 à 1.91:1, recadrez l'image": {
+  "fr": "{name} : rapport {l}×{h} hors de 4:5 à 1.91:1, recadrez l'image",
+  "en": "{name}: ratio {l}×{h} outside 4:5 to 1.91:1, crop the image"
+ },
+ "{name} : {l} px de large, il en faut au moins {IMAGE_LARGEUR_MIN}": {
+  "fr": "{name} : {l} px de large, il en faut au moins {IMAGE_LARGEUR_MIN}",
+  "en": "{name}: {l} px wide, at least {IMAGE_LARGEUR_MIN} are needed"
  }
 }

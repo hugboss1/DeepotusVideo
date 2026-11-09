@@ -9952,6 +9952,76 @@ async def fire_scheduled_post(post_id: str, request: Request):
 
 # t309 (26/10/2026) : la validation CLIENT d'un post (spec boîte à outils §5.5). Lecture libre des exigences (aucun
 # secret : libellés et canal_id) ; la réponse du client se saisit au PC (localhost).
+# t494 (lot G4, 09/11/2026) : le FORMAT Instagram d'un post (Reel, reel d'essai, image, carrousel, Story), rangé dans
+# `brief.instagram`, et le réglage du dépôt temporaire chez fal (jamais activé par défaut).
+@router.get("/schedule/instagram/reglage")
+async def get_instagram_reglage():
+    from app.services import instagram_publisher as _ig
+    return {**_ig.reglage(), "fal_pret": bool((settings.FAL_KEY or "").strip()), "formes": list(_ig.FORMES),
+            "graduations": list(_ig.GRADUATIONS), "carrousel": [_ig.CARROUSEL_MIN, _ig.CARROUSEL_MAX]}
+
+
+@router.put("/schedule/instagram/reglage")
+async def put_instagram_reglage(corps: dict = Body(...)):
+    from app.services import instagram_publisher as _ig
+    if not isinstance(corps.get("depot_fal"), bool):
+        raise HTTPException(422, "depot_fal : vrai ou faux")
+    return _ig.regler(corps["depot_fal"])
+
+
+async def _post_ou_404(session, post_id: str):
+    p = (await session.execute(_select(ScheduledPost).where(ScheduledPost.id == post_id))).scalar_one_or_none()
+    if p is None:
+        raise HTTPException(404, "post inconnu")
+    return p
+
+
+def _brief_dict(p) -> dict:
+    try:
+        b = json.loads(p.brief) if p.brief else {}
+    except (ValueError, TypeError):
+        b = {}
+    return b if isinstance(b, dict) else {}
+
+
+@router.get("/schedule/{post_id}/instagram")
+async def get_post_instagram(post_id: str):
+    from app.services import instagram_publisher as _ig
+    async with async_session_factory() as session:
+        p = await _post_ou_404(session, post_id)
+    f = _ig.format_post(_brief_dict(p).get("instagram"))
+    a_video = bool(p.job_id)
+    return {**f, "exige_depot": _ig.exige_depot(f["forme"], a_video), "a_video": a_video, "statut": p.status}
+
+
+@router.put("/schedule/{post_id}/instagram")
+async def put_post_instagram(post_id: str, corps: dict = Body(...)):
+    from app.services import instagram_publisher as _ig
+    if corps.get("forme") not in _ig.FORMES:
+        raise HTTPException(422, "forme inconnue")
+    if corps.get("graduation") is not None and corps.get("graduation") not in _ig.GRADUATIONS:
+        raise HTTPException(422, "graduation inconnue")
+    images = corps.get("images", [])
+    if not isinstance(images, list) or len(images) > _ig.CARROUSEL_MAX:
+        raise HTTPException(422, f"images : une liste de {_ig.CARROUSEL_MAX} noms au plus")
+    f = _ig.format_post(corps)
+    if len(f["images"]) != len(images):
+        raise HTTPException(422, "images : des noms simples de la Bibliothèque (png, jpg, webp)")
+    absentes = [x for x in f["images"] if not (settings.images_path / x).is_file()]
+    if absentes:
+        raise HTTPException(422, "image(s) absente(s) de la Bibliothèque : " + ", ".join(absentes)[:200])
+    async with async_session_factory() as session:
+        p = await _post_ou_404(session, post_id)
+        if p.status in ("posted", "posting"):
+            raise HTTPException(409, "post déjà publié : son format ne change plus")
+        b = _brief_dict(p)
+        b["instagram"] = f
+        p.brief = json.dumps(b, ensure_ascii=False)
+        await session.commit()
+        a_video = bool(p.job_id)
+    return {**f, "exige_depot": _ig.exige_depot(f["forme"], a_video), "a_video": a_video}
+
+
 @router.get("/schedule/{post_id}/client")
 async def get_scheduled_post_client(post_id: str):
     from app.services import regles_client as _rc

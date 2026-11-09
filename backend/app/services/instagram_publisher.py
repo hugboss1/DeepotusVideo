@@ -21,11 +21,13 @@ Doc relue le 29/09/2026 (WebFetch developers.facebook.com/docs/instagram-platfor
 Le jeton n'apparaît dans aucun détail (`_scrub`) ; le fichier part par un générateur asynchrone (le vrai
 httpx.AsyncClient refuse un fichier synchrone)."""
 import asyncio
+import json
+import re
 from pathlib import Path
 
 import httpx
 
-from app.config import settings, SSL_VERIFY
+from app.config import DATA_ROOT, settings, SSL_VERIFY
 from app.services.comptes import cred   # t203 : identifiants du compte courant (clés plates sans compte)
 from app.services import metrics_service, publishers
 from app.services.publishers import PublishResult
@@ -69,51 +71,223 @@ async def _morceaux(path: str):
             yield b
 
 
-async def publish(caption: str, video_path, image_path, meta: dict) -> PublishResult:
-    if not video_path or not Path(video_path).is_file():
-        return PublishResult(False, "instagram: un Reel exige une vidéo (aucun rendu attaché)")
-    tok, ig, g = cred.IG_ACCESS_TOKEN.strip(), cred.IG_BUSINESS_ID.strip(), _graph()
-    size = Path(video_path).stat().st_size
+# ---- t494 (lot G4, 09/11/2026) : les FORMES d'un post Instagram ---------------------------------------------------------
+# Doc relue le 09/11/2026 (developers.facebook.com/docs/instagram-platform/content-publishing, …/reference/ig-user/media,
+# …/content-publishing/resumable-uploads) :
+# - une IMAGE ne se crée que par `image_url` (« the image must be on a public server », JPEG seul, 8 Mo, largeur 320 à
+#   1440, rapport 4:5 à 1.91:1) : aucun envoi d'un fichier local ;
+# - l'envoi résumable (fichier local) existe pour REELS, STORIES et VIDEO de carrousel, vidéo seulement ;
+# - `trial_params` ({"graduation_strategy": MANUAL | SS_PERFORMANCE}, media_type REELS) n'est PAS dans les paramètres de
+#   l'envoi résumable (« Other parameters are not supported ») : un reel d'essai passe donc par `video_url` ;
+# - carrousel : enfants `is_carousel_item`, parent `media_type=CAROUSEL` + `children`, 20 éléments au plus, compte pour
+#   UN post ; Story : pas de légende.
+# Décision de l'utilisateur (09/11) : ce qui exige une adresse publique passe par un DÉPÔT TEMPORAIRE chez fal (la clé
+# fal sert déjà aux générations), seulement si le réglage `depot_fal` est activé — jamais par défaut. Sans lui, la forme
+# est refusée AVANT tout appel, et le refus dit quoi activer.
+FORMES = ("reel", "essai", "image", "carrousel", "story")
+GRADUATIONS = ("MANUAL", "SS_PERFORMANCE")
+CARROUSEL_MIN, CARROUSEL_MAX = 2, 20
+IMAGE_LARGEUR_MAX, IMAGE_LARGEUR_MIN, IMAGE_POIDS_MAX = 1440, 320, 8 * 1024 * 1024
+RAPPORT_MIN, RAPPORT_MAX = 0.8, 1.91          # largeur / hauteur d'une image de post ou de carrousel
+POLL_IMAGE = (2, 5, 10, 20)
+_FICHIER_REGLAGE = DATA_ROOT / "scheduler" / "instagram.json"
+_NOM_IMAGE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,180}\.(png|jpe?g|webp)$", re.I)
+
+
+def reglage() -> dict:
+    """{depot_fal} : False tant que l'utilisateur ne l'a pas activé (fichier absent ou illisible = False)."""
     try:
-        async with _client(timeout=900.0) as c:
-            lim = await c.get(f"{g}/{ig}/content_publishing_limit",
-                              params={"fields": "quota_usage,config", "access_token": tok})
-            if lim.status_code != 200:
-                return PublishResult(False, f"instagram content_publishing_limit {lim.status_code}: "
-                                            f"{_scrub(lim.text)[:160]} — envoi suspendu faute de compteur")
-            d = (lim.json().get("data") or [{}])[0]
-            used, total = int(d.get("quota_usage") or 0), int((d.get("config") or {}).get("quota_total") or 100)
-            if used >= total:
-                return PublishResult(False, f"quota instagram : {used}/{total} sur 24 h glissantes (compteur d'Instagram)")
-            r = await c.post(f"{g}/{ig}/media", data={
-                "media_type": "REELS", "upload_type": "resumable",
-                "caption": caption[:2200], "share_to_feed": "true", "access_token": tok})
-            if r.status_code != 200:
-                return PublishResult(False, f"instagram container {r.status_code}: {_scrub(r.text)[:200]}")
-            j = r.json()
-            container, uri = str(j.get("id", "")), j.get("uri", "")
-            if not container or not uri:
-                return PublishResult(False, "instagram container : ni id ni uri d'envoi dans la réponse")
-            r2 = await c.post(uri, content=_morceaux(video_path), headers={
-                "Authorization": f"OAuth {tok}", "offset": "0", "file_size": str(size),
-                "Content-Length": str(size)})
-            if r2.status_code != 200 or not r2.json().get("success"):
-                return PublishResult(False, f"instagram upload {r2.status_code}: {_scrub(r2.text)[:200]}")
-            for attente in POLL_DELAIS:
-                await asyncio.sleep(attente)
-                s = await c.get(f"{g}/{container}", params={"fields": "status_code,status", "access_token": tok})
-                code = s.json().get("status_code")
-                if code == "FINISHED":
-                    break
-                if code in ("ERROR", "EXPIRED"):
-                    return PublishResult(False, f"instagram container {code}: {_scrub(str(s.json().get('status', '')))[:200]}")
-            else:
-                return PublishResult(False, f"instagram: conteneur jamais FINISHED après {sum(POLL_DELAIS)} s")
-            r3 = await c.post(f"{g}/{ig}/media_publish", data={"creation_id": container, "access_token": tok})
-        if r3.status_code != 200:
-            return PublishResult(False, f"instagram publish {r3.status_code}: {_scrub(r3.text)[:200]}")
-        mid = str(r3.json().get("id") or "")
-        return PublishResult(True, f"instagram: reel {mid}", mid or None)
+        d = json.loads(_FICHIER_REGLAGE.read_text("utf-8")) or {}
+    except (OSError, ValueError):
+        d = {}
+    return {"depot_fal": d.get("depot_fal") is True}
+
+
+def regler(depot_fal: bool) -> dict:
+    _FICHIER_REGLAGE.parent.mkdir(parents=True, exist_ok=True)
+    _FICHIER_REGLAGE.write_text(json.dumps({"depot_fal": depot_fal is True}), "utf-8")
+    return reglage()
+
+
+def format_post(brut) -> dict:
+    """Le format Instagram d'un post, NORMALISÉ depuis `brief.instagram` : {forme, graduation, images}. Tout ce qui est
+    inconnu retombe sur le Reel (comportement d'avant t494) ; les images sont des NOMS simples de la Bibliothèque."""
+    b = brut if isinstance(brut, dict) else {}
+    forme = b.get("forme") if b.get("forme") in FORMES else "reel"
+    grad = b.get("graduation") if b.get("graduation") in GRADUATIONS else "MANUAL"
+    images = [x for x in (b.get("images") or []) if isinstance(x, str) and _NOM_IMAGE.match(x)] if isinstance(b.get("images"), list) else []
+    return {"forme": forme, "graduation": grad, "images": images[:CARROUSEL_MAX]}
+
+
+def exige_depot(forme: str, a_video: bool) -> bool:
+    """La forme a-t-elle besoin d'une adresse publique ? Le Reel et la Story VIDÉO partent du fichier local."""
+    return forme in ("essai", "image", "carrousel") or (forme == "story" and not a_video)
+
+
+async def _deposer(path: Path) -> str:                              # seam : le dépôt temporaire chez fal
+    import fal_client
+    return await fal_client.upload_file_async(str(path))
+
+
+def _jpeg(src: str, dossier: Path, story: bool) -> Path:
+    """Une copie JPEG sRGB de l'image, dans les bornes d'Instagram (largeur, poids). ValueError dit pourquoi une image
+    ne convient pas : on ne recadre JAMAIS en silence."""
+    from PIL import Image
+    with Image.open(src) as im:
+        im = im.convert("RGB")
+        l, h = im.size
+        if not story and not (RAPPORT_MIN <= l / h <= RAPPORT_MAX):
+            raise ValueError(f"{Path(src).name} : rapport {l}×{h} hors de 4:5 à 1.91:1, recadrez l'image")
+        if l < IMAGE_LARGEUR_MIN:
+            raise ValueError(f"{Path(src).name} : {l} px de large, il en faut au moins {IMAGE_LARGEUR_MIN}")
+        if l > IMAGE_LARGEUR_MAX:
+            im = im.resize((IMAGE_LARGEUR_MAX, max(1, round(h * IMAGE_LARGEUR_MAX / l))), Image.LANCZOS)
+        dest = dossier / (Path(src).stem[:60] + ".jpg")
+        for q in (90, 82, 74, 66):
+            im.save(dest, "JPEG", quality=q, optimize=True)
+            if dest.stat().st_size <= IMAGE_POIDS_MAX:
+                return dest
+    raise ValueError(f"{Path(src).name} : plus de 8 Mo même compressée")
+
+
+async def _quota(c, g, ig, tok):
+    """None si l'on peut publier, sinon le refus (le compteur d'Instagram fait foi)."""
+    lim = await c.get(f"{g}/{ig}/content_publishing_limit", params={"fields": "quota_usage,config", "access_token": tok})
+    if lim.status_code != 200:
+        return PublishResult(False, f"instagram content_publishing_limit {lim.status_code}: "
+                                    f"{_scrub(lim.text)[:160]} — envoi suspendu faute de compteur")
+    d = (lim.json().get("data") or [{}])[0]
+    used, total = int(d.get("quota_usage") or 0), int((d.get("config") or {}).get("quota_total") or 100)
+    if used >= total:
+        return PublishResult(False, f"quota instagram : {used}/{total} sur 24 h glissantes (compteur d'Instagram)")
+    return None
+
+
+async def _attendre(c, g, container, tok, delais):
+    """None quand le conteneur est FINISHED, sinon le refus."""
+    for attente in delais:
+        await asyncio.sleep(attente)
+        s = await c.get(f"{g}/{container}", params={"fields": "status_code,status", "access_token": tok})
+        code = s.json().get("status_code")
+        if code == "FINISHED":
+            return None
+        if code in ("ERROR", "EXPIRED"):
+            return PublishResult(False, f"instagram container {code}: {_scrub(str(s.json().get('status', '')))[:200]}")
+    return PublishResult(False, f"instagram: conteneur jamais FINISHED après {sum(delais)} s")
+
+
+async def _conteneur(c, g, ig, donnees):
+    """(id, uri, refus) d'un POST /<IG>/media."""
+    r = await c.post(f"{g}/{ig}/media", data=donnees)
+    if r.status_code != 200:
+        return "", "", PublishResult(False, f"instagram container {r.status_code}: {_scrub(r.text)[:200]}")
+    j = r.json()
+    return str(j.get("id", "")), j.get("uri", ""), None
+
+
+async def _publier_conteneur(c, g, ig, tok, container, nom):
+    r3 = await c.post(f"{g}/{ig}/media_publish", data={"creation_id": container, "access_token": tok})
+    if r3.status_code != 200:
+        return PublishResult(False, f"instagram publish {r3.status_code}: {_scrub(r3.text)[:200]}")
+    mid = str(r3.json().get("id") or "")
+    return PublishResult(True, f"instagram: {nom} {mid}", mid or None)
+
+
+async def _video_locale(c, g, ig, tok, video_path, donnees, nom):
+    """Reel ou Story vidéo par l'envoi résumable d'un fichier local (le chemin d'avant t494, à l'octet pour le Reel)."""
+    size = Path(video_path).stat().st_size
+    container, uri, refus = await _conteneur(c, g, ig, dict(donnees, upload_type="resumable", access_token=tok))
+    if refus:
+        return refus
+    if not container or not uri:
+        return PublishResult(False, "instagram container : ni id ni uri d'envoi dans la réponse")
+    r2 = await c.post(uri, content=_morceaux(video_path), headers={
+        "Authorization": f"OAuth {tok}", "offset": "0", "file_size": str(size), "Content-Length": str(size)})
+    if r2.status_code != 200 or not r2.json().get("success"):
+        return PublishResult(False, f"instagram upload {r2.status_code}: {_scrub(r2.text)[:200]}")
+    return await _attendre(c, g, container, tok, POLL_DELAIS) or await _publier_conteneur(c, g, ig, tok, container, nom)
+
+
+async def _par_adresse(c, g, ig, tok, donnees, nom, delais):
+    """Un conteneur créé depuis une adresse publique (dépôt), attendu puis publié."""
+    container, _uri, refus = await _conteneur(c, g, ig, dict(donnees, access_token=tok))
+    if refus:
+        return refus
+    if not container:
+        return PublishResult(False, "instagram container : pas d'id dans la réponse")
+    return await _attendre(c, g, container, tok, delais) or await _publier_conteneur(c, g, ig, tok, container, nom)
+
+
+async def publish(caption: str, video_path, image_path, meta: dict) -> PublishResult:
+    meta = meta if isinstance(meta, dict) else {}
+    brief = meta.get("brief") if isinstance(meta.get("brief"), dict) else {}
+    f = format_post(brief.get("instagram"))
+    forme = f["forme"]
+    a_video = bool(video_path and Path(video_path).is_file())
+    image_path = image_path or meta.get("image")
+    if forme in ("reel", "essai") and not a_video:
+        return PublishResult(False, "instagram: un Reel exige une vidéo (aucun rendu attaché)")
+    images = []
+    if forme == "carrousel":
+        images = [str(settings.images_path / n) for n in f["images"]]
+        manquantes = [Path(p).name for p in images if not Path(p).is_file()]
+        if manquantes:
+            return PublishResult(False, f"instagram: image(s) du carrousel introuvable(s) : {', '.join(manquantes)[:160]}")
+        if not (CARROUSEL_MIN <= len(images) <= CARROUSEL_MAX):
+            return PublishResult(False, f"instagram: un carrousel demande {CARROUSEL_MIN} à {CARROUSEL_MAX} images "
+                                        f"({len(images)} choisie(s))")
+    elif forme == "image" or (forme == "story" and not a_video):
+        if not image_path or not Path(image_path).is_file():
+            return PublishResult(False, f"instagram: {'une Story' if forme == 'story' else 'un post image'} exige une "
+                                        "image ou une vidéo attachée" if forme == "story" else
+                                        "instagram: un post image exige une image attachée")
+        images = [str(image_path)]
+    if exige_depot(forme, a_video):
+        if not reglage()["depot_fal"]:
+            return PublishResult(False, f"instagram: la forme « {forme} » demande une adresse publique ; activez le dépôt "
+                                        "temporaire chez fal dans le format Instagram du post")
+        if not (settings.FAL_KEY or "").strip():
+            return PublishResult(False, "instagram: le dépôt temporaire demande une clé fal (Réglages › Clés d'API)")
+    tok, ig, g = cred.IG_ACCESS_TOKEN.strip(), cred.IG_BUSINESS_ID.strip(), _graph()
+    try:
+        import tempfile
+        with tempfile.TemporaryDirectory(prefix="dzig_") as tmp:
+            try:
+                jpegs = [_jpeg(p, Path(tmp), forme == "story") for p in images]
+            except ValueError as e:
+                return PublishResult(False, f"instagram: {e}")
+            async with _client(timeout=900.0) as c:
+                refus = await _quota(c, g, ig, tok)
+                if refus:
+                    return refus
+                if forme == "reel":
+                    return await _video_locale(c, g, ig, tok, video_path, {
+                        "media_type": "REELS", "caption": caption[:2200], "share_to_feed": "true"}, "reel")
+                if forme == "story" and a_video:
+                    return await _video_locale(c, g, ig, tok, video_path, {"media_type": "STORIES"}, "story")
+                if forme == "essai":
+                    url = await _deposer(Path(video_path))
+                    return await _par_adresse(c, g, ig, tok, {
+                        "media_type": "REELS", "video_url": url, "caption": caption[:2200],
+                        "trial_params": json.dumps({"graduation_strategy": f["graduation"]})}, "reel d'essai", POLL_DELAIS)
+                urls = [await _deposer(p) for p in jpegs]
+                if forme == "image":
+                    return await _par_adresse(c, g, ig, tok, {"image_url": urls[0], "caption": caption[:2200]},
+                                              "image", POLL_IMAGE)
+                if forme == "story":
+                    return await _par_adresse(c, g, ig, tok, {"image_url": urls[0], "media_type": "STORIES"},
+                                              "story", POLL_IMAGE)
+                enfants = []
+                for u in urls:
+                    cid, _uri, refus = await _conteneur(c, g, ig, {"image_url": u, "is_carousel_item": "true",
+                                                                   "access_token": tok})
+                    if refus:
+                        return refus
+                    if not cid:
+                        return PublishResult(False, "instagram container : pas d'id pour une image du carrousel")
+                    enfants.append(cid)
+                return await _par_adresse(c, g, ig, tok, {"media_type": "CAROUSEL", "children": ",".join(enfants),
+                                                          "caption": caption[:2200]}, "carrousel", POLL_IMAGE)
     except Exception as e:
         return PublishResult(False, f"instagram error: {_scrub(str(e))}")
 

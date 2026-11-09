@@ -1071,6 +1071,9 @@ async def fire_post(post_id: str) -> dict:
                     remote = {}
             # t328 : `post_id` -> l'adaptateur « whatsapp » lance la diffusion configurée de CE post
             meta = {"title": post.title, "brief": brief_d, "post_id": post.id}
+            # t494 : un post Instagram « image » ou « story » peut porter une image ET un rendu vidéo : l'adaptateur
+            # reçoit l'image du post même quand une vidéo est attachée
+            meta["image"] = image or await _resolve_post_image(post)
             # plan scheduler T15 (tâche #32) : une suite de fil X RÉPOND au message précédent (index - 1, ou la tête) ;
             # tant qu'il n'est pas parti, la suite est REPORTÉE de deux minutes — jamais échouée — et c'est dit
             if post.thread_of:
