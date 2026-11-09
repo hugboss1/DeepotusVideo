@@ -8,8 +8,11 @@ import { grille_normaliser, hex_centre, hex_d, hex_depuis_point, grille_cellules
   from "./mod-grille.js";
 import { zoom_pour, echantillon_moyen, paliers_bornes, palier, profil_trace } from "./mod-geo.js";
 import { forme_d, forme_params_valider } from "./mod-formes.js";
-import { effets_valider, filtre_svg, MODES_FUSION, motif_valider, motif_svg, conique_svg,
+import { effets_valider, filtre_svg, MODES_FUSION, motif_valider as _motifValiderParam, motif_svg, conique_svg,
          MOTIFS, motif_defaut, couleur_interpoler } from "./mod-effets.js";
+import { motif_objets_valider, motif_objets_svg, motifs_fermeture, motifs_cycle } from "./mod-motifs.js";   // t478
+// t478 : un motif fait d'objets (type « objets ») est validé par mod-motifs ; les autres restent paramétriques
+const motif_valider = (m) => (m && m.type === "objets" ? motif_objets_valider(m) : _motifValiderParam(m));
 import { couper_lignes, cadre_tspans, mesure_approx } from "./mod-texteplus.js";
 
 const escAttr = (v) => String(v)
@@ -241,6 +244,7 @@ export function parserDoc(doc) {
   // lot F : motifs, couleurs globales, masques de transparence
   if (doc.motifs !== undefined) {
     if (!doc.motifs || typeof doc.motifs !== "object" || Array.isArray(doc.motifs)) throw new Error(T("vectorlab.doc.doc_motifs"));
+    motifs_cycle(doc.motifs);   // t478 : un motif ne se contient pas, même indirectement
     for (const [id, m] of Object.entries(doc.motifs)) { try { motif_valider(m); } catch (e) { throw new Error(T("vectorlab.doc.motif_erreur", { id, msg: e.message })); } }
   }
   if (doc.couleursGlobales !== undefined) {
@@ -2294,6 +2298,7 @@ function _defs(doc, ctx = {}) {
   };
   for (const c of doc.calques) visiter(c.objets);
   const degs = doc.degrades || {}, mots = doc.motifs || {};
+  motifs_fermeture(doc, motifs, refs);   // t478 : les motifs et dégradés employés DANS un motif d'objets
   const morceaux = [];
   for (const id of refs) {
     const g = degs[id];
@@ -2320,7 +2325,7 @@ function _defs(doc, ctx = {}) {
     if (!degs[id]) continue;
     morceaux.push(`<mask id="m_${escAttr(id)}"><rect x="0" y="0" width="${+w}" height="${+h}" fill="url(#${escAttr(id)})"/></mask>`);
   }
-  for (const id of motifs) if (mots[id]) morceaux.push(motif_svg(id, { ...mots[id], couleur: _couleur(mots[id].couleur, ctx), fond: mots[id].fond ? _couleur(mots[id].fond, ctx) : undefined }));
+  for (const id of motifs) if (mots[id]) morceaux.push(mots[id].type === "objets" ? motif_objets_svg(id, mots[id], (o) => compilerObjet(o, { ...ctx, sansId: true }), (c) => _couleur(c, ctx)) : motif_svg(id, { ...mots[id], couleur: _couleur(mots[id].couleur, ctx), fond: mots[id].fond ? _couleur(mots[id].fond, ctx) : undefined }));
   morceaux.push(...terrains, ...symboles, ...filtres, ...clips);
   return morceaux.length ? `<defs>${morceaux.join("")}</defs>` : "";
 }

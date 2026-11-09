@@ -53,7 +53,10 @@
     "methodes.fiche.controles",
     "methodes.fiche.pieges",
     "methodes.fiche.exemples",
-    "vectorlab.deformer.poignee_coin"
+    "vectorlab.deformer.poignee_coin",
+    "vectorlab.motifs.d_liste",
+    "vectorlab.pinceaux.d_nouveau",
+    "vectorlab.recolorer.d_titre"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"
