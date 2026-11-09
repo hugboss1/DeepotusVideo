@@ -101,5 +101,14 @@ check("4.4 l'ordre gauche/droite varie (le neuf n'est pas toujours du même côt
       len({x["neuf_a_gauche"] for x in paires}) == 2, [x["neuf_a_gauche"] for x in paires])
 check("4.5 le vote se télécharge en vote.json", "vote.json" in page)
 
+print("\n[5] isolation (incident du 09/11 : le devis importait app.config avant l'isolation)")
+src = (RACINE / "scripts" / "banc_da_coherence.py").read_text(encoding="utf-8")
+corps_main = src.split("def main(")[1]
+check("5.1 avec --confirme, l'isolation est posée AVANT le devis (premier import de app.config)",
+      corps_main.index("preparer_isolation(dossier, lire_cles())") < corps_main.index("d = devis(corpus"))
+corps_tir = src.split("async def tirer(")[1]
+check("5.2 le tir vérifie l'isolation avant toute requête",
+      corps_tir.index("verifier_isolation(dossier)") < corps_tir.index("AsyncClient("))
+
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)

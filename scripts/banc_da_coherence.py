@@ -74,7 +74,7 @@ CRITERES_M3 = [
 def lire_cles() -> dict:
     """Les clés de l'utilisateur, lues par un SOUS-PROCESSUS sur SA configuration (fichier .env et coffre) ; rendues
     par un tube, jamais affichées."""
-    code = ("import json,sys;from app.config import settings as s;"
+    code = (f"import json,sys;sys.path.insert(0,{str(BACKEND)!r});from app.config import settings as s;"
             f"sys.stdout.write(json.dumps({{k: str(getattr(s, k, '') or '') for k in {list(CLES)!r}}}))")
     env = {k: v for k, v in os.environ.items() if k != "DEEPOTUS_DATA_DIR"}
     r = subprocess.run([sys.executable, "-c", code], cwd=str(BACKEND), capture_output=True, text=True, env=env,
@@ -204,7 +204,19 @@ def mesurer_planche(images: pathlib.Path, panneaux: dict) -> dict:
 
 # ── 3. le tir ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
+def verifier_isolation(dossier: pathlib.Path) -> None:
+    """Refuse de tirer si l'app n'est pas sur le dossier jetable : base, images ET racine de données."""
+    from app.config import DATA_ROOT, settings
+    attendu = (dossier / "donnees").resolve()
+    racines = {"DATA_ROOT": pathlib.Path(DATA_ROOT).resolve(), "images": pathlib.Path(settings.images_path).resolve()}
+    base = str(getattr(settings, "DATABASE_URL", "") or "")
+    hors = [k for k, v in racines.items() if attendu not in (v, *v.parents)]
+    if hors or "banc.db" not in base:
+        raise SystemExit(f"ISOLATION ROMPUE ({', '.join(hors) or 'base'}) : aucun tir — l'app ne vise pas {attendu}")
+
+
 async def tirer(dossier: pathlib.Path, corpus: list[dict], max_usd: float) -> dict:
+    verifier_isolation(dossier)                     # AVANT toute requête : rien n'écrit chez l'utilisateur
     from httpx import AsyncClient, ASGITransport
     from app.main import app
     from app.services.storage import init_db, BibleEntity, async_session_factory
@@ -453,6 +465,11 @@ def main(argv=None):
         ecrire_vote(dossier, planches)
         print(f"remesuré : {dossier / 'rapport.md'}")
         return 0
+    if a.confirme:
+        # L'ISOLATION D'ABORD : le devis importe app.config, qui fige DATA_ROOT au premier import. Posée après, elle
+        # laissait l'app sur le dossier de données de l'utilisateur (incident du 09/11 : une entité créée et un réglage
+        # écrit dans sa vraie base avant l'arrêt du garde-fou).
+        preparer_isolation(dossier, lire_cles())
     d = devis(corpus, a.juge_reps if (a.juge or not a.confirme) else 0)
     ecrire_devis(dossier, d, corpus)
     print(f"devis : probable {d['total_probable_usd']:.2f} $, au pire {d['total_pire_usd']:.2f} $ "
@@ -463,7 +480,6 @@ def main(argv=None):
     if d["total_pire_usd"] > a.max_usd:
         print(f"refus : le devis au pire ({d['total_pire_usd']:.2f} $) dépasse --max-usd {a.max_usd:.0f} $ — le "
               f"script s'arrêtera en cours de route ; relancer avec --max-usd plus haut pour tout tirer")
-    preparer_isolation(dossier, lire_cles())
     res = asyncio.run(tirer(dossier, corpus, a.max_usd))
     planches = res["planches"]
     if a.juge:
