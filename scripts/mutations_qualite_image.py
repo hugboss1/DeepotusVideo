@@ -33,7 +33,7 @@ M = [
  ("ip", 'if qualite and "quality" in m.get("extra", {}):', 'if qualite:'),
  ("ip", 'payload["quality"] = qualite or "high"', 'payload["quality"] = "high"'),
  ("ip", "    elif qualite:      # t478", "    elif False:      # t478"),
- ("ip", "image_paths=refs, qualite=q)", "image_paths=refs)"),
+ ("ip", "image_paths=refs, qualite=q,", "image_paths=refs,"),
  ("ip", 'qualite=q or "high")', 'qualite="high")'),
  ("ip", 'q_dir = q if (qualite or provider.startswith("gpt-image-2.5")) else None', "q_dir = q"),
  # route
@@ -52,6 +52,19 @@ M = [
  ("ci", ".dzia-qbtn{padding:2px 7px;font-size:11px;border:1px solid rgba(139,92,246,.45);border-radius:var(--r);",
   ".dzia-qbtn{padding:2px 7px;font-size:11px;border:1px solid rgba(139,92,246,.45);border-radius:4px;"),
  ("copie", "", ""),
+ # t479 (F6.2) : réécriture du prompt
+ ("ip", '"reecriture": "enable_prompt_expansion"},', '},'),
+ ("ip", "if reecriture is not None and m.get(\"reecriture\") and not edit:", "if reecriture is not None and m.get(\"reecriture\"):"),
+ ("ip", "args[m[\"reecriture\"]] = bool(reecriture)", "args[m[\"reecriture\"]] = True"),
+ ("ip", "                                             reecriture=reecriture)", "                                             )"),
+ ("rt", "    if isinstance(v, bool):\n        return v", "    if v is not None:\n        return bool(v)"),
+ ("rt", 'return {"0": False, "1": True}.get(r)', "return None"),
+ ("rt", "        if reecriture is not None:\n            res[\"reecriture\"] = reecriture", "        pass"),
+ ("rt", '"reecriture": out.get("reecriture"),', ""),
+ ("rt", 'if v in ("0", "1"):\n                    reecritures[e["id"]] = v == "1"', 'if v:\n                    reecritures[e["id"]] = v == "1"'),
+ ("cat", 'out[-1]["reecriture"] = True', "pass"),
+ ("ci", "rchoisie: (d.reecritures || {})[e.id] !== false", "rchoisie: !!(d.reecritures || {})[e.id]"),
+ ("ci", 'nv ? "1" : "0"', 'nv ? "1" : ""'),
 ]
 tues = 0
 try:

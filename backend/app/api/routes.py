@@ -10991,6 +10991,7 @@ def _recette_generation(body: dict, out: dict) -> dict:
          "seed": int(seed) if isinstance(seed, (int, float)) and not isinstance(seed, bool) else None,
          "background": (str(body.get("background") or "").strip().lower() or None),
          "qualite": out.get("qualite"),          # t478 : le palier SERVI (absent pour un modèle sans palier)
+         "reecriture": out.get("reecriture"),    # t479 : la réécriture CHOISIE (absente = défaut du fournisseur)
          "le": datetime.now(_tz.utc).isoformat(timespec="seconds")}
     if out.get("prompt") and out.get("prompt") != r["prompt"]:
         r["prompt_envoye"] = out["prompt"]
@@ -11020,6 +11021,24 @@ async def _qualite_image_choisie(body: dict, model: str) -> str | None:
             return (await _atelier_setting(_s, "image_qualite:" + model)).strip().lower() or None
     except Exception:  # noqa: BLE001 — un réglage illisible vaut « pas de choix »
         return None
+
+
+async def _reecriture_choisie(body: dict, model: str) -> bool | None:
+    """t479 (F6.2) : la réécriture du prompt par le fournisseur (Ideogram « magic prompt »), CHOISIE pour `model` —
+    le booléen `reecriture` du corps, sinon le réglage d'Atelier `image_reecriture:<id>` (« 0 » / « 1 », posé par la
+    pastille), sinon None : le défaut du fournisseur (réécriture active). None aussi pour un modèle sans interrupteur."""
+    from app.services import image_providers as _IP
+    if not _IP.accepte_reecriture(model):
+        return None
+    v = (body or {}).get("reecriture")
+    if isinstance(v, bool):
+        return v
+    try:
+        async with async_session_factory() as _s:
+            r = (await _atelier_setting(_s, "image_reecriture:" + model)).strip()
+    except Exception:  # noqa: BLE001 — un réglage illisible vaut « pas de choix »
+        return None
+    return {"0": False, "1": True}.get(r)
 
 
 async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
@@ -11078,10 +11097,11 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         qualite = await _qualite_image_choisie(body, model)       # t478 (F6.1)
         await _plafond({"kind": "image", "n": n, "model": model, "qualite": qualite}, _categorie_image(body))   # tâche #16
         background = (body.get("background") or "").strip().lower() or None
+        reecriture = await _reecriture_choisie(body, model)      # t479 (F6.2)
         try:
             out = await IP.generate(model, prompt, size, n,
                                     background=background, sortie=sortie,
-                                    qualite=qualite)
+                                    qualite=qualite, reecriture=reecriture)
         except RuntimeError as e:
             raise HTTPException(502, str(e))
         except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502, pas 500
@@ -11089,6 +11109,8 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         res = {"images": out["images"], "prompt": prompt, "model": model}
         if _PRX.qualite_image(model, qualite):
             res["qualite"] = _PRX.qualite_image(model, qualite)
+        if reecriture is not None:
+            res["reecriture"] = reecriture
         return res
 
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
@@ -11636,10 +11658,18 @@ async def list_image_models():
                 v = (await _atelier_setting(_s, "image_qualite:" + e["id"])).strip().lower()
                 if v in e["qualites"]:
                     choisies[e["id"]] = v
+    # t479 (F6.2) : la réécriture du prompt enregistrée (« 0 » / « 1 ») pour les modèles qui ont l'interrupteur
+    reecritures = {}
+    async with async_session_factory() as _s:
+        for e in tous:
+            if e.get("reecriture"):
+                v = (await _atelier_setting(_s, "image_reecriture:" + e["id"])).strip()
+                if v in ("0", "1"):
+                    reecritures[e["id"]] = v == "1"
     return {"models": out, "configured": configured,
             "default": configured or ("flux" if settings.FAL_KEY
                                       else (out[0]["id"] if out else "")),
-            "tous": tous, "qualites": choisies}
+            "tous": tous, "qualites": choisies, "reecritures": reecritures}
 
 
 @router.get("/ia/catalogue")
