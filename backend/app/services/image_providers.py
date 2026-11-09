@@ -12,6 +12,7 @@ sur (1) le chaînage par image-édition, (2) les prompts de recette conservés,
 (3) le style global injecté partout — c'est indiqué dans l'UI.
 """
 import base64
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -75,7 +76,11 @@ _FAL_GPT = {"gpt-image-2-fal": "gpt-image-2",
 # `background: "transparent"` — par VOIE, d'après la doc de chacune (27/09) :
 # fal l'accepte pour flare ET sunburst (t2i et edit, auto/transparent/opaque) ;
 # la doc OpenAI ne le dit que de flare, sunburst direct reste donc fermé.
-_TRANSPARENT_OK_FAL = ("gpt-image-2.5-flare", "gpt-image-2.5-sunburst")
+# t488 (F6.10, schéma relu le 09/11/2026) : openai/gpt-image-2 et son /edit ont aussi
+# `background` auto | transparent | opaque chez fal -> gpt-image-2 (via fal) ouvert.
+# Aucun autre modèle d'image du registre n'a de champ de fond (Nano Banana, FLUX 3,
+# Seedream, Ideogram, Qwen : schémas relus le même jour).
+_TRANSPARENT_OK_FAL = ("gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst")
 # t480 (F6.3) : les edits GPT servis par fal prennent PLUSIEURS références (`image_urls`, 16 au plus d'après le
 # schéma relu le 09/11/2026 ; chacune facturée en entrée, environ 0,008 à 0,012 $). Seule une image partait avant.
 REF_MAX_GPT_FAL = 16
@@ -289,11 +294,12 @@ def build_fal_gpt_request(prompt: str, size: str, n: int,
         variante = model[len("gpt-image-2.5-"):]
         base = f"openai/gpt-image-2.5/{variante}"
         t2i = base + "/text-to-image"
-        if background == "transparent" and model in _TRANSPARENT_OK_FAL:
-            args["background"] = "transparent"
     else:
         base = "openai/gpt-image-2"
         t2i = base
+    # t488 : le fond transparent, pour tout modèle GPT que fal sert avec `background` (2, 2.5 Flare, 2.5 Sunburst)
+    if background == "transparent" and model in _TRANSPARENT_OK_FAL:
+        args["background"] = "transparent"
     # t480 (F6.3) : une URL (forme d'avant) ou une LISTE de références, ordre gardé, tronquée à REF_MAX_GPT_FAL
     urls = [image_url] if isinstance(image_url, str) else list(image_url or [])
     urls = [u for u in urls if u][:REF_MAX_GPT_FAL]
@@ -377,6 +383,29 @@ def multi_references(model: str) -> bool:
     m = str(model or "").strip().lower()
     return (m in ("nano-banana", "nano-banana-pro") or m in _FAL_GPT
             or bool((FAL_IMAGES.get(m) or {}).get("edit")))
+
+
+def accepte_transparent(model: str) -> bool:
+    """t488 (F6.10) : vrai si l'id du REGISTRE rend un vrai fond transparent (champ `background`) — GPT Image via fal
+    (2, 2.5 Flare et Sunburst) et GPT Image 2.5 Flare direct. Les autres rendent un fond opaque, quoi que dise le
+    prompt."""
+    m = str(model or "").strip().lower()
+    if m in _FAL_GPT:
+        return _FAL_GPT[m] in _TRANSPARENT_OK_FAL
+    return m in _TRANSPARENT_OK_OPENAI
+
+
+# t488 : un fond transparent DEMANDÉ DANS LE TEXTE du prompt (FR/EN). Le modèle ne le rend jamais par le texte : il
+# faut le champ `background` (posé d'office quand le modèle l'a), sinon le dire.
+_FOND_TRANSPARENT_RX = re.compile(
+    r"\b(transparent\s+(background|bg|png)|background\s*:?\s*transparent|no\s+background|"
+    r"alpha\s+channel|png\s+(with|à)\s+(alpha|transparen\w*)|fonds?\s+transparents?|sans\s+fond|"
+    r"fond\s+alpha|d[ée]tour[ée]e?s?\s+sur\s+fond\s+transparent)\b", re.I)
+
+
+def fond_transparent_demande(prompt: str) -> bool:
+    """t488 : le prompt demande-t-il un fond transparent, en toutes lettres ?"""
+    return bool(_FOND_TRANSPARENT_RX.search(str(prompt or "")))
 
 
 def accepte_reecriture(model: str) -> bool:

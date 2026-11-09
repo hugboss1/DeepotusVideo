@@ -95,6 +95,8 @@ def _images() -> list[dict]:
             out[-1]["resolutions"] = {r: round(usd * f, 5) for r, f in res.items()}
             out[-1]["resolution_defaut"] = P.RESOLUTION_DEFAUT
         out[-1]["refs_max"] = IP.ref_max(mid) if IP.multi_references(mid) else (1 if out[-1]["edit"] else 0)
+        if IP.accepte_transparent(mid):           # t488 (F6.10) : vrai fond transparent (champ `background`)
+            out[-1]["transparent"] = True
     return out
 
 

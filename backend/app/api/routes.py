@@ -10989,7 +10989,7 @@ def _recette_generation(body: dict, out: dict) -> dict:
          "model": out.get("model") or (str(body.get("model") or "").strip().lower() or None),
          "size": body.get("size") or "portrait_16_9",
          "seed": int(seed) if isinstance(seed, (int, float)) and not isinstance(seed, bool) else None,
-         "background": (str(body.get("background") or "").strip().lower() or None),
+         "background": (out.get("background") or str(body.get("background") or "").strip().lower() or None),
          "qualite": out.get("qualite"),          # t478 : le palier SERVI (absent pour un modèle sans palier)
          "reecriture": out.get("reecriture"),    # t479 : la réécriture CHOISIE (absente = défaut du fournisseur)
          "resolution": out.get("resolution"),    # t481 : la résolution CHOISIE (absente = défaut 1K)
@@ -11116,6 +11116,15 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         await _plafond({"kind": "image", "n": n, "model": model, "qualite": qualite, "resolution": resolution},
                        _categorie_image(body))   # tâche #16
         background = (body.get("background") or "").strip().lower() or None
+        # t488 (F6.10) : un fond transparent écrit dans le prompt (« transparent background », « sans fond »…) ne sort
+        # jamais du texte : le champ `background` est posé d'office quand le modèle l'a ; sinon on le DIT (notes),
+        # et l'image sortira opaque — le détourage est la suite.
+        notes_fond: list[str] = []
+        if background == "transparent" or IP.fond_transparent_demande(prompt):
+            if IP.accepte_transparent(model):
+                background = "transparent"
+            else:
+                notes_fond.append(_msg_g("ia.image.fond_opaque", None, modele=model))
         reecriture = await _reecriture_choisie(body, model)      # t479 (F6.2)
         try:
             out = await IP.generate(model, prompt, size, n,
@@ -11133,6 +11142,10 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
             res["reecriture"] = reecriture
         if resolution and _PRX.resolution_image(model, resolution):
             res["resolution"] = _PRX.resolution_image(model, resolution)
+        if background == "transparent" and IP.accepte_transparent(model):
+            res["background"] = "transparent"                  # t488 : le fond SERVI
+        if notes_fond:
+            res["notes"] = notes_fond
         return res
 
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
