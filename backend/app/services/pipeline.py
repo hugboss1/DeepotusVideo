@@ -475,6 +475,9 @@ class Pipeline:
                                    progress=70)
                 video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
                 await video_client.download_video(video_url, video_dest)
+                # t483 (F6.6) : la piste imposée d'un modèle sans interrupteur est retirée (l'app pose l'audio)
+                from app.services.fal_service import couper_piste_imposee
+                await asyncio.to_thread(couper_piste_imposee, model, video_dest)
 
                 # Plan Quick T5 (tâche #52) — lip-sync Kling AVANT tout allongement ffmpeg : la borne du modèle (2–10 s)
                 # porte sur le clip NATIF. La route a déjà pré-vérifié et chiffré ; les gardes rejouent ici sur la
@@ -1120,6 +1123,8 @@ class Pipeline:
         if not url:
             raise RuntimeError(f"pas d'URL vidéo dans la réponse : {str(result)[:160]}")
         await client.download_video(url, dest)
+        from app.services.fal_service import couper_piste_imposee     # t483 (F6.6)
+        await asyncio.to_thread(couper_piste_imposee, model, dest)
         return dest
 
     async def run_composition(self, request: CompositionRequest) -> tuple[str, str, str]:

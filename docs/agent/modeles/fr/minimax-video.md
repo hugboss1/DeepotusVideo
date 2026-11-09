@@ -29,10 +29,9 @@ le mode d'expansion de prompt « équilibré » : le texte peut être reformulé
   formulation exacte peut donc bouger : vérifier sur la sortie que l'action demandée est bien là.
 - [PROMPT] Garder le prompt court et dense. La limite relevée est de 2 000 caractères, et des prompts bien plus courts
   ont été refusés à travers un intermédiaire (relevé 2026-11).
-- [PIÈGE] Le modèle livre toujours une piste son ; il n'a pas d'interrupteur. Prévoir de la remplacer au montage par
-  la voix off ou la musique du projet (à confirmer au premier tir).
-- [PROMPT] Ne pas écrire « no music » pour faire taire la piste : nommer plutôt les sons voulus, ou ne rien dire du
-  son.
+- [PIÈGE] Le modèle livre toujours une piste son ; il n'a pas d'interrupteur. L'app la retire au téléchargement :
+  la voix off ou la musique du projet se posent au Montage.
+- [PROMPT] Ne rien dire du son dans le prompt, ni « no music » : la piste est retirée de toute façon.
 - [CHOIX] Une source publique plafonnait l'image vers vidéo à 768P, alors que le registre de l'app propose aussi
   1080p. À confirmer au premier tir en 1080p : vérifier la taille réellement livrée.
 - [CHOIX] L'app demande 720p : le fournisseur reçoit 768P, sa résolution voisine. Le fichier livré n'a donc pas
@@ -60,7 +59,7 @@ No subtitles, no on-screen text.
 
 Réglages : image de départ = la photo produit déjà recadrée en vertical (le cadre suit l'image) ; image de fin : non ;
 durée courte ; résolution la plus basse pour le brouillon, puis la plus haute une fois le mouvement validé ; seed noté
-pour reprendre le brouillon retenu ; piste son du clip remplacée au montage.
+pour reprendre le brouillon retenu ; le clip arrive muet, le son se pose au Montage.
 
 ## Erreurs fréquentes
 
@@ -71,4 +70,4 @@ pour reprendre le brouillon retenu ; piste son du clip remplacée au montage.
 - Juger le grain final sur le brouillon en basse résolution, puis s'étonner que le rendu final diffère : c'est une
   autre génération.
 - Compter sur une phrase exacte du prompt alors que l'expansion la reformule : relire la sortie.
-- Publier le clip avec sa piste son générée sans l'avoir écoutée.
+- Décrire une ambiance sonore dans le prompt : elle est générée, payée, puis retirée.

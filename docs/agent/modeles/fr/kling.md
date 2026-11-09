@@ -34,8 +34,8 @@ Aucun membre n'a de seed : chaque tir est une nouvelle prise.
   l'image de départ ; sinon le modèle invente une transition (fondu, morphing).
 - [MÉTHODE] Kling n'étend pas un clip. Pour continuer, extraire la dernière image du clip gardé et la donner en image
   de départ d'un nouveau tir. Écrire ce prompt d'après ce que montre cette image, puis monter en coupe franche.
-- [PIÈGE] v3 Turbo Pro et 4.0 n'ont pas d'interrupteur son : le clip peut arriver avec une piste générée (à
-  confirmer au premier tir). Prévoir de la remplacer au montage, et ne demander ni musique ni silence dans le prompt.
+- [PIÈGE] v3 Turbo Pro et 4.0 n'ont pas d'interrupteur son : l'app retire au téléchargement la piste qu'ils
+  livrent. Ne demander ni musique ni silence dans le prompt ; le son se pose au Montage.
 - [COÛT] Sans seed, refaire en Pro un plan trouvé en Standard donne une autre prise. Si la prise Standard convient,
   la garder et l'agrandir (upscale vidéo) plutôt que la re-rendre.
 - [CHOIX] Pas encore dans l'app : plans multiples dans un tir, personnages par éléments, références d'identité,

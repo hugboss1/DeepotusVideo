@@ -84,6 +84,13 @@ SEEDANCE_LITE_I2V = "fal-ai/bytedance/seedance/v1/lite/image-to-video"
 #                Seedance 2.5 bills the same with or without audio (doc fal
 #                lue le 26/09 : `generate_audio` sans effet sur le prix).
 #                None on veo-google = audio is baked in (no switch, priced flat).
+#   audio_force  t483 (F6.6) : le modèle n'a PAS d'interrupteur et livre
+#                toujours une piste (fiches F2 : MiniMax H3, Gemini Omni,
+#                Kling v3 Turbo Pro et 4.0). Le pipeline la RETIRE au
+#                téléchargement (`couper_piste_imposee`, ffmpeg -an, vidéo
+#                copiée sans réencodage) : la règle de l'app, « l'audio est
+#                posé par l'app », vaut ainsi pour tous les modèles. Absent =
+#                rien n'est touché (Seedance 1.0 Pro est muet par nature).
 # usd_per_s is mirrored in pricing.py DEFAULTS["video_usd_per_s"] (user-editable).
 # Défaut : Seedance 2.5 depuis le 27/09 (plan retours-ia, tâche 5). L'ancien
 # défaut `seedance-v1-pro` reste au registre et choisissable ; les graphes et
@@ -216,7 +223,7 @@ VIDEO_MODELS: dict = {
         "durations": list(range(5, 16)), "ratios": None,
         "resolutions": ["480p", "768p", "1080p"], "res_alias": {"720p": "768p"},
         "resolution_maj": True, "end_image": True, "seed": True,
-        "audio_param": None, "extra_args": {"prompt_expansion_mode": "balanced"},
+        "audio_param": None, "audio_force": True, "extra_args": {"prompt_expansion_mode": "balanced"},
     },
     # Wan 3.0 : image de départ `start_image_url` (requise), fin
     # `end_image_url`, durée entière 2..30 s, ratio « adaptive » par défaut
@@ -237,7 +244,7 @@ VIDEO_MODELS: dict = {
         "endpoint": "google/gemini-omni-flash/v1.1/image-to-video",
         "durations": list(range(3, 11)), "ratios": ["9:16", "16:9"],
         "resolutions": ["720p", "1080p"], "end_image": True, "seed": False,
-        "audio_param": None,
+        "audio_param": None, "audio_force": True,
     },
     # LTX 2.5 Fast : durées paires 6..20 s (enum), audio natif inclus au prix
     # (l'interrupteur est quand même coupé : le pipeline possède le son) ;
@@ -269,7 +276,7 @@ VIDEO_MODELS: dict = {
         "image_arg": "image_url", "duree_suffixe": "",
         "durations": list(range(3, 16)), "ratios": None,
         "resolutions": None, "end_image": False, "seed": False,
-        "audio_param": None,
+        "audio_param": None, "audio_force": True,
     },
     # t407 (01/11/2026) — sortis sur fal le 16/10/2026, OpenAPI relue le jour
     # même. Kling 4.0 : `start_image_url` (requis) et `end_image_url` sur le
@@ -282,7 +289,7 @@ VIDEO_MODELS: dict = {
         "endpoint": "kling/v4/image-to-video", "image_arg": "start_image_url",
         "durations": list(range(3, 31)), "ratios": None,
         "resolutions": ["720p", "1080p"], "end_image": True, "seed": False,
-        "audio_param": None,
+        "audio_param": None, "audio_force": True,
     },
     # FLUX 3 Max (Black Forest Labs) : `image_url` + `end_image_url` sur le
     # MÊME endpoint (le keyframes-to-video séparé reste hors registre), durée
@@ -305,7 +312,7 @@ VIDEO_MODELS: dict = {
         "endpoint": "gemini-omni-1.1-flash",
         "durations": list(range(3, 11)), "ratios": ["9:16", "16:9"],
         "resolutions": ["720p", "1080p"], "end_image": True, "seed": False,
-        "audio_param": None,
+        "audio_param": None, "audio_force": True,
     },
     # Veo 3.1 preview par la clé Google : ARRÊTÉS par Google le 22/10/2026
     # (t406, voir l'en-tête) — résolubles, hors des listes, refusés au tir.
@@ -408,6 +415,27 @@ def generated_duration(model: dict, requested: int,
             under = [d for d in model["durations"] if d <= cap]
             dur = max(under) if under else min(model["durations"])
     return dur
+
+
+def couper_piste_imposee(model: dict, path: Path) -> bool:
+    """t483 (F6.6) : retire la piste son d'un clip rendu par un modèle `audio_force` (sans interrupteur, piste
+    toujours livrée), en place, vidéo copiée sans réencodage. Vrai si une piste a été retirée. Ne lève JAMAIS : un clip
+    payé ne se perd pas pour un échec ffmpeg — la piste reste et l'échec est journalisé."""
+    if not (model or {}).get("audio_force"):
+        return False
+    from app.services import finition as _F
+    try:
+        if not _F.a_une_piste_audio(path):
+            return False
+        muet = path.with_name(path.stem + "_sanspiste" + path.suffix)
+        _F._run([_F._bin("ffmpeg"), "-y", "-v", "error", "-i", str(path), "-map", "0:v", "-an", "-c:v", "copy",
+                 "-movflags", "+faststart", str(muet)], attendu=muet)
+        muet.replace(path)
+        logger.info(f"piste son imposée retirée [{model.get('label')}] : {path.name}")
+        return True
+    except Exception as e:  # noqa: BLE001 — la piste reste, le clip est gardé
+        logger.warning(f"piste son imposée NON retirée ({path.name}) : {e}")
+        return False
 
 
 def clamp_resolution(model: dict, requested: str) -> "Optional[str]":

@@ -29,10 +29,9 @@ field. It has a seed. It reads the prompt closely, including bracketed camera co
   shift: check on the output that the requested action is there.
 - [PROMPT] Keep the prompt short and dense. The recorded limit is 2,000 characters, and much shorter prompts were
   refused through an intermediary (checked 2026-11).
-- [PITFALL] The model always delivers a sound track; it has no switch. Plan to replace it in the edit with the
-  project's voice-over or music (to be confirmed on the first run).
-- [PROMPT] Do not write "no music" to silence the track: name the sounds you want instead, or say nothing about
-  sound.
+- [PITFALL] The model always delivers a sound track; it has no switch. The app removes it on download: the
+  project's voice-over or music is laid in the Edit.
+- [PROMPT] Say nothing about sound in the prompt, not even "no music": the track is removed anyway.
 - [CHOICE] A public source capped image-to-video at 768P, while the app's registry also offers 1080p. To be
   confirmed on the first 1080p run: check the size actually delivered.
 - [CHOICE] When the app asks for 720p, the provider receives 768P, its nearest resolution. The delivered file is
@@ -59,7 +58,7 @@ No subtitles, no on-screen text.
 
 Settings: start image = the product photo already cropped to vertical (the frame follows the image); end image: no;
 short duration; lowest resolution for the draft, then the highest once the motion is approved; seed noted to come
-back to the kept draft; the clip's sound track replaced in the edit.
+back to the kept draft; the clip arrives silent, sound is laid in the Edit.
 
 ## Common mistakes
 
@@ -68,4 +67,4 @@ back to the kept draft; the clip's sound track replaced in the edit.
   before the run.
 - Judging final grain on the low-resolution draft, then being surprised the final differs: it is another generation.
 - Relying on an exact phrase while the expansion rewords it: review the output.
-- Publishing the clip with its generated sound track without listening to it.
+- Describing a soundscape in the prompt: it is generated, paid for, then removed.
