@@ -135,8 +135,9 @@ def modeles() -> dict:
         out.append({"id": m, "label": IP.PROVIDERS[m]["label"], "cle": IP.PROVIDERS[m]["needs"],
                     "cle_ok": IP.missing_key(m) is None, "resolutions": resolutions(m),
                     "usd": devis_image(m, "1K")["usd"],
-                    # les GPT Image servis par fal ou OpenAI ne prennent qu'UNE image : la planche de style n'y part pas
-                    "multi_refs": m not in getattr(IP, "_FAL_GPT", {}) and not m.startswith("gpt-image")})
+                    # t480 (F6.3) : GPT Image servi par fal prend plusieurs références ; GPT Image direct (OpenAI)
+                    # n'en prend qu'UNE : la planche de style n'y part pas
+                    "multi_refs": IP.multi_references(m)})
     return {"modeles": out, "defaut": out[0]["id"] if out else None, "ratios": list(RATIOS),
             "resolutions": list(RESOLUTIONS), "prompt_defaut": PROMPT_DEFAUT, "prompt_debruiter": PROMPT_DEBRUITER,
             "dispositions": list(DISPOSITIONS),

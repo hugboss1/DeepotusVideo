@@ -11417,8 +11417,7 @@ async def _process_image_core(body: dict):
             # t206 : les références de l'identité de l'espace (mascotte, produits) — seulement pour un modèle qui
             # prend PLUSIEURS images ; refusé AVANT la garde de dépense (aucune ligne écrite)
             from app.services import identite as _idv, espaces as _es
-            if not (model in ("nano-banana", "nano-banana-pro")
-                    or (model in IP.FAL_IMAGES and IP.FAL_IMAGES[model].get("edit"))):
+            if not IP.multi_references(model):          # t480 : GPT Image via fal compris
                 raise HTTPException(400, f"{model or 'FLUX Kontext'} ne prend qu'une image : choisissez un modèle à "
                                          "références multiples (Nano Banana…) pour garder l'identité.")
             refs_idv = _idv.references(_es.espace_courant(), n=IP.REF_MAX - 1)
@@ -11433,7 +11432,8 @@ async def _process_image_core(body: dict):
             if manque:
                 raise HTTPException(503, f"{manque} non configurée "
                                          f"(Réglages) pour {model}.")
-            await _plafond({"kind": "image", "n": n, "model": model}, _categorie_image(body))
+            # t480 (F6.3) : les références comptent au devis (GPT Image via fal les facture en entrée)
+            await _plafond({"kind": "image", "n": n, "model": model, "refs": 1 + len(refs_idv)}, _categorie_image(body))
             # cadre demandé = aspect_ratio de l'edit ; sans `size` explicite, l'edit suit l'image d'entrée
             # (sans lui, fal choisissait : une composition 16:9 sortait en 752×1408)
             ratio = _EDIT_RATIO.get(body.get("size"))
