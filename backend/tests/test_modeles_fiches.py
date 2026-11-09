@@ -181,8 +181,14 @@ def main():
               and km["seedance-2"]["negatif"] is False and "| nég. | son |" in f["texte"]
               and "| oui | coupé |" in f["texte"])
         k4 = M.membres({"natures": ["video_i2v"], "ids": ["kling-v4"]})
-        check("3.5c sans interrupteur de son (Kling 4.0) : dit « sans interrupteur »", k4 and k4[0]["son_coupe"] is False
-              and "sans interrupteur" in M.bloc_membres(k4, "fr") and "no switch" in M.bloc_membres(k4, "en"))
+        # t483 (F6.6) : sans interrupteur MAIS piste retirée au téléchargement (audio_force) -> « retiré »
+        check("3.5c sans interrupteur, piste imposée (Kling 4.0) : dit « retiré »", k4 and k4[0]["son_coupe"] is False
+              and k4[0]["son_retire"] is True
+              and "retiré" in M.bloc_membres(k4, "fr") and "removed" in M.bloc_membres(k4, "en"))
+        s1 = M.membres({"natures": ["video_i2v"], "ids": ["seedance-v1-pro"]})
+        check("3.5d sans interrupteur ni piste imposée (Seedance 1.0 Pro) : dit « sans interrupteur »",
+              s1 and s1[0]["son_coupe"] is False and s1[0]["son_retire"] is False
+              and "sans interrupteur" in M.bloc_membres(s1, "fr") and "no switch" in M.bloc_membres(s1, "en"))
         check("3.6 tronc commun joint", "## Référence rapide" in f["commun"])
         fe = M.fiche("seedance-2", "en")
         check("3.7 fiche par id, en anglais : « Members »", fe is not None and fe["famille"] == "videoessai"

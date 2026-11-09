@@ -33,8 +33,8 @@ every run is a new take.
   otherwise the model invents a transition (dissolve, morphing).
 - [METHOD] Kling does not extend a clip. To continue, extract the last frame of the kept clip and use it as the start
   image of a new run. Write that prompt from what this frame shows, then edit with a hard cut.
-- [PITFALL] v3 Turbo Pro and 4.0 have no sound switch: the clip may arrive with a generated track (to be confirmed
-  on the first run). Plan to replace it in the edit, and ask for neither music nor silence in the prompt.
+- [PITFALL] v3 Turbo Pro and 4.0 have no sound switch: the app removes the track they deliver on download. Ask for
+  neither music nor silence in the prompt; sound is laid in the Edit.
 - [COST] With no seed, redoing in Pro a shot found in Standard gives another take. If the Standard take works, keep
   it and upscale it rather than re-rendering.
 - [CHOICE] Not in the app yet: several shots in one run, element-based characters, identity references, talking

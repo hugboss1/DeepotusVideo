@@ -109,7 +109,8 @@ def membres(meta: dict) -> list[dict]:
                 r = VIDEO_MODELS.get(m["id"]) or {}
                 # t477 (épreuve d'application F2) : le champ négatif et l'interrupteur de son, que l'app coupe
                 # toujours ; sans interrupteur, le fournisseur décide de la piste livrée
-                vues[m["id"]].update(negatif=bool(r.get("negatif")), son_coupe=bool(r.get("audio_param")))
+                vues[m["id"]].update(negatif=bool(r.get("negatif")), son_coupe=bool(r.get("audio_param")),
+                                     son_retire=bool(r.get("audio_force")))   # t483 : piste retirée au téléchargement
     return [vues[i] for i in ids if i in vues]
 
 
@@ -144,7 +145,9 @@ def bloc_membres(liste: list[dict], langue: str = "fr") -> str:
             cells += [_plage(m.get("durations")), _plage(m.get("ratios")), _plage(m.get("resolutions")),
                       oui if m.get("end_image") else non, oui if m.get("seed") else non,
                       oui if m.get("negatif") else non,
-                      ("off" if en else "coupé") if m.get("son_coupe") else ("no switch" if en else "sans interrupteur")]
+                      ("off" if en else "coupé") if m.get("son_coupe")
+                      else ("removed" if en else "retiré") if m.get("son_retire")
+                      else ("no switch" if en else "sans interrupteur")]
         lignes.append("| " + " | ".join(str(c).replace("|", "/") for c in cells) + " |")
     return "\n".join(lignes) + "\n"
 
