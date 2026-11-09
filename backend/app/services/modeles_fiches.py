@@ -101,10 +101,15 @@ def membres(meta: dict) -> list[dict]:
             if e.get("id") in ids:
                 vues.setdefault(e["id"], dict(e, natures=[]))["natures"].append(nature)
     if any(n in _NATURES_VIDEO for n in meta.get("natures") or []):
+        from app.services.fal_service import VIDEO_MODELS
         for m in C.modeles_video().get("models") or []:
             if m["id"] in vues:
                 vues[m["id"]].update({k: m.get(k) for k in ("durations", "ratios", "resolutions", "end_image",
                                                              "seed", "usd_per_s")})
+                r = VIDEO_MODELS.get(m["id"]) or {}
+                # t477 (épreuve d'application F2) : le champ négatif et l'interrupteur de son, que l'app coupe
+                # toujours ; sans interrupteur, le fournisseur décide de la piste livrée
+                vues[m["id"]].update(negatif=bool(r.get("negatif")), son_coupe=bool(r.get("audio_param")))
     return [vues[i] for i in ids if i in vues]
 
 
@@ -122,7 +127,7 @@ def bloc_membres(liste: list[dict], langue: str = "fr") -> str:
     video = any("durations" in m for m in liste)
     tete = ["id", "label", "route" if en else "voie", "price" if en else "prix", "key" if en else "clé"]
     if video:
-        tete += ["s", "ratios", "res.", "end" if en else "fin", "seed"]
+        tete += ["s", "ratios", "res.", "end" if en else "fin", "seed", "neg." if en else "nég.", "audio" if en else "son"]
     lignes = ["## " + _MEMBRES[_langue(langue)], "", "| " + " | ".join(tete) + " |",
               "|" + "---|" * len(tete)]
     for m in liste:
@@ -137,7 +142,9 @@ def bloc_membres(liste: list[dict], langue: str = "fr") -> str:
         if video:
             oui, non = ("yes", "no") if en else ("oui", "non")
             cells += [_plage(m.get("durations")), _plage(m.get("ratios")), _plage(m.get("resolutions")),
-                      oui if m.get("end_image") else non, oui if m.get("seed") else non]
+                      oui if m.get("end_image") else non, oui if m.get("seed") else non,
+                      oui if m.get("negatif") else non,
+                      ("off" if en else "coupé") if m.get("son_coupe") else ("no switch" if en else "sans interrupteur")]
         lignes.append("| " + " | ".join(str(c).replace("|", "/") for c in cells) + " |")
     return "\n".join(lignes) + "\n"
 
@@ -175,6 +182,8 @@ _NOM_FAMILLE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 CAPS_DUREE = re.compile(
     r"(?i)(?:jusqu['’]à|up to|max(?:imum)?\.?|entre|between)\s*\d+(?:[.,]\d+)?\s*(?:s|sec|secondes?|seconds?)\b"
     r"|\b\d+(?:[.,]\d+)?\s*(?:à|-|–|to)\s*\d+(?:[.,]\d+)?\s*(?:s|sec|secondes?|seconds?)\b")
+# Un prix en dollars recopié dans un corps : il vit dans le registre (pricing) et le bloc « Membres » l'affiche.
+PRIX = re.compile(r"\$\s?\d")
 # Noms de modèles génératifs interdits dans les rôles métier et le TEXTE des méthodes (règle 3 de MODELES.md).
 # « FLUX » en capitales seulement : « flux » est un mot français.
 NOMS_MODELES = re.compile(
@@ -222,6 +231,8 @@ def _verifier_fiche(lg: str, fam: str, meta: dict, corps: str) -> list[str]:
     for cle in ("ids", "natures", "voies"):
         if not isinstance(meta.get(cle), list) or not meta.get(cle):
             pb.append(f"{tag}: « {cle} » doit être une liste non vide")
+    if PRIX.search(corps):
+        pb.append(f"{tag}: prix recopié ({PRIX.search(corps).group(0)!r}) : il vit dans le registre")
     if any(n in _NATURES_VIDEO for n in meta.get("natures") or []) and CAPS_DUREE.search(corps):
         pb.append(f"{tag}: plafond de durée recopié ({CAPS_DUREE.search(corps).group(0)!r}) : il vit dans le registre")
     return pb

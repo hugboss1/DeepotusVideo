@@ -29,8 +29,12 @@ gagne. Les paramètres d'un modèle (durées, formats, prix) se lisent dans le b
 - [MÉTHODE] Base + delta : un texte de base identique d'une image à l'autre décrit tout ce qui ne change pas ; seule la
   dernière clause change.
 - [PIÈGE] Le seed ne transporte pas une identité d'un prompt à un autre, et « same as before » n'a aucune mémoire.
+- [MÉTHODE] Continuité et identité ne se confondent pas : la dernière image d'un plan gardé peut ouvrir le plan
+  suivant (raccord), mais le personnage se vérifie toujours contre l'image validée, jamais contre la sortie d'avant.
 - [MÉTHODE] Vidéo depuis une image : ne décrire que le mouvement, pas ce qui est déjà visible. Une caméra et une action
   par plan ; des repères de temps quand il y a plusieurs temps.
+- [PIÈGE] Tourner autour d'un sujet vu sur une seule photo : le modèle invente les faces cachées. Limiter l'angle,
+  ou donner une image de fin qui montre la face voulue.
 - [MÉTHODE] Image fixe d'abord, approuvée, puis animation depuis cette image. On relance depuis l'image approuvée,
   jamais depuis une sortie qui a dérivé.
 - [PROMPT] Son : nommer les sons en positif. « No music » fait souvent refuser la piste ; pour couper l'audio, utiliser
@@ -52,6 +56,4 @@ validée.
 ## Erreurs fréquentes
 
 - Recopier dans le prompt un prix ou un slogan exact : il sort mal orthographié. Le poser en incrustation.
-- Écrire « 9:16 » ou « vertical format » dans le prompt au lieu du champ format.
 - Corriger trois choses à la fois en retouche : le modèle en change d'autres. Une à la fois.
-- Réécrire le prompt trois fois après un refus de modération au lieu de changer de fournisseur.

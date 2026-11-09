@@ -11,7 +11,8 @@ SAUVE = pathlib.Path(tempfile.mkdtemp(prefix="mut_fiches_"))
 F = {"svc": RACINE / "backend/app/services/modeles_fiches.py",
      "cfr": RACINE / "docs/agent/modeles/fr/_commun.md", "cen": RACINE / "docs/agent/modeles/en/_commun.md",
      "monteur": RACINE / "docs/agent/metiers/monteur.md", "methodes": RACINE / "backend/app/knowledge/methodes.json",
-     "agents": RACINE / "AGENTS.md", "licence": RACINE / "docs/licences/scenario-mit.md"}
+     "agents": RACINE / "AGENTS.md", "licence": RACINE / "docs/licences/scenario-mit.md",
+     "kling_fr": RACINE / "docs/agent/modeles/fr/kling.md", "seed_en": RACINE / "docs/agent/modeles/en/seedance.md"}
 for k, p in F.items():
     shutil.copy2(p, SAUVE / (k + ".orig"))
 BANC = [sys.executable, "backend/tests/test_modeles_fiches.py"]
@@ -25,8 +26,12 @@ M = [
  ("agents", "| `backend/app/services/modeles_fiches.py` (+", "| `backend/app/services/modeles_fiche.py` (+"),
  ("licence", "## Fiches modèle (t475", "## Fiches (t475"),
  ("CREER", "", ""),                                                        # fiche FR sans traduction EN
+ # t477 : les fiches vidéo réelles
+ ("kling_fr", "ids: [kling-v3-pro, kling-v3-standard, kling-v3-turbo-pro, kling-v4]", "ids: [kling-v3-pro, kling-v3-standard, kling-v4]"),
+ ("seed_en", "## Example", "## Examples"),
  # règles du contrat
  ("svc", "(?:jusqu['’]à|up to|", "(?:up to|"),
+ ("svc", "    if PRIX.search(corps):", "    if False:"),
  ("svc", "            if i in proprietaire:", "            if False:"),
  ("svc", "            if e[\"id\"] not in proprietaire:", "            if False:"),
  ("svc", "for fam in sorted(set(fr) ^ set(en)):", "for fam in sorted(set()):"),
@@ -48,7 +53,9 @@ M = [
  ("svc", "        if val.startswith(\"[\") and val.endswith(\"]\"):", "        if False:"),
  ("svc", "vues.setdefault(e[\"id\"], dict(e, natures=[]))[\"natures\"].append(nature)",
   "vues.setdefault(e[\"id\"], dict(e, natures=[nature]))"),
- ("svc", "vues[m[\"id\"]].update(", "vues[m[\"id\"]].get("),
+ ("svc", "vues[m[\"id\"]].update({k: m.get(k)", "vues[m[\"id\"]].get({k: m.get(k)"),
+ ("svc", "son_coupe=bool(r.get(\"audio_param\"))", "son_coupe=True"),
+ ("svc", "negatif=bool(r.get(\"negatif\"))", "negatif=False"),
  ("svc", "    if langue != \"fr\" and not fiches:", "    if False:"),
  ("svc", "\"price to be measured\" if en else \"prix à mesurer\")", "\"price to be measured\" if en else \"gratuit\")"),
  ("svc", "if m.get(\"voie\") == \"local\" else", "if False else"),

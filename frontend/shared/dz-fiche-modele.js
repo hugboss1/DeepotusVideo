@@ -118,6 +118,18 @@
     D.head.appendChild(s);
   }
 
+  /* un élément et ses attributs (« texte » = son texte), comme les autres scripts de /shared : l'extracteur du
+     catalogue de l'assistant (scripts/agent/catalogue_partages.py) lit cette forme */
+  function el(tag, a) {
+    var e = D.createElement(tag);
+    for (var k in (a || {})) {
+      if (k === "texte") e.textContent = a[k];
+      else if (k === "type") e.type = a[k];
+      else if (k === "class") e.className = a[k];
+      else e.setAttribute(k, a[k]);
+    }
+    return e;
+  }
   var ouvert = null;
   function fermer() {
     if (!ouvert) return;
@@ -140,10 +152,7 @@
     var t = D.createElement("strong");
     t.textContent = T("modeles.fiche.ouvrir");
     var meta = D.createElement("small");
-    var x = D.createElement("button");
-    x.type = "button";
-    x.textContent = "×";
-    x.setAttribute("aria-label", T("modeles.fiche.fermer"));
+    var x = el("button", { type: "button", texte: "×", "aria-label": T("modeles.fiche.fermer") });
     x.addEventListener("click", function (ev) { ev.preventDefault(); ev.stopPropagation(); fermer(); });
     h.appendChild(t); h.appendChild(meta); h.appendChild(x);
     var c = D.createElement("div");
@@ -178,14 +187,9 @@
     var b = sel.__dzFicheB;
     if (!b) {
       style();
-      b = D.createElement("button");
-      b.type = "button";
-      b.className = "dz-fiche-modele-b";
-      b.textContent = "?";
+      b = el("button", { type: "button", "class": "dz-fiche-modele-b", texte: "?", "data-dz-fiche-b": "1",
+                         "aria-label": T("modeles.fiche.ouvrir"), title: T("modeles.fiche.ouvrir") });
       b.hidden = true;
-      b.setAttribute("data-dz-fiche-b", "1");
-      b.setAttribute("aria-label", T("modeles.fiche.ouvrir"));
-      b.setAttribute("title", T("modeles.fiche.ouvrir"));
       b.addEventListener("click", function (ev) {
         ev.preventDefault(); ev.stopPropagation();
         if (sel.value) ouvrir(sel.value, b);
