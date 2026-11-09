@@ -12369,6 +12369,21 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
                             for p in (recipe.get("panels") or [])}
         elif not recipe:
             pass
+        # t489 (FDA, banc comparatif de l'Atelier DA) : la MÉTHODE de la planche. « actuel » (défaut) = le code
+        # d'avant, à l'octet ; « ancre » = héros validé + base identique + clause de vue ; « ancre_multi » = « ancre »
+        # + plusieurs références par vue de corps (modèles qui en prennent plusieurs). Interne : aucune page ne
+        # l'envoie ; la recette la garde (un rejeu garde sa méthode). Voir board_service.methode_planche.
+        methode = str(body.get("methode") or (recipe or {}).get("methode") or "actuel").strip().lower()
+        if methode not in BS.METHODES:
+            raise HTTPException(400, f"methode inconnue : {methode!r} ({', '.join(BS.METHODES)})")
+        if methode != "actuel" and e.kind != "character":
+            raise HTTPException(400, f"la méthode {methode!r} ne vaut que pour une planche de personnage")
+        # t489 : un visage MAÎTRE fourni (le banc partage le même maître entre ses bras) — panneau face_front non tiré
+        face_maitre = Path(str(body.get("face_maitre") or "")).name
+        if face_maitre and not (settings.images_path / face_maitre).is_file():
+            raise HTTPException(400, f"face_maitre introuvable : {face_maitre}")
+        if face_maitre and e.kind != "character":
+            raise HTTPException(400, "face_maitre ne vaut que pour une planche de personnage")
         # t182 : une planche est RASTER — un modèle vectoriel (réglage DA ou
         # recette) est refusé AVANT la garde de dépense, qui écrit une ligne
         # de dépense (sinon dépense fantôme suivie d'un 502).
@@ -12384,6 +12399,9 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
         _manque = IP.missing_key(provider)
         if _manque:
             raise _refus_cle(_manque, provider, http)
+        if methode == "ancre_multi" and (provider == "flux" or not IP.multi_references(provider)):
+            raise HTTPException(400, f"la méthode « ancre_multi » demande un générateur à références multiples "
+                                     f"(Nano Banana…) : {provider} n'en prend qu'une")
         desc = (e.description or "").strip()
         if not desc and not (recipe and recipe.get("v") in (2, 3)):
             raise HTTPException(400, "Add a description before generating")
@@ -12416,8 +12434,18 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
                                                           "canon_lessons"))
         lesson_hint = PQC.lesson_hint(lessons, canon_key)
         # tâche #16 : un tir par panneau de la planche, au fournisseur du projet
-        await _plafond({"kind": "image", "n": len(plan["panels"]), "model": provider}, "atelier")
+        await _plafond({"kind": "image", "n": len(plan["panels"]) - (1 if face_maitre else 0), "model": provider},
+                       "atelier")
+        # t489 : la BASE des panneaux dérivés en méthode « ancre » — écrite UNE fois, identique à l'octet d'un
+        # panneau à l'autre ; seule la clause de vue (finale) change
+        base_ancre = BS.base_ancre(e.name, desc, style_src) if methode != "actuel" else ""
+        controle_heros = None
         for key, ptxt, chain_on, p1size in plan["panels"]:
+            if face_maitre and key == "face_front":
+                panels[key] = face_maitre
+                recipe_panels.append({"key": key, "prompt": "", "seed": None, "model": "fourni",
+                                      "file": face_maitre})
+                continue
             # injection du canon: proportions du corps ({PROPORTIONS}) et
             # traits du visage ({FACE}) selon le style de la DA.
             is_body = p1size == "CANON"      # panneau corps en pied (v7)
@@ -12430,7 +12458,21 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
             ptxt = ptxt.replace("{PROPORTIONS}", prop) \
                        .replace("{FACE}", canon["face"])
             ratio = None
-            if chain_on:
+            refs_multi = None
+            if chain_on and methode != "actuel":
+                # t489 : base + clause de vue ; le canon reste injecté dans la clause du corps de face
+                prompt = BS.prompt_ancre(base_ancre, key, methode, prop)
+                if is_body and lesson_hint:
+                    prompt += " " + lesson_hint
+                img = settings.images_path / panels[chain_on]
+                if methode == "ancre_multi" and key in BS.VUES_MULTI:
+                    refs_multi = [settings.images_path / panels[k] for k in BS.VUES_MULTI[key]]
+                if is_body:
+                    size = canon["frame"]
+                    ratio = _EDIT_RATIO.get(size)
+                else:
+                    size = "landscape_16_9"
+            elif chain_on:
                 prompt = ptxt + style
                 if is_body and lesson_hint:
                     prompt += ". " + lesson_hint
@@ -12477,6 +12519,9 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
                         guidance=(3.5 if is_body and img is not None
                                   else None))
                 try:
+                    if refs_multi:                       # t489 : plusieurs références, rôle par position
+                        return provider, await IP.generate(
+                            provider, p, size, 1, seed=seed, image_paths=refs_multi, ratio=ratio)
                     return provider, await IP.generate(
                         provider, p, size, 1, seed=seed,
                         image_path=img, ratio=ratio)
@@ -12517,11 +12562,33 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
                         lessons = PQC.record_success(lessons, canon_key)
                     await put_atelier_settings(
                         {"canon_lessons": PQC.dump_lessons(lessons)})
+            # t489 : HÉROS VALIDÉ (méthode ancre) — le corps de face ne sert d'ancre qu'après un contrôle d'identité
+            # face au visage maître (similarité CLIP locale, gratuite) ; sous le seuil, UNE régénération, on garde la
+            # meilleure. Sans moteur CLIP installé, le contrôle est dit « indisponible » dans la recette.
+            if methode != "actuel" and key == "front" and e.kind == "character" and not seeds_by_key:
+                import asyncio as _aio
+                sim = await _aio.to_thread(BS.similarite_identite, settings.images_path, panels["face_front"],
+                                           out["images"][0])
+                controle_heros = {"sim": sim, "seuil": BS.SEUIL_HEROS, "essais": 1}
+                if sim is not None and sim < BS.SEUIL_HEROS:
+                    model2, out2 = await _gen(prompt)
+                    sim2 = await _aio.to_thread(BS.similarite_identite, settings.images_path,
+                                                panels["face_front"], out2["images"][0])
+                    controle_heros.update(essais=2, sim_relance=sim2)
+                    if sim2 is not None and sim2 > sim:
+                        model, out = model2, out2
+                        controle_heros["sim"] = sim2
+                controle_heros["valide"] = (controle_heros["sim"] is not None
+                                            and controle_heros["sim"] >= BS.SEUIL_HEROS)
             panels[key] = out["images"][0]
             recipe_panels.append({"key": key, "prompt": prompt,
                                   "seed": out.get("seed"), "model": model,
                                   # v3 (tâche #62) : LE FICHIER — une mosaïque n'est pas quatre références
                                   "file": out["images"][0]})
+            if methode != "actuel":
+                recipe_panels[-1]["profondeur"] = BS.profondeur(key, methode)
+                if refs_multi:
+                    recipe_panels[-1]["refs"] = [p.name for p in refs_multi]
         # profils droits = miroir logiciel du profil gauche (direction
         # opposée garantie — la diffusion confond gauche/droite)
         mirrors_files: dict[str, str] = {}
@@ -12540,11 +12607,14 @@ async def generate_bible_reference(entity_id: str, body: dict, http: Request = N
         e.ref_image = board
         e.face_image = None            # tout est dans la planche composite
         e.seed = recipe_panels[0].get("seed")
-        e.prompt_recipe = _json.dumps(
-            {"v": 3, "kind": e.kind, "ref_file": insp_file,
-             "provider": provider, "style_ref": style_ref or None,
-             "canon": canon_key, "panels": recipe_panels,
-             "mirrors": mirrors_files, "board": board}, ensure_ascii=False)
+        rec = {"v": 3, "kind": e.kind, "ref_file": insp_file,
+               "provider": provider, "style_ref": style_ref or None,
+               "canon": canon_key, "panels": recipe_panels,
+               "mirrors": mirrors_files, "board": board}
+        if methode != "actuel":                 # t489 : la méthode et le contrôle du héros, gardés pour le rejeu
+            rec["methode"] = methode
+            rec["controle_heros"] = controle_heros
+        e.prompt_recipe = _json.dumps(rec, ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)
