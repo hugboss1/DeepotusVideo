@@ -179,6 +179,8 @@ function _depuis(doc, ids) {
   for (const o of objets) o.transform = `translate(${nb(-x0)} ${nb(-y0)})` + (o.transform ? " " + o.transform : "");
   return { objets, largeur: Math.max(0.5, x1 - x0), hauteur: Math.max(0.5, y1 - y0), x0, y0 };
 }
+// t480 : la sélection ramenée à l'origine — aussi la définition d'un pinceau (mod-pinceaux.js)
+export const selection_normalisee = (doc, ids) => _depuis(doc, ids);
 const _poser = (doc, id, m) => {
   motif_objets_valider(m);
   motifs_cycle({ ...(doc.motifs || {}), [id]: m });

@@ -11661,7 +11661,7 @@
    {
     "pos": 2520,
     "avant": "  if (o.derive) { delete o.derive; return; }",
-    "apres": "  if (o.derive) { delete o.derive; return; }\r\n  if (o.repetition || o.fusion_vive || o.deformation) { repetition_decomposer(doc, o); return; }   // t450-t453 : Décomposer",
+    "apres": "  if (o.derive) { delete o.derive; return; }\r\n  if (o.repetition || o.fusion_vive || o.deformation || o.pinceau) { repetition_decomposer(doc, o); return; }   // t450-t453, t480 : Décomposer",
     "groupe": "t450"
    },
    {

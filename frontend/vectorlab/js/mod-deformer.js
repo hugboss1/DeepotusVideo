@@ -9,6 +9,7 @@
 // par vivants_d2_rafraichir de mod-repeter.js). Règle de mod-bool : tout se CALCULE avant de muter.
 import { T } from "./mod-i18n.js";
 import { polylignes_objet } from "./mod-bool.js";
+import { pinceaux_rafraichir } from "./mod-pinceaux.js";   // t480 : les tracés peints suivent
 
 const EFFETS = new Set(["enveloppe", "distorsion", "torsion", "rugosite", "zigzag", "gonfler", "pointes"]);
 export const STYLES_POINTES = ["aucune", "triangle", "ouverte", "cercle", "carre", "barre"];
@@ -427,7 +428,8 @@ export function boite_source(g) {
   return F.length ? _boite(F) : null;
 }
 
-/* ── vivant : appelé par vivants_d2_rafraichir (mod-repeter.js), donc par derives_rafraichir ── */
+/* ── vivant : appelé par vivants_d2_rafraichir (mod-repeter.js), donc par derives_rafraichir ; il appelle à son tour
+   pinceaux_rafraichir (t480) ── */
 export function deformations_rafraichir(doc) {
   let n = 0;
   const v = (objs) => {
@@ -441,5 +443,5 @@ export function deformations_rafraichir(doc) {
     }
   };
   for (const c of doc.calques) v(c.objets);
-  return n;
+  return n + pinceaux_rafraichir(doc);                           // t480 : puis les tracés peints (lot D5)
 }

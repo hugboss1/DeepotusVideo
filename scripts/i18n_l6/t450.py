@@ -61,7 +61,7 @@ ENTREES = [
       '  return n + vivants_d2_rafraichir(doc);   // t450 : les répétitions vivantes, après les dérivés qu\'elles lisent', {}),
     S(VIV, 60, '  if (o.derive) { delete o.derive; return; }',
       '  if (o.derive) { delete o.derive; return; }\r\n'
-      '  if (o.repetition || o.fusion_vive || o.deformation) { repetition_decomposer(doc, o); return; }   // t450-t453 : Décomposer', {}),
+      '  if (o.repetition || o.fusion_vive || o.deformation || o.pinceau) { repetition_decomposer(doc, o); return; }   // t450-t453, t480 : Décomposer', {}),
     H("vectorlab.repeter.rien", "Répétition : sélectionnez un ou plusieurs objets",
       "Repeat: select one or more objects"),
     H("vectorlab.repeter.copie_generee",
