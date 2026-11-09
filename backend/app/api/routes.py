@@ -10184,6 +10184,20 @@ async def schedule_analytics(days: int = 28, request: Request = None):
     return a
 
 
+# t492 (lot G2, 09/11/2026) : le tableau « Croissance » (5e onglet du tiroir F1). Lecture seule ; `tz` = minutes à
+# ajouter à l'UTC pour obtenir l'heure du navigateur (les jours de la régularité sont LOCAUX).
+@router.get("/schedule/croissance")
+async def schedule_croissance(days: int = 30, espace_id: str | None = None, tz: int = 0):
+    from app.services import metrics_service as _ms, instagram_publisher as _ig
+    t = await _ms.tableau(max(1, min(365, days)), (espace_id or "").strip()[:40] or None, max(-840, min(840, tz)))
+    try:
+        t["compte"] = {"instagram": await _ig.fetch_compte(t["days"])}
+    except Exception as e:                    # réseau coupé : le tableau des posts reste lisible
+        logger.warning(f"croissance compte instagram : {_ig._scrub(str(e))[:200]}")
+        t["compte"] = {"instagram": None, "erreur": True}
+    return t
+
+
 @router.get("/schedule/quotas")
 async def schedule_quotas(request: Request = None):
     """Compteurs et plafonds par canal ; la `source` datée suit la langue de la requête (10/10/2026)."""

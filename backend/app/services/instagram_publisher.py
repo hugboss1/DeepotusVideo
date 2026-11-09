@@ -144,5 +144,75 @@ async def fetch_insights(media_ids: list[str]) -> dict[str, dict]:
     return out
 
 
+# ---- t492 (lot G2, 09/11/2026) : les chiffres du COMPTE pour l'écran Croissance ----------------------------------------
+# Chaque mesure a son propre appel : un compte, un type de connexion ou une version qui en refuse une ne fait pas
+# perdre les autres ; ce qui n'a pas pu être lu est nommé dans `illisibles`. Gardé en mémoire CACHE_COMPTE_S secondes.
+METRIQUES_COMPTE = ("reach", "views", "total_interactions", "follows_and_unfollows")
+JOURS_COMPTE_MAX = 30                 # la fenêtre d'un appel d'insights de compte
+CACHE_COMPTE_S = 900
+_cache_compte: dict = {}
+
+
+def _total_et_ventilation(d: dict) -> tuple[int, dict]:
+    """(total, {dimension: valeur}) d'une mesure rendue en `total_value`, ventilée ou non."""
+    tv = d.get("total_value") if isinstance(d.get("total_value"), dict) else {}
+    vent = {}
+    for b in tv.get("breakdowns") or []:
+        for r in (b or {}).get("results") or []:
+            dims = r.get("dimension_values") or []
+            if dims:
+                vent[str(dims[0]).upper()] = int(r.get("value") or 0)
+    total = int(tv.get("value") or 0) or sum(vent.values())
+    return total, vent
+
+
+async def fetch_compte(days: int = 30, maintenant: float | None = None) -> dict | None:
+    """{username, followers, reach, views, interactions, follows, unfollows, non_abonnes_pct, jours, illisibles} du
+    compte Instagram COURANT ; None si aucun compte n'est relié. Aucune écriture, le jeton n'est dans aucun détail."""
+    import time
+    if not available():
+        return None
+    tok, ig_id, g = cred.IG_ACCESS_TOKEN.strip(), cred.IG_BUSINESS_ID.strip(), _graph()
+    jours = max(1, min(JOURS_COMPTE_MAX, int(days or 30)))
+    t = time.time() if maintenant is None else maintenant
+    cle = (ig_id, jours)
+    if cle in _cache_compte and t - _cache_compte[cle][0] < CACHE_COMPTE_S:
+        return _cache_compte[cle][1]
+    out = {"username": None, "followers": None, "reach": None, "views": None, "interactions": None, "follows": None,
+           "unfollows": None, "non_abonnes_pct": None, "jours": jours, "illisibles": []}
+    fin = int(t)
+    base = {"period": "day", "metric_type": "total_value", "since": fin - jours * 86400, "until": fin,
+            "access_token": tok}
+    async with _client() as c:
+        r = await c.get(f"{g}/{ig_id}", params={"fields": "username,followers_count", "access_token": tok})
+        if r.status_code == 200:
+            j = r.json()
+            out["username"], out["followers"] = j.get("username"), j.get("followers_count")
+        else:
+            out["illisibles"].append("profil")
+        for m in METRIQUES_COMPTE:
+            p = dict(base, metric=m)
+            if m in ("views", "follows_and_unfollows"):
+                p["breakdown"] = "follow_type"
+            r = await c.get(f"{g}/{ig_id}/insights", params=p)
+            data = (r.json().get("data") or []) if r.status_code == 200 else []
+            if not data:
+                out["illisibles"].append(m)
+                continue
+            total, vent = _total_et_ventilation(data[0])
+            if m == "reach":
+                out["reach"] = total
+            elif m == "total_interactions":
+                out["interactions"] = total
+            elif m == "views":
+                out["views"] = total
+                if total and "NON_FOLLOWER" in vent:
+                    out["non_abonnes_pct"] = round(100.0 * vent["NON_FOLLOWER"] / total)
+            else:
+                out["follows"], out["unfollows"] = vent.get("FOLLOWER"), vent.get("NON_FOLLOWER")
+    _cache_compte[cle] = (t, out)
+    return out
+
+
 publishers.register("instagram", available, publish)
 metrics_service.FETCHERS["instagram"] = fetch_insights   # tâche #29 : la passe de métriques

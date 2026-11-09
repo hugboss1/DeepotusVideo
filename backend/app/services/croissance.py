@@ -14,7 +14,7 @@ Aucune lecture, aucune écriture, aucun appel : metrics_service fournit les inst
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from statistics import median
 
 JALONS = (1, 3, 7, 30)                # jours après la publication
@@ -72,3 +72,27 @@ def jalons_mesures(posted_at: datetime | None, instantanes: list[dict]) -> dict:
                 vide[j] = dict(instantanes[i], age_j=round(age, 2))
             break
     return vide
+
+
+def regularite(dates: list, fin: datetime, jours: int, tz_min: int = 0) -> dict:
+    """t492 : la régularité de publication sur les `jours` derniers jours LOCAUX (UTC + tz_min) finissant à `fin`.
+    {jours, jours_avec_post, serie, semaine} ; la série compte les jours consécutifs avec un post en remontant depuis
+    aujourd'hui, ou depuis hier si rien n'est encore sorti aujourd'hui (la journée n'est pas finie)."""
+    jours = max(1, int(jours))
+    dec = timedelta(minutes=int(tz_min or 0))
+    auj = (fin + dec).date()
+    debut = auj - timedelta(days=jours - 1)
+    par_jour: dict = {}
+    for d in dates or []:
+        if d is None:
+            continue
+        j = (d + dec).date()
+        if debut <= j <= auj:
+            par_jour[j] = par_jour.get(j, 0) + 1
+    serie, j = 0, auj if auj in par_jour else auj - timedelta(days=1)
+    while j in par_jour:
+        serie += 1
+        j -= timedelta(days=1)
+    semaine = [{"jour": (auj - timedelta(days=k)).isoformat(), "posts": par_jour.get(auj - timedelta(days=k), 0)}
+               for k in range(min(7, jours) - 1, -1, -1)]
+    return {"jours": jours, "jours_avec_post": len(par_jour), "serie": serie, "semaine": semaine}

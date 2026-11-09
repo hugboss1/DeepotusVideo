@@ -440,7 +440,7 @@ win.DzCampagnes = fauxDzCampagnes;
   const { tiroir: T4, bouton: B4 } = await charger(S4, "veille");
   const ongV = marque(T4, "onglet-veille"), ongD4 = marque(T4, "onglet-demander"), ongC4 = marque(T4, "onglet-campagnes");
   const liste = T4.querySelector('[role="tablist"]');
-  ok("5c.1 quatre onglets (t353), Veille traduit", !!ongV && liste.children.length === 4 && ongV.textContent === dzT("agent.onglet.veille")
+  ok("5c.1 cinq onglets (t353, t492), Veille traduit", !!ongV && liste.children.length === 5 && ongV.textContent === dzT("agent.onglet.veille")
     && ongV.attrs.role === "tab", ongV && ongV.textContent);
   const panV = DOC.getElementById(ongV.attrs["aria-controls"]);
   ok("5c.2 le panneau Veille est caché au départ", !!panV && panV.hasAttribute("hidden"));
@@ -464,10 +464,27 @@ win.DzCampagnes = fauxDzCampagnes;
   const nEspAvantP = appels.filter((a) => a.url.startsWith("/api/espaces")).length;     // t353 suite : Prospects relit les siens
   ongV.fire("keydown", { key: "ArrowRight" });
   ok("5c.9 flèche droite depuis Veille : Prospects (t353)", ongP4.attrs["aria-selected"] === "true" && DOC.activeElement === ongP4);
-  ongP4.fire("keydown", { key: "ArrowRight" });
-  ok("5c.9b flèche droite depuis Prospects : retour à Demander (boucle)", ongD4.attrs["aria-selected"] === "true" && DOC.activeElement === ongD4);
+  // t492 : le 5e onglet « Croissance » monte dz-croissance.js UNE fois (il porte son propre filtre d'espace)
+  const croiss = [];
+  win.DzCroissance = { monter(hote) {
+    const rec = { recharges: 0, demonte: false }; croiss.push(rec);
+    const racine = new Noeud("div"); racine.setAttribute("data-dz-croissance", "racine"); hote.appendChild(racine);
+    return { recharger() { rec.recharges++; }, demonter() { rec.demonte = true; racine.remove(); } };
+  } };
+  const ongX4 = marque(T4, "onglet-croissance");
+  ongP4.fire("keydown", { key: "ArrowRight" }); await tick();
+  ok("5c.9b flèche droite depuis Prospects : Croissance (t492), traduit et monté", !!ongX4 && ongX4.attrs["aria-selected"] === "true"
+    && DOC.activeElement === ongX4 && ongX4.textContent === dzT("agent.onglet.croissance") && croiss.length === 1
+    && S4.getItem("dz_agent_onglet") === "croissance", String(croiss.length));
+  nouvelle.click(); await tick();
+  ok("5c.9c ↺ sur Croissance relit le tableau, sans remonter", croiss[0].recharges === 1 && croiss.length === 1);
+  ongX4.fire("keydown", { key: "ArrowRight" });
+  ok("5c.9d flèche droite depuis Croissance : retour à Demander (boucle)", ongD4.attrs["aria-selected"] === "true" && DOC.activeElement === ongD4);
   ongD4.fire("keydown", { key: "ArrowLeft" }); await tick(); await tick();
-  ok("5c.10 flèche gauche depuis Demander : Prospects", ongP4.attrs["aria-selected"] === "true" && DOC.activeElement === ongP4);
+  ok("5c.10a flèche gauche depuis Demander : Croissance, pas de remontage", ongX4.attrs["aria-selected"] === "true" && croiss.length === 1);
+  ongX4.fire("keydown", { key: "ArrowLeft" }); await tick(); await tick();
+  ok("5c.10 flèche gauche depuis Croissance : Prospects", ongP4.attrs["aria-selected"] === "true" && DOC.activeElement === ongP4);
+  delete win.DzCroissance;
   ongP4.fire("keydown", { key: "ArrowLeft" }); await tick(); await tick();
   ok("5c.10b flèche gauche depuis Prospects : Veille", ongV.attrs["aria-selected"] === "true" && DOC.activeElement === ongV);
   ongV.fire("keydown", { key: "ArrowLeft" });
@@ -526,6 +543,10 @@ win.DzCampagnes = fauxDzCampagnes;
   B8.click(); await tick(); await tick();
   ok("5d.7 sans dz-prospects.js : un message, pas d'erreur", !!marque(T8, "prospects-indisponible")
     && marque(T8, "prospects-indisponible").textContent === dzT("agent.prospects.indisponible"));
+  const { tiroir: T9, bouton: B9 } = await charger(stockage({ dz_agent_onglet: "croissance" }), "croissance2");
+  B9.click(); await tick(); await tick();
+  ok("5e.1 sans dz-croissance.js : un message, pas d'erreur (t492)", !!marque(T9, "croissance-indisponible")
+    && marque(T9, "croissance-indisponible").textContent === dzT("agent.croissance.indisponible"));
 }
 
 // ---- 6. copies_dist_identiques ------------------------------------------------------------------------------------------
