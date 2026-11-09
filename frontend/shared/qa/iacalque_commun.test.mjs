@@ -29,6 +29,11 @@ ok("[devis] détourage coché sans modèle : l'image seule", D({ modele: "m", de
 ok("[devis] image sans modèle : aucun devis", C.devisCorps({ modele: "", detourer: true, modeleDetour: "d" }) === null && C.devisCorps() === null);
 ok("[devis] détourage seul", D({ image: false, detourer: true, modeleDetour: "d" }) === '{"kind":"campaign","ops":[{"kind":"detourage","modele":"d","images":1}]}');
 ok("[devis] détourage seul sans modèle : aucun devis", C.devisCorps({ image: false, detourer: true }) === null);
+ok("[devis] tir guidé : l'image guide en référence + palier / résolution résolus par le serveur (comme la garde de l'edit)",
+  D({ modele: "m", guide: true, detourer: true, modeleDetour: "d" })
+  === '{"kind":"campaign","ops":[{"kind":"image","model":"m","n":1,"refs":1,"reglages":true},{"kind":"detourage","modele":"d","images":1}]}');
+ok("[devis] guide sans image (détourage seul) : rien de plus", D({ image: false, guide: true, detourer: true, modeleDetour: "d" })
+  === '{"kind":"campaign","ops":[{"kind":"detourage","modele":"d","images":1}]}');
 
 // 3. dollars = DzModelesIA.prixUsd (le repli du banc nu suit la MÊME règle)
 {

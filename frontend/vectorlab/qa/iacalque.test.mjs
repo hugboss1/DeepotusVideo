@@ -265,9 +265,11 @@ const docQuatre = (fond = "#ffffff") => ({ id: "d1", taille: { w: 800, h: 600 },
   ok("[cadre] bannière 10000×100 : refus NOMMÉ (le dessous y tiendrait sur ~15 px), jamais un guide de quelques pixels",
      /10000×100 est trop allongée/.test(mb) && new RegExp(`${Math.round(100 * 0.1536)} px`).test(mb), mb);
   ok("[cadre] le plancher est 64 px", GUIDE_PLANCHER === 64 && !refus(() => cadreGuide({ w: 1536, h: 64 }, "landscape_16_9")));
-  ok("[guide] devis du tir guidé : kind « image » + le modèle (celui de la garde de l'op edit : banc test_vectorlab_guide_devis), détourage en plus",
-     egal(devisCorps({ modele: "flux-3", guide: true, detourer: true, modeleDetour: "bria-rmbg" }),
-          { kind: "campaign", ops: [{ kind: "image", model: "flux-3", n: 1 }, { kind: "detourage", modele: "bria-rmbg", images: 1 }] }));
+  ok("[guide] devis du tir guidé : l'op de la garde de l'edit — image guide en référence (refs: 1), palier / résolution résolus par le serveur (reglages: true) — banc test_vectorlab_guide_devis, détourage en plus",
+     egal(devisCorps({ modele: "gpt-image-2-fal", guide: true, detourer: true, modeleDetour: "bria-rmbg" }),
+          { kind: "campaign", ops: [{ kind: "image", model: "gpt-image-2-fal", n: 1, refs: 1, reglages: true }, { kind: "detourage", modele: "bria-rmbg", images: 1 }] }));
+  ok("[guide] case décochée : le devis d'une génération (op nue, ni refs ni reglages)",
+     egal(devisCorps({ modele: "gpt-image-2-fal", guide: false }), { kind: "campaign", ops: [{ kind: "image", model: "gpt-image-2-fal", n: 1 }] }));
   const eg = etatGenerer({ enVol: false, cible: "c3", catalogue: "ok", modele: "", guide: true, nbModeles: 3 });
   ok("[guide] etatGenerer : case cochée, liste non vide sans modèle qui guide → gris, raison « guide »", eg.gris && eg.raison === "guide", JSON.stringify(eg));
   const ev = etatGenerer({ enVol: false, cible: "c3", catalogue: "ok", modele: "", guide: true, nbModeles: 0 });
@@ -924,8 +926,8 @@ const docImage = () => {
            opts.length === 2 && opts.every((o) => o.desactive === false && o.sansCle && /clé/.test(o.texte)), JSON.stringify(opts));
       }
       const devisG = envois.filter((e) => e.url === "/api/cost/estimate").pop();
-      ok("[guide] le devis du tir guidé : kind « image » du modèle qui guide (celui de la garde de l'op edit)",
-         devisG && egal(devisG.corps, { kind: "campaign", ops: [{ kind: "image", model: "flux-3", n: 1 }] }) && /\$0\.048/.test(reg.get("iacPrix").textContent),
+      ok("[guide] le devis du tir guidé : l'op de la garde de l'edit (modèle qui guide, image guide en référence, palier / résolution laissés au serveur)",
+         devisG && egal(devisG.corps, { kind: "campaign", ops: [{ kind: "image", model: "flux-3", n: 1, refs: 1, reglages: true }] }) && /\$0\.048/.test(reg.get("iacPrix").textContent),
          JSON.stringify(devisG && devisG.corps) + " " + reg.get("iacPrix").textContent);
       ok("[guide] « Générer » actif (modèle sans clé : le 503 viendra au lancement)", goG.disabled === false);
       reg.get("iacPrompt").value = "un renard en vitrail";

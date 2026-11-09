@@ -10282,12 +10282,39 @@ async def scheduled_post_preview(post_id: str, channel: str = "x",
 
 # ============ COST WIDGET (v1.15.1) ============
 
+async def _devis_reglages_resolus(op: dict) -> dict:
+    """Une op image qui porte `reglages: true` est chiffrée avec le palier et la résolution QUE LA GARDE RETIENDRA :
+    ceux de l'op s'ils y sont, sinon les réglages d'Atelier `image_qualite:<id>` / `image_resolution:<id>` — les
+    mêmes résolveurs que la garde de l'op edit de /images/process (_qualite_image_choisie, _resolution_choisie).
+    Le devis du tir GUIDÉ du Vectorlab (devisCorps, guide) en dépend : sans eux, le prix affiché avant le clic était
+    plus bas que celui de la garde dès qu'un palier ou une résolution était enregistré. Récursif dans une campagne
+    ou une composition ; les autres ops passent telles quelles (copie, jamais le corps reçu modifié)."""
+    if not isinstance(op, dict):
+        return op
+    kind = op.get("kind")
+    if kind in ("campaign", "composition"):
+        out = dict(op)
+        for cle in ("ops", "parts"):
+            if isinstance(op.get(cle), list):
+                out[cle] = [await _devis_reglages_resolus(s) for s in op[cle]]
+        return out
+    if kind == "image" and op.get("reglages") is True:
+        model = str(op.get("model") or "").strip().lower()
+        if model:
+            out = {k: v for k, v in op.items() if k != "reglages"}
+            out["qualite"] = await _qualite_image_choisie(op, model)
+            out["resolution"] = await _resolution_choisie(op, model)
+            return out
+    return op
+
+
 @router.post("/cost/estimate")
 async def cost_estimate(body: dict, request: Request):
     """Preview budget for a planned op (single edit / plan / campaign)."""
     _require_localhost(request)
     from app.services import pricing as _pricing
-    est = _pricing.estimate(body or {})
+    body = await _devis_reglages_resolus(body or {})
+    est = _pricing.estimate(body)
     # t192 (G10) : une ligne dont le libellé est un app.i18n.Message / Nom (lots G4-G7, matte, musique) se dit dans la
     # langue de la requête ; les autres libellés et toute réponse en français restent tels quels
     for ln in est.get("breakdown") or []:
