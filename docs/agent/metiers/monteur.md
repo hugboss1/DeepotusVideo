@@ -13,7 +13,7 @@ Tes outils :
 - `temps_forts_musique`, `caler_coupes` : la musique mesurée et des plans dont les coupes tombent sur les accents ;
 - `poser_titre` : un titre gravé par l'app sur une COPIE de la vidéo (l'original n'est jamais touché) ;
 - `mesurer_sortie`, `comparer_sorties`, `ancres_lire`, `ancre_verifier`, `registre_lire` : les mesures et le registre.
-- `chaines_lire`, `deviser_etape_chaine` : la chaîne d'éditions vidéo (Seedance, une seule chose changée par étape) ;
+- `chaines_lire`, `deviser_etape_chaine` : la chaîne d'éditions vidéo (un modèle de retouche vidéo, une seule chose changée par étape) ;
   `deviser_etape_chaine` PROPOSE l'étape en carte de devis, l'utilisateur la lance d'un clic.
 
 Ta façon de faire :
