@@ -283,3 +283,64 @@ export function op_couleurs_fusion(doc, ids, sens) {
   }
   return faits;
 }
+
+/* ── T3 (t477) : Recolorer l'illustration — des TABLES { ancienne: nouvelle } sur les couleurs d'une sélection
+   ([{ hex, n }], celles de couleurs_selection) ; le dialogue les montre, op_recolorer les applique ── */
+const _lin = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+function _lab(h) {
+  const [r, g, b] = _rvb(h).map(_lin);
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047, y = 0.2126 * r + 0.7152 * g + 0.0722 * b, z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t) => (t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+const _parUsage = (couleurs) => couleurs.map((c, i) => ({ ...c, i })).sort((a, b) => b.n - a.n || a.i - b.i);
+
+// regroupe les couleurs les plus proches (distance Lab) jusqu'à n groupes ; un groupe prend la couleur du plus lourd
+// (en usages) des deux qu'on réunit
+export function reduire(couleurs, n) {
+  const N = _borne(n, 1, 64);
+  if (!Number.isInteger(N)) throw new Error(T("vectorlab.couleurs.borne", { min: 1, max: 64 }));
+  const groupes = _parUsage(couleurs).map((c) => ({ rep: c.hex, lab: _lab(c.hex), n: c.n, membres: [c.hex] }));
+  while (groupes.length > N) {
+    let mi = 0, mj = 1, md = Infinity;
+    for (let i = 0; i < groupes.length; i++) for (let j = i + 1; j < groupes.length; j++) {
+      const a = groupes[i].lab, b = groupes[j].lab, d = (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2;
+      if (d < md) { md = d; mi = i; mj = j; }
+    }
+    const A = groupes[mi], B = groupes[mj], fort = B.n > A.n ? B : A;
+    A.rep = fort.rep; A.lab = fort.lab; A.n += B.n; A.membres.push(...B.membres);
+    groupes.splice(mj, 1);
+  }
+  const t = {};
+  for (const g of groupes) for (const m of g.membres) t[m] = g.rep;
+  return t;
+}
+
+// la règle d'harmonie tourne la teinte des couleurs COLORÉES (dans l'ordre d'usage) autour de la première d'entre elles,
+// en gardant leur saturation et leur clarté ; les gris restent
+const REGLES = { complementaire: [0, 180], analogue: [0, 30, -30], triade: [0, 120, 240], tetrade: [0, 90, 180, 270], monochrome: [0] };
+export function harmoniser(couleurs, regle) {
+  const pas = REGLES[regle];
+  if (!pas) throw new Error(T("vectorlab.couleur.harm_inconnue", { type: regle }));
+  const t = {};
+  let base = null, k = 0;
+  for (const c of _parUsage(couleurs)) {
+    const [h, s, l] = _versTsl(..._rvb(c.hex));
+    if (s < 0.05) { t[c.hex] = c.hex; continue; }
+    if (base === null) base = h;
+    t[c.hex] = _depuisTsl(base + pas[k++ % pas.length], s, l);
+  }
+  return t;
+}
+
+// une permutation des couleurs entre elles, à graine stable ; jamais l'identité dès qu'il y a deux couleurs
+function _hasard(graine) {
+  let a = (graine >>> 0) || 1;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+export function melanger(couleurs, graine = 1) {
+  const hex = couleurs.map((c) => c.hex), p = hex.slice(), r = _hasard(graine);
+  for (let i = p.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+  if (p.length > 1 && p.every((h, i) => h === hex[i])) p.push(p.shift());
+  return Object.fromEntries(hex.map((h, i) => [h, p[i]]));
+}

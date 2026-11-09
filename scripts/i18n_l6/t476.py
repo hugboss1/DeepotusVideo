@@ -2,7 +2,7 @@
 modules NEUFS js/mod-recolorer.js et js/mod-recolorerui.js (hors table) ; ici, les seules éditions des modules de BASE,
 chacune sur un fragment de sa ligne qui ne recouvre aucun libellé déjà traduit :
   * core.js : l'import et l'init (initRecolorerUI, avant initTrace) ;
-  * mod-menus.js : le bloc Couleurs du menu Édition, avant « Créer un style » ;
+  * mod-menus.js : le bloc Couleurs du menu Édition, avant « Créer un style » (avec Recolorer l'illustration, t477) ;
   * mod-charpente.js : le préfixe « couleurs: ».
 Les libellés, les dialogues et les refus sont saisis en entrées H."""
 from outils import L, S, X, H  # noqa: F401
@@ -12,7 +12,8 @@ MENUS = "js/mod-menus.js"
 CHARPENTE = "js/mod-charpente.js"
 
 _BLOC = (
-    '    e("coulInverser", T("vectorlab.couleurs.m_inverser"), "couleurs:inverser"), e("coulGris", T("vectorlab.couleurs.m_gris"), "couleurs:gris"), '
+    '    e("coulRecolorer", T("vectorlab.recolorer.m_recolorer"), "couleurs:recolorer"), '
+    'e("coulInverser", T("vectorlab.couleurs.m_inverser"), "couleurs:inverser"), e("coulGris", T("vectorlab.couleurs.m_gris"), "couleurs:gris"), '
     'e("coulSaturer", T("vectorlab.couleurs.m_saturer"), "couleurs:saturer"), e("coulEquilibre", T("vectorlab.couleurs.m_equilibre"), "couleurs:equilibre"),\r\n'
     '    e("coulFusionH", T("vectorlab.couleurs.m_fusion_h"), "couleurs:fusion_h"), e("coulFusionV", T("vectorlab.couleurs.m_fusion_v"), "couleurs:fusion_v"), '
     'e("coulFusionZ", T("vectorlab.couleurs.m_fusion_z"), "couleurs:fusion_z"), "-",\r\n'

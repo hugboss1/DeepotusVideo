@@ -6565,7 +6565,7 @@
    {
     "pos": 2175,
     "avant": "    e(\"style\", ",
-    "apres": "    e(\"coulInverser\", T(\"vectorlab.couleurs.m_inverser\"), \"couleurs:inverser\"), e(\"coulGris\", T(\"vectorlab.couleurs.m_gris\"), \"couleurs:gris\"), e(\"coulSaturer\", T(\"vectorlab.couleurs.m_saturer\"), \"couleurs:saturer\"), e(\"coulEquilibre\", T(\"vectorlab.couleurs.m_equilibre\"), \"couleurs:equilibre\"),\r\n    e(\"coulFusionH\", T(\"vectorlab.couleurs.m_fusion_h\"), \"couleurs:fusion_h\"), e(\"coulFusionV\", T(\"vectorlab.couleurs.m_fusion_v\"), \"couleurs:fusion_v\"), e(\"coulFusionZ\", T(\"vectorlab.couleurs.m_fusion_z\"), \"couleurs:fusion_z\"), \"-\",\r\n    e(\"style\", ",
+    "apres": "    e(\"coulRecolorer\", T(\"vectorlab.recolorer.m_recolorer\"), \"couleurs:recolorer\"), e(\"coulInverser\", T(\"vectorlab.couleurs.m_inverser\"), \"couleurs:inverser\"), e(\"coulGris\", T(\"vectorlab.couleurs.m_gris\"), \"couleurs:gris\"), e(\"coulSaturer\", T(\"vectorlab.couleurs.m_saturer\"), \"couleurs:saturer\"), e(\"coulEquilibre\", T(\"vectorlab.couleurs.m_equilibre\"), \"couleurs:equilibre\"),\r\n    e(\"coulFusionH\", T(\"vectorlab.couleurs.m_fusion_h\"), \"couleurs:fusion_h\"), e(\"coulFusionV\", T(\"vectorlab.couleurs.m_fusion_v\"), \"couleurs:fusion_v\"), e(\"coulFusionZ\", T(\"vectorlab.couleurs.m_fusion_z\"), \"couleurs:fusion_z\"), \"-\",\r\n    e(\"style\", ",
     "groupe": "t476"
    },
    {
