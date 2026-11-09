@@ -9,6 +9,7 @@ import { op_couleurs_transformer, op_couleurs_fusion, inverser, niveaux_de_gris,
          reduire, harmoniser, melanger } from "./mod-recolorer.js";
 import { HARMONIES } from "./mod-couleur.js";
 import { initMotifsUI } from "./mod-motifsui.js";
+import { initPinceauxUI } from "./mod-pinceauxui.js";
 
 export function champs_equilibre(p = {}) {
   const nb = (id, lib, valeur) => ({ id, type: "nombre", libelle: T(lib), valeur, min: -100, max: 100, pas: 1 });
@@ -97,13 +98,14 @@ export function couleurs_actions(VL) {
     fusion_v: fusion("vertical"),
     fusion_z: fusion("avant_arriere"),
   };
-  // t479 : les actions « couleurs:motif_* » sont celles de l'éditeur de motif (mod-motifsui.js)
-  A.action = (nom) => ACTIONS[nom] || (VL.motifsUI && VL.motifsUI.action(nom)) || { peut: () => false, faire: () => {} };
+  // t479 / t481 : les actions « couleurs:motif_* » et « couleurs:pinceau_* » (mod-motifsui.js, mod-pinceauxui.js)
+  A.action = (nom) => ACTIONS[nom] || (VL.motifsUI && VL.motifsUI.action(nom)) || (VL.pinceauxUI && VL.pinceauxUI.action(nom)) || { peut: () => false, faire: () => {} };
   return A;
 }
 
 export function initRecolorerUI(VL) {
   initMotifsUI(VL);
+  initPinceauxUI(VL);
   const A = couleurs_actions(VL);
   VL.couleursUI = A;
   return A;
