@@ -14,7 +14,7 @@ export const PATHFINDER = [
 
 const _esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-// le formulaire dans la page : { titre, champs: [{ id, type: curseur | case | nombre | choix, libelle, valeur, min, max,
+// le formulaire dans la page : { titre, champs: [{ id, type: curseur | case | nombre | choix | couleur (t479), libelle, valeur, min, max,
 // pas, options: [[valeur, libelle]] }], apercu?: (valeurs) => texte, surChange?: (valeurs) => void } -> Promise(valeurs | null)
 // t455 : exporté pour les dialogues de mod-repeterui.js ; surChange sert leur aperçu en direct sur le document
 export function formulaire_dom(spec) {
@@ -25,6 +25,7 @@ export function formulaire_dom(spec) {
       if (c.type === "case") return `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-id="${c.id}" ${c.valeur ? "checked" : ""}/> ${_esc(c.libelle)}</label>`;
       if (c.type === "choix") return `<fieldset style="border:0;padding:0;margin:0;display:flex;flex-direction:column;gap:4px">${c.options.map(([v, l]) =>
         `<label style="display:flex;gap:8px;align-items:center"><input type="radio" name="${c.id}" data-id="${c.id}" value="${_esc(v)}" ${v === c.valeur ? "checked" : ""}/> ${_esc(l)}</label>`).join("")}</fieldset>`;
+      if (c.type === "couleur") return `<label style="display:flex;gap:8px;align-items:center;justify-content:space-between">${_esc(c.libelle)} <input type="color" data-id="${c.id}" value="${_esc(c.valeur)}" style="width:44px;height:24px;padding:0;border:0"/></label>`;   // t479
       const type = c.type === "curseur" ? "range" : "number";
       return `<label style="display:flex;gap:8px;align-items:center;justify-content:space-between">${_esc(c.libelle)} <span style="display:flex;gap:6px;align-items:center"><input type="${type}" data-id="${c.id}" min="${c.min ?? ""}" max="${c.max ?? ""}" step="${c.pas ?? 1}" value="${c.valeur}" style="width:${type === "range" ? "160px" : "72px"}"/>${type === "range" ? `<output data-sortie="${c.id}">${c.valeur}</output>` : ""}</span></label>`;
     };
@@ -37,6 +38,7 @@ export function formulaire_dom(spec) {
       for (const c of spec.champs) {
         if (c.type === "case") v[c.id] = hote.querySelector(`[data-id="${c.id}"]`).checked;
         else if (c.type === "choix") { const r = hote.querySelector(`[data-id="${c.id}"]:checked`); v[c.id] = r ? r.value : c.valeur; }
+        else if (c.type === "couleur") v[c.id] = hote.querySelector(`[data-id="${c.id}"]`).value;
         else v[c.id] = Number(hote.querySelector(`[data-id="${c.id}"]`).value);
       }
       return v;

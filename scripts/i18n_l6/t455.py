@@ -34,6 +34,8 @@ _BLOC_MENU = NL.join([
     '    e("defZigzag", T("vectorlab.deformer.m_zigzag"), "repeter:def-zigzag"), e("defGonfler", T("vectorlab.deformer.m_gonfler"), "repeter:def-gonfler"), '
     'e("defPointes", T("vectorlab.deformer.m_pointes"), "repeter:def-pointes"),',
     '    e("defEditer", T("vectorlab.deformer.m_editer"), "repeter:def-editer"), e("defAnnuler", T("vectorlab.deformer.m_annuler"), "repeter:def-annuler"),',
+    # t479 (lot D5) : l'éditeur de motif, résolu par mod-recolorerui.js (« couleurs:motif_creer », « couleurs:motifs »)
+    '    "-", e("motifCreer", T("vectorlab.motifs.m_creer"), "couleurs:motif_creer"), e("motifsDoc", T("vectorlab.motifs.m_liste"), "couleurs:motifs"),',
 ])
 
 ENTREES = [

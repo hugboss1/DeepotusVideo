@@ -8,6 +8,7 @@ import { dialogue_apercu } from "./mod-repeterui.js";
 import { op_couleurs_transformer, op_couleurs_fusion, inverser, niveaux_de_gris, saturer, equilibre, couleurs_selection, op_recolorer,
          reduire, harmoniser, melanger } from "./mod-recolorer.js";
 import { HARMONIES } from "./mod-couleur.js";
+import { initMotifsUI } from "./mod-motifsui.js";
 
 export function champs_equilibre(p = {}) {
   const nb = (id, lib, valeur) => ({ id, type: "nombre", libelle: T(lib), valeur, min: -100, max: 100, pas: 1 });
@@ -96,11 +97,13 @@ export function couleurs_actions(VL) {
     fusion_v: fusion("vertical"),
     fusion_z: fusion("avant_arriere"),
   };
-  A.action = (nom) => ACTIONS[nom] || { peut: () => false, faire: () => {} };
+  // t479 : les actions « couleurs:motif_* » sont celles de l'éditeur de motif (mod-motifsui.js)
+  A.action = (nom) => ACTIONS[nom] || (VL.motifsUI && VL.motifsUI.action(nom)) || { peut: () => false, faire: () => {} };
   return A;
 }
 
 export function initRecolorerUI(VL) {
+  initMotifsUI(VL);
   const A = couleurs_actions(VL);
   VL.couleursUI = A;
   return A;

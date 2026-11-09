@@ -177,7 +177,7 @@ function _depuis(doc, ids) {
   const x0 = Math.min(...bs.map((b) => b[0])), y0 = Math.min(...bs.map((b) => b[1]));
   const x1 = Math.max(...bs.map((b) => b[2])), y1 = Math.max(...bs.map((b) => b[3]));
   for (const o of objets) o.transform = `translate(${nb(-x0)} ${nb(-y0)})` + (o.transform ? " " + o.transform : "");
-  return { objets, largeur: Math.max(0.5, x1 - x0), hauteur: Math.max(0.5, y1 - y0) };
+  return { objets, largeur: Math.max(0.5, x1 - x0), hauteur: Math.max(0.5, y1 - y0), x0, y0 };
 }
 const _poser = (doc, id, m) => {
   motif_objets_valider(m);
@@ -187,7 +187,7 @@ const _poser = (doc, id, m) => {
 };
 
 export function op_motif_depuis_selection(doc, ids, opts = {}) {
-  const c = _depuis(doc, ids);
+  const { x0, y0, ...c } = _depuis(doc, ids);
   const e = opts.espacement || {};
   const m = { type: "objets", pavage: opts.pavage || "grille", largeur: c.largeur, hauteur: c.hauteur,
     espacement: { h: +e.h || 0, v: +e.v || 0 }, objets: c.objets };
@@ -210,5 +210,32 @@ export function op_motif_regler(doc, id, patch = {}) {
 }
 export function op_motif_contenu(doc, id, ids) {
   const m = _motifObjets(doc, id);
-  _poser(doc, id, { ...m, ..._depuis(doc, ids) });
+  const { x0, y0, ...c } = _depuis(doc, ids);
+  _poser(doc, id, { ...m, ...c });
+}
+
+/* ── T5 (t479) : l'aperçu en direct de « Créer un motif… » (sur une COPIE du document) : le motif, et un rectangle
+   qu'il remplit, posé sur la sélection — 3 × 3 cellules, au moins la taille de la sélection ── */
+export function motif_apercu(doc, ids, opts = {}) {
+  const { x0, y0 } = _depuis(doc, ids);
+  const id = op_motif_depuis_selection(doc, ids, opts);
+  const m = doc.motifs[id], { l, h } = motif_objets_cellule(m);
+  const calque = doc.calques.find((c) => !c.verrou) || doc.calques[0];
+  calque.objets.push({ id: "_apercu_motif", type: "rect", x: x0, y: y0, w: Math.max(3 * l, m.largeur), h: Math.max(3 * h, m.hauteur), style: { fond: "motif:" + id, contour: "#1a202c", epaisseur: 1 } });
+  return id;
+}
+// les motifs d'objets du document, dans l'ordre naturel des ids, avec le nombre d'objets qui les emploient en fond
+export function motifs_objets_liste(doc) {
+  const usages = new Map();
+  const visiter = (objs) => {
+    for (const o of objs || []) {
+      const f = o.style && o.style.fond;
+      if (typeof f === "string" && f.startsWith("motif:")) usages.set(f.slice(6), (usages.get(f.slice(6)) || 0) + 1);
+      if (o.type === "groupe") visiter(o.enfants);
+    }
+  };
+  for (const c of doc.calques || []) visiter(c.objets);
+  return Object.entries(doc.motifs || {}).filter(([, m]) => m && m.type === "objets")
+    .map(([id, m]) => ({ id, pavage: m.pavage, objets: (m.objets || []).length, usages: usages.get(id) || 0 }))
+    .sort((a, b) => a.id.localeCompare(b.id, "fr", { numeric: true }));
 }

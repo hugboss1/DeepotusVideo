@@ -47,6 +47,7 @@ export const MENUS_BARRE = [
     e("defEnveloppe", T("vectorlab.deformer.m_enveloppe"), "repeter:def-enveloppe"), e("defDistorsion", T("vectorlab.deformer.m_distorsion"), "repeter:def-distorsion"), e("defTorsion", T("vectorlab.deformer.m_torsion"), "repeter:def-torsion"), e("defRugosite", T("vectorlab.deformer.m_rugosite"), "repeter:def-rugosite"),
     e("defZigzag", T("vectorlab.deformer.m_zigzag"), "repeter:def-zigzag"), e("defGonfler", T("vectorlab.deformer.m_gonfler"), "repeter:def-gonfler"), e("defPointes", T("vectorlab.deformer.m_pointes"), "repeter:def-pointes"),
     e("defEditer", T("vectorlab.deformer.m_editer"), "repeter:def-editer"), e("defAnnuler", T("vectorlab.deformer.m_annuler"), "repeter:def-annuler"),
+    "-", e("motifCreer", T("vectorlab.motifs.m_creer"), "couleurs:motif_creer"), e("motifsDoc", T("vectorlab.motifs.m_liste"), "couleurs:motifs"),
     "-",
     e("tracesContour", T("vectorlab.traces.m_contour"), "traces:contour"), e("tracesSimplifier", T("vectorlab.traces.m_simplifier"), "traces:simplifier"), e("tracesAjouter", T("vectorlab.traces.m_ajouter"), "traces:ajouter"), e("tracesSupprimer", T("vectorlab.traces.m_supprimer"), "traces:supprimer"),
     e("tracesMoyenne", T("vectorlab.traces.m_moyenne"), "traces:moyenne"), e("tracesNettoyer", T("vectorlab.traces.m_nettoyer"), "traces:nettoyer"), e("tracesDiviser", T("vectorlab.traces.m_diviser"), "traces:diviser"), e("tracesLignes", T("vectorlab.traces.m_lignes"), "traces:lignes"), "-",
