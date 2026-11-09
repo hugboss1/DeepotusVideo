@@ -181,6 +181,75 @@ def _palette_colors(images_path: Path, fnames: list[str], n: int = 8):
     return [tuple(pal[i * 3:i * 3 + 3]) for i in range(len(pal) // 3)]
 
 
+# ─────────────── t489 (FDA) : la méthode « ancre » de la planche de personnage ───────────────
+# Conception : docs/superpowers/specs/2026-11-09-fiches-modeles-scenario-design.md §8. Trois écarts à la méthode
+# « actuel », mesurés par le banc scripts/banc_da_coherence.py AVANT toute bascule du défaut :
+#   1. héros validé : le corps de face ne sert d'ancre qu'après un contrôle d'identité face au visage maître ;
+#   2. base + delta : un texte de base identique à l'octet, puis la seule clause de vue ; formulation POSITIVE ;
+#   3. (ancre_multi) plusieurs références par vue de corps, un rôle par position.
+METHODES = ("actuel", "ancre", "ancre_multi")
+# seuil PROVISOIRE de similarité CLIP visage maître / corps de face : le banc (M1) le calibre
+SEUIL_HEROS = 0.78
+_FOND_POSITIF = ("sharp focus, crisp details, high detail, plain unlettered flat-lit studio background")
+VUES_ANCRE = {
+    "face_left": "View: head-and-shoulders close-up portrait, LEFT PROFILE, nose pointing to the left of the frame.",
+    "front": "View: zoom far out to reveal the FULL BODY, standing neutral pose seen from a distance, front view "
+             "facing the camera, arms relaxed at the sides, the entire figure from the top of the hair to the soles "
+             "of the feet inside the frame with empty margin above the head and below the feet, {PROPORTIONS}.",
+    "left": "View: full body LEFT PROFILE, nose pointing to the left of the frame, standing neutral pose, the entire "
+            "figure head to feet inside the frame with margin above the head and below the feet, same body "
+            "proportions as the reference.",
+    "back": "View: full body BACK view (seen from behind), standing neutral pose, the entire figure head to feet "
+            "inside the frame with margin above the head and below the feet, same body proportions as the reference.",
+}
+# ancre_multi : les références de chaque vue de corps, dans l'ordre, et la phrase qui dit leur rôle
+VUES_MULTI = {"left": ("face_front", "front"), "back": ("face_front", "front")}
+ROLES_MULTI = "Image 1 = face identity; image 2 = outfit, colors and body proportions."
+
+
+def base_ancre(nom: str, description: str, style: str) -> str:
+    """Le texte de BASE, écrit une fois : ce qui ne change pas d'une vue à l'autre. Identique à l'octet pour tous les
+    panneaux dérivés d'une planche (le banc le vérifie)."""
+    sujet = " ".join(f"{nom}. {description}".split()).strip(" .")
+    st = f" Style: {style.strip()}." if (style or "").strip() else ""
+    return (f"The exact same character as in the reference: {sujet}. Keep exactly unchanged: the face, the "
+            f"hairstyle and hair color, the eye color, the skin tone, every clothing item with its exact color, "
+            f"the accessories, the color palette and the lighting.{st} {_FOND_POSITIF[0].upper()}{_FOND_POSITIF[1:]}.")
+
+
+def prompt_ancre(base: str, cle: str, methode: str, proportions: str = "") -> str:
+    """Base + clause de vue (finale). En ancre_multi, la phrase des rôles fait partie de la clause de vue."""
+    vue = VUES_ANCRE[cle].replace("{PROPORTIONS}", proportions)
+    if methode == "ancre_multi" and cle in VUES_MULTI:
+        vue = ROLES_MULTI + " " + vue
+    return base + " " + vue
+
+
+def profondeur(cle: str, methode: str) -> int:
+    """Nombre de sorties NON VALIDÉES entre le panneau et une ancre. « actuel » : profil et dos sont tirés du corps de
+    face, lui-même une sortie non contrôlée -> 2. « ancre » : le corps de face est un héros VALIDÉ, qui sert d'ancre
+    -> 1 pour toutes les vues dérivées."""
+    if cle == "face_front":
+        return 0
+    if methode == "actuel" and cle in ("left", "back"):
+        return 2
+    return 1
+
+
+def similarite_identite(images_path: Path, a: str, b: str) -> float | None:
+    """Similarité CLIP (moteur local de la Bibliothèque, gratuit) entre deux images ; None si le moteur n'est pas
+    installé ou une image illisible — jamais d'exception (le contrôle est alors dit « indisponible »)."""
+    try:
+        from app.services import library_clip as LC
+        if not LC.installe():
+            return None
+        va = LC.vecteur_image(images_path / Path(a).name)
+        vb = LC.vecteur_image(images_path / Path(b).name)
+        return round(float((va * vb).sum()), 4)
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def mirror_panel(images_path: Path, fname: str) -> str:
     """Profil droit = miroir logiciel du profil gauche: direction opposée
     garantie au pixel près (la diffusion confond gauche/droite)."""
