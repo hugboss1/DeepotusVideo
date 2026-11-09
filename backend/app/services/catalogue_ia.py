@@ -83,6 +83,11 @@ def _images() -> list[dict]:
                     "note": "" if usd else NOTE_A_MESURER,
                     "edit": bool(fal["edit"]) if fal else True,
                     "sortie": "svg" if IP.est_vectoriel(mid) else "raster"})
+        # t478 (F6.1) : les paliers de qualité permis et leur prix par image (le défaut `high` = `usd`)
+        facteurs = P.IMAGE_QUALITES.get(mid)
+        if facteurs:
+            out[-1]["qualites"] = {q: round(usd * f, 5) for q, f in facteurs.items()}
+            out[-1]["qualite_defaut"] = P.QUALITE_DEFAUT
     return out
 
 

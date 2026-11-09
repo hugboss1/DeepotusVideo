@@ -361,6 +361,48 @@ def kontext_mpx(w: int, h: int) -> int:
     return max(1, math.ceil(w * h / 1_000_000))
 
 
+# t478 (F6.1) : PALIER DE QUALITÉ des modèles d'image qui en ont un. Le défaut reste `high` (le palier que les clés
+# de prix ci-dessus chiffrent) : sans choix, rien ne change. Un autre palier multiplie la clé de prix par son FACTEUR,
+# rapport palier / high relevé le 09/11/2026 sur les tables fal (fal.ai/models/<endpoint>), arrondi AU-DESSUS du plus
+# haut rapport des tailles servies (la garde de dépense ne doit jamais passer sous la facture) :
+# - GPT Image 2 (fal) : 1024x768 0,005 / 0,037 / 0,145 $ ; 1024² 0,006 / 0,053 / 0,211 $ (low / medium / high) ;
+# - GPT Image 2.5 Flare et Sunburst (fal, même table) : 1024² 0,00588 / 0,01317 / 0,05268 / 0,09366 / 0,21072 $
+#   (low / medium / high / xhigh / max) ; xhigh 1024x1536 = 1,79 x high ;
+# - Ideogram 4.5 : 0,03 / 0,06 / 0,22 $ (low / medium / high), la taille ne change pas le prix.
+# La voie OpenAI directe suit le même tarif aux jetons ; elle n'expose que low / medium / high (les paliers xhigh et
+# max ne sont relevés que chez fal).
+_F_GPT2 = {"low": 0.035, "medium": 0.26, "high": 1.0}
+_F_GPT25 = {"low": 0.12, "medium": 0.25, "high": 1.0, "xhigh": 1.8, "max": 4.0}
+_F_GPT25_DIRECT = {"low": 0.12, "medium": 0.25, "high": 1.0}
+IMAGE_QUALITES = {
+    "gpt-image-2": _F_GPT2,
+    "gpt-image-2-fal": _F_GPT2,
+    "gpt-image-2.5-flare": _F_GPT25_DIRECT,
+    "gpt-image-2.5-sunburst": _F_GPT25_DIRECT,
+    "gpt-image-2.5-flare-fal": _F_GPT25,
+    "gpt-image-2.5-sunburst-fal": _F_GPT25,
+    "ideogram-4.5": {"low": 0.137, "medium": 0.273, "high": 1.0},
+}
+QUALITE_DEFAUT = "high"
+
+
+def qualite_image(model: str, demande=None) -> str | None:
+    """Le palier servi pour `model` : None si le modèle n'a pas de palier ; sinon le palier demandé s'il est permis,
+    `high` dans tous les autres cas (vide, inconnu, d'un autre modèle) — jamais d'erreur, jamais plus cher que high
+    par surprise."""
+    table = IMAGE_QUALITES.get(str(model or "").strip().lower())
+    if not table:
+        return None
+    q = str(demande or "").strip().lower()
+    return q if q in table else QUALITE_DEFAUT
+
+
+def facteur_qualite(model: str, demande=None) -> float:
+    """Le multiplicateur de prix du palier servi (1.0 sans palier)."""
+    q = qualite_image(model, demande)
+    return IMAGE_QUALITES[str(model).strip().lower()][q] if q else 1.0
+
+
 def image_model_spec(model: str) -> tuple:
     """(libellé, fournisseur, clé de prix) d'un id d'image, raster ou
     vectoriel ; repli FLUX pour un id inconnu (comportement d'avant)."""
@@ -900,6 +942,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         model = str(op.get("model") or "flux").lower()
         label, prov, key = image_model_spec(model)
         unit = p.get(key, p["flux_image_usd"])
+        q = qualite_image(model, op.get("qualite"))       # t478 : palier de qualité (None = sans palier)
+        if q and q != QUALITE_DEFAUT:                     # high : ligne inchangée, à l'octet
+            unit = unit * facteur_qualite(model, q)
+            label = f"{label} · {q}"
         lines.append(_line(prov, f"{label} x{n}", n, "image", n * unit))
     elif kind == "flux_kontext":
         # t339 : fal-ai/flux-kontext/dev, édition chaînée sur une image de référence (vues de directions du
