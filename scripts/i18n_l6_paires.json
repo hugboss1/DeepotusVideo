@@ -51,6 +51,12 @@
     "groupe": "t470"
    },
    {
+    "pos": 2381,
+    "avant": "import { initIA } from \"./mod-ia.js\";",
+    "apres": "import { initRecolorerUI } from \"./mod-recolorerui.js\";   // t476 : lot D5\r\nimport { initIA } from \"./mod-ia.js\";",
+    "groupe": "t476"
+   },
+   {
     "pos": 15459,
     "avant": "\"Grille d'aimantation et repère visuel (G) — \"",
     "apres": "T(\"vectorlab.core.grille_titre\")",
@@ -169,6 +175,12 @@
     "avant": "initImage(VL);",
     "apres": "initRepeterUI(VL);  // t455 : répétitions et fusions vivantes (menu Vecteur, Apparence, Ctrl+Alt+B)\r\ninitDeformerUI(VL); // t465 : déformations vivantes (bloc Déformer, délégué par mod-repeterui)\r\ninitImage(VL);",
     "groupe": "t455"
+   },
+   {
+    "pos": 34085,
+    "avant": "initTrace(VL);",
+    "apres": "initRecolorerUI(VL); // t476 : Édition › Couleurs (inverser, gris, saturer, équilibre, fusions)\r\ninitTrace(VL);",
+    "groupe": "t476"
    },
    {
     "pos": 34568,
@@ -1493,6 +1505,12 @@
     "avant": "if (pre === \"ordre\") return",
     "apres": "if (pre === \"repeter\") return VL.repeterUI ? VL.repeterUI.action(arg) : { peut: () => false, faire: () => {} };   // t455\r\n    if (pre === \"ordre\") return",
     "groupe": "t455"
+   },
+   {
+    "pos": 8344,
+    "avant": "if (pre === \"pixel\") return",
+    "apres": "if (pre === \"couleurs\") return VL.couleursUI ? VL.couleursUI.action(arg) : { peut: () => false, faire: () => {} };   // t476\r\n    if (pre === \"pixel\") return",
+    "groupe": "t476"
    },
    {
     "pos": 11541,
@@ -6543,6 +6561,12 @@
     "avant": "\"Supprimer\"",
     "apres": "T(\"vectorlab.menus.supprimer\")",
     "groupe": "menus"
+   },
+   {
+    "pos": 2175,
+    "avant": "    e(\"style\", ",
+    "apres": "    e(\"coulInverser\", T(\"vectorlab.couleurs.m_inverser\"), \"couleurs:inverser\"), e(\"coulGris\", T(\"vectorlab.couleurs.m_gris\"), \"couleurs:gris\"), e(\"coulSaturer\", T(\"vectorlab.couleurs.m_saturer\"), \"couleurs:saturer\"), e(\"coulEquilibre\", T(\"vectorlab.couleurs.m_equilibre\"), \"couleurs:equilibre\"),\r\n    e(\"coulFusionH\", T(\"vectorlab.couleurs.m_fusion_h\"), \"couleurs:fusion_h\"), e(\"coulFusionV\", T(\"vectorlab.couleurs.m_fusion_v\"), \"couleurs:fusion_v\"), e(\"coulFusionZ\", T(\"vectorlab.couleurs.m_fusion_z\"), \"couleurs:fusion_z\"), \"-\",\r\n    e(\"style\", ",
+    "groupe": "t476"
    },
    {
     "pos": 2190,

@@ -5,5 +5,5 @@ from outils import L, S, X, H  # noqa: F401
 ENTREES = [
     H("vectorlab.recolorer.aucune_selection", "Sélectionnez les objets à recolorer.", "Select the objects to recolor."),
     H("vectorlab.recolorer.couleur_invalide", "Couleur invalide : « {c} » (attendu : #RRGGBB).",
-      "Invalid colour: “{c}” (expected: #RRGGBB)."),
+      "Invalid color: “{c}” (expected: #RRGGBB)."),
 ]

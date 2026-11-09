@@ -19,6 +19,8 @@ export const MENUS_BARRE = [
     e("annuler", T("vectorlab.menus.annuler"), "annuler", "ctrl+z"), e("refaire", T("vectorlab.menus.refaire"), "refaire", "ctrl+shift+z"), "-",
     e("toutSelectionner", T("vectorlab.menus.tout_selectionner"), "toutSelectionner", "ctrl+a"), e("deselectionner", T("vectorlab.menus.deselectionner"), "deselectionner", "escape"), e("selAttribut", T("vectorlab.menus.sel_attribut"), "selAttribut"), "-",
     e("copier", T("vectorlab.menus.copier"), "copier", "ctrl+c"), e("collerObj", T("vectorlab.menus.coller"), "coller", "ctrl+v"), e("dupliquer", T("vectorlab.menus.dupliquer"), "dupliquer", "ctrl+d"), e("puissance", T("vectorlab.menus.puissance"), "puissance"), e("supprimer", T("vectorlab.menus.supprimer"), "supprimer", "delete"), "-",
+    e("coulInverser", T("vectorlab.couleurs.m_inverser"), "couleurs:inverser"), e("coulGris", T("vectorlab.couleurs.m_gris"), "couleurs:gris"), e("coulSaturer", T("vectorlab.couleurs.m_saturer"), "couleurs:saturer"), e("coulEquilibre", T("vectorlab.couleurs.m_equilibre"), "couleurs:equilibre"),
+    e("coulFusionH", T("vectorlab.couleurs.m_fusion_h"), "couleurs:fusion_h"), e("coulFusionV", T("vectorlab.couleurs.m_fusion_v"), "couleurs:fusion_v"), e("coulFusionZ", T("vectorlab.couleurs.m_fusion_z"), "couleurs:fusion_z"), "-",
     e("style", T("vectorlab.menus.style"), "creerStyle"), e("instantane", T("vectorlab.menus.instantane"), "instantane"), "-",
     e("parametres", T("vectorlab.menus.parametres"), "parametres", "ctrl+,"),
   ] },

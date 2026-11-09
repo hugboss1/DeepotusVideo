@@ -9,6 +9,7 @@
 // sélection entière passe sur ce clone : on ne change jamais ce qui n'est pas sélectionné.
 // Règle de mod-bool : tout se CALCULE avant de muter (un refus ne laisse rien à moitié fait).
 import { T } from "./mod-i18n.js";
+import { polylignes_objet } from "./mod-bool.js";
 
 export function hex_normal(v) {
   if (typeof v !== "string") return null;
@@ -201,4 +202,84 @@ export function op_recolorer(doc, ids, table) {
 
 export function op_couleurs_transformer(doc, ids, f) {
   return _reecrire(doc, ids, f);
+}
+
+/* ── T2 (t476) : Édition › Couleurs — transformations PURES d'une couleur hex (sans arrondi intermédiaire) ── */
+const _rvb = (h) => { const v = parseInt(hex_normal(h).slice(1), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; };
+const _hex = (r, g, b) => "#" + [r, g, b].map((x) => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, "0")).join("");
+const _borne = (v, min, max) => {
+  const n = Number(v === undefined ? 0 : v);
+  if (!Number.isFinite(n) || n < min || n > max) throw new Error(T("vectorlab.couleurs.borne", { min, max }));
+  return n;
+};
+export function inverser(h) { const [r, g, b] = _rvb(h); return _hex(255 - r, 255 - g, 255 - b); }
+export function niveaux_de_gris(h) {
+  const [r, g, b] = _rvb(h), y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return _hex(y, y, y);
+}
+function _versTsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  if (!d) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+function _depuisTsl(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s, hp = (((h % 360) + 360) % 360) / 60, x = c * (1 - Math.abs((hp % 2) - 1));
+  const [r, g, b] = hp < 1 ? [c, x, 0] : hp < 2 ? [x, c, 0] : hp < 3 ? [0, c, x] : hp < 4 ? [0, x, c] : hp < 5 ? [x, 0, c] : [c, 0, x];
+  const m = l - c / 2;
+  return _hex((r + m) * 255, (g + m) * 255, (b + m) * 255);
+}
+// pct de −100 (désaturé) à +100 (saturation doublée, bornée à 100 %)
+export function saturer(h, pct) {
+  const p = _borne(pct, -100, 100);
+  const [t, s, l] = _versTsl(..._rvb(h));
+  return _depuisTsl(t, Math.max(0, Math.min(1, s * (1 + p / 100))), l);
+}
+// mode rvb : a, b, c = rouge, vert, bleu ; mode cmjn : a, b, c, d = cyan, magenta, jaune, noir — en % de la pleine
+// échelle, de −100 à +100, ajoutés puis bornés
+export function equilibre(h, { mode, a, b, c, d } = {}) {
+  const v = [a, b, c, d].map((x) => _borne(x, -100, 100) / 100);
+  const [r, g, bl] = _rvb(h);
+  if (mode === "rvb") return _hex(r + v[0] * 255, g + v[1] * 255, bl + v[2] * 255);
+  if (mode === "cmjn") {
+    const n = 1 - Math.max(r, g, bl) / 255;
+    const k = (x) => (n >= 1 ? 0 : (1 - x / 255 - n) / (1 - n));
+    const cl = (x) => Math.max(0, Math.min(1, x));
+    const C = cl(k(r) + v[0]), M = cl(k(g) + v[1]), J = cl(k(bl) + v[2]), N = cl(n + v[3]);
+    return _hex(255 * (1 - C) * (1 - N), 255 * (1 - M) * (1 - N), 255 * (1 - J) * (1 - N));
+  }
+  throw new Error(T("vectorlab.couleurs.mode", { mode }));
+}
+
+/* la fusion : les FONDS des objets intermédiaires, interpolés par rang entre les deux objets extrêmes (gauche → droite,
+   haut → bas, ou dessous → dessus) ; il faut au moins trois objets à fond de couleur simple */
+const SENS = ["horizontal", "vertical", "avant_arriere"];
+function _centre(o) {
+  try {
+    const P = polylignes_objet(o).flatMap((l) => l.points);
+    if (P.length) {
+      const xs = P.map((p) => p[0]), ys = P.map((p) => p[1]);
+      return [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+    }
+  } catch { /* texte, image : leur point */ }
+  return [+o.x || +o.cx || 0, +o.y || +o.cy || 0];
+}
+export function op_couleurs_fusion(doc, ids, sens) {
+  if (!SENS.includes(sens)) throw new Error(T("vectorlab.couleurs.sens", { sens }));
+  const objets = _cibles(doc, ids).filter((o) => o.type !== "groupe" && o.style && _valeur(doc, o.style.fond));
+  if (objets.length < 3) throw new Error(T("vectorlab.couleurs.fusion_trois"));
+  const k = sens === "horizontal" ? 0 : 1;
+  const ordre = sens === "avant_arriere" ? objets.slice() : objets.map((o, i) => ({ o, i, c: _centre(o)[k] }))
+    .sort((a, b) => a.c - b.c || a.i - b.i).map((x) => x.o);
+  const a = _rvb(_valeur(doc, ordre[0].style.fond).hex), b = _rvb(_valeur(doc, ordre[ordre.length - 1].style.fond).hex);
+  const n = ordre.length - 1;
+  let faits = 0;
+  for (let i = 1; i < n; i++) {
+    const t = i / n;
+    ordre[i].style.fond = _hex(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
+    faits++;
+  }
+  return faits;
 }
