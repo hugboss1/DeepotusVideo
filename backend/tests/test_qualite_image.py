@@ -368,11 +368,89 @@ async def bloc_references():
     dn = P.estimate({"kind": "image", "n": 1, "model": "nano-banana", "refs": 5})
     check("8.11 Nano Banana : les références ne changent pas le prix", len(dn["breakdown"]) == 1)
     check("8.12 chaque id GPT via fal est facturé à la référence, au plus haut relevé (0,012 $)",
-          set(P.IMAGE_REF_USD) == set(IP._FAL_GPT) and all(v >= 0.012 for v in P.IMAGE_REF_USD.values()))
+          set(IP._FAL_GPT) <= set(P.IMAGE_REF_USD) and all(P.IMAGE_REF_USD[m] >= 0.012 for m in IP._FAL_GPT))
     t = (ROOT / "backend/app/api/routes.py").read_text(encoding="utf-8")
     check("8.13 retouche : l'identité de l'espace accepte GPT via fal (multi_references)",
           "if not IP.multi_references(model):" in t)
-    check("8.14 retouche : la garde chiffre les références", '"refs": 1 + len(refs_idv)}' in t)
+    check("8.14 retouche : la garde chiffre les références", '"refs": 1 + len(refs_idv),' in t)
+
+
+async def bloc_resolution():
+    """t481 (F6.4) : résolution (1K / 2K / 4K) de Nano Banana Pro et 2.1, et leurs 14 références."""
+    print("\n[9] résolution et références de Nano Banana")
+    check("9.1 résolution : Pro et 2.1 seulement", P.resolution_image("nano-banana-pro") == "1K"
+          and P.resolution_image("nano-banana-2.1", "4k") == "4K" and P.resolution_image("nano-banana", "2K") is None
+          and P.resolution_image("gpt-image-2-fal", "2K") is None)
+    check("9.2 résolution inconnue -> 1K", P.resolution_image("nano-banana-pro", "8K") == "1K")
+    b1 = P.estimate({"kind": "image", "n": 1, "model": "nano-banana-pro"})
+    check("9.3 devis Pro 1K = sans choix (ligne identique)", b1 == P.estimate({"kind": "image", "n": 1,
+                                                                             "model": "nano-banana-pro", "resolution": "1K"}))
+    check("9.4 devis Pro : 2K au prix de 1K, 4K au double",
+          P.estimate({"kind": "image", "n": 1, "model": "nano-banana-pro", "resolution": "2K"})["total_usd"] == b1["total_usd"]
+          and abs(P.estimate({"kind": "image", "n": 1, "model": "nano-banana-pro", "resolution": "4K"})["total_usd"]
+                  - 2 * b1["total_usd"]) < 1e-6)
+    base21 = P.DEFAULTS["nano_banana_21_usd"]
+    publies = {"2K": (0.059, 0.063), "4K": (0.134, 0.138)}
+    check("9.5 devis 2.1 : facteur × clé 1K couvre le prix publié (t2i et edit à deux images)",
+          all(P.IMAGE_RESOLUTIONS["nano-banana-2.1"][r] * base21 + 2 * P.IMAGE_REF_USD["nano-banana-2.1"] >= e - 1e-9
+              and P.IMAGE_RESOLUTIONS["nano-banana-2.1"][r] * base21 >= t - 1e-9 for r, (t, e) in publies.items()))
+    check("9.6 2.1 : 0,002 $ par référence (14 = 0,028 $)",
+          abs(P.estimate({"kind": "image", "n": 1, "model": "nano-banana-2.1", "refs": 14})["total_usd"]
+              - (base21 + 0.028)) < 1e-3)
+    _, a = IP.build_banana_request("p", "square_hd", 1, None, pro=True)
+    check("9.7 Pro sans choix : aucun champ resolution (inchangé)", "resolution" not in a)
+    _, a = IP.build_banana_request("p", "square_hd", 1, ["u"], pro=True, resolution="2K")
+    check("9.8 Pro edit 2K : resolution=2K", a.get("resolution") == "2K")
+    _, a = IP.build_banana_request("p", "square_hd", 1, None, pro=False, resolution="4K")
+    check("9.9 Nano v1 : jamais de resolution", "resolution" not in a)
+    _, a = IP.build_fal_image_request("nano-banana-2.1", "p", "square_hd", [], 1)
+    check("9.10 2.1 sans choix : 1K (inchangé)", a["resolution"] == "1K")
+    _, a = IP.build_fal_image_request("nano-banana-2.1", "p", "square_hd", [], 1, resolution="4K")
+    check("9.11 2.1 : resolution=4K", a["resolution"] == "4K")
+    check("9.12 ref_max : Pro et 2.1 = 14, Nano v1 = 9, GPT fal = 16, Seedream = 9",
+          IP.ref_max("nano-banana-pro") == 14 and IP.ref_max("nano-banana-2.1") == 14 and IP.ref_max("nano-banana") == 9
+          and IP.ref_max("gpt-image-2-fal") == 16 and IP.ref_max("seedream-5-pro") == 9)
+    _, a = IP.build_banana_request("p", "square_hd", 1, [f"u{i}" for i in range(20)], pro=True)
+    check("9.13 Pro : 14 références envoyées", len(a["image_urls"]) == 14)
+    _, a = IP.build_banana_request("p", "square_hd", 1, [f"u{i}" for i in range(20)], pro=False)
+    check("9.14 Nano v1 : 9 (prudence d'avant)", len(a["image_urls"]) == 9)
+    _, a = IP.build_fal_image_request("nano-banana-2.1", "p", "square_hd", [f"u{i}" for i in range(20)], 1)
+    check("9.15 2.1 : 14 références envoyées", len(a["image_urls"]) == 14)
+    par = {e["id"]: e for e in CI.lister("image")}
+    check("9.16 catalogue : résolutions chiffrées (Pro 4K = 2 × 1K)",
+          par["nano-banana-pro"].get("resolutions", {}).get("4K") == round(2 * par["nano-banana-pro"]["usd"], 5)
+          and "resolutions" not in par["nano-banana"])
+    check("9.17 catalogue : refs_max (Pro 14, GPT fal 16, GPT direct 1, Recraft 0)",
+          par["nano-banana-pro"].get("refs_max") == 14 and par["gpt-image-2-fal"].get("refs_max") == 16
+          and par["gpt-image-2"].get("refs_max") == 1 and CI.lister("image")[-1].get("refs_max") in (0, 1))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
+        FAL_CALLS.clear(); PLAFONDS.clear()
+        await c.post("/api/images/generate", json={"prompt": "o", "model": "nano-banana-pro"})
+        check("9.18 route sans choix : pas de resolution envoyée", "resolution" not in FAL_CALLS[-1]["arguments"])
+        r = await c.post("/api/images/generate", json={"prompt": "o", "model": "nano-banana-pro", "resolution": "4K"})
+        check("9.19 corps resolution=4K : envoyé, chiffré, rendu", FAL_CALLS[-1]["arguments"].get("resolution") == "4K"
+              and PLAFONDS[-1].get("resolution") == "4K" and r.json().get("resolution") == "4K", (PLAFONDS[-1:], r.json()))
+        await c.put("/api/atelier/settings", json={"image_resolution:nano-banana-2.1": "2K"})
+        await c.post("/api/images/generate", json={"prompt": "o", "model": "nano-banana-2.1"})
+        check("9.20 réglage suivi (2.1 : 2K)", FAL_CALLS[-1]["arguments"].get("resolution") == "2K")
+        r = await c.get("/api/image-models")
+        check("9.21 /image-models rend la résolution enregistrée", r.json().get("resolutions") == {"nano-banana-2.1": "2K"},
+              r.json().get("resolutions"))
+        await c.put("/api/atelier/settings", json={"image_resolution:nano-banana-pro": "8k"})
+        r = await c.get("/api/image-models")
+        check("9.25 une résolution enregistrée non permise n'est pas rendue",
+              "nano-banana-pro" not in r.json().get("resolutions", {}), r.json().get("resolutions"))
+        await c.post("/api/images/generate", json={"prompt": "o", "model": "nano-banana-pro"})
+        check("9.26 ... et le tir retombe sur 1K", FAL_CALLS[-1]["arguments"].get("resolution") == "1K",
+              FAL_CALLS[-1:])
+    check("9.22 recette : la résolution choisie est gardée",
+          R._recette_generation({"prompt": "o"}, {"images": ["a"], "resolution": "4K"}).get("resolution") == "4K")
+    t = (ROOT / "backend/app/api/routes.py").read_text(encoding="utf-8")
+    check("9.23 retouche : identité au plafond du modèle, qualité et résolution suivies",
+          "n=IP.ref_max(model) - 1" in t and "qualite=qualite, resolution=resolution) if refs_idv" in t)
+    js = (ROOT / "frontend/shared/dz-champ-ia.js").read_text(encoding="utf-8")
+    check("9.24 pastille : rangée Résolution enregistrée par modèle", '"image_resolution:" + cour' in js
+          and 'prixUsd(mq.resolutions[r], "image")' in js and "mq && mq.resolutions" in js)
 
 
 if __name__ == "__main__":
@@ -384,5 +462,6 @@ if __name__ == "__main__":
     bloc_ecran()
     asyncio.run(bloc_reecriture())
     asyncio.run(bloc_references())
+    asyncio.run(bloc_resolution())
     print(f"\n{ok} PASS, {fail} FAIL")
     sys.exit(1 if fail else 0)

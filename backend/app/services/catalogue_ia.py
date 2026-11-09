@@ -90,6 +90,11 @@ def _images() -> list[dict]:
             out[-1]["qualite_defaut"] = P.QUALITE_DEFAUT
         if IP.accepte_reecriture(mid):          # t479 (F6.2) : interrupteur de réécriture du prompt
             out[-1]["reecriture"] = True
+        res = P.IMAGE_RESOLUTIONS.get(mid)       # t481 (F6.4) : résolutions permises et leur prix par image
+        if res:
+            out[-1]["resolutions"] = {r: round(usd * f, 5) for r, f in res.items()}
+            out[-1]["resolution_defaut"] = P.RESOLUTION_DEFAUT
+        out[-1]["refs_max"] = IP.ref_max(mid) if IP.multi_references(mid) else (1 if out[-1]["edit"] else 0)
     return out
 
 

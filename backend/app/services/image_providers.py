@@ -201,12 +201,25 @@ async def _openai_generate(model: str, prompt: str, size: str, n: int,
 # ───────────────────── Nano Banana (Gemini via fal) ─────────────────────
 
 REF_MAX = 9   # tâche #62 : fal ne documente aucun maximum pour `image_urls` (doc lue le 02/10) — 9 est notre prudence
+# t481 (F6.4) : Nano Banana Pro et 2.1 combinent jusqu'à 14 références (page fal relue le 09/11/2026 : « combine up
+# to 14 reference images », « 14 reference images add about $0.028 »). Les autres gardent la prudence de REF_MAX.
+REF_MAX_MODELE = {"nano-banana-pro": 14, "nano-banana-2.1": 14}
+
+
+def ref_max(model: str) -> int:
+    """t481 : le nombre de références qu'on envoie au plus à `model` (16 pour GPT via fal, 14 pour Nano Banana Pro
+    et 2.1, REF_MAX sinon)."""
+    m = str(model or "").strip().lower()
+    if m in _FAL_GPT:
+        return REF_MAX_GPT_FAL
+    return REF_MAX_MODELE.get(m, REF_MAX)
 
 
 def build_banana_request(prompt: str, size: str, n: int,
                          image_url: list[str] | str | None,
                          ratio: str | None = None,
-                         pro: bool = False) -> tuple[str, dict]:
+                         pro: bool = False,
+                         resolution: str | None = None) -> tuple[str, dict]:
     """(model_id, arguments) fal pour Nano Banana. Exposé pur pour les tests.
     `ratio` (ex. "9:16") force le cadre de sortie d'un EDIT — par défaut
     l'edit suit le cadre de l'image d'entrée (leçon tests canons: un corps
@@ -216,31 +229,34 @@ def build_banana_request(prompt: str, size: str, n: int,
     endpoint = "fal-ai/nano-banana-pro" if pro else "fal-ai/nano-banana"
     # tâche #62 : une LISTE de références (une chaîne seule reste acceptée), ordre gardé, tronquée à REF_MAX
     urls = [image_url] if isinstance(image_url, str) else list(image_url or [])
-    urls = [u for u in urls if u][:REF_MAX]
+    urls = [u for u in urls if u][:ref_max("nano-banana-pro" if pro else "nano-banana")]
+    # t481 (F6.4) : la résolution n'existe que chez Pro ; sans choix, rien n'est écrit (défaut fal 1K)
+    res = {"resolution": resolution} if (pro and resolution) else {}
     if urls:
         args = {"prompt": prompt, "image_urls": urls,
-                "num_images": n, "output_format": "png"}
+                "num_images": n, "output_format": "png", **res}
         if ratio:
             args["aspect_ratio"] = ratio
         return (endpoint + "/edit", args)
     return (endpoint,
             {"prompt": prompt, "num_images": n, "output_format": "png",
-             "aspect_ratio": _BANANA_ASPECT.get(size, "1:1")})
+             "aspect_ratio": _BANANA_ASPECT.get(size, "1:1"), **res})
 
 
 async def _banana_generate(prompt: str, size: str, n: int,
                            image_path: Path | list[Path] | None,
                            ratio: str | None = None,
-                           pro: bool = False) -> list[str]:
+                           pro: bool = False,
+                           resolution: str | None = None) -> list[str]:
     import fal_client
     chemins = list(image_path) if isinstance(image_path, (list, tuple)) else ([image_path] if image_path is not None else [])
     urls: list[str] = []
     if chemins:
         from app.services.fal_service import FalSeedanceClient
-        for ch in chemins[:REF_MAX]:
+        for ch in chemins[:ref_max("nano-banana-pro" if pro else "nano-banana")]:
             urls.append(await FalSeedanceClient.upload_image(ch))
     model, arguments = build_banana_request(prompt, size, n, urls, ratio,
-                                            pro)
+                                            pro, resolution=resolution)
     result = await fal_client.subscribe_async(model, arguments=arguments)
     urls = [im.get("url") for im in (result or {}).get("images", [])
             if im.get("url")]
@@ -372,11 +388,12 @@ def build_fal_image_request(model: str, prompt: str, size: str,
                             image_urls: list[str],
                             n: int = 1,
                             qualite: str | None = None,
-                            reecriture: bool | None = None) -> tuple[str, dict]:
+                            reecriture: bool | None = None,
+                            resolution: str | None = None) -> tuple[str, dict]:
     """(endpoint, arguments) pour un id de FAL_IMAGES. Pur : aucun réseau.
     ValueError si une image est donnée à un modèle sans retouche."""
     m = FAL_IMAGES[model]
-    urls = [u for u in (image_urls or []) if u][:REF_MAX]
+    urls = [u for u in (image_urls or []) if u][:ref_max(model)]
     edit = bool(urls)
     if edit and not m["edit"]:
         raise ValueError(f"{model} : pas de retouche (texte → image seulement).")
@@ -384,6 +401,8 @@ def build_fal_image_request(model: str, prompt: str, size: str,
     if m["taille"] == "aspect":
         args["aspect_ratio"] = _BANANA_ASPECT.get(size, "1:1")
         args["resolution"] = m["resolution"]
+        if resolution:                         # t481 : résolution choisie (validée par pricing.resolution_image)
+            args["resolution"] = resolution
     else:
         args["image_size"] = size if size in _BANANA_ASPECT else "square_hd"
     if m.get("multi", True):
@@ -407,6 +426,7 @@ async def _fal_image_generate(model: str, prompt: str, size: str, n: int,
                               image_paths: list[Path] | None = None,
                               qualite: str | None = None,
                               reecriture: bool | None = None,
+                              resolution: str | None = None,
                               **kw) -> list[str]:
     """Couture des modèles FAL_IMAGES (les bancs l'espionnent) : téléverse
     les références, tire (n appels si le schéma n'a pas de `num_images`),
@@ -418,11 +438,12 @@ async def _fal_image_generate(model: str, prompt: str, size: str, n: int,
     urls: list[str] = []
     if image_paths:
         from app.services.fal_service import FalSeedanceClient
-        for ch in list(image_paths)[:REF_MAX]:
+        for ch in list(image_paths)[:ref_max(model)]:
             urls.append(await FalSeedanceClient.upload_image(ch))
     endpoint, arguments = build_fal_image_request(model, prompt, size, urls, n,
                                                   qualite=qualite,
-                                                  reecriture=reecriture)
+                                                  reecriture=reecriture,
+                                                  resolution=resolution)
     tirs = 1 if m.get("multi", True) else max(1, int(n))
     trouves: list[str] = []
     result = None
@@ -451,7 +472,8 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
                    image_paths: list[Path] | None = None,
                    sortie: str = "raster",
                    qualite: str | None = None,
-                   reecriture: bool | None = None) -> dict:
+                   reecriture: bool | None = None,
+                   resolution: str | None = None) -> dict:
     """Génère via le provider choisi. Retour: {"images":[filenames],
     "seed": int|None} (seed None = provider non déterministe). `ratio`
     (ex. "9:16") force le cadre des EDITS (image_path fourni) — sinon le
@@ -465,8 +487,10 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
                            f"Vectorlab.")
     # t478 (F6.1) : le palier de qualité, validé contre le registre des prix
     # (`high` pour un palier vide ou inconnu, None pour un modèle sans palier).
-    from app.services.pricing import qualite_image
+    from app.services.pricing import qualite_image, resolution_image
     q = qualite_image(provider, qualite)
+    # t481 (F6.4) : la résolution n'est ÉCRITE que si elle est demandée (sinon le défaut d'avant, à l'octet)
+    res = resolution_image(provider, resolution) if resolution else None
     # LES CHEMINS FAL D'ABORD : les « gpt-image-…-fal » commencent par
     # « gpt-image » — testés après le préfixe OpenAI, ils partiraient chez
     # OpenAI avec la mauvaise clé ET la mauvaise facture.
@@ -489,7 +513,8 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
         try:
             imgs = await _fal_image_generate(provider, prompt, size, n,
                                              image_paths=refs, qualite=q,
-                                             reecriture=reecriture)
+                                             reecriture=reecriture,
+                                             resolution=res)
         except ValueError as e:      # recraft : pas de retouche
             raise RuntimeError(str(e))
         return {"images": imgs, "seed": None}
@@ -497,8 +522,10 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
         if not settings.FAL_KEY:
             raise RuntimeError("FAL_KEY manquante (Réglages).")
         refs = list(image_paths) if image_paths else image_path     # tâche #62 : plusieurs références
+        # t481 : `resolution` passé SEULEMENT s'il est choisi (l'appel d'avant reste identique)
         imgs = await _banana_generate(prompt, size, n, refs, ratio,
-                                      pro=(provider == "nano-banana-pro"))
+                                      pro=(provider == "nano-banana-pro"),
+                                      **({"resolution": res} if res else {}))
         return {"images": imgs, "seed": None}
     if provider.startswith("gpt-image") or provider.startswith("dall-e"):
         if not settings.OPENAI_API_KEY:

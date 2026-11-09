@@ -74,6 +74,7 @@
   "ia.qualite.high": {"fr": "haute", "en": "high"},
   "ia.qualite.xhigh": {"fr": "très haute", "en": "very high"},
   "ia.qualite.max": {"fr": "max", "en": "max"},
+  "ia.resolution.titre": {"fr": "Résolution", "en": "Resolution", "contexte": true},
   "ia.reecriture.titre": {"fr": "Réécriture du prompt", "en": "Prompt rewriting"},
   "ia.reecriture.oui": {"fr": "oui", "en": "on", "contexte": true},
   "ia.reecriture.non": {"fr": "non", "en": "off", "contexte": true},

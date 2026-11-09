@@ -10992,6 +10992,7 @@ def _recette_generation(body: dict, out: dict) -> dict:
          "background": (str(body.get("background") or "").strip().lower() or None),
          "qualite": out.get("qualite"),          # t478 : le palier SERVI (absent pour un modèle sans palier)
          "reecriture": out.get("reecriture"),    # t479 : la réécriture CHOISIE (absente = défaut du fournisseur)
+         "resolution": out.get("resolution"),    # t481 : la résolution CHOISIE (absente = défaut 1K)
          "le": datetime.now(_tz.utc).isoformat(timespec="seconds")}
     if out.get("prompt") and out.get("prompt") != r["prompt"]:
         r["prompt_envoye"] = out["prompt"]
@@ -11019,6 +11020,22 @@ async def _qualite_image_choisie(body: dict, model: str) -> str | None:
     try:
         async with async_session_factory() as _s:
             return (await _atelier_setting(_s, "image_qualite:" + model)).strip().lower() or None
+    except Exception:  # noqa: BLE001 — un réglage illisible vaut « pas de choix »
+        return None
+
+
+async def _resolution_choisie(body: dict, model: str) -> str | None:
+    """t481 (F6.4) : la résolution CHOISIE pour `model` (Nano Banana Pro et 2.1) — `resolution` du corps, sinon le
+    réglage d'Atelier `image_resolution:<id>` (posé par la pastille), sinon None (le défaut, 1K). Validée au devis et
+    au tir (pricing.resolution_image)."""
+    if not _PRX.resolution_image(model):
+        return None
+    r = str((body or {}).get("resolution") or "").strip()
+    if r:
+        return r
+    try:
+        async with async_session_factory() as _s:
+            return (await _atelier_setting(_s, "image_resolution:" + model)).strip() or None
     except Exception:  # noqa: BLE001 — un réglage illisible vaut « pas de choix »
         return None
 
@@ -11095,13 +11112,16 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
             raise HTTPException(503, f"{manque} non configurée (Réglages) "
                                      f"pour {model}.")
         qualite = await _qualite_image_choisie(body, model)       # t478 (F6.1)
-        await _plafond({"kind": "image", "n": n, "model": model, "qualite": qualite}, _categorie_image(body))   # tâche #16
+        resolution = await _resolution_choisie(body, model)       # t481 (F6.4)
+        await _plafond({"kind": "image", "n": n, "model": model, "qualite": qualite, "resolution": resolution},
+                       _categorie_image(body))   # tâche #16
         background = (body.get("background") or "").strip().lower() or None
         reecriture = await _reecriture_choisie(body, model)      # t479 (F6.2)
         try:
             out = await IP.generate(model, prompt, size, n,
                                     background=background, sortie=sortie,
-                                    qualite=qualite, reecriture=reecriture)
+                                    qualite=qualite, reecriture=reecriture,
+                                    resolution=resolution)
         except RuntimeError as e:
             raise HTTPException(502, str(e))
         except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502, pas 500
@@ -11111,6 +11131,8 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
             res["qualite"] = _PRX.qualite_image(model, qualite)
         if reecriture is not None:
             res["reecriture"] = reecriture
+        if resolution and _PRX.resolution_image(model, resolution):
+            res["resolution"] = _PRX.resolution_image(model, resolution)
         return res
 
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
@@ -11420,7 +11442,7 @@ async def _process_image_core(body: dict):
             if not IP.multi_references(model):          # t480 : GPT Image via fal compris
                 raise HTTPException(400, f"{model or 'FLUX Kontext'} ne prend qu'une image : choisissez un modèle à "
                                          "références multiples (Nano Banana…) pour garder l'identité.")
-            refs_idv = _idv.references(_es.espace_courant(), n=IP.REF_MAX - 1)
+            refs_idv = _idv.references(_es.espace_courant(), n=IP.ref_max(model) - 1)   # t481 : 14 / 16 selon le modèle
             if not refs_idv:
                 raise HTTPException(400, "Aucune image de référence dans l'identité de l'espace (Réglages › Espaces).")
             prompt = f"{prompt} Keep the character and the products exactly as in the reference images."
@@ -11433,13 +11455,19 @@ async def _process_image_core(body: dict):
                 raise HTTPException(503, f"{manque} non configurée "
                                          f"(Réglages) pour {model}.")
             # t480 (F6.3) : les références comptent au devis (GPT Image via fal les facture en entrée)
-            await _plafond({"kind": "image", "n": n, "model": model, "refs": 1 + len(refs_idv)}, _categorie_image(body))
+            # t481 (F6.4) : la retouche suit aussi la qualité et la résolution choisies pour ce modèle
+            qualite = await _qualite_image_choisie(body, model)
+            resolution = await _resolution_choisie(body, model)
+            await _plafond({"kind": "image", "n": n, "model": model, "refs": 1 + len(refs_idv), "qualite": qualite,
+                            "resolution": resolution}, _categorie_image(body))
             # cadre demandé = aspect_ratio de l'edit ; sans `size` explicite, l'edit suit l'image d'entrée
             # (sans lui, fal choisissait : une composition 16:9 sortait en 752×1408)
             ratio = _EDIT_RATIO.get(body.get("size"))
             try:
-                out = await (IP.generate(model, prompt, size, n, image_paths=[src] + refs_idv, ratio=ratio) if refs_idv
-                             else IP.generate(model, prompt, size, n, image_path=src, ratio=ratio))
+                out = await (IP.generate(model, prompt, size, n, image_paths=[src] + refs_idv, ratio=ratio,
+                                         qualite=qualite, resolution=resolution) if refs_idv
+                             else IP.generate(model, prompt, size, n, image_path=src, ratio=ratio,
+                                              qualite=qualite, resolution=resolution))
             except RuntimeError as e:
                 raise HTTPException(502, str(e))
             except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502
@@ -11666,10 +11694,18 @@ async def list_image_models():
                 v = (await _atelier_setting(_s, "image_reecriture:" + e["id"])).strip()
                 if v in ("0", "1"):
                     reecritures[e["id"]] = v == "1"
+    # t481 (F6.4) : la résolution enregistrée pour les modèles qui en ont une
+    resolutions = {}
+    async with async_session_factory() as _s:
+        for e in tous:
+            if e.get("resolutions"):
+                v = (await _atelier_setting(_s, "image_resolution:" + e["id"])).strip().upper()
+                if v in e["resolutions"]:
+                    resolutions[e["id"]] = v
     return {"models": out, "configured": configured,
             "default": configured or ("flux" if settings.FAL_KEY
                                       else (out[0]["id"] if out else "")),
-            "tous": tous, "qualites": choisies, "reecritures": reecritures}
+            "tous": tous, "qualites": choisies, "reecritures": reecritures, "resolutions": resolutions}
 
 
 @router.get("/ia/catalogue")
