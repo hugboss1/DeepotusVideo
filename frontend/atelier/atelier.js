@@ -1769,6 +1769,8 @@ async function daApply() {
         ? "" : $("#daRefName").textContent,
     });
     $("#globalStyle").value = $("#daStyle").value.trim();
+    // les pastilles de modèle des encarts relisent le générateur du DA (dz-champ-ia écoute cet évènement)
+    window.dispatchEvent(new CustomEvent("dz:atelier-maj", { detail: { image_provider: $("#daProvider").value } }));
     $("#daModal").classList.add("hidden");
     toast(dzT("atelier.at3_da.appliquee"));
   } catch (e) { toast(dzT("atelier.at3_da.err", { msg: e.message }), true); }
