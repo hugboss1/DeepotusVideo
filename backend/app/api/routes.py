@@ -20,6 +20,7 @@ from loguru import logger
 
 from app.config import settings, APP_VERSION, SSL_VERIFY
 from app.services import library_index as LI
+from app.services import pricing as _PRX   # t478 : paliers de qualité des images
 from app.models.schemas import (
     GenerateRequest,
     GenerateResponse,
@@ -10989,6 +10990,7 @@ def _recette_generation(body: dict, out: dict) -> dict:
          "size": body.get("size") or "portrait_16_9",
          "seed": int(seed) if isinstance(seed, (int, float)) and not isinstance(seed, bool) else None,
          "background": (str(body.get("background") or "").strip().lower() or None),
+         "qualite": out.get("qualite"),          # t478 : le palier SERVI (absent pour un modèle sans palier)
          "le": datetime.now(_tz.utc).isoformat(timespec="seconds")}
     if out.get("prompt") and out.get("prompt") != r["prompt"]:
         r["prompt_envoye"] = out["prompt"]
@@ -11003,6 +11005,21 @@ def _erreur_fournisseur(model: str, e: Exception) -> HTTPException:
     logger.error(f"fournisseur d'image {model} : {type(e).__name__}: {e}")
     return HTTPException(502, f"{model} : échec du fournisseur "
                               f"({type(e).__name__}).")
+
+
+async def _qualite_image_choisie(body: dict, model: str) -> str | None:
+    """t478 (F6.1) : le palier de qualité CHOISI pour `model` — celui du corps (`qualite`), sinon celui enregistré
+    pour ce modèle (réglage d'Atelier `image_qualite:<model>`, posé par le sélecteur), sinon None (le défaut du
+    modèle, `high` pour ceux que la table chiffre). La validation contre les paliers permis se fait au devis et au
+    tir (pricing.qualite_image) : un palier inconnu y retombe sur `high`, jamais en erreur."""
+    q = str((body or {}).get("qualite") or "").strip().lower()
+    if q or not _PRX.qualite_image(model):
+        return q or None
+    try:
+        async with async_session_factory() as _s:
+            return (await _atelier_setting(_s, "image_qualite:" + model)).strip().lower() or None
+    except Exception:  # noqa: BLE001 — un réglage illisible vaut « pas de choix »
+        return None
 
 
 async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
@@ -11058,16 +11075,21 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
         if manque:
             raise HTTPException(503, f"{manque} non configurée (Réglages) "
                                      f"pour {model}.")
-        await _plafond({"kind": "image", "n": n, "model": model}, _categorie_image(body))   # tâche #16
+        qualite = await _qualite_image_choisie(body, model)       # t478 (F6.1)
+        await _plafond({"kind": "image", "n": n, "model": model, "qualite": qualite}, _categorie_image(body))   # tâche #16
         background = (body.get("background") or "").strip().lower() or None
         try:
             out = await IP.generate(model, prompt, size, n,
-                                    background=background, sortie=sortie)
+                                    background=background, sortie=sortie,
+                                    qualite=qualite)
         except RuntimeError as e:
             raise HTTPException(502, str(e))
         except Exception as e:  # noqa: BLE001 — httpx/fal_client : 502, pas 500
             raise _erreur_fournisseur(model, e)
-        return {"images": out["images"], "prompt": prompt, "model": model}
+        res = {"images": out["images"], "prompt": prompt, "model": model}
+        if _PRX.qualite_image(model, qualite):
+            res["qualite"] = _PRX.qualite_image(model, qualite)
+        return res
 
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
     if model.startswith("gpt-image") or model.startswith("dall-e"):
@@ -11075,10 +11097,13 @@ async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
             # t182 : même forme que les autres refus « clé absente » (nomme la
             # clé, renvoie aux Réglages) — AVANT la garde de dépense ; t192 : dans la langue de l'interface
             raise HTTPException(503, _msg_g("ia.cle.non_configuree", None, nom_cle="OPENAI_API_KEY", modele=model))
-        await _plafond({"kind": "image", "n": n, "model": model}, _categorie_image(body))   # tâche #16
+        qualite = await _qualite_image_choisie(body, model)       # t478 (F6.1)
+        await _plafond({"kind": "image", "n": n, "model": model, "qualite": qualite}, _categorie_image(body))   # tâche #16
         osize = ("1024x1536" if "portrait" in size
                  else "1536x1024" if "landscape" in size else "1024x1024")
         payload = {"model": model, "prompt": prompt, "n": n, "size": osize}
+        if qualite and _PRX.qualite_image(model, qualite):     # palier écrit seulement s'il est CHOISI
+            payload["quality"] = _PRX.qualite_image(model, qualite)
         try:
             async with _httpx.AsyncClient(verify=SSL_VERIFY, timeout=180.0) as client:
                 resp = await client.post(
@@ -11603,10 +11628,18 @@ async def list_image_models():
         e = par_id.get(m["id"]) or {}
         m.update(voie=e.get("voie", m.get("provider")), cle=e.get("cle"),
                  usd=e.get("usd", 0.0), sortie=e.get("sortie", "raster"))
+    # t478 (F6.1) : le palier ENREGISTRÉ par modèle (réglage `image_qualite:<id>`), pour que le sélecteur le montre
+    choisies = {}
+    async with async_session_factory() as _s:
+        for e in tous:
+            if e.get("qualites"):
+                v = (await _atelier_setting(_s, "image_qualite:" + e["id"])).strip().lower()
+                if v in e["qualites"]:
+                    choisies[e["id"]] = v
     return {"models": out, "configured": configured,
             "default": configured or ("flux" if settings.FAL_KEY
                                       else (out[0]["id"] if out else "")),
-            "tous": tous}
+            "tous": tous, "qualites": choisies}
 
 
 @router.get("/ia/catalogue")
