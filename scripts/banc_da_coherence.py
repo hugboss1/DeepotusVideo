@@ -100,6 +100,11 @@ def preparer_isolation(dossier: pathlib.Path, cles: dict) -> None:
     os.environ["DEEPOTUS_DATA_DIR"] = str(donnees)
     os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(donnees / 'banc.db').as_posix()}"
     os.environ["IMAGES_FOLDER"] = str(donnees / "images")
+    # le moteur CLIP (M1 et validation du héros) : celui DÉJÀ INSTALLÉ chez l'utilisateur, lu seulement — le banc ne
+    # calcule que des vecteurs d'images, jamais l'index de la Bibliothèque
+    clip = pathlib.Path(os.environ.get("LOCALAPPDATA", "")) / "DeepotusVideoGenData" / "clip"
+    if (clip / "installe.json").is_file():
+        os.environ["DEEPOTUS_CLIP_DIR"] = str(clip)
     os.environ.update(cles)
     sys.path.insert(0, str(BACKEND))
 
@@ -213,6 +218,10 @@ def verifier_isolation(dossier: pathlib.Path) -> None:
     hors = [k for k, v in racines.items() if attendu not in (v, *v.parents)]
     if hors or "banc.db" not in base:
         raise SystemExit(f"ISOLATION ROMPUE ({', '.join(hors) or 'base'}) : aucun tir — l'app ne vise pas {attendu}")
+    # M1 et la validation du héros reposent sur CLIP : sans lui le banc mesurerait du vide (incident du 09/11)
+    from app.services import library_clip as LC
+    if not LC.installe():
+        raise SystemExit("moteur CLIP introuvable : M1 et la validation du héros seraient vides — aucun tir")
 
 
 async def tirer(dossier: pathlib.Path, corpus: list[dict], max_usd: float) -> dict:

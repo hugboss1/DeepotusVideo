@@ -109,6 +109,9 @@ check("5.1 avec --confirme, l'isolation est posée AVANT le devis (premier impor
 corps_tir = src.split("async def tirer(")[1]
 check("5.2 le tir vérifie l'isolation avant toute requête",
       corps_tir.index("verifier_isolation(dossier)") < corps_tir.index("AsyncClient("))
+corps_verif = src.split("def verifier_isolation(")[1].split("\ndef ")[0]
+check("5.3 sans moteur CLIP, aucun tir (M1 et validation du héros seraient vides)", "LC.installe()" in corps_verif
+      and "DEEPOTUS_CLIP_DIR" in src.split("def preparer_isolation(")[1].split("\ndef ")[0])
 
 print(f"\n{ok} PASS, {fail} FAIL")
 sys.exit(1 if fail else 0)
