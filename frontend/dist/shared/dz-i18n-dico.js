@@ -20468,6 +20468,8 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "vectorlab.plume.mode_ligne": {"fr": "Ligne", "en": "Line"},
   "vectorlab.plume.mode_plume": {"fr": "Plume", "en": "Pen"},
   "vectorlab.plume.relier": {"fr": "relier : sélectionner deux chemins ouverts", "en": "join: select two open paths"},
+  "vectorlab.recolorer.aucune_selection": {"fr": "Sélectionnez les objets à recolorer.", "en": "Select the objects to recolor."},
+  "vectorlab.recolorer.couleur_invalide": {"fr": "Couleur invalide : « {c} » (attendu : #RRGGBB).", "en": "Invalid colour: “{c}” (expected: #RRGGBB)."},
   "vectorlab.relief.err_grille": {"fr": "relief : grille d'au moins 2 × 2 requise", "en": "relief: grid of at least 2 × 2 required"},
   "vectorlab.relief.err_largeur": {"fr": "relief : largeur et mm/m > 0 requis", "en": "relief: width and mm/m > 0 required"},
   "vectorlab.relief.err_logement": {"fr": "relief : 0 < profondeur de logement < socle", "en": "relief: 0 < socket depth < base"},
