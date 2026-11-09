@@ -38,6 +38,7 @@
   "ia.fichier.image_introuvable": {"fr": "image introuvable : {nom}", "en": "image not found: {nom}"},
   "ia.cle.non_configuree": {"fr": "{nom_cle} non configurée (Réglages) pour {modele}.", "en": "{nom_cle} is not configured (Settings) for {modele}."},
   "ia.image.pas_de_retouche": {"fr": "{modele} : pas de retouche (texte → image seulement).", "en": "{modele}: no editing (text → image only)."},
+  "ia.image.fond_opaque": {"fr": "{modele} ne rend pas de fond transparent : l'image sort sur un fond opaque. Prendre GPT Image (fond transparent), ou détourer l'image ensuite.", "en": "{modele} cannot render a transparent background: the image comes out on an opaque background. Use GPT Image (transparent background), or cut out the image afterwards."},
   "ia.detour.sujet_manquant": {"fr": "{modele} : dites quel sujet garder : ce modèle détoure un sujet NOMMÉ (« sujet » vide)", "en": "{modele}: say which subject to keep (empty \"subject\")"},
   "ia.detour.rembg_absent": {"fr": "rembg n'est pas installé dans ce runtime — choisissez un autre modèle, ou installez-le : pip install rembg", "en": "rembg is not installed in this runtime — pick another model, or install it: pip install rembg"},
   "ia.detour.chroma_pas_uni": {"fr": "Fond uni / chroma : le pourtour de l'image n'est pas assez uni pour être retiré — choisissez un détourage par IA", "en": "Plain background / chroma: the edge of the image is not plain enough to remove — pick an AI cutout"},
