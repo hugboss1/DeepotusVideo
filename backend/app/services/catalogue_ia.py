@@ -256,7 +256,9 @@ def _sfx(nature: str) -> list[dict]:
         out.append({"id": mid, "label": e["label"], "voie": e["voie"], "usd": usd, "unite": e["unite"],
                     "jumeau": JUMEAUX_SFX.get(mid), "note": "" if usd else NOTE_A_MESURER,
                     "prompt": bool(e["prompt_requis"]), "voix": bool(e["champs"]["voix"]),
-                    "duree": list(e["bornes"]) if e.get("bornes") else None})
+                    "duree": list(e["bornes"]) if e.get("bornes") else None,
+                    # t491 (F4) : la plage de durée de la VIDÉO acceptée, quand le modèle en a une (Kling 3-20 s)
+                    "video_s": list(e["video_s"]) if e.get("video_s") else None})
     return out
 
 
@@ -283,7 +285,11 @@ def _musique() -> list[dict]:
         x = {"id": mid, "label": m["label"], "voie": "fal", "usd": usd,
              "unite": {"s": "s", "min": "min"}.get(m.get("usd_unit", "gen"), "piste"),
              "jumeau": None, "note": "" if usd else NOTE_A_MESURER,
-             "paroles": bool(m.get("lyrics")), "defaut": mid == MS.DEFAULT_MUSIC_MODEL}
+             "paroles": bool(m.get("lyrics")), "defaut": mid == MS.DEFAULT_MUSIC_MODEL,
+             # t491 (F4) : la plage de durée réglable [min, max] (s), ou la durée fixe [d, d] ; None si le modèle
+             # décide seul
+             "duree": ([float(m["fixed_duration"])] * 2 if m.get("fixed_duration")
+                       else [float(x) for x in m["duration"]] if m.get("duration") else None)}
         if m.get("usd_paroles") is not None:
             x["usd_paroles"] = float(m["usd_paroles"])
         out.append(x)
@@ -342,6 +348,54 @@ def _objets3d() -> list[dict]:
         out.append({"id": mid, "label": m["label"], "voie": "fal", "usd": usd, "unite": "requete",
                     "jumeau": None, "note": "" if usd else NOTE_A_MESURER, "unite_a_confirmer": True,
                     "corps": bool(m["corps"]), "defaut": mid == SB.DEFAUT})
+    return out
+
+
+@source("modele3d")
+def _modele3d() -> list[dict]:
+    """t491 (F4, 09/11/2026) : les MOTEURS 3D de l'écran Créer et de Game Assets (asset3d_service.ENGINES, les sept
+    d'hier et les neufs de moteurs3d_neufs), dans leur ordre. `usd` = le devis d'un tir AUX RÉGLAGES PAR DÉFAUT
+    (pricing.estimate kind « asset3d ») : un supplément (HighPack, texture plus fine, vues) s'y ajoute au tir.
+    Capacités lues au registre, jamais recopiées : `formats`, `vues` (images transmises au plus), `texte` (génère
+    depuis un texte), `pbr`, `tpose`, `brouillon` (sans texture). Lu seulement par les fiches modèle et l'agent :
+    l'écran garde sa liste (/api/assets3d/engines)."""
+    from app.services import asset3d_service as A, moteurs3d_neufs as M3N
+    p = P.load()
+    out = []
+    for mid, e in A.ENGINES.items():
+        # `pbr` : True = demandé par défaut ; « reglage » = atteignable par un réglage coupé d'office ; False = jamais.
+        # Un moteur neuf le dit par son SCHÉMA (son drapeau commun `pbr` vaut True pour tous, t390) : un réglage
+        # pbr / enable_pbr / material, et son défaut
+        pbr = bool(e.get("pbr"))
+        if e.get("neuf"):
+            r = next((r for r in e.get("reglages") or [] if r.get("cle") in ("pbr", "enable_pbr", "material")), None)
+            pbr = False if r is None else (True if r.get("defaut") in (True, "PBR", "All") else "reglage")
+        local = bool(e.get("local")) or str(e.get("endpoint") or "").startswith("local:")
+        usd = 0.0 if local else float(P.estimate({"kind": "asset3d", "engine": mid}, p).get("total_usd") or 0.0)
+        out.append({"id": mid, "label": e.get("label") or mid, "voie": "local" if local else "fal", "usd": usd,
+                    "unite": "gen", "jumeau": None, "note": "" if (usd or local) else NOTE_A_MESURER,
+                    "formats": list(e.get("formats") or []), "vues": int(e.get("max_images") or 1),
+                    "texte": bool(e.get("texte")), "pbr": pbr, "tpose": bool(e.get("tpose")) or mid in M3N.POSE,
+                    "brouillon": bool(e.get("draft"))})
+    return out
+
+
+@source("voix")
+def _voix() -> list[dict]:
+    """t491 (F4) : les modèles de VOIX OFF — ceux d'ElevenLabs (elevenlabs_service.ELEVEN_MODELS, voie elevenlabs)
+    puis Voicebox, le serveur local gratuit (voice_providers). `usd` = le prix de 1 000 caractères
+    (pricing.elevenlabs_rate × 1000, unité « 1k_car ») ; `car_max` = caractères par requête (le texte plus long est
+    découpé) ; `balises` : les balises d'émotion en ligne ne partent que sur eleven_v3 (voice_direction, t487)."""
+    from app.services import elevenlabs_service as ES, voice_providers as VP
+    p = P.load()
+    out = []
+    for mid, m in ES.ELEVEN_MODELS.items():
+        out.append({"id": mid, "label": m["label"], "voie": "elevenlabs",
+                    "usd": round(P.elevenlabs_rate(mid, p) * 1000, 4), "unite": "1k_car", "jumeau": None,
+                    "note": "", "car_max": int(m["max_chars"]), "balises": mid == "eleven_v3",
+                    "defaut": mid == ES.DEFAULT_ELEVEN_MODEL})
+    out.append({"id": "voicebox", "label": VP.PROVIDERS["voicebox"]["label"], "voie": "local", "usd": 0.0,
+                "unite": "1k_car", "jumeau": None, "note": "", "car_max": None, "balises": False, "defaut": False})
     return out
 
 

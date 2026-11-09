@@ -11,7 +11,7 @@ Les paramètres d'un modèle (durées, formats, prix) se lisent dans le bloc « 
 
 ## Référence rapide
 
-- [PROMPT] Écrire en phrases complètes, pas en liste de mots-clés.
+- [PROMPT] Image, vidéo : des phrases, pas des mots-clés (son : voir la fiche).
 - [PROMPT] Un mot écrit dessine ce qu'il nomme : « no gray » fait apparaître du gris. Formuler en positif (« plain
   white background ») ou passer par le champ négatif quand le membre en a un.
 - [PROMPT] Le format se règle dans le champ prévu, jamais dans le texte : un ratio écrit en prose donne des bandes

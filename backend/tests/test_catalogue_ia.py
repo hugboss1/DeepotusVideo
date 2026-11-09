@@ -319,8 +319,35 @@ check("recraft : sortie svg, edit False",
       any(e["id"] == "recraft-4.1-vecteur" and e["sortie"] == "svg" and e["edit"] is False for e in _cat))
 # t184 (G2) : les natures vidéo s'ajoutent (image -> vidéo, first-last-frame)
 check("natures() publiques = détourage (t186), image, musique, sfx_texte, sfx_video (t187), objets3d (t189), vfx (t188), vidéo, texte (t222), video_post (t277)",
-      CI.natures() == ("detourage_image", "detourage_video", "image", "musique", "objets3d", "sfx_texte", "sfx_video", "texte",
-                       "vfx", "video_fl", "video_i2v", "video_post"), str(CI.natures()))
+      CI.natures() == ("detourage_image", "detourage_video", "image", "modele3d", "musique", "objets3d", "sfx_texte",
+                       "sfx_video", "texte", "vfx", "video_fl", "video_i2v", "video_post", "voix"), str(CI.natures()))
+# t491 (F4) : moteurs 3D et voix off, lus aux registres
+from app.services import asset3d_service as _A3, elevenlabs_service as _ES   # noqa: E402
+_m3 = CI.lister("modele3d")
+check("modele3d : un id par moteur de ENGINES, dans l'ordre",
+      [e["id"] for e in _m3] == list(_A3.ENGINES), str([e["id"] for e in _m3]))
+check("modele3d : hunyuan-local local et gratuit, les autres fal au devis par défaut",
+      all((e["voie"], e["usd"]) == ("local", 0.0) if e["id"] == "hunyuan-local" else
+          (e["voie"] == "fal" and e["usd"] == P.estimate({"kind": "asset3d", "engine": e["id"]})["total_usd"]) for e in _m3))
+check("modele3d : capacités = registre (formats, vues, texte, pbr, tpose, brouillon)",
+      all(e["formats"] == list(_A3.ENGINES[e["id"]]["formats"]) and e["vues"] == _A3.ENGINES[e["id"]]["max_images"]
+          and e["texte"] is bool(_A3.ENGINES[e["id"]].get("texte"))
+          and (_A3.ENGINES[e["id"]].get("neuf") or e["pbr"] is bool(_A3.ENGINES[e["id"]].get("pbr")))
+          and e["tpose"] is (bool(_A3.ENGINES[e["id"]].get("tpose")) or e["id"] in ("meshy-7.1", "rodin-2.5"))
+          and e["brouillon"] is bool(_A3.ENGINES[e["id"]].get("draft")) for e in _m3))
+_pb = {e["id"]: e["pbr"] for e in _m3}
+check("modele3d : PBR des neufs lu au schéma (Tripo P2 oui, Smart Mesh et TRELLIS 2 non, Hunyuan 3.1 et Meshy au choix)",
+      _pb["tripo-p2"] is True and _pb["tripo-p1"] is False and _pb["trellis-2"] is False and _pb["rodin-2.5"] is True
+      and _pb["hunyuan-3.1"] == "reglage" and _pb["meshy-7.1"] == "reglage", _pb)
+_vx = CI.lister("voix")
+check("voix : ELEVEN_MODELS puis voicebox",
+      [e["id"] for e in _vx] == list(_ES.ELEVEN_MODELS) + ["voicebox"], str([e["id"] for e in _vx]))
+check("voix : prix de 1 000 caractères = elevenlabs_rate x 1000, voicebox gratuit local",
+      all(abs(e["usd"] - P.elevenlabs_rate(e["id"]) * 1000) < 1e-3 for e in _vx[:-1])
+      and (_vx[-1]["voie"], _vx[-1]["usd"]) == ("local", 0.0))
+check("voix : balises seulement sur eleven_v3, car_max = registre",
+      [e["id"] for e in _vx if e["balises"]] == ["eleven_v3"]
+      and all(e["car_max"] == _ES.ELEVEN_MODELS[e["id"]]["max_chars"] for e in _vx[:-1]))
 check("gpt-image-1-mini dans PROVIDERS (OPENAI_API_KEY)",
       (IP.PROVIDERS.get("gpt-image-1-mini") or {}).get("needs") == "OPENAI_API_KEY")
 check("gpt-image-1-mini hors façade (chemin OpenAI des routes)", not IP.via_facade("gpt-image-1-mini"))
