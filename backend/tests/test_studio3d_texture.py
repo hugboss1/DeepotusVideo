@@ -92,7 +92,9 @@ def test_les_modeles_suivent_l_ordre_de_preference_et_restent_choisissables_sans
     assert all(x["cle_ok"] is False for x in m["modeles"]), "aucune clé posée : tous sans clé, mais listés"
     assert par["nano-banana-pro"]["resolutions"] == ["1K", "2K", "4K"]
     assert par["nano-banana-2.1"]["resolutions"] == ["1K"]
-    assert par["gpt-image-2-fal"]["multi_refs"] is False and par["nano-banana"]["multi_refs"] is True
+    # t480 (F6.3) : GPT Image via fal prend plusieurs références ; la voie OpenAI directe, une seule
+    assert par["gpt-image-2-fal"]["multi_refs"] is True and par["nano-banana"]["multi_refs"] is True
+    assert all(not v["multi_refs"] for k, v in par.items() if k.startswith("gpt-image") and not k.endswith("-fal"))
     assert m["ratios"] == ["1:1", "16:9", "9:16", "4:3", "3:4"] and m["prompt_defaut"] == ST.PROMPT_DEFAUT
     # 4K de Nano Banana Pro : deux fois le prix de 1K (doc fal) ; 2K au même prix
     d1, d2, d4 = (ST.devis_image("nano-banana-pro", r)["usd"] for r in ("1K", "2K", "4K"))

@@ -65,6 +65,18 @@ M = [
  ("cat", 'out[-1]["reecriture"] = True', "pass"),
  ("ci", "rchoisie: (d.reecritures || {})[e.id] !== false", "rchoisie: !!(d.reecritures || {})[e.id]"),
  ("ci", 'nv ? "1" : "0"', 'nv ? "1" : ""'),
+ # t480 (F6.3) : plusieurs références pour GPT Image via fal
+ ("ip", "urls = [u for u in urls if u][:REF_MAX_GPT_FAL]\n    if urls:", "urls = [u for u in urls if u][:1]\n    if urls:"),
+ ("ip", "REF_MAX_GPT_FAL = 16", "REF_MAX_GPT_FAL = 9"),
+ ("ip", "        for ch in chemins[:REF_MAX_GPT_FAL]:", "        for ch in chemins[:1]:"),
+ ("ip", "refs_gpt = list(image_paths) if image_paths else image_path", "refs_gpt = image_path"),
+ ("ip", "    return (m in (\"nano-banana\", \"nano-banana-pro\") or m in _FAL_GPT", "    return (m in (\"nano-banana\", \"nano-banana-pro\")"),
+ ("ip", "or bool((FAL_IMAGES.get(m) or {}).get(\"edit\")))", "or m in FAL_IMAGES)"),
+ ("prix", "if refs and model in IMAGE_REF_USD:", "if False:"),
+ ("prix", "n * refs * IMAGE_REF_USD[model]))", "refs * IMAGE_REF_USD[model]))"),
+ ("prix", '"gpt-image-2.5-sunburst-fal": 0.012}', '"gpt-image-2.5-sunburst-fal": 0.008}'),
+ ("rt", '"refs": 1 + len(refs_idv)}', '"refs": len(refs_idv)}'),
+ ("rt", "if not IP.multi_references(model):          # t480", "if model not in (\"nano-banana\", \"nano-banana-pro\"):          # t480"),
 ]
 tues = 0
 try:

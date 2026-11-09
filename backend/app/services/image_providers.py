@@ -76,6 +76,9 @@ _FAL_GPT = {"gpt-image-2-fal": "gpt-image-2",
 # fal l'accepte pour flare ET sunburst (t2i et edit, auto/transparent/opaque) ;
 # la doc OpenAI ne le dit que de flare, sunburst direct reste donc fermé.
 _TRANSPARENT_OK_FAL = ("gpt-image-2.5-flare", "gpt-image-2.5-sunburst")
+# t480 (F6.3) : les edits GPT servis par fal prennent PLUSIEURS références (`image_urls`, 16 au plus d'après le
+# schéma relu le 09/11/2026 ; chacune facturée en entrée, environ 0,008 à 0,012 $). Seule une image partait avant.
+REF_MAX_GPT_FAL = 16
 _TRANSPARENT_OK_OPENAI = ("gpt-image-2.5-flare",)
 
 
@@ -275,22 +278,29 @@ def build_fal_gpt_request(prompt: str, size: str, n: int,
     else:
         base = "openai/gpt-image-2"
         t2i = base
-    if image_url:
-        args["image_urls"] = [image_url]
+    # t480 (F6.3) : une URL (forme d'avant) ou une LISTE de références, ordre gardé, tronquée à REF_MAX_GPT_FAL
+    urls = [image_url] if isinstance(image_url, str) else list(image_url or [])
+    urls = [u for u in urls if u][:REF_MAX_GPT_FAL]
+    if urls:
+        args["image_urls"] = urls
         return (base + "/edit", args)
     return (t2i, args)
 
 
 async def _fal_gpt_generate(prompt: str, size: str, n: int,
-                            image_path: Path | None,
+                            image_path: Path | list[Path] | None,
                             model: str = "gpt-image-2",
                             background: str | None = None,
                             qualite: str = "high") -> list[str]:
     import fal_client
-    image_url = None
-    if image_path is not None:
+    # t480 (F6.3) : un chemin (forme d'avant) ou une LISTE de références, toutes téléversées
+    chemins = list(image_path) if isinstance(image_path, (list, tuple)) else (
+        [image_path] if image_path is not None else [])
+    image_url: list[str] = []
+    if chemins:
         from app.services.fal_service import FalSeedanceClient
-        image_url = await FalSeedanceClient.upload_image(image_path)
+        for ch in chemins[:REF_MAX_GPT_FAL]:
+            image_url.append(await FalSeedanceClient.upload_image(ch))
     endpoint, arguments = build_fal_gpt_request(prompt, size, n, image_url,
                                                 model=model,
                                                 background=background,
@@ -343,6 +353,14 @@ FAL_IMAGES = {
                             "edit": None, "taille": "image_size",
                             "multi": False, "svg": True},
 }
+
+
+def multi_references(model: str) -> bool:
+    """t480 (F6.3) : vrai si le modèle prend PLUSIEURS images de référence en retouche (Nano Banana, les modèles
+    fal à retouche, GPT Image servi par fal). GPT Image direct (OpenAI) n'en envoie qu'une."""
+    m = str(model or "").strip().lower()
+    return (m in ("nano-banana", "nano-banana-pro") or m in _FAL_GPT
+            or bool((FAL_IMAGES.get(m) or {}).get("edit")))
 
 
 def accepte_reecriture(model: str) -> bool:
@@ -455,7 +473,8 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
     if provider in _FAL_GPT:
         if not settings.FAL_KEY:
             raise RuntimeError("FAL_KEY manquante (Réglages).")
-        imgs = await _fal_gpt_generate(prompt, size, n, image_path,
+        refs_gpt = list(image_paths) if image_paths else image_path   # t480 : plusieurs références
+        imgs = await _fal_gpt_generate(prompt, size, n, refs_gpt,
                                        model=_FAL_GPT[provider],
                                        background=background,
                                        qualite=q or "high")

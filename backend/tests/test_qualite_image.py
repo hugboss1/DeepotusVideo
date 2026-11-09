@@ -318,6 +318,63 @@ async def bloc_reecriture():
     check("7.20 clés i18n de la réécriture", all(f'"ia.reecriture.{k}"' in dico for k in ("titre", "oui", "non", "aide")))
 
 
+async def bloc_references():
+    """t480 (F6.3) : GPT Image via fal prend plusieurs références (16 au plus), facturées en entrée."""
+    print("\n[8] plusieurs références pour GPT Image via fal")
+    ep, a = IP.build_fal_gpt_request("p", "square_hd", 1, ["u1", "u2", "u3"], model="gpt-image-2.5-sunburst")
+    check("8.1 liste de références : toutes envoyées, dans l'ordre, sur /edit",
+          ep.endswith("/edit") and a["image_urls"] == ["u1", "u2", "u3"], (ep, a.get("image_urls")))
+    _, a = IP.build_fal_gpt_request("p", "square_hd", 1, "u1", model="gpt-image-2")
+    check("8.2 une URL seule (forme d'avant) : inchangé", a["image_urls"] == ["u1"])
+    _, a = IP.build_fal_gpt_request("p", "square_hd", 1, [f"u{i}" for i in range(20)], model="gpt-image-2")
+    check("8.3 tronqué à 16 (schéma fal)", len(a["image_urls"]) == 16 == IP.REF_MAX_GPT_FAL)
+    ep, a = IP.build_fal_gpt_request("p", "square_hd", 1, [], model="gpt-image-2")
+    check("8.4 liste vide : texte → image", "image_urls" not in a and not ep.endswith("/edit"))
+    check("8.5 multi_references : GPT fal oui, GPT direct non, Nano et Seedream oui, Recraft non",
+          IP.multi_references("gpt-image-2-fal") and IP.multi_references("gpt-image-2.5-flare-fal")
+          and not IP.multi_references("gpt-image-2") and not IP.multi_references("gpt-image-2.5-flare")
+          and IP.multi_references("nano-banana") and IP.multi_references("seedream-5-pro")
+          and not IP.multi_references("recraft-4.1-vecteur") and not IP.multi_references("flux"))
+    # façade : trois chemins -> trois téléversements, trois URLs
+    from app.services import fal_service as FS
+    vus = []
+
+    async def _up(ch):
+        vus.append(pathlib.Path(ch).name)
+        return "http://fal.test/" + pathlib.Path(ch).name
+    _up0 = FS.FalSeedanceClient.upload_image
+    FS.FalSeedanceClient.upload_image = staticmethod(_up)
+    try:
+        chemins = []
+        for i in range(3):
+            p = pathlib.Path(_tmp, f"ref{i}.png"); p.write_bytes(_PNG); chemins.append(p)
+        FAL_CALLS.clear()
+        await IP.generate("gpt-image-2.5-flare-fal", "p", "square_hd", 1, image_paths=chemins, qualite="low")
+        a = FAL_CALLS[-1]["arguments"]
+        check("8.6 façade : les trois références téléversées et envoyées", vus == ["ref0.png", "ref1.png", "ref2.png"]
+              and a.get("image_urls") == [f"http://fal.test/ref{i}.png" for i in range(3)], (vus, a.get("image_urls")))
+        check("8.7 façade : le palier suit toujours", a.get("quality") == "low")
+        vus.clear()
+        await IP.generate("gpt-image-2-fal", "p", "square_hd", 1, image_path=chemins[0])
+        check("8.8 façade : une image seule (forme d'avant)", vus == ["ref0.png"]
+              and FAL_CALLS[-1]["arguments"].get("image_urls") == ["http://fal.test/ref0.png"])
+    finally:
+        FS.FalSeedanceClient.upload_image = _up0
+    d0 = P.estimate({"kind": "image", "n": 1, "model": "gpt-image-2.5-flare-fal"})
+    d3 = P.estimate({"kind": "image", "n": 2, "model": "gpt-image-2.5-flare-fal", "refs": 3})
+    check("8.9 devis sans références : inchangé (une ligne)", len(d0["breakdown"]) == 1)
+    check("8.10 devis : 0,012 $ par référence et par image", abs(d3["total_usd"] - (2 * 0.053 + 2 * 3 * 0.012)) < 1e-3
+          and len(d3["breakdown"]) == 2, d3)
+    dn = P.estimate({"kind": "image", "n": 1, "model": "nano-banana", "refs": 5})
+    check("8.11 Nano Banana : les références ne changent pas le prix", len(dn["breakdown"]) == 1)
+    check("8.12 chaque id GPT via fal est facturé à la référence, au plus haut relevé (0,012 $)",
+          set(P.IMAGE_REF_USD) == set(IP._FAL_GPT) and all(v >= 0.012 for v in P.IMAGE_REF_USD.values()))
+    t = (ROOT / "backend/app/api/routes.py").read_text(encoding="utf-8")
+    check("8.13 retouche : l'identité de l'espace accepte GPT via fal (multi_references)",
+          "if not IP.multi_references(model):" in t)
+    check("8.14 retouche : la garde chiffre les références", '"refs": 1 + len(refs_idv)}' in t)
+
+
 if __name__ == "__main__":
     bloc_registre()
     bloc_devis()
@@ -326,5 +383,6 @@ if __name__ == "__main__":
     asyncio.run(bloc_route())
     bloc_ecran()
     asyncio.run(bloc_reecriture())
+    asyncio.run(bloc_references())
     print(f"\n{ok} PASS, {fail} FAIL")
     sys.exit(1 if fail else 0)

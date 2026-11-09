@@ -385,6 +385,11 @@ IMAGE_QUALITES = {
 }
 QUALITE_DEFAUT = "high"
 
+# t480 (F6.3) : GPT Image servi par fal facture CHAQUE image de référence d'une retouche en entrée (8 $ / 1M jetons) :
+# « about $0.008 » jusqu'à 1024², « about $0.012 » en 3840×2160 (fal.ai/models/openai/gpt-image-2.5/flare/edit,
+# relevé le 09/11/2026). On retient le plus haut. Les autres modèles ont un prix d'edit forfaitaire : rien n'est ajouté.
+IMAGE_REF_USD = {"gpt-image-2-fal": 0.012, "gpt-image-2.5-flare-fal": 0.012, "gpt-image-2.5-sunburst-fal": 0.012}
+
 
 def qualite_image(model: str, demande=None) -> str | None:
     """Le palier servi pour `model` : None si le modèle n'a pas de palier ; sinon le palier demandé s'il est permis,
@@ -947,6 +952,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
             unit = unit * facteur_qualite(model, q)
             label = f"{label} · {q}"
         lines.append(_line(prov, f"{label} x{n}", n, "image", n * unit))
+        refs = max(0, int(op.get("refs") or 0))            # t480 : références d'une retouche (en entrée)
+        if refs and model in IMAGE_REF_USD:
+            lines.append(_line(prov, f"{label} : références x{refs}", n * refs, "image",
+                               n * refs * IMAGE_REF_USD[model]))
     elif kind == "flux_kontext":
         # t339 : fal-ai/flux-kontext/dev, édition chaînée sur une image de référence (vues de directions du
         # Spritelab) — un op à part : ce n'est pas un générateur choisissable du registre des images
