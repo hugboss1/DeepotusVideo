@@ -93,6 +93,7 @@
   "matte.note_a_mesurer": {"fr": "prix à mesurer : {modele} — lire le montant sur le tableau de bord fal après ce tir, puis l'écrire dans pricing.{champ}", "en": "price to be measured: {modele} — read the amount on the fal dashboard after this run, then write it into pricing.{champ}"},
   "musique.decrire": {"fr": "Décris la musique voulue, ou choisis une ambiance.", "en": "Describe the music you want, or pick a mood."},
   "musique.duree_bornes": {"fr": "duration_s doit être entre {lo} et {hi} s pour {modele}.", "en": "duration_s must be between {lo} and {hi} s for {modele}."},
+  "musique.bpm_bornes": {"fr": "bpm doit être entre {lo} et {hi}.", "en": "bpm must be between {lo} and {hi}."},
   "musique.paroles_exigees_10": {"fr": "{modele} exige des paroles (10 caractères au moins, balises non comptées).", "en": "{modele} requires lyrics (10 characters at least, tags not counted)."},
   "musique.paroles_exigees_3000": {"fr": "{modele} exige des paroles (10 à 3000 caractères).", "en": "{modele} requires lyrics (10 to 3000 characters)."},
   "musique.note.duree_imposee": {"fr": "{modele} impose sa durée — la durée demandée a été ignorée.", "en": "{modele} sets its own length — the requested length was ignored."},

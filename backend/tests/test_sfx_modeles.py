@@ -585,8 +585,11 @@ check("ElevenLabs v2 (fal) : `loop` nommé, jamais envoyé par défaut ; posé s
 mu = {e["id"]: e for e in CI.lister("musique")}
 check("catalogue musique : lyria-3.5, elevenlabs-music-2.5 ; lyria3 = défaut",
       "lyria-3.5" in mu and "elevenlabs-music-2.5" in mu and mu["lyria3"]["defaut"] is True, list(mu))
-check("catalogue musique : « à mesurer » pour lyria-3.5, minimax-music-3, stable-audio-3",
-      all(mu[k]["note"] == CI.NOTE_A_MESURER for k in ("lyria-3.5", "minimax-music-3", "stable-audio-3")), "")
+# t486 (F6.8) : fal publie maintenant leurs prix (relevés le 09/11/2026) — plus « à mesurer »
+check("catalogue musique : prix relevés pour lyria-3.5 (0,10 $), minimax-music-3 (0,002 $/s), stable-audio-3 (0,0376 $)",
+      mu["lyria-3.5"]["usd"] == 0.10 and mu["minimax-music-3"]["usd"] == 0.002
+      and mu["stable-audio-3"]["usd"] == 0.0376
+      and all(mu[k]["note"] != CI.NOTE_A_MESURER for k in ("lyria-3.5", "minimax-music-3", "stable-audio-3")), "")
 check("catalogue musique : ElevenLabs 0,60 $/min ; Mureka 0,75 $ (0,225 $ avec paroles)",
       mu["elevenlabs-music-2.5"]["usd"] == 0.60 and mu["elevenlabs-music-2.5"]["unite"] == "min"
       and mu["mureka-9.5"]["usd"] == 0.75 and mu["mureka-9.5"]["usd_paroles"] == 0.225, "")
@@ -626,8 +629,9 @@ for sec, usd in ((61, 1.20), (60, 0.60), (3, 0.60), (600, 6.0), (None, 0.60)):
 check("Mureka : 0,225 $ avec paroles, 0,75 $ sur description seule",
       abs(P.estimate({"kind": "music", "model": "mureka-9.5", "paroles": True})["total_usd"] - 0.225) < 1e-9
       and abs(P.estimate({"kind": "music", "model": "mureka-9.5"})["total_usd"] - 0.75) < 1e-9)
-check("Lyria 3.5 : 0 et « prix à mesurer »",
-      "prix à mesurer" in P.estimate({"kind": "music", "model": "lyria-3.5"})["breakdown"][0]["label"])
+check("Lyria 3.5 : 0,10 $ au devis, plus « prix à mesurer » (t486)",
+      "prix à mesurer" not in P.estimate({"kind": "music", "model": "lyria-3.5"})["breakdown"][0]["label"]
+      and abs(P.estimate({"kind": "music", "model": "lyria-3.5"})["total_usd"] - 0.10) < 1e-9)
 d0 = n_depenses()
 st, js = call("POST", "/audio/music", {"model": "minimax-music-3", "prompt": "hymne", "lyrics": "court"})
 check("/audio/music MiniMax 3 sans paroles -> 400 AVANT la garde, zéro ligne depenses",
@@ -727,10 +731,15 @@ _i = _SONV.find("function svmMusicPrice(")
 _fn = _SONV[_i:_SONV.find("\n\n", _i)] if _i > 0 else ""
 _MCAT = {m["id"]: m for m in MS.catalog()["models"]}
 _MCAT["lyria3-sans-cle"] = dict(_MCAT["lyria3"], dispo=False)
+# t486 : plus aucun modèle du registre n'est à 0 $ ; la règle « à 0 $ la carte dit prix à mesurer » reste éprouvée
+# sur deux copies à 0 $ (une à la génération, une à la seconde)
+_MCAT["essai-a-mesurer"] = dict(_MCAT["lyria-3.5"], usd=0, note="a_mesurer")
+_MCAT["essai-a-mesurer-s"] = dict(_MCAT["minimax-music-3"], usd=0, note="a_mesurer")
 if _node and _fn:
-    _cas = [["lyria-3.5", 30, ""], ["elevenlabs-music-2.5", 61, ""], ["elevenlabs-music-2.5", 60, ""],
+    _cas = [["essai-a-mesurer", 30, ""], ["elevenlabs-music-2.5", 61, ""], ["elevenlabs-music-2.5", 60, ""],
             ["mureka-9.5", 0, "[Verse]\nSous la mer"], ["mureka-9.5", 0, "[Verse]\n"], ["ace-step", 120, ""],
-            ["lyria3", 30, ""], ["minimax-music-3", 60, "[Verse]\nla la la la la"], ["lyria3-sans-cle", 30, ""]]
+            ["lyria3", 30, ""], ["essai-a-mesurer-s", 60, "[Verse]\nla la la la la"], ["lyria3-sans-cle", 30, ""],
+            ["lyria-3.5", 30, ""], ["minimax-music-3", 60, "[Verse]\nla la la la la"]]
     _jsm = ("var DICO=" + json.dumps(_DICO, ensure_ascii=False) + ";function dzT(k,v){var t=(DICO[k]&&DICO[k].fr)||k;for(var x in (v||{}))t=t.split('{'+x+'}').join(String(v[x]));return t}\n"
             + _fn + "\nvar CAT=" + json.dumps(_MCAT, ensure_ascii=False) + ",CAS=" + json.dumps(_cas, ensure_ascii=False)
             + ";process.stdout.write(JSON.stringify(CAS.map(function(c){return svmMusicPrice(CAT[c[0]],c[1],c[2])})))")
@@ -741,16 +750,18 @@ if _node and _fn:
         _px = json.loads(_pm.stdout)
     except Exception:  # noqa: BLE001
         _px = [_pm.stderr[-300:]]
-    check("rail Musique : à 0 $ la carte dit « prix à mesurer » (Lyria 3.5, MiniMax Music 3), jamais « $0.00 »",
+    check("rail Musique : à 0 $ la carte dit « prix à mesurer » (à la génération ET à la seconde), jamais « $0.00 »",
           _px[0] == "prix à mesurer" and _px[7] == "prix à mesurer", _px)
+    check("rail Musique : prix relevés le 09/11 (Lyria 3.5 ~$0.10, MiniMax Music 3 60 s ~$0.120) — t486",
+          _px[9] == "~$0.10" and _px[10] == "~$0.120 · 60 s", _px[9:])
     check("rail Musique : ElevenLabs Music à la minute ENTAMÉE (61 s = ~$1.20, 60 s = ~$0.60)",
           _px[1] == "~$1.20 · 61 s" and _px[2] == "~$0.60 · 60 s", _px)
     check("rail Musique : Mureka ~$0.225 avec paroles chantées, ~$0.75 sur description (balises seules = sans paroles)",
           _px[3] == "~$0.225" and _px[4] == "~$0.75", _px)
     check("rail Musique : sans FAL_KEY la carte garde son prix ET dit « clé FAL_KEY à ajouter dans Réglages »",
-          _px[8] == "~$0.10 · clé FAL_KEY à ajouter dans Réglages", _px[8:])
-    check("rail Musique : prix d'avant inchangés (ACE-Step 120 s ~$0.024, Lyria 3 ~$0.10)",
-          _px[5] == "~$0.024 · 120 s" and _px[6] == "~$0.10", _px)
+          _px[8] == "~$0.04 · clé FAL_KEY à ajouter dans Réglages", _px[8:])
+    check("rail Musique : ACE-Step 120 s ~$0.024 inchangé ; Lyria 3 ~$0.04 (relevé fal du 09/11, t486)",
+          _px[5] == "~$0.024 · 120 s" and _px[6] == "~$0.04", _px)
 else:
     check("node présent, svmMusicPrice extraite", False, (_node, len(_fn)))
 check("durée affichée bornée à celle du modèle choisi (carte et tiroir), envoi borné aussi",

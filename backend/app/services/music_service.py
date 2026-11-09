@@ -47,8 +47,12 @@ MUSIC_MODELS: dict = {
         "desc": "Le plus abouti du catalogue. 30 s, 44.1 kHz, gère la voix "
                 "chantée et les paroles (fr, en, es, de, ja, ko, pt, hi).",
         "duration": None, "fixed_duration": 30.0,
-        "lyrics": False, "instrumental": False, "seed": False,
-        "usd": 0.10,
+        # t486 (F6.8, schéma relu le 09/11/2026) : Lyria 3 a un `negative_prompt` ; l'instrumental passe par lui
+        # (« vocals, singing… »), jamais par le texte de la description — `instrumental_negatif`
+        "lyrics": False, "instrumental": True, "instrumental_negatif": True, "seed": False,
+        # t486 : « $0.04 per audios » (fal, 09/11/2026 ; c'était 0,10 $)
+        "usd": 0.04,
+        "champs": {"prompt": "prompt", "negatif": "negative_prompt"},
     },
     "stable-audio-25": {
         "label": "Stable Audio 2.5", "provider": "fal",
@@ -66,7 +70,8 @@ MUSIC_MODELS: dict = {
                 "instrumental. Pour un générique ou un hymne de marque.",
         "duration": None, "fixed_duration": None,
         "lyrics": True, "instrumental": True, "seed": False,
-        "usd": 0.14,
+        # t486 : « $0.15 per audios » (fal, 09/11/2026) — c'était 0,14 $, SOUS la facture
+        "usd": 0.15,
     },
     "cassetteai": {
         "label": "CassetteAI", "provider": "fal",
@@ -126,8 +131,9 @@ MUSIC_MODELS: dict = {
         "desc": "La nouvelle génération Lyria : description et ce qu'il faut "
                 "éviter (prompt négatif). Durée choisie par le modèle.",
         "duration": None, "fixed_duration": None,
-        "lyrics": False, "instrumental": False, "seed": False,
-        "usd": 0.0, "champs": {"prompt": "prompt", "negatif": "negative_prompt"},
+        # t486 : instrumental par le négatif, comme Lyria 3 ; « $0.1 per generations » (fal, 09/11/2026)
+        "lyrics": False, "instrumental": True, "instrumental_negatif": True, "seed": False,
+        "usd": 0.10, "champs": {"prompt": "prompt", "negatif": "negative_prompt"},
     },
     "elevenlabs-music-2.5": {
         "label": "ElevenLabs Music 2.5", "provider": "fal",
@@ -148,7 +154,8 @@ MUSIC_MODELS: dict = {
                 "jusqu'à 5 min.",
         "duration": (1, 300), "fixed_duration": None, "default_s": 60,
         "lyrics": True, "instrumental": False, "seed": True,
-        "usd": 0.0, "lyrics_style": "minimax", "lyrics_required": True,
+        # t486 : « $0.002 per seconds » (fal, 09/11/2026), sur la durée envoyée
+        "usd": 0.002, "usd_unit": "s", "lyrics_style": "minimax", "lyrics_required": True,
         "champs": {"prompt": "prompt", "duree": "duration", "paroles": "lyrics", "seed": "seed"},
     },
     "stable-audio-3": {
@@ -158,7 +165,8 @@ MUSIC_MODELS: dict = {
                 "négatif et graine reproductible.",
         "duration": (1, 380), "fixed_duration": None, "default_s": 60,
         "lyrics": False, "instrumental": False, "seed": True,
-        "usd": 0.0,
+        # t486 : « $0.0376 per audios » (fal, 09/11/2026)
+        "usd": 0.0376,
         "champs": {"prompt": "prompt", "duree": "duration", "negatif": "negative_prompt", "seed": "seed"},
     },
     "mureka-9.5": {
@@ -257,9 +265,17 @@ def catalog() -> dict:
     }
 
 
-def build_prompt(prompt: str, mood: str = "") -> str:
+BPM_BORNES = (40, 220)
+_BPM_RX = re.compile(r",?\s*\b\d{2,3}\s*BPM\b", re.I)
+
+
+def build_prompt(prompt: str, mood: str = "", bpm=None) -> str:
     """Prompt final = ambiance choisie + description libre. L'ambiance passe
-    devant : les modèles de musique lisent surtout le début du prompt."""
+    devant : les modèles de musique lisent surtout le début du prompt.
+    t486 (F6.8) : `bpm` (40-220). Aucun modèle de musique de fal n'a de champ
+    tempo (schémas relus le 09/11/2026) : le tempo s'ÉCRIT dans le prompt, sous
+    une seule forme (« 92 BPM »), en fin ; il remplace un tempo déjà écrit (celui
+    d'une ambiance), pour qu'aucun prompt n'en porte deux."""
     bits = []
     m = MOOD_BY_ID.get(str(mood or "").strip())
     if m:
@@ -270,6 +286,16 @@ def build_prompt(prompt: str, mood: str = "") -> str:
     out = ", ".join(bits)
     if not out:
         raise MusicError(400, Message("musique.decrire"))
+    if bpm not in (None, "", 0):
+        try:
+            b = int(round(float(bpm)))
+        except (TypeError, ValueError):
+            b = 0
+        lo, hi = BPM_BORNES
+        if not lo <= b <= hi:
+            raise MusicError(400, Message("musique.bpm_bornes", lo=lo, hi=hi))
+        out = _BPM_RX.sub("", out).strip().strip(",").strip()
+        return (out[:_MAX_PROMPT - 12] + f", {b} BPM") if out else f"{b} BPM"
     return out[:_MAX_PROMPT]
 
 
@@ -385,7 +411,9 @@ def _payload_champs(model: dict, prompt: str, body: dict) -> tuple[dict, list[st
         d = _duree(model, dur)
         args[ch["duree"]] = d * 1000 if ch.get("duree_ms") else d
     elif dur not in (None, "", 0):
-        notes.append(Message("musique.note.duree_imposee", modele=_nom(model)))
+        fixed = model.get("fixed_duration")       # t486 : Lyria 3 garde sa durée dite (30 s)
+        notes.append(Message("musique.note.duree_imposee_s", modele=_nom(model), s=f"{fixed:g}") if fixed
+                     else Message("musique.note.duree_imposee", modele=_nom(model)))
     lyrics = str(body.get("lyrics") or "").strip()
     chante = len(_TAG_RX.sub("", lyrics).strip())
     if ch.get("paroles"):
@@ -399,6 +427,11 @@ def _payload_champs(model: dict, prompt: str, body: dict) -> tuple[dict, list[st
     if ch.get("instrumental") and model.get("instrumental"):
         args[ch["instrumental"]] = bool(body.get("instrumental", True))
     neg = str(body.get("negative_prompt") or "").strip()
+    # t486 (F6.8) : un modèle sans interrupteur mais avec un négatif (Lyria) fait l'instrumental PAR LE NÉGATIF —
+    # jamais en écrivant « instrumental » dans la description, que le modèle lit comme un genre parmi d'autres
+    # DEMANDÉ explicitement (l'écran l'envoie toujours ; un appelant d'API qui ne dit rien garde le comportement d'avant)
+    if model.get("instrumental_negatif") and ch.get("negatif") and body.get("instrumental") is True:
+        neg = ", ".join(x for x in (INSTRUMENTAL_NEGATIF, neg) if x)
     if ch.get("negatif") and neg:
         args[ch["negatif"]] = neg[:_MAX_PROMPT]
     seed = body.get("seed")
@@ -410,6 +443,9 @@ def _payload_champs(model: dict, prompt: str, body: dict) -> tuple[dict, list[st
     elif seed not in (None, "") and not ch.get("seed"):
         notes.append(Message("musique.note.sans_graine", modele=_nom(model)))
     return args, notes
+
+
+INSTRUMENTAL_NEGATIF = "vocals, singing, voice, lyrics, choir"
 
 
 def paroles_envoyees(model: dict, body: dict) -> bool:
@@ -536,7 +572,7 @@ def preparer(body: dict) -> dict:
     des plafonds : la route l'appelle d'abord, puis garde, puis tire avec ce qu'elle rend."""
     body = body or {}
     model_id, model = modele_de(body)
-    prompt = build_prompt(body.get("prompt", ""), body.get("mood", ""))
+    prompt = build_prompt(body.get("prompt", ""), body.get("mood", ""), body.get("bpm"))
     args, notes = _payload(model, prompt, body)
     return {"model_id": model_id, "model": model, "prompt": prompt, "args": args, "notes": notes,
             "paroles": paroles_envoyees(model, body)}
