@@ -30,7 +30,7 @@ export function dialogue_recolorer_dom(spec) {
     const C = spec.couleurs;
     let graine = 1;
     const ligne = (c, i) => `<div class="rec-ligne" style="display:grid;grid-template-columns:28px 16px 44px 1fr;gap:8px;align-items:center">
-      <span title="${_esc(c.hex)}" style="width:28px;height:20px;background:${c.hex};border:1px solid var(--vl-bord, #555)"></span><span>→</span>
+      <span title="${_esc(c.hex)}" style="width:28px;height:20px;background:${c.hex};border:1px solid var(--vl-bord, #555)"></span><svg width="16" height="12" viewBox="0 0 16 12" aria-hidden="true"><path d="M1 6 H13 M9 2 L13 6 L9 10" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
       <input type="color" data-i="${i}" value="${c.hex}" aria-label="${_esc(T("vectorlab.recolorer.nouvelle"))} ${_esc(c.hex)}" style="width:44px;height:24px;padding:0;border:0"/>
       <span style="opacity:.75">${_esc(c.hex)} · ${_esc(T("vectorlab.recolorer.usages", { n: c.n }))}</span></div>`;
     hote.innerHTML = `<div class="vl-dlg-boite vl-dlg-petite" role="dialog" aria-modal="true" aria-label="${_esc(spec.titre)}">
