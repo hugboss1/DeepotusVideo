@@ -801,7 +801,10 @@
                    qchoisie: (d.qualites || {})[e.id] || e.qualite_defaut || "",
                    /* t479 (F6.2) : interrupteur de réécriture du prompt (Ideogram) ; absent du réglage = actif */
                    reecriture: !!e.reecriture,
-                   rchoisie: (d.reecritures || {})[e.id] !== false };
+                   rchoisie: (d.reecritures || {})[e.id] !== false,
+                   /* t481 (F6.4) : résolutions {1K: $/image…} (Nano Banana Pro et 2.1) et la choisie */
+                   resolutions: e.resolutions || null,
+                   reschoisie: (d.resolutions || {})[e.id] || e.resolution_defaut || "" };
         }));
         return { defaut: d.default || "", modeles: mods };
       });
@@ -1295,6 +1298,43 @@
           rang.appendChild(qb);
         });
         L.appendChild(rang);
+      }
+      /* t481 (F6.4) : la RÉSOLUTION de sortie (Nano Banana Pro et 2.1 : 1K, 2K, 4K), prix en infobulle ; enregistrée
+         par modèle (`image_resolution:<id>`) comme le palier de qualité */
+      if (mq && mq.resolutions) {
+        var rres = D.createElement("div");
+        rres.className = "dzia-qual";
+        rres.setAttribute("role", "group");
+        rres.setAttribute("aria-label", TP("ia.resolution.titre", "Résolution"));
+        var rt = D.createElement("span");
+        rt.className = "dzia-qtit";
+        rt.textContent = TP("ia.resolution.titre", "Résolution");
+        rres.appendChild(rt);
+        Object.keys(mq.resolutions).forEach(function (r) {
+          var xb = D.createElement("button");
+          xb.setAttribute("type", "button");
+          xb.setAttribute("tabindex", "-1");
+          xb.className = "dzia-qbtn dzia-resbtn";
+          xb.setAttribute("data-resolution", r);
+          xb.textContent = r;
+          xb.setAttribute("title", r + " · " + (prixUsd(mq.resolutions[r], "image") || aMesurer()));
+          xb.setAttribute("aria-pressed", r === mq.reschoisie ? "true" : "false");
+          xb.addEventListener("mousedown", function (ev) { ev.preventDefault(); });
+          xb.addEventListener("click", function (ev) {
+            ev.preventDefault(); ev.stopPropagation();
+            var corps = {}; corps["image_resolution:" + cour] = r;
+            W.fetch("/api/atelier/settings", { method: "PUT", headers: { "Content-Type": "application/json" },
+                                               body: JSON.stringify(corps) }).then(function (rp) {
+              if (!rp.ok) return;
+              mq.reschoisie = r;
+              var bs = rres.querySelectorAll(".dzia-resbtn");
+              for (var i = 0; i < bs.length; i++)
+                bs[i].setAttribute("aria-pressed", bs[i].getAttribute("data-resolution") === r ? "true" : "false");
+            }, function () {});
+          });
+          rres.appendChild(xb);
+        });
+        L.appendChild(rres);
       }
       /* t479 (F6.2) : la RÉÉCRITURE DU PROMPT par le fournisseur (Ideogram « magic prompt »), active par défaut ;
          la couper garde le texte exact du prompt (slogan, nom de marque). Enregistrée par modèle

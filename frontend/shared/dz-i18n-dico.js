@@ -7131,6 +7131,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "ia.reecriture.non": {"fr": "non", "en": "off", "contexte": true},
   "ia.reecriture.oui": {"fr": "oui", "en": "on", "contexte": true},
   "ia.reecriture.titre": {"fr": "Réécriture du prompt", "en": "Prompt rewriting"},
+  "ia.resolution.titre": {"fr": "Résolution", "en": "Resolution", "contexte": true},
   "ia.voie.anthropic": {"fr": "avec votre clé Anthropic", "en": "with your Anthropic key"},
   "ia.voie.elevenlabs": {"fr": "avec votre clé ElevenLabs", "en": "with your ElevenLabs key"},
   "ia.voie.fal": {"fr": "via la clé fal", "en": "with the fal key"},

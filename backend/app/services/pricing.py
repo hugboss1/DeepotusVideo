@@ -388,7 +388,30 @@ QUALITE_DEFAUT = "high"
 # t480 (F6.3) : GPT Image servi par fal facture CHAQUE image de référence d'une retouche en entrée (8 $ / 1M jetons) :
 # « about $0.008 » jusqu'à 1024², « about $0.012 » en 3840×2160 (fal.ai/models/openai/gpt-image-2.5/flare/edit,
 # relevé le 09/11/2026). On retient le plus haut. Les autres modèles ont un prix d'edit forfaitaire : rien n'est ajouté.
-IMAGE_REF_USD = {"gpt-image-2-fal": 0.012, "gpt-image-2.5-flare-fal": 0.012, "gpt-image-2.5-sunburst-fal": 0.012}
+IMAGE_REF_USD = {"gpt-image-2-fal": 0.012, "gpt-image-2.5-flare-fal": 0.012, "gpt-image-2.5-sunburst-fal": 0.012,
+                 # t481 (F6.4) : Nano Banana 2.1, aux jetons — « each input image is about 1,120 tokens, roughly
+                 # $0.002 » (fal.ai/models/google/nano-banana-2.1, relevé le 09/11/2026)
+                 "nano-banana-2.1": 0.002}
+
+# t481 (F6.4) : RÉSOLUTION de sortie des Nano Banana qui en ont une (schéma fal relu le 09/11/2026 : 1K, 2K, 4K ;
+# défaut 1K, celui que les clés de prix chiffrent). Facteur sur la clé 1K, arrondi au-dessus :
+# - Nano Banana Pro : « 4K outputs will be charged at double the standard rate » (1K et 2K au même prix) ;
+# - Nano Banana 2.1 : aux jetons, 1K 0,040 / 2K 0,059 / 4K 0,134 $ (edit à deux images : 0,044 / 0,063 / 0,138).
+IMAGE_RESOLUTIONS = {
+    "nano-banana-pro": {"1K": 1.0, "2K": 1.0, "4K": 2.0},
+    "nano-banana-2.1": {"1K": 1.0, "2K": 1.5, "4K": 3.4},
+}
+RESOLUTION_DEFAUT = "1K"
+
+
+def resolution_image(model: str, demande=None) -> str | None:
+    """La résolution servie pour `model` : None sans choix de résolution ; sinon la demandée si permise (casse
+    ignorée, « 2k » = « 2K »), 1K dans tous les autres cas."""
+    table = IMAGE_RESOLUTIONS.get(str(model or "").strip().lower())
+    if not table:
+        return None
+    r = str(demande or "").strip().upper()
+    return r if r in table else RESOLUTION_DEFAUT
 
 
 def qualite_image(model: str, demande=None) -> str | None:
@@ -951,6 +974,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         if q and q != QUALITE_DEFAUT:                     # high : ligne inchangée, à l'octet
             unit = unit * facteur_qualite(model, q)
             label = f"{label} · {q}"
+        res = resolution_image(model, op.get("resolution"))   # t481 : résolution (None = sans choix)
+        if res and res != RESOLUTION_DEFAUT:                  # 1K : ligne inchangée, à l'octet
+            unit = unit * IMAGE_RESOLUTIONS[model][res]
+            label = f"{label} · {res}"
         lines.append(_line(prov, f"{label} x{n}", n, "image", n * unit))
         refs = max(0, int(op.get("refs") or 0))            # t480 : références d'une retouche (en entrée)
         if refs and model in IMAGE_REF_USD:
