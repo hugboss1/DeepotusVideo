@@ -658,6 +658,9 @@
       var st = ev.target && ev.target.__dzia;
       if (st && st.modele && st.modele.charge && st.modele.charge.indexOf("atelier") >= 0) charger("atelier", true);
     }, true);
+    /* « Appliquer » dans 🎨 DA : les pastilles des encarts (style, entités, plans) suivent AUSSITÔT le générateur choisi,
+       sans attendre qu'on reclique dans un champ */
+    W.addEventListener("dz:atelier-maj", function () { charger("atelier", true); });
     D.addEventListener("focusout", planifierSync, true);
     D.addEventListener("scroll", planifierSync, true);
     if (suivis.length) veiller();
