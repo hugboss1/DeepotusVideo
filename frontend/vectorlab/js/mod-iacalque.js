@@ -109,7 +109,9 @@ export function cibleValide(doc, voulu, repli) {
 
 // le devis serveur (POST /api/cost/estimate) : une campagne image + détourage
 // sans modèle choisi, aucun devis plutôt qu'un prix faux (null → « Prix estimé : … ») — et « Générer » est gris
-export const devisCorps = (o) => C.devisCorps({ modele: o && o.modele, detourer: !!(o && o.detourer), modeleDetour: o && o.modeleDetour });
+// case « guide » cochée : le devis de l'op edit (image guide comptée en référence, palier / résolution enregistrés)
+export const devisCorps = (o) => C.devisCorps({ modele: o && o.modele, detourer: !!(o && o.detourer), modeleDetour: o && o.modeleDetour,
+  guide: !!(o && o.guide) });
 
 // le devis du seul détourage (le bouton « Retirer le fond » du panneau Image)
 export const devisDetour = (modele) => C.devisCorps({ image: false, detourer: true, modeleDetour: modele });
@@ -254,8 +256,9 @@ export function nomDuDepot(d, cle = "vectorlab.iacalque.biblio_sans_nom") {
    ops de /images/process : la Bibliothèque classe par fonction (une édition est une retouche) et le parent, lui, est
    un `vector_` noté « vectorlab » — noter ici la source du corps changerait le classement des huit ops pour un seul
    appelant ; le serveur n'est donc pas touché. Seuls les modèles dont l'entrée du catalogue porte
-   `edit: true` savent partir d'une image. Le prix : la garde de l'op edit chiffre {kind: "image", model, n} — le
-   MÊME devis que la génération (devisCorps), donc le même chiffre avant et après le clic. */
+   `edit: true` savent partir d'une image. Le prix : la garde de l'op edit chiffre {kind: "image", model, n, refs,
+   qualite, resolution} (t480/t481) — devisCorps({guide: true}) envoie refs: 1 et reglages: true, que le devis
+   serveur résout comme la garde : le même chiffre avant et après le clic. */
 
 // les modèles qui acceptent une image d'entrée (champ `edit` de /api/ia/catalogue?nature=image)
 export function guidables(mods) {
