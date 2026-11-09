@@ -115,6 +115,15 @@ BOITES: dict[str, dict] = {
                    "publicitaire", "artiste_2d", "artiste_3d", "editeur_illustre"],   # t435-t442 : les agents métier
         "mobile": False,
     },
+    # t476 (09/11/2026, lot F1 « Fiches modèle ») : les modèles d'une nature et la fiche d'une famille (lecture,
+    # gratuit) ; Claude Code (« mcp ») et les neuf agents métier ; Campagnes reste figé (fixture)
+    "modeles": {
+        "libelle": "agent.boites.modeles",
+        "outils": ["modeles_lister", "modele_fiche"],
+        "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
+                   "publicitaire", "artiste_2d", "artiste_3d", "editeur_illustre"],
+        "mobile": False,
+    },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
     # en lecture et gratuites ; Claude Code (« mcp ») les lit ; les agents métier des lots M2-M9 les déclareront
     "briques": {

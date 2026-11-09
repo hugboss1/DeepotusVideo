@@ -657,7 +657,7 @@ function opt(id) { const l = listeOuverte(); return l ? l.querySelectorAll(".dzi
   // Library : select custom d'image, prix par image (catalogue), OpenAI sans clé grisé faute d'être dans la vue
   (pastille(tl) || {click(){}}).click(); T.listeL = vuListe();
   { const l = listeOuverte(); T.grpL = l ? l.children.filter(c => c.classList.contains("dzia-ogrp")).map(g => [g.textContent, l.children.indexOf(g)]) : null;
-    T.ordreL = l ? l.children.map(c => c.classList.contains("dzia-ogrp") ? "#" + c.getAttribute("data-voie") : c.getAttribute("data-id")) : null; }
+    T.ordreL = l ? l.children.filter(c => !c.classList.contains("dzia-fiche")).map(c => c.classList.contains("dzia-ogrp") ? "#" + c.getAttribute("data-voie") : c.getAttribute("data-id")) : null; }
   // t183 : un modèle SANS CLÉ, listé par le select de la vue (maillon encartsia), se choisit et s'écrit
   if (opt("gpt-image-2")) opt("gpt-image-2").click(); await pause(250);
   T.sansCleL = { valeur: reL.valeur, ls: localStorage.getItem("dz_image_model"), p: vuP(tl), vue: reL.sp.textContent };

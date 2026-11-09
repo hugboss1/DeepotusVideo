@@ -579,6 +579,9 @@ app.include_router(comparatif3d_router, prefix="/api/comparatif3d")
 # t433 (lot M0 « Méthodes », 08/11/2026) : le catalogue des méthodes, en lecture
 from app.api.methodes_routes import router as methodes_router
 app.include_router(methodes_router, prefix="/api/methodes")
+# t476 (09/11/2026, lot F1 « Fiches modèle ») : les fiches modèle, en lecture (gratuit)
+from app.api.modeles_routes import router as modeles_router
+app.include_router(modeles_router, prefix="/api/modeles")
 # t434 (lot M1 « Méthodes », 08/11/2026) : les briques transverses des agents métier (mesures, avis, ancres, registre)
 from app.api.briques_routes import router as briques_router
 app.include_router(briques_router, prefix="/api/briques")

@@ -51,6 +51,7 @@ M = [
  ("svc", "vues[m[\"id\"]].update(", "vues[m[\"id\"]].get("),
  ("svc", "    if langue != \"fr\" and not fiches:", "    if False:"),
  ("svc", "\"price to be measured\" if en else \"prix à mesurer\")", "\"price to be measured\" if en else \"gratuit\")"),
+ ("svc", "if m.get(\"voie\") == \"local\" else", "if False else"),
 ]
 tues = 0
 try:
