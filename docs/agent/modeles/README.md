@@ -23,6 +23,7 @@ Pour les mainteneurs. Ni l'assistant ni l'utilisateur ne lisent ce fichier ; auc
 | 2026-11-09 | F0 (t475) | Contrat, tronc commun FR/EN, service `modeles_fiches`, banc et mutations |
 | 2026-11-09 | F1 (t476) | Routes /api/modeles, outils modeles_lister / modele_fiche, boîte « modeles », « ? » des sélecteurs et de la pastille |
 | 2026-11-09 | F2 (t477) | 9 fiches vidéo FR/EN (19 modèles), colonnes nég./son, règles communes continuité et orbite, épreuve d'application |
+| 2026-11-09 | F3 (t490) | 8 fiches image et détourage FR/EN (gpt-image, ideogram, recraft, nano-banana, seedream, qwen-image, flux, detourage), colonnes image du bloc « Membres » (qualité, résolution, références, transparent, retouche, paliers low/high), épreuve d'application |
 | 2026-11-09 | F6.1 (t478) | Palier de qualité de GPT Image (2, 2.5, direct et fal) et d'Ideogram 4.5 : `pricing.IMAGE_QUALITES`, choix par modèle dans la pastille, devis et garde au palier servi. Les fiches image (F3) le citeront |
 | 2026-11-09 | F6.2 (t479) | Réécriture du prompt d'Ideogram (`enable_prompt_expansion`, texte → image) coupable par modèle : corps `reecriture` ou réglage `image_reecriture:<id>`, interrupteur dans la pastille ; sans choix, défaut fal (active) |
 | 2026-11-09 | F6.3 (t480) | GPT Image via fal en plusieurs références (16 au plus) : façade, `image_providers.multi_references` (identité de l'espace en retouche, planche de style du Studio 3D), devis 0,012 $ par référence (`pricing.IMAGE_REF_USD`) |

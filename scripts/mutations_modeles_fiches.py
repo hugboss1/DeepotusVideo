@@ -59,6 +59,12 @@ M = [
  ("svc", "    if langue != \"fr\" and not fiches:", "    if False:"),
  ("svc", "\"price to be measured\" if en else \"prix à mesurer\")", "\"price to be measured\" if en else \"gratuit\")"),
  ("svc", "if m.get(\"voie\") == \"local\" else", "if False else"),
+ # t490 (F3) : le bloc Membres des fiches IMAGE
+ ("svc", 'image = not video and any(m.get("sortie") in ("raster", "svg") for m in liste)', 'image = False'),
+ ("svc", 'return " · ".join(f"{k} ${float(v):g}" if v else str(k) for k, v in d.items())', 'return ", ".join(str(k) for k in d)'),
+ ("svc", 'oui if m.get("transparent") else non,', 'non,'),
+ ("svc", 'str(m.get("refs_max") if m.get("refs_max") is not None else "—"),', '"—",'),
+ ("svc", '("SVG, no" if en else "SVG, non") if m.get("sortie") == "svg" else (oui if m.get("edit") else non)]', '(oui if m.get("edit") else non)]'),
 ]
 tues = 0
 try:

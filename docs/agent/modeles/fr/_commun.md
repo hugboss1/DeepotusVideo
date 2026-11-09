@@ -6,8 +6,8 @@ description: À utiliser quand on lit n'importe quelle fiche modèle : règles d
 ---
 ## Aperçu
 
-Ces règles valent pour toutes les familles. Une fiche de famille les précise ou les contredit ; dans ce cas, la fiche
-gagne. Les paramètres d'un modèle (durées, formats, prix) se lisent dans le bloc « Membres », jamais dans le texte.
+Une fiche de famille peut préciser ou contredire ces règles : elle gagne alors.
+Les paramètres d'un modèle (durées, formats, prix) se lisent dans le bloc « Membres », jamais dans le texte.
 
 ## Référence rapide
 
@@ -17,9 +17,11 @@ gagne. Les paramètres d'un modèle (durées, formats, prix) se lisent dans le b
 - [PROMPT] Le format se règle dans le champ prévu, jamais dans le texte : un ratio écrit en prose donne des bandes
   noires ou un recadrage.
 - [PROMPT] Un fond transparent se demande par le paramètre ou par un détourage ; écrit dans le prompt, il sort opaque.
-- [PROMPT] Texte dans l'image : le citer entre guillemets, dire son rôle et sa place, finir par « no other text ».
-- [PIÈGE] Un prix, une mention légale, un numéro ou un logo n'est **jamais** généré. On l'incruste ensuite (Templates,
-  Montage, Card Forge) : un chiffre généré peut sortir faux sans que personne ne le voie.
+- [PROMPT] Prompt en anglais. Texte dans l'image : le citer entre guillemets dans sa langue, accents compris, dire
+  son rôle et sa place, finir par « no other text ».
+- [PIÈGE] Un prix, une mention légale, un numéro ou le logo existant d'une marque n'est **jamais** généré : on
+  l'incruste ensuite (Templates, Montage, Card Forge), un chiffre généré peut sortir faux. Un logo neuf se dessine
+  (fiche Recraft).
 - [MÉTHODE] Retouche : « change only X », puis la liste de ce qui doit rester. Une seule modification par passe ; la
   liste se répète à chaque passe.
 - [MÉTHODE] Références : donner à chaque image un rôle selon sa position (« image 1 : identité du visage, image 2 :

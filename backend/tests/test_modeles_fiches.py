@@ -186,6 +186,21 @@ def main():
               and k4[0]["son_retire"] is True
               and "retiré" in M.bloc_membres(k4, "fr") and "removed" in M.bloc_membres(k4, "en"))
         s1 = M.membres({"natures": ["video_i2v"], "ids": ["seedance-v1-pro"]})
+        # t490 (F3) : le bloc Membres d'une fiche IMAGE dit les capacités du catalogue, chacune avec son prix
+        im = M.membres({"natures": ["image"], "ids": ["gpt-image-2.5-flare-fal", "nano-banana-pro", "recraft-4.1-vecteur",
+                                                      "gpt-image-2"]})
+        bi_fr, bi_en = M.bloc_membres(im, "fr"), M.bloc_membres(im, "en")
+        lg = {l.split("|")[1].strip(): [c.strip() for c in l.split("|")[1:-1]] for l in bi_fr.splitlines()
+              if l.startswith("| ") and not l.startswith("| id")}
+        check("3.5e Membres image : colonnes qualité, rés., réf., transp., retouche (FR/EN)",
+              "| qualité | res. | réf. | transp. | retouche |" in bi_fr
+              and "| quality | res. | refs | transp. | edit |" in bi_en and "| s |" not in bi_fr, bi_fr[:300])
+        check("3.5f Membres image : prix PAR palier, résolutions, références, fond, SVG",
+              "low $" in lg["gpt-image-2.5-flare-fal"][5] and "max $" in lg["gpt-image-2.5-flare-fal"][5]
+              and lg["gpt-image-2.5-flare-fal"][7] == "16" and lg["gpt-image-2.5-flare-fal"][8] == "oui"
+              and "4K $" in lg["nano-banana-pro"][6] and lg["nano-banana-pro"][7] == "14"
+              and lg["gpt-image-2"][7] == "1" and lg["gpt-image-2"][8] == "non"
+              and lg["recraft-4.1-vecteur"][9] == "SVG, non", lg)
         check("3.5d sans interrupteur ni piste imposée (Seedance 1.0 Pro) : dit « sans interrupteur »",
               s1 and s1[0]["son_coupe"] is False and s1[0]["son_retire"] is False
               and "sans interrupteur" in M.bloc_membres(s1, "fr") and "no switch" in M.bloc_membres(s1, "en"))

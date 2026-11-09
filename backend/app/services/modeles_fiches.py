@@ -122,11 +122,23 @@ def _plage(v) -> str:
     return ", ".join(str(x) for x in v) if isinstance(v, list) else str(v)
 
 
+def _paliers(d) -> str:
+    """t490 : « low $0.0064 · high $0.053 » — chaque palier (qualité, résolution) avec son prix au catalogue."""
+    if not isinstance(d, dict) or not d:
+        return "—"
+    return " · ".join(f"{k} ${float(v):g}" if v else str(k) for k, v in d.items())
+
+
 def bloc_membres(liste: list[dict], langue: str = "fr") -> str:
     """Le tableau « Membres » en markdown, NEUTRE de langue hors titres (ids, chiffres, unités codées)."""
     en = _langue(langue) == "en"
     video = any("durations" in m for m in liste)
+    # t490 (F3) : les modèles d'image portent leurs capacités au catalogue (F6) — palier de qualité, résolution,
+    # nombre de références, fond transparent, retouche : ce qui décide d'un choix, lu au catalogue, jamais recopié
+    image = not video and any(m.get("sortie") in ("raster", "svg") for m in liste)
     tete = ["id", "label", "route" if en else "voie", "price" if en else "prix", "key" if en else "clé"]
+    if image:
+        tete += ["quality" if en else "qualité", "res.", "refs" if en else "réf.", "transp.", "edit" if en else "retouche"]
     if video:
         tete += ["s", "ratios", "res.", "end" if en else "fin", "seed", "neg." if en else "nég.", "audio" if en else "son"]
     lignes = ["## " + _MEMBRES[_langue(langue)], "", "| " + " | ".join(tete) + " |",
@@ -140,6 +152,12 @@ def bloc_membres(liste: list[dict], langue: str = "fr") -> str:
         cle = (m.get("cle") or ("none" if en else "aucune")) + ("" if m.get("dispo") else (" (missing)" if en
                                                                                           else " (absente)"))
         cells = [m["id"], m.get("label") or "", m.get("voie") or "", prix, cle]
+        if image:
+            oui, non = ("yes", "no") if en else ("oui", "non")
+            cells += [_paliers(m.get("qualites")), _paliers(m.get("resolutions")),
+                      str(m.get("refs_max") if m.get("refs_max") is not None else "—"),
+                      oui if m.get("transparent") else non,
+                      ("SVG, no" if en else "SVG, non") if m.get("sortie") == "svg" else (oui if m.get("edit") else non)]
         if video:
             oui, non = ("yes", "no") if en else ("oui", "non")
             cells += [_plage(m.get("durations")), _plage(m.get("ratios")), _plage(m.get("resolutions")),
