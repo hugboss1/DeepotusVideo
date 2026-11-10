@@ -121,7 +121,7 @@ def main():
           len(metiers) == 9 and all("arbitrer_sorties" in B.outils_pour(a) for a in metiers)
           and "arbitrer_sorties" not in B.outils_pour("mcp") and "arbitrer_sorties" not in B.outils_pour("campagnes"))
     o = set(B.outils_pour("editeur_illustre"))
-    attendu = {"ajuster_texte", "arbitrer_sorties", "methodes_lire", "modeles_lister", "modele_fiche", "mesurer_sortie", "comparer_sorties",
+    attendu = {"ajuster_texte", "arbitrer_sorties", "methodes_lire", "modeles_lister", "modele_fiche", "recommander_modele", "verifier_prompt", "mesurer_sortie", "comparer_sorties",
                "ancres_lire", "ancre_verifier", "registre_lire"}
     check("B2 l'Éditeur : edition + arbitre + méthodes + briques — exactement, lecture ; registre sain",
           o == attendu and all(ao.OUTILS[x]["nature"] == "lecture" for x in o) and B.verifier() == [],

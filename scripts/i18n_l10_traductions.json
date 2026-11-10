@@ -14654,5 +14654,25 @@
  "Texte vide pour la langue {lg}.": {
   "fr": "Texte vide pour la langue {lg}.",
   "en": "Empty text for language {lg}."
+ },
+ "nature d'appel inconnue": {
+  "fr": "nature d'appel inconnue",
+  "en": "unknown call nature"
+ },
+ "modèle d'IA inconnu": {
+  "fr": "modèle d'IA inconnu",
+  "en": "unknown AI model"
+ },
+ "contrainte illisible": {
+  "fr": "contrainte illisible",
+  "en": "unreadable constraint"
+ },
+ "contrainte « {k} » : un nombre est attendu, pas « {v} »": {
+  "fr": "contrainte « {k} » : un nombre est attendu, pas « {v} »",
+  "en": "constraint “{k}”: a number is expected, not “{v}”"
+ },
+ "contrainte « {k} » : valeur positive attendue": {
+  "fr": "contrainte « {k} » : valeur positive attendue",
+  "en": "constraint “{k}”: a positive value is expected"
  }
 }
