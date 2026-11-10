@@ -17455,12 +17455,17 @@ def _subs_canvas(ratio=None, preview: bool = False) -> tuple[int, int]:
 
 
 def _subs_body_style(body: dict, canvas: tuple[int, int]) -> dict:
-    """Style posté par le panneau → style du moteur, résolu."""
-    from app.services import subtitle_service as S
+    """Style posté par le panneau → style du moteur, résolu.
+
+    Un NOM de préréglage (`"style": "pop"`) est lu comme le dict que
+    `GET /api/subtitles/presets` sert pour lui, puis converti comme tout style
+    du panneau : le nom et son dict donnent ainsi le MÊME fichier ASS (au lieu
+    de deux styles qui différaient d'un arrondi de marge et de corps).
+    """
     from app.services import subtitle_ui as SU
     st = body.get("style")
     if isinstance(st, str):                     # nom de préréglage moteur
-        return S.resolve_style(st)
+        return SU.ui_to_style(SU.style_to_ui(st, canvas), canvas)
     return SU.ui_to_style(st if isinstance(st, dict) else {}, canvas)
 
 
@@ -17750,7 +17755,8 @@ async def subtitles_style(request: Request):
             "karaoke": SU.ui_karaoke(body.get("style")),
             "karaoke_mode": SU.ui_karaoke_mode(body.get("style")),
             "unsupported": SU.ui_unsupported(
-                body.get("style") if isinstance(body.get("style"), dict) else {},
+                body.get("style")
+                if isinstance(body.get("style"), (dict, str)) else {},
                 canvas)}
 
 
@@ -17798,7 +17804,8 @@ async def subtitles_check(request: Request):
     return {"ok": True, "warnings": seg_w, "style_warnings": style_w,
             "normes": normes,
             "unsupported": SU.ui_unsupported(
-                body.get("style") if isinstance(body.get("style"), dict) else {},
+                body.get("style")
+                if isinstance(body.get("style"), (dict, str)) else {},
                 canvas),
             "segments": len(segs)}
 

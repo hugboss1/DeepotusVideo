@@ -256,8 +256,22 @@ def ui_wrap_segments(segments, max_chars, style: dict | None = None,
     return out
 
 
-def ui_karaoke(ui: dict | None) -> bool:
-    return bool((ui or {}).get("karOn", True))
+def _ui_dict(ui) -> dict:
+    """Style de panneau sous forme de dict, quelle que soit la forme postee.
+
+    Les routes acceptent un NOM de prereglage moteur (`"style": "pop"`) aussi
+    bien que le dict du panneau (`_subs_body_style`). Un nom est donc lu comme
+    le dict que `GET /api/subtitles/presets` sert pour lui (`style_to_ui`) :
+    meme karaoke, meme mode, meme animation. Sans cela, `"pop"` faisait
+    planter l'export en 500 (`.get` sur une chaine).
+    """
+    if isinstance(ui, str):
+        return style_to_ui(ui)
+    return ui if isinstance(ui, dict) else {}
+
+
+def ui_karaoke(ui: dict | str | None) -> bool:
+    return bool(_ui_dict(ui).get("karOn", True))
 
 
 #: `karMode` du panneau -> tag ASS de `to_ass`. « remplissage » se grave en
@@ -275,13 +289,13 @@ _KMODE = {"fill": "bond", "box": "boite", "scale": "bond"}
 UI_ANIMS = {"none": "none", "fade": "fondu", "fondu": "fondu", "pop": "pop"}
 
 
-def ui_karaoke_mode(ui: dict | None) -> str:
-    return _KMODE.get(str((ui or {}).get("karMode") or "fill"), "bond")
+def ui_karaoke_mode(ui: dict | str | None) -> str:
+    return _KMODE.get(str(_ui_dict(ui).get("karMode") or "fill"), "bond")
 
 
-def ui_anim(ui: dict | None) -> str:
+def ui_anim(ui: dict | str | None) -> str:
     """Animation d'entree REELLEMENT gravable pour ce style de panneau."""
-    return UI_ANIMS.get(str((ui or {}).get("anim") or "none"), "none")
+    return UI_ANIMS.get(str(_ui_dict(ui).get("anim") or "none"), "none")
 
 
 #: Animation MOT PAR MOT du panneau -> animation gravable de `to_ass`.
@@ -294,9 +308,9 @@ UI_WORD_ANIMS = {"none": "none", "couleur": "none",
                  "rebond": "rebond", "glow": "glow"}
 
 
-def ui_word_anim(ui: dict | None) -> str:
+def ui_word_anim(ui: dict | str | None) -> str:
     """Animation par MOT reellement gravable pour ce style de panneau."""
-    return UI_WORD_ANIMS.get(str((ui or {}).get("wordAnim") or "none"), "none")
+    return UI_WORD_ANIMS.get(str(_ui_dict(ui).get("wordAnim") or "none"), "none")
 
 
 def ui_to_style(ui: dict | None, canvas: tuple[int, int] = (1080, 1920)) -> dict:
@@ -488,7 +502,8 @@ _UI_UNSUPPORTED = {
 }
 
 
-def ui_unsupported(ui: dict | None, canvas: tuple[int, int] = (1080, 1920)) -> dict:
+def ui_unsupported(ui: dict | str | None,
+                   canvas: tuple[int, int] = (1080, 1920)) -> dict:
     """Ce qui, dans CE style de panneau, ne sortira pas au rendu — avec la
     raison. Complete par les limites propres au moteur (`ass_unsupported`).
 
@@ -501,7 +516,7 @@ def ui_unsupported(ui: dict | None, canvas: tuple[int, int] = (1080, 1920)) -> d
       soit retire du panneau. On ne le grave pas, on ne le cache pas non plus :
       l'utilisateur doit comprendre pourquoi son ancien reglage n'agit plus.
     """
-    u = dict(ui or {})
+    u = dict(style_to_ui(ui, canvas) if isinstance(ui, str) else (ui or {}))
     out: dict[str, str] = {}
     bg_on = bool(u.get("bgOn", True))
     if bg_on and bool(u.get("outOn")) and _num(u.get("outW"), 3) > 0.5:
