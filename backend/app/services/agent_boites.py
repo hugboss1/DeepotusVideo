@@ -119,7 +119,7 @@ BOITES: dict[str, dict] = {
     # gratuit) ; Claude Code (« mcp ») et les neuf agents métier ; Campagnes reste figé (fixture)
     "modeles": {
         "libelle": "agent.boites.modeles",
-        "outils": ["modeles_lister", "modele_fiche"],
+        "outils": ["modeles_lister", "modele_fiche", "recommander_modele", "verifier_prompt"],
         "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
                    "publicitaire", "artiste_2d", "artiste_3d", "editeur_illustre"],
         "mobile": False,

@@ -141,7 +141,7 @@ def main():
     from app.services import agent_outils as ao
     mo = B.outils_pour("monteur")
     check("B1 le Monteur : ses gestes (t435a + chaîne t435b) + methodes_lire + les cinq briques, rien d'autre",
-          set(mo) == {"temps_forts_musique", "caler_coupes", "poser_titre", "methodes_lire", "modeles_lister", "modele_fiche", "mesurer_sortie",
+          set(mo) == {"temps_forts_musique", "caler_coupes", "poser_titre", "methodes_lire", "modeles_lister", "modele_fiche", "recommander_modele", "verifier_prompt", "mesurer_sortie",
                       "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire",
                       "chaines_lire", "deviser_etape_chaine", "arbitrer_sorties"}, mo)   # t435b chaîne ; t442 Arbitre
     check("B2 mcp ne voit pas poser_titre (écriture) mais voit les lectures ; Campagnes ne voit rien du Monteur",

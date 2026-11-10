@@ -103,7 +103,7 @@ def main():
     from app.services import agent_boites as B
     from app.services import agent_outils as ao
     from app.services import agent_metier as AM
-    attendu = {"methodes_lire", "modeles_lister", "modele_fiche", "mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire",
+    attendu = {"methodes_lire", "modeles_lister", "modele_fiche", "recommander_modele", "verifier_prompt", "mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire",
                "controler_replique", "segments_voix", "arbitrer_sorties"}
     o = set(B.outils_pour("directeur_acteurs"))
     check("B1 méthodes, briques, acteurs — exactement ; que de la lecture", o == attendu

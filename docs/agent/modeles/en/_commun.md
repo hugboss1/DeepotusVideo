@@ -11,15 +11,16 @@ parameters (durations, formats, prices) are read in the "Members" block, never i
 
 ## Quick reference
 
-- [PROMPT] Write full sentences, not a list of keywords.
+- [PROMPT] Image and video: full sentences, not a list of keywords (audio: see the sheet).
 - [PROMPT] A written word draws what it names: "no gray" brings gray in. Phrase it positively ("plain white
   background") or use the negative field when the member has one.
 - [PROMPT] Set the format in its field, never in the text: a ratio written in prose gives black bars or a crop.
 - [PROMPT] Ask for a transparent background through the parameter or a cutout; written in the prompt, it comes out
   opaque.
 - [PROMPT] On-image text: quote it, state its role and position, end with "no other text".
-- [PITFALL] A price, legal line, number or logo is **never** generated. Overlay it afterwards (Templates, Montage,
-  Card Forge): a generated figure can come out wrong without anyone noticing.
+- [PITFALL] A price, legal line, number or a brand's existing logo is **never** generated: overlay it afterwards
+  (Templates, Montage, Card Forge), a generated figure can come out wrong. A new logo is drawn (Recraft sheet).
+- [PROMPT] Prompt in English. Text to display stays quoted in its own language, accents included.
 - [METHOD] Editing: "change only X", then the list of what must stay. One change per pass; repeat the list on every
   pass.
 - [METHOD] References: give each image a role by position ("image 1: face identity, image 2: outfit"). A reference

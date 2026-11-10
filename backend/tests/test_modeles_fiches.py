@@ -186,6 +186,54 @@ def main():
               and k4[0]["son_retire"] is True
               and "retiré" in M.bloc_membres(k4, "fr") and "removed" in M.bloc_membres(k4, "en"))
         s1 = M.membres({"natures": ["video_i2v"], "ids": ["seedance-v1-pro"]})
+        # t490 (F3) : le bloc Membres d'une fiche IMAGE dit les capacités du catalogue, chacune avec son prix
+        im = M.membres({"natures": ["image"], "ids": ["gpt-image-2.5-flare-fal", "nano-banana-pro", "recraft-4.1-vecteur",
+                                                      "gpt-image-2"]})
+        bi_fr, bi_en = M.bloc_membres(im, "fr"), M.bloc_membres(im, "en")
+        lg = {l.split("|")[1].strip(): [c.strip() for c in l.split("|")[1:-1]] for l in bi_fr.splitlines()
+              if l.startswith("| ") and not l.startswith("| id")}
+        check("3.5e Membres image : colonnes qualité, rés., réf., transp., retouche (FR/EN)",
+              "| qualité | res. | réf. | transp. | retouche |" in bi_fr
+              and "| quality | res. | refs | transp. | edit |" in bi_en and "| s |" not in bi_fr, bi_fr[:300])
+        check("3.5f Membres image : prix PAR palier, résolutions, références, fond, SVG",
+              "low $" in lg["gpt-image-2.5-flare-fal"][5] and "max $" in lg["gpt-image-2.5-flare-fal"][5]
+              and lg["gpt-image-2.5-flare-fal"][7] == "16" and lg["gpt-image-2.5-flare-fal"][8] == "oui"
+              and "4K $" in lg["nano-banana-pro"][6] and lg["nano-banana-pro"][7] == "14"
+              and lg["gpt-image-2"][7] == "1" and lg["gpt-image-2"][8] == "non"
+              and lg["recraft-4.1-vecteur"][9] == "SVG, non", lg)
+        # t491 (F4) : le bloc Membres du SON (voix, effets, musique) et de la 3D
+        so = M.membres({"natures": ["voix", "sfx_texte", "musique"],
+                        "ids": ["eleven_v3", "eleven_flash_v2_5", "voicebox", "elevenlabs-direct", "lyria3"]})
+        bs_fr, bs_en = M.bloc_membres(so, "fr"), M.bloc_membres(so, "en")
+        ls = {l.split("|")[1].strip(): [c.strip() for c in l.split("|")[1:-1]] for l in bs_fr.splitlines()
+              if l.startswith("| ") and not l.startswith("| id")}
+        check("3.5g Membres son : colonnes s, prompt, paroles, car. max, balises (FR/EN)",
+              "| s | prompt requis | paroles | car. max | balises |" in bs_fr
+              and "| s | prompt req. | lyrics | chars max | tags |" in bs_en and "| qualité |" not in bs_fr, bs_fr[:400])
+        check("3.5h Membres son : balises v3 seules, car. max, durée d'effet, paroles, voicebox gratuit",
+              ls["eleven_v3"][9] == "oui" and ls["eleven_flash_v2_5"][9] == "non" and ls["eleven_v3"][8] == "5000"
+              and ls["voicebox"][3] == "gratuit (local)" and ls["elevenlabs-direct"][5] == "0.5–22"
+              and ls["elevenlabs-direct"][6] == "oui" and ls["lyria3"][7] == "non" and ls["lyria3"][9] == "—"
+              and ls["lyria3"][5] == "30", ls)
+        mu = M.membres({"natures": ["musique"], "ids": ["mureka-9.5", "ace-step"]})
+        lm = {l.split("|")[1].strip(): [c.strip() for c in l.split("|")[1:-1]] for l in M.bloc_membres(mu, "fr").splitlines()
+              if l.startswith("| ") and not l.startswith("| id")}
+        kv = M.membres({"natures": ["sfx_video"], "ids": ["kling-v2a"]})
+        check("3.5k Membres effets vidéo : plage de durée de la vidéo acceptée (Kling 3-20 s)",
+              "| 3–20 | oui |" in M.bloc_membres(kv, "fr"), M.bloc_membres(kv, "fr"))
+        check("3.5j Membres musique : plage de durée, prix avec paroles (Mureka)",
+              lm["ace-step"][5] == "5–240" and "paroles $" in lm["mureka-9.5"][3] and lm["mureka-9.5"][5] == "—", lm)
+        d3 = M.membres({"natures": ["modele3d"], "ids": ["rodin-2.5", "hunyuan-local", "triposr", "meshy-7.1"]})
+        b3 = M.bloc_membres(d3, "fr")
+        l3 = {l.split("|")[1].strip(): [c.strip() for c in l.split("|")[1:-1]] for l in b3.splitlines()
+              if l.startswith("| ") and not l.startswith("| id")}
+        check("3.5i Membres 3D : formats, vues, texte, PBR, T-pose, brouillon",
+              "| formats | vues | texte | PBR | T-pose | brouillon |" in b3
+              and "| formats | views | text | PBR | T-pose | draft |" in M.bloc_membres(d3, "en")
+              and l3["rodin-2.5"][5] == "glb, fbx, obj, stl, usdz" and l3["rodin-2.5"][6] == "5"
+              and l3["rodin-2.5"][7] == "oui" and l3["rodin-2.5"][9] == "oui" and l3["triposr"][7] == "non"
+              and l3["hunyuan-local"][3] == "gratuit (local)" and l3["hunyuan-local"][10] == "oui"
+              and l3["meshy-7.1"][8] == "au choix", l3)
         check("3.5d sans interrupteur ni piste imposée (Seedance 1.0 Pro) : dit « sans interrupteur »",
               s1 and s1[0]["son_coupe"] is False and s1[0]["son_retire"] is False
               and "sans interrupteur" in M.bloc_membres(s1, "fr") and "no switch" in M.bloc_membres(s1, "en"))

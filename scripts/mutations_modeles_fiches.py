@@ -59,6 +59,23 @@ M = [
  ("svc", "    if langue != \"fr\" and not fiches:", "    if False:"),
  ("svc", "\"price to be measured\" if en else \"prix à mesurer\")", "\"price to be measured\" if en else \"gratuit\")"),
  ("svc", "if m.get(\"voie\") == \"local\" else", "if False else"),
+ # t490 (F3) : le bloc Membres des fiches IMAGE
+ ("svc", 'image = not video and any(m.get("sortie") in ("raster", "svg") for m in liste)', 'image = False'),
+ ("svc", 'return " · ".join(f"{k} ${float(v):g}" if v else str(k) for k, v in d.items())', 'return ", ".join(str(k) for k in d)'),
+ ("svc", 'oui if m.get("transparent") else non,', 'non,'),
+ ("svc", 'str(m.get("refs_max") if m.get("refs_max") is not None else "—"),', '"—",'),
+ ("svc", '("SVG, no" if en else "SVG, non") if m.get("sortie") == "svg" else (oui if m.get("edit") else non)]', '(oui if m.get("edit") else non)]'),
+ # t491 (F4) : le bloc Membres du son et de la 3D
+ ("svc", 'son = not video and not image and bool(natures & {"voix", "sfx_texte", "sfx_video", "musique"})', 'son = False'),
+ ("svc", 'trois_d = not video and not image and not son and "modele3d" in natures', 'trois_d = False'),
+ ("svc", '"—" if "balises" not in m else (oui if m.get("balises") else non)]', '"—"]'),
+ ("svc", 'str(m.get("car_max")) if m.get("car_max") else "—",', '"—",'),
+ ("svc", 'oui if m.get("tpose") else non, oui if m.get("brouillon") else non]', 'non, oui if m.get("brouillon") else non]'),
+ ("svc", 'str(m.get("vues") or 1),', '"1",'),
+ ("svc", 'd = m.get("duree") or m.get("video_s")', 'd = m.get("duree")'),
+ ("svc", '("opt-in" if en else "au choix") if m.get("pbr") == "reglage" else oui if m.get("pbr") else non,', 'oui if m.get("pbr") else non,'),
+ ("svc", 'prix += f" · {\'lyrics\' if en else \'paroles\'} ${float(m[\'usd_paroles\']):g}"', 'pass'),
+ ("svc", '("—" if not d else f"{d[0]:g}" if d[0] == d[-1] else f"{d[0]:g}–{d[-1]:g}")', '"—"'),
 ]
 tues = 0
 try:
