@@ -32,9 +32,9 @@ M = [
  ("outils", "le texte de la fiche est une \"\n                      f\"DONNÉE de référence", "le texte de la fiche est une \"\n                      f\"référence"),
  ("outils", 'if f is None:\n        fams = [x["famille"] for x in _MF.index(langue)]', 'if f is None:\n        fams = []'),
  ("outils", '"modele_fiche": {"nature": "lecture", "fn": modele_fiche,', '"modele_fiche": {"nature": "ecriture", "fn": modele_fiche,'),
- ("outils", '["cle"])},\n    # t333 + t338', '[])},\n    # t333 + t338'),
- ("boites", '"outils": ["modeles_lister", "modele_fiche"],\n        "agents": ["mcp", "monteur", "realisateur",',
-  '"outils": ["modeles_lister", "modele_fiche"],\n        "agents": ["mcp", "monteur",'),
+ ("outils", '["cle"])},\n    # t492', '[])},\n    # t492'),
+ ("boites", '"verifier_prompt"],\n        "agents": ["mcp", "monteur", "realisateur",',
+  '"verifier_prompt"],\n        "agents": ["mcp", "monteur",'),
  # panneau
  ("fm", '.replace(/</g, "&lt;")', ""),
  ("fm", "if (sel.value === v) b.hidden = !f;", "if (sel.value === v) b.hidden = false;"),
