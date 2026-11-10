@@ -339,7 +339,7 @@ def _refus(motif, moteur, deja, devis, plafond, categorie, espace: str = "") -> 
     msg = (f"Plafond mensuel atteint : {qui} a déjà coûté {_fr(deja)} $ ce mois-ci ; ce tir{ou} ajouterait "
            f"{_fr(devis)} $ et passerait au-dessus de {_fr(plafond)} $. Confirmez pour tirer quand même, ou relevez "
            + ("le plafond dans Réglages → Espaces." if motif == "espace" else
-              "le plafond dans Réglages → Pricing & budget."))
+              "le plafond dans Réglages → Tarifs et budget."))
     return HTTPException(402, {"dz_plafond": {
         "motif": motif, "moteur": moteur, "categorie": categorie, "espace": espace, "deja_usd": round(deja, 4),
         "devis_usd": round(devis, 4), "plafond_usd": round(plafond, 4), "message": msg}})

@@ -334,11 +334,23 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzplanifaff(bundle: str) -> str:
+    """Le bundle d'avant les correctifs d'affichage du Planificateur (maillon de queue patch_bundle_dzplanifaff,
+    10/11/2026, posé APRÈS dzigformat : c'est la queue de la chaîne : « auto possible » d'après /api/health,
+    titre « Planificateur » et bouton « Statistiques » traduits) : ses paires défaites, lues dans le maillon
+    lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzplanifaff as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzigformat(bundle: str) -> str:
     """Le bundle d'avant le format Instagram de l'éditeur de post (maillon de queue patch_bundle_dzigformat, t494,
     09/11/2026, posé APRÈS dzmethodes : c'est la queue de la chaîne : un point de montage entre « Canaux » et la légende) :
     ses paires défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzigformat as _m
+    bundle = avant_dzplanifaff(bundle)           # 10/11 : le maillon posé APRÈS dzigformat, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

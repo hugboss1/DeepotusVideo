@@ -107,8 +107,8 @@ def test_montage_conditionnel():
 
 def test_inverse_inscrit_en_tete():
     AIDE = importlib.import_module("_i18n_l1_aide")
-    assert AIDE.avant_dzigformat(BUNDLE) == M.defaire(BUNDLE)
-    assert AIDE.avant_dzigformat(M.defaire(BUNDLE)) == M.defaire(BUNDLE), "sans marqueur : rendu tel quel"
+    assert AIDE.avant_dzigformat(BUNDLE) == M.defaire(AIDE.avant_dzplanifaff(BUNDLE)), "dzplanifaff (aval) défait d'abord"
+    assert AIDE.avant_dzigformat(M.defaire(BUNDLE)) == AIDE.avant_dzplanifaff(M.defaire(BUNDLE)), "sans marqueur : seul l'aval est défait"
     corps = pathlib.Path(AIDE.__file__).read_text(encoding="utf-8")
     c = corps[corps.index("def avant_dzmethodes("):corps.index("def avant_dzcreer3d(")]
     assert "bundle = avant_dzigformat(bundle)" in c and c.index("avant_dzigformat(") < c.index("if _m.MARKER not in bundle")
