@@ -65,6 +65,17 @@ M = [
  ("svc", 'oui if m.get("transparent") else non,', 'non,'),
  ("svc", 'str(m.get("refs_max") if m.get("refs_max") is not None else "—"),', '"—",'),
  ("svc", '("SVG, no" if en else "SVG, non") if m.get("sortie") == "svg" else (oui if m.get("edit") else non)]', '(oui if m.get("edit") else non)]'),
+ # t491 (F4) : le bloc Membres du son et de la 3D
+ ("svc", 'son = not video and not image and bool(natures & {"voix", "sfx_texte", "sfx_video", "musique"})', 'son = False'),
+ ("svc", 'trois_d = not video and not image and not son and "modele3d" in natures', 'trois_d = False'),
+ ("svc", '"—" if "balises" not in m else (oui if m.get("balises") else non)]', '"—"]'),
+ ("svc", 'str(m.get("car_max")) if m.get("car_max") else "—",', '"—",'),
+ ("svc", 'oui if m.get("tpose") else non, oui if m.get("brouillon") else non]', 'non, oui if m.get("brouillon") else non]'),
+ ("svc", 'str(m.get("vues") or 1),', '"1",'),
+ ("svc", 'd = m.get("duree") or m.get("video_s")', 'd = m.get("duree")'),
+ ("svc", '("opt-in" if en else "au choix") if m.get("pbr") == "reglage" else oui if m.get("pbr") else non,', 'oui if m.get("pbr") else non,'),
+ ("svc", 'prix += f" · {\'lyrics\' if en else \'paroles\'} ${float(m[\'usd_paroles\']):g}"', 'pass'),
+ ("svc", '("—" if not d else f"{d[0]:g}" if d[0] == d[-1] else f"{d[0]:g}–{d[-1]:g}")', '"—"'),
 ]
 tues = 0
 try:

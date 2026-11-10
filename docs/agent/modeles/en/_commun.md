@@ -11,7 +11,7 @@ parameters (durations, formats, prices) are read in the "Members" block, never i
 
 ## Quick reference
 
-- [PROMPT] Write full sentences, not a list of keywords.
+- [PROMPT] Image and video: full sentences, not a list of keywords (audio: see the sheet).
 - [PROMPT] A written word draws what it names: "no gray" brings gray in. Phrase it positively ("plain white
   background") or use the negative field when the member has one.
 - [PROMPT] Set the format in its field, never in the text: a ratio written in prose gives black bars or a crop.
