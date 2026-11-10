@@ -97,7 +97,7 @@ def main():
     from app.services import agent_boites as B
     from app.services import agent_outils as ao
     from app.services import agent_metier as AM
-    attendu = {"methodes_lire", "modeles_lister", "modele_fiche", "mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire",
+    attendu = {"methodes_lire", "modeles_lister", "modele_fiche", "recommander_modele", "verifier_prompt", "mesurer_sortie", "comparer_sorties", "ancres_lire", "ancre_verifier", "registre_lire",
                "carte_differences", "arbitrer_sorties"}
     for a in ("retoucheur", "declinaisons"):
         check(f"B1 {a} : méthodes, briques, carte des différences — exactement", set(B.outils_pour(a)) == attendu,

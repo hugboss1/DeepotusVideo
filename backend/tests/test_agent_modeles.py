@@ -100,9 +100,10 @@ def main():
               and r.json().get("detail") == "fiche modèle inconnue", r.text[:200])
 
         print("[2] agent")
-        check("2.1 boîte « modeles » : deux outils, mcp + neuf agents métier, pas sur le téléphone",
+        check("2.1 boîte « modeles » : quatre outils (t492), mcp + neuf agents métier, pas sur le téléphone",
               B.BOITES.get("modeles") == {
-                  "libelle": "agent.boites.modeles", "outils": ["modeles_lister", "modele_fiche"],
+                  "libelle": "agent.boites.modeles",
+                  "outils": ["modeles_lister", "modele_fiche", "recommander_modele", "verifier_prompt"],
                   "agents": ["mcp", "monteur", "realisateur", "retoucheur", "declinaisons", "directeur_acteurs",
                              "publicitaire", "artiste_2d", "artiste_3d", "editeur_illustre"], "mobile": False})
         check("2.2 deux outils en lecture, visibles de mcp et du Réalisateur, pas de Campagnes",

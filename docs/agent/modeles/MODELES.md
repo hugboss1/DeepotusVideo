@@ -101,7 +101,8 @@ Le `_commun.md` porte seulement `famille: _commun`, `releve`, `source` et `descr
      2026-11) ».
 3. **Les méthodes et les rôles métier ne nomment pas de modèle génératif.**
    - Ils demandent une **capacité** (une nature : image vers vidéo, musique, détourage…) ; l'agent la résout par
-     `modeles_lister` et les fiches.
+     `recommander_modele` (contraintes, fiches, coût) puis la fiche du choix, et relit son prompt par
+     `verifier_prompt` avant un tir payant.
    - Seuls les outils locaux et déterministes ont un nom fixe, parce qu'ils n'ont pas de concurrent : ffmpeg, rembg
      local, htdemucs, Photolab, les briques (`mesurer`, `comparer`, `conformer`).
    - Les champs de **données** `modeles` et `equivalents` de `knowledge/methodes.json` et les `exemples` (les mots de
