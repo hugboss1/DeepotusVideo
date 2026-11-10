@@ -33,6 +33,9 @@ from app.services.publishers import PublishResult
 VERSION = "v25.0"
 RESUMABLE_SUPPORTED = True          # mesuré le 29/09/2026 (voir le docstring)
 METRICS = "views,likes,comments,shares,saved"
+# t491 : le temps de visionnage moyen d'un Reel (millisecondes), demandé À PART : un refus (compte, type de
+# média, version) ne doit pas faire perdre les cinq mesures
+METRIC_VISIONNAGE = "ig_reels_avg_watch_time"
 # un premier coup d'œil à 15 s (un Reel court est souvent prêt), puis au rythme recommandé ; 4 min 45 au total
 POLL_DELAIS = (15, 30, 60, 60, 60, 60)
 _MORCEAU = 1 << 20
@@ -133,6 +136,11 @@ async def fetch_insights(media_ids: list[str]) -> dict[str, dict]:
             out[mid] = {"views": vals.get("views", 0), "likes": vals.get("likes", 0),
                         "comments": vals.get("comments", 0), "shares": vals.get("shares", 0),
                         "saves": vals.get("saved", 0)}
+            r2 = await c.get(f"{g}/{mid}/insights", params={"metric": METRIC_VISIONNAGE, "access_token": tok})
+            if r2.status_code == 200:
+                v2 = {d.get("name"): _valeur(d) for d in r2.json().get("data", [])}
+                if v2.get(METRIC_VISIONNAGE):
+                    out[mid]["avg_watch_ms"] = v2[METRIC_VISIONNAGE]
     return out
 
 

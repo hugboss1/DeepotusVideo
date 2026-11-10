@@ -117,6 +117,14 @@ def _doc() -> str:
         return ""
 
 
+def _competence_validation() -> str:
+    """t491 : la fiche du rôle « validation » (docs/agent/whatsapp/competence-validation.md)."""
+    try:
+        return (DOC.parent / "competence-validation.md").read_text(encoding="utf-8").replace("\r\n", "\n").strip()
+    except OSError:
+        return ""
+
+
 def _partie_espace(eid: str) -> str:
     try:
         if espaces_brut.archive(eid):
@@ -149,6 +157,7 @@ def systeme(eid: str, agent: dict, langue: str) -> str:
     parts = [_doc(),
              "## Tes rôles pour cet espace\n" + ("\n".join("- " + ROLES[r] for r in roles) if roles else
                                                  "Aucun rôle coché : passe la main à une personne pour toute demande."),
+             _competence_validation() if "validation" in roles else "",   # t491
              _partie_espace(eid), _partie_horaires(agent),
              "## Règle de prix\nJamais de prix, de montant, de délai ni d'engagement hors de la fiche ci-dessus : dans "
              "ce cas, passe la main à une personne.",

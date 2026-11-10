@@ -162,6 +162,8 @@ async def main():
                                                         {"name": "likes", "values": [{"value": 20}]},
                                                         {"name": "shares", "total_value": {"value": 4}},
                                                         {"name": "saved", "values": [{"value": 2}]}]}),
+                     # t491 : le temps de visionnage est demandé à part ; refusé ici, il ne change rien aux cinq mesures
+                     httpx.Response(400, json={"error": {"message": "metric not supported"}}),
                      httpx.Response(400, json={"error": {"message": "unsupported"}})]
     st = await ip.fetch_insights(["media9", "vieux"])
     check("5.1 views/likes/comments/shares/saved lus (values OU total_value), absent = 0 ; un média en erreur est omis",

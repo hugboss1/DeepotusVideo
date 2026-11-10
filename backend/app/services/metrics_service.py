@@ -19,7 +19,7 @@ from uuid import uuid4
 from loguru import logger
 from sqlalchemy import or_, select
 
-from app.services import publishers, quota
+from app.services import croissance, publishers, quota
 from app.services.storage import PostMetric, ScheduledPost, async_session_factory
 
 # canal → fetcher(ids distants) → {id: {views, likes, comments, shares, saves[, brut]}}
@@ -181,7 +181,92 @@ async def analytics(days: int = 28) -> dict:
                 b[k] += v
         items.append({"id": pid, "title": p.title, "channel": ch, "format": p.format,
                       "posted_at": p.posted_at.isoformat() + "Z", **m, "engagement": e})
+    cr = _croissance(*(await _historique()))
+    for d in items:
+        d["croissance"] = cr.get((d["id"], d["channel"])) or dict(_SANS, raison="sans_releve")
     items.sort(key=lambda d: d["engagement"], reverse=True)
     return {"days": days, "channels": by_ch, "formats": by_fmt,
             "weeks": [{"week": w, **v} for w, v in sorted(by_week.items())],
-            "items": items, "top": items[:5], "quotas": quota.summary(), "notes": notes()}
+            "items": items, "top": items[:5], "quotas": quota.summary(), "notes": notes(),
+            "seuil_gagnant": croissance.SEUIL_GAGNANT,
+            "gagnants": sorted((d for d in items if d["croissance"].get("gagnant")),
+                               key=lambda d: d["croissance"]["multiplicateur"], reverse=True)}
+
+
+# ---- t491 (lot G1, 09/11/2026) : la croissance d'un post contre l'habituel de son compte --------------------------------
+_SANS = {"jalons": {f"j{j}": None for j in croissance.JALONS}, "jalon": None, "vues": None, "habituel": None,
+         "multiplicateur": None, "gagnant": False, "recul": 0, "visionnage_s": None, "raison": None}
+MAX_HISTORIQUE = 2000
+
+
+async def _historique() -> tuple[list, list]:
+    """Les posts publiés (les MAX_HISTORIQUE plus récents) et TOUS leurs instantanés, pour comparer à âge égal."""
+    async with async_session_factory() as session:
+        posts = list((await session.execute(
+            select(ScheduledPost).where(ScheduledPost.status == "posted").where(ScheduledPost.posted_at.isnot(None))
+            .order_by(ScheduledPost.posted_at.desc()).limit(MAX_HISTORIQUE))).scalars().all())
+        rows = list((await session.execute(
+            select(PostMetric).where(PostMetric.post_id.in_([p.id for p in posts] or ["-"]))
+            .order_by(PostMetric.fetched_at.asc()))).scalars().all())
+    return posts, rows
+
+
+def _visionnage(raw: str | None):
+    try:
+        ms_ = (json.loads(raw) or {}).get("avg_watch_ms") if raw else None
+    except (ValueError, TypeError, AttributeError):
+        return None
+    return round(ms_ / 1000.0, 1) if isinstance(ms_, (int, float)) and not isinstance(ms_, bool) and ms_ > 0 else None
+
+
+def _croissance(posts: list, rows: list, maintenant: datetime | None = None) -> dict:
+    """{(post, canal): croissance}. L'habituel d'un post = ses prédécesseurs du même canal, du même format et du même
+    espace (un client ne se compare pas à un autre), lus au MÊME jalon que lui. Pure : aucune lecture."""
+    maintenant = maintenant or datetime.utcnow()
+    par_post = {p.id: p for p in posts}
+    snaps: dict[tuple, list] = {}
+    for r in rows:
+        if r.post_id in par_post:
+            snaps.setdefault((r.post_id, r.channel), []).append(
+                {"fetched_at": r.fetched_at, "views": r.views, "raw": r.raw})
+    jal = {k: croissance.jalons_mesures(par_post[k[0]].posted_at, v) for k, v in snaps.items()}
+    familles: dict[tuple, list] = {}
+    for (pid, ch) in snaps:
+        p = par_post[pid]
+        familles.setdefault((ch, p.format or "post", getattr(p, "espace_id", None)), []).append(pid)
+    for ids in familles.values():
+        ids.sort(key=lambda i: par_post[i].posted_at)
+    out = {}
+    for (ch, _fmt, _eid), ids in familles.items():
+        for rang, pid in enumerate(ids):
+            p, j = par_post[pid], jal[(pid, ch)]
+            c = dict(_SANS, jalons={f"j{k}": (v or {}).get("views") for k, v in j.items()})
+            c["visionnage_s"] = _visionnage(snaps[(pid, ch)][-1]["raw"])
+            cible = croissance.jalon_courant((maintenant - p.posted_at).total_seconds() / 86400.0)
+            if cible is None:
+                out[(pid, ch)] = dict(c, raison="trop_tot")
+                continue
+            # le jalon atteint le plus avancé pour lequel CE post a un relevé
+            lus = [k for k in croissance.JALONS if k <= cible and j[k] is not None]
+            if not lus:
+                out[(pid, ch)] = dict(c, raison="sans_releve")
+                continue
+            k = lus[-1]
+            avant = [(jal[(i, ch)][k] or {}).get("views") for i in ids[:rang]]
+            recul = sum(1 for v in avant if v is not None)
+            h = croissance.habituel(avant)
+            m = croissance.multiplicateur_habituel(j[k]["views"], avant)
+            out[(pid, ch)] = dict(c, jalon=k, vues=j[k]["views"], habituel=h, multiplicateur=m, recul=recul,
+                                  gagnant=croissance.gagnant(m),
+                                  raison=None if m is not None else "peu_de_recul")
+    return out
+
+
+async def croissance_posts(post_ids: list[str]) -> dict:
+    """{post: {canal: croissance}} pour les posts demandés qui ont au moins un instantané (l'agent, le compagnon)."""
+    voulu = set(post_ids or [])
+    out: dict = {}
+    for (pid, ch), c in _croissance(*(await _historique())).items():
+        if pid in voulu:
+            out.setdefault(pid, {})[ch] = c
+    return out
