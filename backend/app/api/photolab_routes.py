@@ -17,6 +17,7 @@ import itertools
 import os
 import re
 import shutil
+import threading
 import time
 import unicodedata
 from pathlib import Path
@@ -52,6 +53,7 @@ _APERCU = re.compile(r"apercu-\d+-\d+\.png")
 # (photolab_20261008-154030_herbe.png -> photolab_20261008-154030_herbe-png.pcraft) : unique comme l'image elle-même.
 _TRAVAIL = re.compile(r"photolab_\d{8}-\d{6}_[A-Za-z0-9_-]{1,120}-(png|jpg)\.pcraft")
 GARDES_APERCUS = 3
+_VERROU_RANGEMENT = threading.Lock()     # _ranger_apercu tourne dans des fils (asyncio.to_thread) : un seul rangement à la fois
 _VERROU_EXPORT = asyncio.Lock()          # choisir un nom libre ET enregistrer d'un seul tenant : deux sauvegardes ne se marchent pas dessus
 ENTETE_GENERATION = "X-Photolab-Generation"
 
@@ -322,17 +324,30 @@ async def inspecter():
     return _json(PM.elaguer_inspect(insp), gen)
 
 
+def _date_apercu(f: Path):
+    """(mtime, nom) d'un aperçu, ou None s'il a disparu entre la liste du dossier et cette lecture."""
+    try:
+        return f.stat().st_mtime_ns, f.name
+    except OSError:
+        return None
+
+
 def _ranger_apercu(tmp: Path, final: Path):
     """Renomme l'aperçu sous son nom définitif puis ne garde que les derniers : un fichier par rendu, sinon le
-    navigateur et l'écran se disputent un même `apercu.png` en cours de réécriture."""
+    navigateur et l'écran se disputent un même `apercu.png` en cours de réécriture.
+    Course du 10/11/2026 : des rendus rapprochés (commandes enchaînées sans pause) rangeaient en même temps ; l'un
+    listait un ancien aperçu que l'autre effaçait aussitôt, et son stat() levait WinError 2 -> « aperçu introuvable
+    après le rendu ». Le rangement passe donc sous un verrou (quelques ms, aucun effet sur un rendu isolé) et un
+    fichier disparu entre la liste et sa lecture est simplement ignoré."""
     os.replace(tmp, final)
-    anciens = sorted((f for f in final.parent.iterdir() if _APERCU.fullmatch(f.name)),
-                     key=lambda f: (f.stat().st_mtime_ns, f.name))
-    for f in anciens[:-GARDES_APERCUS]:
-        try:
-            f.unlink()
-        except OSError:
-            pass                                          # ouvert par un lecteur : le prochain rendu le reprendra
+    with _VERROU_RANGEMENT:
+        dates = [(_date_apercu(f), f) for f in final.parent.iterdir() if _APERCU.fullmatch(f.name)]
+        anciens = [f for d, f in sorted((x for x in dates if x[0]), key=lambda x: x[0])]
+        for f in anciens[:-GARDES_APERCUS]:
+            try:
+                f.unlink()
+            except OSError:
+                pass                                      # ouvert par un lecteur, ou déjà parti : le prochain rendu le reprendra
 
 
 @router.post("/rendu")
