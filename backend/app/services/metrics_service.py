@@ -180,6 +180,7 @@ async def analytics(days: int = 28) -> dict:
             for k, v in m.items():
                 b[k] += v
         items.append({"id": pid, "title": p.title, "channel": ch, "format": p.format,
+                      "espace_id": getattr(p, "espace_id", None),   # t492 : le tableau filtre par espace
                       "posted_at": p.posted_at.isoformat() + "Z", **m, "engagement": e})
     cr = _croissance(*(await _historique()))
     for d in items:
@@ -270,3 +271,34 @@ async def croissance_posts(post_ids: list[str]) -> dict:
         if pid in voulu:
             out.setdefault(pid, {})[ch] = c
     return out
+
+
+# ---- t492 (lot G2, 09/11/2026) : le tableau « Croissance » (totaux, meilleurs posts, gagnants, régularité) ----------------
+_CLES = ("views", "likes", "comments", "shares", "saves", "engagement")
+TOP_TABLEAU = 6
+
+
+async def tableau(days: int = 30, espace_id: str | None = None, tz_min: int = 0) -> dict:
+    """Ce que l'écran Croissance affiche pour `days` jours, tous espaces ou UN espace. Lecture seule, aucun appel."""
+    a = await analytics(days)
+    items = [d for d in a["items"] if not espace_id or d.get("espace_id") == espace_id]
+    totaux = {"posts": len({d["id"] for d in items}), **{k: sum(int(d.get(k) or 0) for d in items) for k in _CLES}}
+    canaux: dict = {}
+    for d in items:
+        c = canaux.setdefault(d["channel"], {"posts": 0, **{k: 0 for k in _CLES}})
+        c["posts"] += 1
+        for k in _CLES:
+            c[k] += int(d.get(k) or 0)
+    since = datetime.utcnow() - timedelta(days=days)
+    async with async_session_factory() as session:
+        q = (select(ScheduledPost.posted_at).where(ScheduledPost.status == "posted")
+             .where(ScheduledPost.posted_at >= since))
+        if espace_id:
+            q = q.where(ScheduledPost.espace_id == espace_id)
+        dates = [r[0] for r in (await session.execute(q)).all()]
+    return {"days": days, "espace_id": espace_id or None, "totaux": totaux, "canaux": canaux,
+            "top": sorted(items, key=lambda d: d["views"], reverse=True)[:TOP_TABLEAU],
+            "gagnants": [d for d in a["gagnants"] if not espace_id or d.get("espace_id") == espace_id],
+            "seuil_gagnant": a["seuil_gagnant"],
+            "regularite": croissance.regularite(dates, datetime.utcnow(), days, tz_min),
+            "notes": a["notes"]}

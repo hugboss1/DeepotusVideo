@@ -78,5 +78,7 @@
   "agent.veille.indisponible": {"fr": "L'écran Veille n'est pas chargé sur cette page.", "en": "The Watch screen is not loaded on this page."},
   "agent.onglet.prospects": {"fr": "Prospects", "en": "Prospects"},
   "agent.prospects.espace": {"fr": "Espace de marque des prospects", "en": "Brand space of the prospects"},
-  "agent.prospects.indisponible": {"fr": "L'écran Prospects n'est pas chargé sur cette page.", "en": "The Prospects screen is not loaded on this page."}
+  "agent.prospects.indisponible": {"fr": "L'écran Prospects n'est pas chargé sur cette page.", "en": "The Prospects screen is not loaded on this page."},
+  "agent.onglet.croissance": {"fr": "Croissance", "en": "Growth"},
+  "agent.croissance.indisponible": {"fr": "L'écran Croissance n'est pas chargé sur cette page.", "en": "The Growth screen is not loaded on this page."}
 }

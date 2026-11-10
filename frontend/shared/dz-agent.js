@@ -100,8 +100,8 @@ if (!window.__dzAgent) {
 .dzAgentAccord select{margin:6px 0;background:var(--bg-panel-2,#1c1c21);color:inherit;border:1px solid var(--stroke,#2a2930);border-radius:6px}
 .dzAgentAccord p{margin:0}
 .dzAgentTiroir [hidden]{display:none!important}
-.dzAgentOnglets{display:flex;gap:4px;padding:6px 14px 0;border-bottom:1px solid var(--stroke,#2a2930)}
-.dzAgentOnglets button{background:transparent;color:inherit;border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0;padding:5px 12px;cursor:pointer;font:inherit}
+.dzAgentOnglets{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--stroke,#2a2930)}
+.dzAgentOnglets button{background:transparent;color:inherit;border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0;padding:5px 7px;cursor:pointer;font:inherit;white-space:nowrap}
 .dzAgentOnglets button[aria-selected="true"]{border-color:var(--stroke,#2a2930);background:var(--bg-panel-2,#1c1c21);color:var(--ink-strong,#eaf2ff);box-shadow:inset 0 2px 0 var(--cyan,#3ee6d0)}
 .dzAgentOnglets button:focus-visible{outline:1px solid var(--cyan,#3ee6d0)}
 .dzAgentPan{flex:1;min-height:0;display:flex;flex-direction:column}
@@ -142,6 +142,7 @@ if (!window.__dzAgent) {
       if (onglet === "campagnes") return nouvelleCampagne();     // t285b : ↺ sur Campagnes = conversation neuve
       if (onglet === "veille") return veille && veille.recharger();     // t352 : ↺ sur Veille = relire la veille
       if (onglet === "prospects") return prospects && prospects.recharger();     // t353 : ↺ sur Prospects = relire la liste
+      if (onglet === "croissance") return croissance && croissance.recharger();     // t492 : ↺ sur Croissance = relire le tableau
       if (annulerAccord) annulerAccord(); else if (occupe || enVue) return;
       arreterLecture(); hist = []; garder(); dessiner(); } } });
   // t260 : l'épingle range la bulle dans la barre du haut, ou la rend flottante
@@ -154,8 +155,9 @@ if (!window.__dzAgent) {
   const ongDemander = ongletBouton("demander", "agent.onglet.demander"), ongCampagnes = ongletBouton("campagnes", "agent.onglet.campagnes");
   const ongVeille = ongletBouton("veille", "agent.onglet.veille");
   const ongProspects = ongletBouton("prospects", "agent.onglet.prospects");     // t353
+  const ongCroissance = ongletBouton("croissance", "agent.onglet.croissance");     // t492
   const listeOnglets = el("div", { class: "dzAgentOnglets", role: "tablist", "aria-label": T("agent.onglets.libelle") },
-    [ongDemander, ongCampagnes, ongVeille, ongProspects]);
+    [ongDemander, ongCampagnes, ongVeille, ongProspects, ongCroissance]);
   listeOnglets.addEventListener("keydown", (ev) => {
     if (ev.key !== "ArrowLeft" && ev.key !== "ArrowRight") return;
     ev.preventDefault();
@@ -177,12 +179,15 @@ if (!window.__dzAgent) {
     "data-dz-agent": "espace-prospects" }, [el("option", { value: "", texte: T("agent.campagnes.sans_espace") })]);
   const hoteProspects = el("div", { class: "dzAgentCampHote", "data-dz-agent": "hote-prospects" });
   const panProspects = panneau("prospects", [el("div", { class: "dzAgentCampEspace" }, [selProspects]), hoteProspects]);
+  // t492 : 5e onglet « Croissance » : monte /shared/dz-croissance.js (window.DzCroissance), qui porte son propre filtre d'espace
+  const hoteCroissance = el("div", { class: "dzAgentCampHote", "data-dz-agent": "hote-croissance" });
+  const panCroissance = panneau("croissance", [hoteCroissance]);
   const tiroir = el("aside", { id: "dzAgentTiroir", class: "dzAgentTiroir", "aria-label": T("agent.tiroir.titre") }, [
     el("div", { class: "dzAgentTete" }, [
       el("h2", { texte: T("agent.tiroir.titre") }), choix, btnEpingle, btnNouvelle,
       el("button", { texte: "×", title: T("agent.tiroir.fermer"), "aria-label": T("agent.tiroir.fermer"), on: { click: () => basculer(false) } }),
     ]),
-    listeOnglets, panDemander, panCampagnes, panVeille, panProspects,
+    listeOnglets, panDemander, panCampagnes, panVeille, panProspects, panCroissance,
   ]);
 
   // ── t285b : l'onglet Campagnes ──
@@ -196,7 +201,7 @@ if (!window.__dzAgent) {
     onglet = ongletLu(nom);
     ecrire(window.sessionStorage, "dz_agent_onglet", onglet);
     for (const [b, p, n] of [[ongDemander, panDemander, "demander"], [ongCampagnes, panCampagnes, "campagnes"],
-      [ongVeille, panVeille, "veille"], [ongProspects, panProspects, "prospects"]]) {
+      [ongVeille, panVeille, "veille"], [ongProspects, panProspects, "prospects"], [ongCroissance, panCroissance, "croissance"]]) {
       b.setAttribute("aria-selected", n === onglet ? "true" : "false");
       b.setAttribute("tabindex", n === onglet ? "0" : "-1");
       afficherSi(p, n === onglet);
@@ -205,7 +210,8 @@ if (!window.__dzAgent) {
     if (onglet === "campagnes" && tiroir.dataset.ouvert === "1") ouvrirCampagnes();
     if (onglet === "veille" && tiroir.dataset.ouvert === "1") ouvrirVeille();
     if (onglet === "prospects" && tiroir.dataset.ouvert === "1") ouvrirProspects();
-    if (focus) ({ campagnes: ongCampagnes, veille: ongVeille, prospects: ongProspects }[onglet] || ongDemander).focus();
+    if (onglet === "croissance" && tiroir.dataset.ouvert === "1") ouvrirCroissance();
+    if (focus) ({ campagnes: ongCampagnes, veille: ongVeille, prospects: ongProspects, croissance: ongCroissance }[onglet] || ongDemander).focus();
   }
   // le sélecteur est verrouillé dès qu'une conversation AVEC un espace existe, quel que soit son rôle (relecture de
   // branche t285b : la porte / la carte « espace » de l'orienteur le règle côté serveur) : il ne se change pas d'ici
@@ -319,6 +325,17 @@ if (!window.__dzAgent) {
     ecrire(window.sessionStorage, "dz_agent_veille", selVeille.value);
     monterVeille(selVeille.value);
   });
+  // ── t492 : l'onglet Croissance ──
+  let croissance = null;                // le composant monté {demonter, recharger}
+  function ouvrirCroissance() {
+    if (croissance) return;
+    const D = window.DzCroissance;
+    const indisponible = () => el("p", { class: "dzAgentCampVide", "data-dz-agent": "croissance-indisponible", texte: T("agent.croissance.indisponible") });
+    hoteCroissance.replaceChildren();
+    if (!D || typeof D.monter !== "function") { hoteCroissance.appendChild(indisponible()); return; }
+    try { croissance = D.monter(hoteCroissance); }
+    catch (e) { croissance = null; hoteCroissance.replaceChildren(indisponible()); }
+  }
   // ── t353 : l'onglet Prospects ──
   let prospects = null;                 // le composant monté {demonter, recharger}
   let prospectsEspace = null;           // l'espace monté (null : rien encore)
@@ -537,6 +554,7 @@ if (!window.__dzAgent) {
       if (onglet === "campagnes") { ouvrirCampagnes(); ongCampagnes.focus(); }     // t285b
       else if (onglet === "veille") { ouvrirVeille(); ongVeille.focus(); }         // t352
       else if (onglet === "prospects") { ouvrirProspects(); ongProspects.focus(); }     // t353
+      else if (onglet === "croissance") { ouvrirCroissance(); ongCroissance.focus(); }     // t492
       else saisie.focus();
     }
     else {
