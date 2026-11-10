@@ -81,13 +81,15 @@ def main():
         check("1.11 node --check du bundle", r.returncode == 0, r.stderr[-300:])
 
     print("\n[2] réversible")
-    check("2.1 avant_dzmethodes == defaire", AIDE.avant_dzmethodes(B) == avant)
+    # t494 (09/11) : dzigformat est posé APRÈS dzmethodes ; l'inverse le défait d'abord
+    sans_aval = PM.defaire(AIDE.avant_dzigformat(B))
+    check("2.1 avant_dzmethodes == defaire (maillon aval dzigformat défait d'abord)", AIDE.avant_dzmethodes(B) == sans_aval)
     aide = (BACKEND / "tests" / "_i18n_l1_aide.py").read_text("utf-8")
     i = aide.index("def avant_dzcreer3d(")
     corps = aide[i:aide.index("\ndef ", i + 10)]
     check("2.2 appelé EN TÊTE de avant_dzcreer3d", "bundle = avant_dzmethodes(bundle)" in corps
           and corps.index("avant_dzmethodes(") < corps.index("if _m.MARKER not in bundle"))
-    check("2.3 sans marqueur : rendu tel quel", AIDE.avant_dzmethodes(avant) == avant)
+    check("2.3 sans marqueur : rendu tel quel", AIDE.avant_dzmethodes(sans_aval) == sans_aval)
 
     print("\n[3] les paires")
     i_bib = B.index('{id:"library",')
