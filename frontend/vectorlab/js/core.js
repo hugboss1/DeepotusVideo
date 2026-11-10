@@ -50,6 +50,7 @@ import { initDeformerUI } from "./mod-deformerui.js";   // t465 : lot D3
 import { initVitrail } from "./mod-vitrail.js";
 import { initImporterUI } from "./mod-importerui.js";   // t470 : lot D4
 import { initBiblio } from "./mod-biblio.js";
+import { initRecolorerUI } from "./mod-recolorerui.js";   // t476 : lot D5
 import { initIA } from "./mod-ia.js";
 import { initCouleur } from "./mod-couleur.js";
 import { initImage } from "./mod-image.js";
@@ -811,6 +812,7 @@ initTracesUI(VL);   // t430 : commandes de tracé (menu Vecteur, Pathfinder, Ctr
 initRepeterUI(VL);  // t455 : répétitions et fusions vivantes (menu Vecteur, Apparence, Ctrl+Alt+B)
 initDeformerUI(VL); // t465 : déformations vivantes (bloc Déformer, délégué par mod-repeterui)
 initImage(VL);      // panneaux Image / Repères, après Apparence (lot A)
+initRecolorerUI(VL); // t476 : Édition › Couleurs (inverser, gris, saturer, équilibre, fusions)
 initTrace(VL);      // le dialogue Vectoriser (lot A)
 initPlateau(VL);    // panneaux Grille / Terrains / Plateau (lot C)
 initPlanches(VL);   // panneau Planches (lot C)

@@ -34,11 +34,16 @@ export function formatPour(w, h) {
 // le corps du devis serveur (POST /api/cost/estimate) : une campagne image (si `image`) + détourage (si demandé et
 // choisi). Sans modèle d'image (quand une image est à générer) ou sans aucune ligne, AUCUN devis plutôt qu'un prix
 // faux : null → « Prix estimé : … ».
-export function devisCorps({ image = true, modele = "", detourer = false, modeleDetour = "" } = {}) {
+// `guide` (tir GUIDÉ du Vectorlab, POST /images/process op « edit ») : la garde de l'edit compte l'image guide en
+// référence (t480 : GPT Image via fal, Nano Banana 2.1 la facturent en entrée) et suit le palier / la résolution
+// enregistrés pour le modèle (t478/t481) — le devis porte donc `refs: 1` et `reglages: true`, que /api/cost/estimate
+// résout avec les MÊMES réglages d'Atelier que la garde (banc backend/tests/test_vectorlab_guide_devis.py).
+export function devisCorps({ image = true, modele = "", detourer = false, modeleDetour = "", guide = false } = {}) {
   const ops = [];
   if (image) {
     if (!modele) return null;
-    ops.push({ kind: "image", model: String(modele), n: 1 });
+    ops.push(guide ? { kind: "image", model: String(modele), n: 1, refs: 1, reglages: true }
+      : { kind: "image", model: String(modele), n: 1 });
   }
   if (detourer && modeleDetour) ops.push({ kind: "detourage", modele: String(modeleDetour), images: 1 });
   return ops.length ? { kind: "campaign", ops } : null;

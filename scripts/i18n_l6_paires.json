@@ -51,6 +51,12 @@
     "groupe": "t470"
    },
    {
+    "pos": 2381,
+    "avant": "import { initIA } from \"./mod-ia.js\";",
+    "apres": "import { initRecolorerUI } from \"./mod-recolorerui.js\";   // t476 : lot D5\r\nimport { initIA } from \"./mod-ia.js\";",
+    "groupe": "t476"
+   },
+   {
     "pos": 15459,
     "avant": "\"Grille d'aimantation et repère visuel (G) — \"",
     "apres": "T(\"vectorlab.core.grille_titre\")",
@@ -169,6 +175,12 @@
     "avant": "initImage(VL);",
     "apres": "initRepeterUI(VL);  // t455 : répétitions et fusions vivantes (menu Vecteur, Apparence, Ctrl+Alt+B)\r\ninitDeformerUI(VL); // t465 : déformations vivantes (bloc Déformer, délégué par mod-repeterui)\r\ninitImage(VL);",
     "groupe": "t455"
+   },
+   {
+    "pos": 34085,
+    "avant": "initTrace(VL);",
+    "apres": "initRecolorerUI(VL); // t476 : Édition › Couleurs (inverser, gris, saturer, équilibre, fusions)\r\ninitTrace(VL);",
+    "groupe": "t476"
    },
    {
     "pos": 34568,
@@ -1495,6 +1507,12 @@
     "groupe": "t455"
    },
    {
+    "pos": 8344,
+    "avant": "if (pre === \"pixel\") return",
+    "apres": "if (pre === \"couleurs\") return VL.couleursUI ? VL.couleursUI.action(arg) : { peut: () => false, faire: () => {} };   // t476\r\n    if (pre === \"pixel\") return",
+    "groupe": "t476"
+   },
+   {
     "pos": 11541,
     "avant": "\"Déplacer\"",
     "apres": "vlT(\"vectorlab.charpente.o_deplacer\")",
@@ -2217,6 +2235,18 @@
     "groupe": "import"
    },
    {
+    "pos": 593,
+    "avant": "motif_valider, motif_svg,",
+    "apres": "motif_valider as _motifValiderParam, motif_svg,",
+    "groupe": "t478"
+   },
+   {
+    "pos": 685,
+    "avant": "from \"./mod-effets.js\";",
+    "apres": "from \"./mod-effets.js\";\r\nimport { motif_objets_valider, motif_objets_svg, motifs_fermeture, motifs_cycle } from \"./mod-motifs.js\";   // t478\r\n// t478 : un motif fait d'objets (type « objets ») est validé par mod-motifs ; les autres restent paramétriques\r\nconst motif_valider = (m) => (m && m.type === \"objets\" ? motif_objets_valider(m) : _motifValiderParam(m));",
+    "groupe": "t478"
+   },
+   {
     "pos": 1070,
     "avant": "\"Mer\"",
     "apres": "T(\"vectorlab.doc.terrain_mer\")",
@@ -2539,6 +2569,12 @@
     "avant": "\"document: motifs = {id: motif}\"",
     "apres": "T(\"vectorlab.doc.doc_motifs\")",
     "groupe": "doc"
+   },
+   {
+    "pos": 13609,
+    "avant": "    for (const [id, m] of Object.entries(doc.motifs)) {",
+    "apres": "    motifs_cycle(doc.motifs);   // t478 : un motif ne se contient pas, même indirectement\r\n    for (const [id, m] of Object.entries(doc.motifs)) {",
+    "groupe": "t478"
    },
    {
     "pos": 13719,
@@ -3541,6 +3577,18 @@
     "avant": "\"formule : division par zéro\"",
     "apres": "T(\"vectorlab.doc.formule_zero\")",
     "groupe": "doc"
+   },
+   {
+    "pos": 102466,
+    "avant": "  const degs = doc.degrades || {}, mots = doc.motifs || {};",
+    "apres": "  const degs = doc.degrades || {}, mots = doc.motifs || {};\r\n  motifs_fermeture(doc, motifs, refs);   // t478 : les motifs et dégradés employés DANS un motif d'objets",
+    "groupe": "t478"
+   },
+   {
+    "pos": 103956,
+    "avant": "morceaux.push(motif_svg(id, {",
+    "apres": "morceaux.push(mots[id].type === \"objets\" ? motif_objets_svg(id, mots[id], (o) => compilerObjet(o, { ...ctx, sansId: true }), (c) => _couleur(c, ctx)) : motif_svg(id, {",
+    "groupe": "t478"
    },
    {
     "pos": 104826,
@@ -6545,6 +6593,12 @@
     "groupe": "menus"
    },
    {
+    "pos": 2175,
+    "avant": "    e(\"style\", ",
+    "apres": "    e(\"coulRecolorer\", T(\"vectorlab.recolorer.m_recolorer\"), \"couleurs:recolorer\"), e(\"coulInverser\", T(\"vectorlab.couleurs.m_inverser\"), \"couleurs:inverser\"), e(\"coulGris\", T(\"vectorlab.couleurs.m_gris\"), \"couleurs:gris\"), e(\"coulSaturer\", T(\"vectorlab.couleurs.m_saturer\"), \"couleurs:saturer\"), e(\"coulEquilibre\", T(\"vectorlab.couleurs.m_equilibre\"), \"couleurs:equilibre\"),\r\n    e(\"coulFusionH\", T(\"vectorlab.couleurs.m_fusion_h\"), \"couleurs:fusion_h\"), e(\"coulFusionV\", T(\"vectorlab.couleurs.m_fusion_v\"), \"couleurs:fusion_v\"), e(\"coulFusionZ\", T(\"vectorlab.couleurs.m_fusion_z\"), \"couleurs:fusion_z\"), \"-\",\r\n    e(\"style\", ",
+    "groupe": "t476"
+   },
+   {
     "pos": 2190,
     "avant": "\"Créer un style\"",
     "apres": "T(\"vectorlab.menus.style\")",
@@ -6757,7 +6811,7 @@
    {
     "pos": 4367,
     "avant": "\"flyout:forme\"),",
-    "apres": "\"flyout:forme\"),\r\n    \"-\",\r\n    e(\"repRadiale\", T(\"vectorlab.repeter.m_radiale\"), \"repeter:radiale\"), e(\"repGrille\", T(\"vectorlab.repeter.m_grille\"), \"repeter:grille\"), e(\"repMiroir\", T(\"vectorlab.repeter.m_miroir\"), \"repeter:miroir\"), e(\"repOptions\", T(\"vectorlab.repeter.m_options\"), \"repeter:options\"), e(\"repDecomposer\", T(\"vectorlab.repeter.m_decomposer\"), \"repeter:decomposer\"), \"-\",\r\n    e(\"fusCreer\", T(\"vectorlab.fusion.m_creer\"), \"repeter:fusionner\", \"ctrl+alt+b\"), e(\"fusOptions\", T(\"vectorlab.fusion.m_options\"), \"repeter:fusionOptions\"), e(\"fusAnnuler\", T(\"vectorlab.fusion.m_annuler\"), \"repeter:fusionAnnuler\"), e(\"fusTrajectoire\", T(\"vectorlab.fusion.m_trajectoire\"), \"repeter:trajectoire\"),\r\n    e(\"fusInverserTrajectoire\", T(\"vectorlab.fusion.m_inverser_trajectoire\"), \"repeter:inverserTrajectoire\"), e(\"fusInverserOrdre\", T(\"vectorlab.fusion.m_inverser_ordre\"), \"repeter:inverserOrdre\"), \"-\",\r\n    e(\"defEnveloppe\", T(\"vectorlab.deformer.m_enveloppe\"), \"repeter:def-enveloppe\"), e(\"defDistorsion\", T(\"vectorlab.deformer.m_distorsion\"), \"repeter:def-distorsion\"), e(\"defTorsion\", T(\"vectorlab.deformer.m_torsion\"), \"repeter:def-torsion\"), e(\"defRugosite\", T(\"vectorlab.deformer.m_rugosite\"), \"repeter:def-rugosite\"),\r\n    e(\"defZigzag\", T(\"vectorlab.deformer.m_zigzag\"), \"repeter:def-zigzag\"), e(\"defGonfler\", T(\"vectorlab.deformer.m_gonfler\"), \"repeter:def-gonfler\"), e(\"defPointes\", T(\"vectorlab.deformer.m_pointes\"), \"repeter:def-pointes\"),\r\n    e(\"defEditer\", T(\"vectorlab.deformer.m_editer\"), \"repeter:def-editer\"), e(\"defAnnuler\", T(\"vectorlab.deformer.m_annuler\"), \"repeter:def-annuler\"),",
+    "apres": "\"flyout:forme\"),\r\n    \"-\",\r\n    e(\"repRadiale\", T(\"vectorlab.repeter.m_radiale\"), \"repeter:radiale\"), e(\"repGrille\", T(\"vectorlab.repeter.m_grille\"), \"repeter:grille\"), e(\"repMiroir\", T(\"vectorlab.repeter.m_miroir\"), \"repeter:miroir\"), e(\"repOptions\", T(\"vectorlab.repeter.m_options\"), \"repeter:options\"), e(\"repDecomposer\", T(\"vectorlab.repeter.m_decomposer\"), \"repeter:decomposer\"), \"-\",\r\n    e(\"fusCreer\", T(\"vectorlab.fusion.m_creer\"), \"repeter:fusionner\", \"ctrl+alt+b\"), e(\"fusOptions\", T(\"vectorlab.fusion.m_options\"), \"repeter:fusionOptions\"), e(\"fusAnnuler\", T(\"vectorlab.fusion.m_annuler\"), \"repeter:fusionAnnuler\"), e(\"fusTrajectoire\", T(\"vectorlab.fusion.m_trajectoire\"), \"repeter:trajectoire\"),\r\n    e(\"fusInverserTrajectoire\", T(\"vectorlab.fusion.m_inverser_trajectoire\"), \"repeter:inverserTrajectoire\"), e(\"fusInverserOrdre\", T(\"vectorlab.fusion.m_inverser_ordre\"), \"repeter:inverserOrdre\"), \"-\",\r\n    e(\"defEnveloppe\", T(\"vectorlab.deformer.m_enveloppe\"), \"repeter:def-enveloppe\"), e(\"defDistorsion\", T(\"vectorlab.deformer.m_distorsion\"), \"repeter:def-distorsion\"), e(\"defTorsion\", T(\"vectorlab.deformer.m_torsion\"), \"repeter:def-torsion\"), e(\"defRugosite\", T(\"vectorlab.deformer.m_rugosite\"), \"repeter:def-rugosite\"),\r\n    e(\"defZigzag\", T(\"vectorlab.deformer.m_zigzag\"), \"repeter:def-zigzag\"), e(\"defGonfler\", T(\"vectorlab.deformer.m_gonfler\"), \"repeter:def-gonfler\"), e(\"defPointes\", T(\"vectorlab.deformer.m_pointes\"), \"repeter:def-pointes\"),\r\n    e(\"defEditer\", T(\"vectorlab.deformer.m_editer\"), \"repeter:def-editer\"), e(\"defAnnuler\", T(\"vectorlab.deformer.m_annuler\"), \"repeter:def-annuler\"),\r\n    \"-\", e(\"motifCreer\", T(\"vectorlab.motifs.m_creer\"), \"couleurs:motif_creer\"), e(\"motifsDoc\", T(\"vectorlab.motifs.m_liste\"), \"couleurs:motifs\"),\r\n    \"-\", e(\"pinNouveau\", T(\"vectorlab.pinceaux.m_nouveau\"), \"couleurs:pinceau_nouveau\"), e(\"pinAppliquer\", T(\"vectorlab.pinceaux.m_appliquer\"), \"couleurs:pinceau_appliquer\"), e(\"pinOptions\", T(\"vectorlab.pinceaux.m_options\"), \"couleurs:pinceau_options\"), e(\"pinRetirer\", T(\"vectorlab.pinceaux.m_retirer\"), \"couleurs:pinceau_retirer\"), e(\"pinSupprimer\", T(\"vectorlab.pinceaux.m_supprimer\"), \"couleurs:pinceau_supprimer\"),",
     "groupe": "t455"
    },
    {
@@ -7715,6 +7769,12 @@
     "groupe": "import"
    },
    {
+    "pos": 1771,
+    "avant": "import { hex_centre, hex_d } from \"./mod-grille.js\";",
+    "apres": "import { hex_centre, hex_d } from \"./mod-grille.js\";\r\nimport { motif_objets_pdf } from \"./mod-motifs.js\";   // t478",
+    "groupe": "t478"
+   },
+   {
     "pos": 2793,
     "avant": "`transform illisible : ${src}`",
     "apres": "T(\"vectorlab.pdf.transform_illisible\", { src })",
@@ -7799,6 +7859,12 @@
     "groupe": "export"
    },
    {
+    "pos": 13244,
+    "avant": "function _motif(ctx, spec) {",
+    "apres": "function _motif(ctx, spec) {\r\n  if (spec && spec.type === \"objets\") return motif_objets_pdf(ctx, spec, { dessiner: _objet, raison: _raison, matrice_mul, matrice_inverse, nb });   // t478",
+    "groupe": "t478"
+   },
+   {
     "pos": 24117,
     "avant": "\"pdf : aucune page\"",
     "apres": "T(\"vectorlab.pdf.aucune_page\")",
@@ -7809,6 +7875,18 @@
     "avant": "`pdf : le raster ${r.nom} (${r.id}, ${r.raison}) n'a pas d'image`",
     "apres": "T(\"vectorlab.pdf.raster_sans_image\", { nom: r.nom, id: r.id, raison: r.raison })",
     "groupe": "export"
+   },
+   {
+    "pos": 26995,
+    "avant": "/XStep ${nb(P.pas)} ",
+    "apres": "/XStep ${nb(P.pasX ?? P.pas)} ",
+    "groupe": "t478"
+   },
+   {
+    "pos": 27029,
+    "avant": "/YStep ${nb(P.pas)} /Resources << /ProcSet [/PDF] >> ",
+    "apres": "/YStep ${nb(P.pasY ?? P.pas)} /Resources ${P.ressources ? ressources + \" 0 R\" : \"<< /ProcSet [/PDF] >>\"} ",
+    "groupe": "t478"
    }
   ],
   "js/mod-persona.js": [
@@ -11583,7 +11661,7 @@
    {
     "pos": 2520,
     "avant": "  if (o.derive) { delete o.derive; return; }",
-    "apres": "  if (o.derive) { delete o.derive; return; }\r\n  if (o.repetition || o.fusion_vive || o.deformation) { repetition_decomposer(doc, o); return; }   // t450-t453 : Décomposer",
+    "apres": "  if (o.derive) { delete o.derive; return; }\r\n  if (o.repetition || o.fusion_vive || o.deformation || o.pinceau) { repetition_decomposer(doc, o); return; }   // t450-t453, t480 : Décomposer",
     "groupe": "t450"
    },
    {

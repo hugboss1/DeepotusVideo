@@ -115,6 +115,9 @@ DEFAULTS = {
         # prix avec ou sans audio (doc fal du 26/09) : pas de colonne
         # « audio off » pour ce modèle.
         "seedance-2.5":        {"480p": 0.2205, "720p": 0.473},
+        # t482 (F6.5) : page fal relue le 09/11/2026, « for 1080p, roughly
+        # $1.164 per second » (0,0234 $/1k tokens) ; membre à part (fal_service)
+        "seedance-2.5-1080p":  {"1080p": 1.164},
         "kling-v3-pro":        {"*": 0.112},
         "kling-v3-standard":   {"*": 0.084},
         "pixverse-v6":         {"720p": 0.045, "1080p": 0.090},
@@ -359,6 +362,76 @@ KONTEXT_9_16 = (752, 1392)
 
 def kontext_mpx(w: int, h: int) -> int:
     return max(1, math.ceil(w * h / 1_000_000))
+
+
+# t478 (F6.1) : PALIER DE QUALITÉ des modèles d'image qui en ont un. Le défaut reste `high` (le palier que les clés
+# de prix ci-dessus chiffrent) : sans choix, rien ne change. Un autre palier multiplie la clé de prix par son FACTEUR,
+# rapport palier / high relevé le 09/11/2026 sur les tables fal (fal.ai/models/<endpoint>), arrondi AU-DESSUS du plus
+# haut rapport des tailles servies (la garde de dépense ne doit jamais passer sous la facture) :
+# - GPT Image 2 (fal) : 1024x768 0,005 / 0,037 / 0,145 $ ; 1024² 0,006 / 0,053 / 0,211 $ (low / medium / high) ;
+# - GPT Image 2.5 Flare et Sunburst (fal, même table) : 1024² 0,00588 / 0,01317 / 0,05268 / 0,09366 / 0,21072 $
+#   (low / medium / high / xhigh / max) ; xhigh 1024x1536 = 1,79 x high ;
+# - Ideogram 4.5 : 0,03 / 0,06 / 0,22 $ (low / medium / high), la taille ne change pas le prix.
+# La voie OpenAI directe suit le même tarif aux jetons ; elle n'expose que low / medium / high (les paliers xhigh et
+# max ne sont relevés que chez fal).
+_F_GPT2 = {"low": 0.035, "medium": 0.26, "high": 1.0}
+_F_GPT25 = {"low": 0.12, "medium": 0.25, "high": 1.0, "xhigh": 1.8, "max": 4.0}
+_F_GPT25_DIRECT = {"low": 0.12, "medium": 0.25, "high": 1.0}
+IMAGE_QUALITES = {
+    "gpt-image-2": _F_GPT2,
+    "gpt-image-2-fal": _F_GPT2,
+    "gpt-image-2.5-flare": _F_GPT25_DIRECT,
+    "gpt-image-2.5-sunburst": _F_GPT25_DIRECT,
+    "gpt-image-2.5-flare-fal": _F_GPT25,
+    "gpt-image-2.5-sunburst-fal": _F_GPT25,
+    "ideogram-4.5": {"low": 0.137, "medium": 0.273, "high": 1.0},
+}
+QUALITE_DEFAUT = "high"
+
+# t480 (F6.3) : GPT Image servi par fal facture CHAQUE image de référence d'une retouche en entrée (8 $ / 1M jetons) :
+# « about $0.008 » jusqu'à 1024², « about $0.012 » en 3840×2160 (fal.ai/models/openai/gpt-image-2.5/flare/edit,
+# relevé le 09/11/2026). On retient le plus haut. Les autres modèles ont un prix d'edit forfaitaire : rien n'est ajouté.
+IMAGE_REF_USD = {"gpt-image-2-fal": 0.012, "gpt-image-2.5-flare-fal": 0.012, "gpt-image-2.5-sunburst-fal": 0.012,
+                 # t481 (F6.4) : Nano Banana 2.1, aux jetons — « each input image is about 1,120 tokens, roughly
+                 # $0.002 » (fal.ai/models/google/nano-banana-2.1, relevé le 09/11/2026)
+                 "nano-banana-2.1": 0.002}
+
+# t481 (F6.4) : RÉSOLUTION de sortie des Nano Banana qui en ont une (schéma fal relu le 09/11/2026 : 1K, 2K, 4K ;
+# défaut 1K, celui que les clés de prix chiffrent). Facteur sur la clé 1K, arrondi au-dessus :
+# - Nano Banana Pro : « 4K outputs will be charged at double the standard rate » (1K et 2K au même prix) ;
+# - Nano Banana 2.1 : aux jetons, 1K 0,040 / 2K 0,059 / 4K 0,134 $ (edit à deux images : 0,044 / 0,063 / 0,138).
+IMAGE_RESOLUTIONS = {
+    "nano-banana-pro": {"1K": 1.0, "2K": 1.0, "4K": 2.0},
+    "nano-banana-2.1": {"1K": 1.0, "2K": 1.5, "4K": 3.4},
+}
+RESOLUTION_DEFAUT = "1K"
+
+
+def resolution_image(model: str, demande=None) -> str | None:
+    """La résolution servie pour `model` : None sans choix de résolution ; sinon la demandée si permise (casse
+    ignorée, « 2k » = « 2K »), 1K dans tous les autres cas."""
+    table = IMAGE_RESOLUTIONS.get(str(model or "").strip().lower())
+    if not table:
+        return None
+    r = str(demande or "").strip().upper()
+    return r if r in table else RESOLUTION_DEFAUT
+
+
+def qualite_image(model: str, demande=None) -> str | None:
+    """Le palier servi pour `model` : None si le modèle n'a pas de palier ; sinon le palier demandé s'il est permis,
+    `high` dans tous les autres cas (vide, inconnu, d'un autre modèle) — jamais d'erreur, jamais plus cher que high
+    par surprise."""
+    table = IMAGE_QUALITES.get(str(model or "").strip().lower())
+    if not table:
+        return None
+    q = str(demande or "").strip().lower()
+    return q if q in table else QUALITE_DEFAUT
+
+
+def facteur_qualite(model: str, demande=None) -> float:
+    """Le multiplicateur de prix du palier servi (1.0 sans palier)."""
+    q = qualite_image(model, demande)
+    return IMAGE_QUALITES[str(model).strip().lower()][q] if q else 1.0
 
 
 def image_model_spec(model: str) -> tuple:
@@ -900,7 +973,19 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         model = str(op.get("model") or "flux").lower()
         label, prov, key = image_model_spec(model)
         unit = p.get(key, p["flux_image_usd"])
+        q = qualite_image(model, op.get("qualite"))       # t478 : palier de qualité (None = sans palier)
+        if q and q != QUALITE_DEFAUT:                     # high : ligne inchangée, à l'octet
+            unit = unit * facteur_qualite(model, q)
+            label = f"{label} · {q}"
+        res = resolution_image(model, op.get("resolution"))   # t481 : résolution (None = sans choix)
+        if res and res != RESOLUTION_DEFAUT:                  # 1K : ligne inchangée, à l'octet
+            unit = unit * IMAGE_RESOLUTIONS[model][res]
+            label = f"{label} · {res}"
         lines.append(_line(prov, f"{label} x{n}", n, "image", n * unit))
+        refs = max(0, int(op.get("refs") or 0))            # t480 : références d'une retouche (en entrée)
+        if refs and model in IMAGE_REF_USD:
+            lines.append(_line(prov, f"{label} : références x{refs}", n * refs, "image",
+                               n * refs * IMAGE_REF_USD[model]))
     elif kind == "flux_kontext":
         # t339 : fal-ai/flux-kontext/dev, édition chaînée sur une image de référence (vues de directions du
         # Spritelab) — un op à part : ce n'est pas un générateur choisissable du registre des images

@@ -43,3 +43,20 @@ Adapté de <nom du skill> — © Scenario, licence MIT (https://github.com/scena
 
 Le texte de la licence MIT (copyright de Scenario) est alors ajouté ici et dans les mentions « À propos »
 de l'application.
+
+## Fiches modèle (t475, 09/11/2026)
+
+Les fiches modèle (`docs/agent/modeles/`) et leur contrat d'écriture (`docs/agent/modeles/MODELES.md`) s'appuient sur
+le dépôt https://github.com/scenario-labs/skills, relu le 09/11/2026 au commit b96506d :
+- son `AGENTS.md`, dont le contrat d'écriture est **adapté** à Deepotus ;
+- ses **171 skills**, qui portent tous `license: MIT`.
+
+- **Ce qui est repris** : des **faits** sur l'usage des modèles (règles de prompt, pièges, choix, logique de coût),
+  **reformulés** en français et en anglais. Chaque fiche cite ses skills dans son champ `source`. Le relevé daté est
+  dans `docs/superpowers/specs/assets/2026-11-09-scenario-skills/`.
+- **Ce qui ne l'est pas** :
+  - aucun texte de skill recopié ;
+  - aucun script ;
+  - aucune référence propre à la plateforme Scenario (serveur MCP, unités de crédit, outils maison).
+- La règle ci-dessus s'applique toujours : un fichier qui adapterait un jour le code ou le texte d'un skill porte
+  l'en-tête « Adapté de … », et le texte de la licence MIT est alors ajouté ici.

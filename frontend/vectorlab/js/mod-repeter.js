@@ -658,11 +658,12 @@ export function repetition_decomposer(doc, g) {
       if (x.clip && x.enfants && x.enfants[0]) x.clip = x.enfants[0].id;
     }
   };
-  // t460 : une déformation décomposée ne garde que son résultat (la source cachée part)
-  if (g.deformation) {
+  // t460 : une déformation décomposée ne garde que son résultat (la source cachée part) ; t480 : un tracé peint aussi
+  if (g.deformation || g.pinceau) {
     g.enfants = g.enfants.filter((e) => e.genere).map((e) => { delete e.cache; return e; });
     for (const e of g.enfants) { delete e.genere; renommer(e); }
     delete g.deformation;
+    delete g.pinceau;
     return;
   }
   for (const e of g.enfants.slice(1)) { if (e.genere) { delete e.genere; renommer(e); } }

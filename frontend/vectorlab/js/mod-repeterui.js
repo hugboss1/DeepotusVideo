@@ -142,8 +142,9 @@ export function repeter_actions(VL) {
     const v = await A.dialogue({ titre: T("vectorlab.fusion.d_options"), champs: champs_fusion(g.fusion_vive) }, (d, x) => op_fusion_regler(d, g.id, x));
     if (v) VL.executer(op_fusion_regler, g.id, v);
   };
-  const fus = () => vivant("fusion_vive"), rep = () => vivant("repetition"), defo = () => vivant("deformation");
+  const fus = () => vivant("fusion_vive"), rep = () => vivant("repetition"), defo = () => vivant("deformation"), peint = () => vivant("pinceau");
   const D = () => VL.deformerUI;   // t465 : les déformations (D3) se branchent ici sans édition de base
+  const P = () => VL.pinceauxUI;   // t481 : les tracés peints (D5) aussi
   // Remplacer la trajectoire : deux objets, dont exactement une fusion
   const paireTrajectoire = () => {
     const s = sel();
@@ -155,8 +156,9 @@ export function repeter_actions(VL) {
   };
   const T_ = {
     radiale: repeter("radiale"), grille: repeter("grille"), miroir: repeter("miroir"),
-    options: { peut: () => !!(rep() || fus() || (defo() && D())), faire: () => (rep() ? optionsRepetition(rep()) : fus() ? optionsFusion(fus()) : defo() && D() ? D().action("options").faire() : undefined) },
-    decomposer: { peut: () => !!(rep() || fus() || defo()), faire: () => VL.executer(op_derive_detacher, sel()[0]) },
+    options: { peut: () => !!(rep() || fus() || (defo() && D()) || (peint() && P())), faire: () => (rep() ? optionsRepetition(rep()) : fus() ? optionsFusion(fus()) : defo() && D() ? D().action("options").faire()
+      : peint() && P() ? P().action("pinceau_options").faire() : undefined) },
+    decomposer: { peut: () => !!(rep() || fus() || defo() || peint()), faire: () => VL.executer(op_derive_detacher, sel()[0]) },
     fusionner: { peut: () => sel().length === 2, faire: () => poser(VL.executer(op_fusionner, sel(), {})) },
     fusionOptions: { peut: () => !!fus(), faire: () => optionsFusion(fus()) },
     fusionAnnuler: { peut: () => !!fus(), faire: () => poser(VL.executer(op_fusion_annuler, sel()[0])) },
@@ -223,6 +225,7 @@ export function repeter_actions(VL) {
   // la section « vivant » de l'onglet Apparence (Détacher réutilise le bouton a2Detacher et son câblage)
   A.sectionApparence = (o) => {
     if (o && o.deformation && D()) return D().sectionApparence(o);
+    if (o && o.pinceau && P()) return P().sectionApparence(o);   // t481
     if (!o || !(o.repetition || o.fusion_vive)) return "";
     const titre = T(o.repetition ? "vectorlab.repeter.a_titre" : "vectorlab.fusion.a_titre");
     return `<details open><summary class="px-tete">${_esc(titre)}</summary>

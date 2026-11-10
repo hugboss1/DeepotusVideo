@@ -21,6 +21,7 @@ import { T } from "./mod-i18n.js";
 import { chemin_parser, terrains_de, grille_tuiles, terrain_motif_spec } from "./mod-doc.js";
 import { forme_d } from "./mod-formes.js";
 import { hex_centre, hex_d } from "./mod-grille.js";
+import { motif_objets_pdf } from "./mod-motifs.js";   // t478
 
 /* ── nombres ── */
 export function nb(x) {
@@ -234,6 +235,7 @@ function _shading(ctx, g) {
    transparence (PDF 1.7 §8.7.3.1) : inverse(espace) · CTM courante · rotate(angle). Un motif par (spec, matrice). ── */
 const MOTIF_DEFAUT = { pas: 8, angle: 45, epaisseur: 1, couleur: "#1F1512" };   // celui de motif_svg (mod-effets)
 function _motif(ctx, spec) {
+  if (spec && spec.type === "objets") return motif_objets_pdf(ctx, spec, { dessiner: _objet, raison: _raison, matrice_mul, matrice_inverse, nb });   // t478
   const m = { ...MOTIF_DEFAUT, ...spec };
   const p = +m.pas, e = +m.epaisseur;
   const rot = +m.angle ? matrice_de(`rotate(${+m.angle})`) : ID;
@@ -487,8 +489,8 @@ export async function pdf_assembler(pages, { compresser = true } = {}) {
     const pats = [];
     for (const [nom, P] of Object.entries(p.patterns || {})) {
       const b = P.bbox.map(nb).join(" ");
-      const o = ajouter(await flux(`/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [${b}] /XStep ${nb(P.pas)} `
-        + `/YStep ${nb(P.pas)} /Resources << /ProcSet [/PDF] >> /Matrix [${P.matrice.map((v) => nb(v)).join(" ")}]`, P.contenu));
+      const o = ajouter(await flux(`/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [${b}] /XStep ${nb(P.pasX ?? P.pas)} `
+        + `/YStep ${nb(P.pasY ?? P.pas)} /Resources ${P.ressources ? ressources + " 0 R" : "<< /ProcSet [/PDF] >>"} /Matrix [${P.matrice.map((v) => nb(v)).join(" ")}]`, P.contenu));
       pats.push(`/${nom} ${o} 0 R`);
     }
     objets[ressources - 1] = _latin(`<< /ProcSet [/PDF /ImageC] /ExtGState << ${gs} >> /XObject << ${xobj.join(" ")} >> `

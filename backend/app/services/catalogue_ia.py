@@ -83,6 +83,20 @@ def _images() -> list[dict]:
                     "note": "" if usd else NOTE_A_MESURER,
                     "edit": bool(fal["edit"]) if fal else True,
                     "sortie": "svg" if IP.est_vectoriel(mid) else "raster"})
+        # t478 (F6.1) : les paliers de qualité permis et leur prix par image (le défaut `high` = `usd`)
+        facteurs = P.IMAGE_QUALITES.get(mid)
+        if facteurs:
+            out[-1]["qualites"] = {q: round(usd * f, 5) for q, f in facteurs.items()}
+            out[-1]["qualite_defaut"] = P.QUALITE_DEFAUT
+        if IP.accepte_reecriture(mid):          # t479 (F6.2) : interrupteur de réécriture du prompt
+            out[-1]["reecriture"] = True
+        res = P.IMAGE_RESOLUTIONS.get(mid)       # t481 (F6.4) : résolutions permises et leur prix par image
+        if res:
+            out[-1]["resolutions"] = {r: round(usd * f, 5) for r, f in res.items()}
+            out[-1]["resolution_defaut"] = P.RESOLUTION_DEFAUT
+        out[-1]["refs_max"] = IP.ref_max(mid) if IP.multi_references(mid) else (1 if out[-1]["edit"] else 0)
+        if IP.accepte_transparent(mid):           # t488 (F6.10) : vrai fond transparent (champ `background`)
+            out[-1]["transparent"] = True
     return out
 
 
