@@ -107,8 +107,10 @@ def test_montage_conditionnel():
 
 def test_inverse_inscrit_en_tete():
     AIDE = importlib.import_module("_i18n_l1_aide")
-    assert AIDE.avant_dzigformat(BUNDLE) == M.defaire(BUNDLE)
-    assert AIDE.avant_dzigformat(M.defaire(BUNDLE)) == M.defaire(BUNDLE), "sans marqueur : rendu tel quel"
+    # t509 (13/11) : dzclesguides est posé APRÈS dzigformat ; l'inverse le défait d'abord
+    sans_aval = AIDE.avant_dzclesguides(BUNDLE)
+    assert AIDE.avant_dzigformat(BUNDLE) == M.defaire(sans_aval)
+    assert AIDE.avant_dzigformat(M.defaire(sans_aval)) == M.defaire(sans_aval), "sans marqueur : rendu tel quel"
     corps = pathlib.Path(AIDE.__file__).read_text(encoding="utf-8")
     c = corps[corps.index("def avant_dzmethodes("):corps.index("def avant_dzcreer3d(")]
     assert "bundle = avant_dzigformat(bundle)" in c and c.index("avant_dzigformat(") < c.index("if _m.MARKER not in bundle")

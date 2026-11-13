@@ -1426,5 +1426,9 @@
   "espaces.pourqui.wa_note": {
     "fr": "Correction demandée par WhatsApp :",
     "en": "Change requested on WhatsApp:"
+  },
+  "espaces.assistant.code_app_bloquee": {
+    "fr": "Meta bloque l'application Meta (pas le jeton) : voir le guide, Relier un compte Instagram",
+    "en": "Meta is blocking the Meta app (not the token): see the guide, Link an Instagram account"
   }
 }

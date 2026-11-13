@@ -66,6 +66,10 @@ CONSOLES: list[dict] = [
     {"cle": "IG_ACCESS_TOKEN", "nom": "Meta for Developers (Instagram)", "url": "https://developers.facebook.com/apps/"},
     {"cle": "TIKTOK_CLIENT_SECRET", "nom": "TikTok for Developers", "url": "https://developers.tiktok.com/apps/"},
     {"cle": "DECART_API_KEY", "nom": "Decart", "url": "https://platform.decart.ai/"},   # t161, 10/10/2026
+    # t509 (13/11/2026) : la recherche web de la prospection
+    {"cle": "TAVILY_API_KEY", "nom": "Tavily", "url": "https://app.tavily.com/home"},
+    {"cle": "EXA_API_KEY", "nom": "Exa", "url": "https://dashboard.exa.ai/api-keys"},
+    {"cle": "SERPER_API_KEY", "nom": "Serper", "url": "https://serper.dev/dashboard"},
 ]
 
 

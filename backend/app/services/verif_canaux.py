@@ -65,7 +65,9 @@ def _propre(texte, secrets_: list[str]) -> str:
 CODES = ("ok", "incomplet", "refuse", "refuse_palier", "quota", "reseau", "indetermine", "non_audite", "chat_introuvable",
          "telephone_verifie", "telephone_jamais", "plateforme_inconnue",
          # t310 (27/10/2026) : WhatsApp par Kapso
-         "cle_kapso_absente", "liaison_en_cours", "liaison_echouee", "qualite_basse")
+         "cle_kapso_absente", "liaison_en_cours", "liaison_echouee", "qualite_basse",
+         # t509 (13/11/2026) : Meta bloque l'APPLICATION (sous-codes 5258004/5/6), pas le jeton
+         "app_bloquee")
 
 
 def _code_http(etat: str) -> str:
@@ -166,6 +168,9 @@ async def _instagram() -> dict:
     code, corps = await _get(f"{instagram_publisher._graph()}/{ig}",
                              params={"fields": "username", "access_token": tok})
     if code != 200 or not isinstance(corps, dict) or not corps.get("username"):
+        from app.services import meta_erreurs
+        if meta_erreurs.sous_code(corps) in meta_erreurs.SOUS_CODES_APP:     # t509 : l'application Meta, pas le jeton
+            return _r("rouge", str(meta_erreurs.expliquer(corps)), secrets_=sec, code="app_bloquee")
         etat = "rouge" if code in (401, 403) or (code == 400 and _graph_refus(corps)) else "orange"
         return _r(etat,
                   f"instagram {code} : {_msg(corps)}" if code != 200 else "instagram : aucun nom de compte rendu", secrets_=sec,

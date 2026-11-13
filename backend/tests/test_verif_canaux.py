@@ -634,6 +634,10 @@ async def _get_vide(url, headers=None, params=None, *a, **k):
     return 200, {"items": [], "data": {"user": {}}}
 V._get = _get_vide
 code_de(verifier("youtube"), "indetermine", "youtube sans chaîne")
+async def _get_app_bloquee(url, headers=None, params=None, *a, **k):     # t509 (13/11/2026) : sous-code 5258005
+    return 400, {"error": {"message": "API access blocked.", "type": "OAuthException", "code": 200, "error_subcode": 5258005}}
+V._get = _get_app_bloquee
+code_de(verifier("instagram"), "app_bloquee", "instagram application Meta bloquée (5258005)")
 V._get = faux_get
 ROUTE["mode"] = "vert"
 comptes.porter_par_telephone(cq, DECL | {"id_distant": "-100555"})

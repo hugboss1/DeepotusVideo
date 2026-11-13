@@ -134,7 +134,7 @@ def _msg(corps) -> str:
     if isinstance(corps, dict):
         e = corps.get("error") or corps.get("detail") or corps.get("message") or corps.get("description")
         if isinstance(e, dict):
-            e = e.get("message") or str(e)
+            e = e.get("message") or e.get("error") or str(e)     # t509 : Tavily rend {"detail": {"error": …}}
         return str(e or corps)[:200]
     return str(corps)[:200]
 
@@ -143,24 +143,39 @@ def _res(ok, message, **details):
     return {"ok": ok, "message": message, "details": details}
 
 
+def _M(cle, **vars):
+    """t509 (13/11/2026) : un message de test TRADUISIBLE (`app.i18n.Message`) : son texte est le français d'avant, à
+    l'octet ; la route POST /diagnostic/cle le rend dans la langue de l'écran."""
+    from app.i18n import Message
+    return Message(cle, **vars)
+
+
 async def _simple(url, headers, ok_sur=(200,), libelle=""):
     code, corps = await _get(url, headers)
     if code in ok_sur:
-        return code, corps, _res(True, f"clé acceptée ({libelle or code})")
+        return code, corps, _res(True, _M("diag.cle.acceptee", libelle=libelle or code))
     if code in (401, 403):
-        return code, corps, _res(False, f"refusée ({code}) : {_msg(corps)}")
-    return code, corps, _res(None, f"indéterminé (HTTP {code}) : {_msg(corps)}")
+        return code, corps, _res(False, _M("diag.cle.refusee", code=code, detail=_msg(corps)))
+    return code, corps, _res(None, _M("diag.cle.indeterminee", code=code, detail=_msg(corps)))
 
 
 def _sans(texte: str, secret: str) -> str:
-    """Un message ne recopie jamais la clé (une exception peut porter l'URL qui la contient)."""
-    return texte.replace(secret, "…") if secret else texte
+    """Un message ne recopie jamais la clé (une exception peut porter l'URL qui la contient). t509 : un `Message` garde
+    sa traduction, ses variables nettoyées de la même façon."""
+    from app.i18n import Message
+    if not secret:
+        return texte
+    if isinstance(texte, Message):
+        if secret not in str(texte) and not any(secret in str(v) for v in texte.vars.values()):
+            return texte
+        return Message(texte.cle, **{k: str(v).replace(secret, "…") for k, v in texte.vars.items()})
+    return texte.replace(secret, "…")
 
 
 async def tester_cle(nom: str, valeur: str) -> dict:
     v = (valeur or "").strip()
     if not v:
-        return _res(None, "vide")
+        return _res(None, _M("diag.cle.vide"))
     try:
         if nom == "FAL_KEY":
             _c, _b, r = await _simple("https://queue.fal.run/fal-ai/flux/schnell/requests/"
@@ -203,8 +218,8 @@ async def tester_cle(nom: str, valeur: str) -> dict:
         if nom == "TELEGRAM_BOT_TOKEN":
             code, corps = await _get(f"https://api.telegram.org/bot{v}/getMe")
             if code == 200 and isinstance(corps, dict) and corps.get("ok"):
-                return _res(True, "jeton accepté", bot=(corps.get("result") or {}).get("username"))
-            return _res(False if code in (401, 404) else None, _sans(f"refusé ({code}) : {_msg(corps)}", v))
+                return _res(True, _M("diag.cle.jeton_accepte"), bot=(corps.get("result") or {}).get("username"))
+            return _res(False if code in (401, 404) else None, _sans(_M("diag.cle.telegram_refuse", code=code, detail=_msg(corps)), v))
         if nom == "APIFY_TOKEN":
             _c, corps, r = await _simple("https://api.apify.com/v2/users/me", {"Authorization": f"Bearer {v}"})
             if r["ok"] and isinstance(corps, dict):
@@ -212,16 +227,37 @@ async def tester_cle(nom: str, valeur: str) -> dict:
                 r["details"] = {"compte": d.get("username"), "offre": (d.get("plan") or {}).get("id") if isinstance(d.get("plan"), dict) else None}
             r["message"] = _sans(r.get("message") or "", v)
             return r
+        # t509 (13/11/2026) : les clés de service qui n'avaient ni test ni guide. Chaque appel est une LECTURE gratuite,
+        # clé en en-tête seulement (docs relues le 13/11 : docs.platform.decart.ai « Get credits », docs.kapso.ai
+        # « List phone numbers », docs.tavily.com « Usage »).
+        if nom == "DECART_API_KEY":
+            _c, corps, r = await _simple("https://api.decart.ai/v1/credits", {"x-api-key": v})
+            if r["ok"] and isinstance(corps, dict):
+                r["details"] = {k: corps.get(k) for k in ("balance", "credits") if corps.get(k) is not None}
+            r["message"] = _sans(r.get("message") or "", v)
+            return r
+        if nom == "KAPSO_API_KEY":
+            _c, _b, r = await _simple("https://api.kapso.ai/platform/v1/whatsapp/phone_numbers?per_page=1", {"X-API-Key": v})
+            r["message"] = _sans(r.get("message") or "", v)
+            return r
+        if nom == "TAVILY_API_KEY":
+            _c, corps, r = await _simple("https://api.tavily.com/usage", {"Authorization": f"Bearer {v}"})
+            r["message"] = _sans(r.get("message") or "", v)
+            return r
+        if nom in SANS_TEST_GRATUIT:
+            # Exa et Serper : aucun appel documenté qui vérifie une clé sans lancer une recherche facturée (relevé du
+            # 13/11/2026) ; on ne dépense rien pour un test, on le dit.
+            return _res(None, _M("diag.cle.sans_test_gratuit", nom=SANS_TEST_GRATUIT[nom]))
         if nom == "OLLAMA_URL":
             code, corps = await _get(f"{v.rstrip('/')}/api/tags", timeout=5.0)
             if code == 200 and isinstance(corps, dict):
-                return _res(True, "Ollama joignable", modeles=[m.get("name") for m in corps.get("models", [])])
-            return _res(False, f"injoignable ({code})")
+                return _res(True, _M("diag.cle.ollama_ok"), modeles=[m.get("name") for m in corps.get("models", [])])
+            return _res(False, _M("diag.cle.ollama_ko", code=code))
         if nom.startswith("X_"):
             return _res(None, "les quatre clés X se testent ensemble (bouton du groupe « Connected accounts »)")
-        return _res(None, "pas de test pour cette clé")
+        return _res(None, _M("diag.cle.pas_de_test"))
     except Exception as e:  # noqa: BLE001 — un test ne casse jamais l'écran
-        return _res(False, _sans(f"erreur : {str(e)[:160]}", v))
+        return _res(False, _sans(_M("diag.cle.erreur", detail=str(e)[:160]), v))
 
 
 async def tester_x(cles: dict) -> dict:
@@ -252,8 +288,14 @@ TESTABLES = {
     "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "FIGMA_TOKEN",
     "TELEGRAM_BOT_TOKEN", "OLLAMA_URL",
     "APIFY_TOKEN",                                  # t364 (28/10/2026) : GET /v2/users/me, gratuit
+    # t509 (13/11/2026) : Decart (GET /v1/credits), Kapso (GET phone_numbers), Tavily (GET /usage) ; Exa et Serper
+    # n'ont pas d'appel gratuit : leur « Tester » le dit sans rien appeler (SANS_TEST_GRATUIT)
+    "DECART_API_KEY", "KAPSO_API_KEY", "TAVILY_API_KEY", "EXA_API_KEY", "SERPER_API_KEY",
     "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET",
 }
+
+
+SANS_TEST_GRATUIT = {"EXA_API_KEY": "Exa", "SERPER_API_KEY": "Serper"}
 
 
 def testable(nom: str) -> bool:

@@ -12,6 +12,7 @@ HeyGen, X).
 """
 
 _VU = "2026-09-29"
+_VU509 = "2026-11-13"          # t509 : relevé du 13/11/2026
 
 GUIDES = {
     "FAL_KEY": {
@@ -170,6 +171,104 @@ GUIDES = {
         "en": "Uthana account, API key from the API documentation (Basic authentication: the key alone). "
               "Pay-as-you-go on prepaid credits: $0.05 per second of uploaded video. Powers « Motion from a video » "
               "in Workbench › Rig (one full-body person, fixed shot, 2 to 60 s).",
+    },
+    # ── t509 (13/11/2026) : les clés de service qui n'avaient pas de guide, et un guide par réseau de Comptes connectés
+    # (lu par le lien « Guide » de chaque bloc). Pages ouvertes ce jour-là ; Kapso et Google passent par leur connexion.
+    "DECART_API_KEY": {
+        "nom": "Decart",
+        "console": "https://platform.decart.ai/api-keys",
+        "tarifs": "https://docs.platform.decart.ai/getting-started/pricing",
+        "verifie_le": _VU509,
+        "fr": "Compte Decart, page API Keys de platform.decart.ai, créer une clé et la copier. Facturé à la seconde de "
+              "génération active : Lucy 0,02 $/s, 0,04 $/s en mode rapide ; les nouveaux comptes reçoivent des "
+              "crédits offerts. Sert au Direct d'Avatar live. « Tester » lit le solde de crédits, sans rien lancer.",
+        "en": "Decart account, API Keys page of platform.decart.ai, create a key and copy it. Billed per second of "
+              "active generation: Lucy $0.02/s, $0.04/s in fast mode; new accounts receive free credits. Powers the "
+              "Avatar live Direct. « Test » reads the credit balance and starts nothing.",
+    },
+    "KAPSO_API_KEY": {
+        "nom": "Kapso (WhatsApp)",
+        "console": "https://app.kapso.ai",
+        "tarifs": "https://kapso.com/pricing",
+        "verifie_le": _VU509,
+        "fr": "Compte Kapso, Integrations → API keys, créer une clé de projet. L'offre gratuite compte un numéro "
+              "WhatsApp et 2 000 messages par mois ; les appels d'API sont illimités sur toutes les offres. Sert à "
+              "WhatsApp : liaison des numéros, envois, boîte de réception. « Tester » lit la liste des numéros.",
+        "en": "Kapso account, Integrations → API keys, create a project key. The free plan includes one WhatsApp "
+              "number and 2,000 messages a month; API calls are unlimited on every plan. Powers WhatsApp: number "
+              "linking, sending, inbox. « Test » reads the list of numbers.",
+    },
+    "TAVILY_API_KEY": {
+        "nom": "Tavily",
+        "console": "https://app.tavily.com/home",
+        "tarifs": "https://www.tavily.com/pricing",
+        "verifie_le": _VU509,
+        "fr": "Compte Tavily, page d'accueil du tableau de bord : la clé (tvly-…) y est affichée. 1 000 crédits "
+              "gratuits par mois, sans carte ; une recherche simple coûte 1 crédit. Sert à la recherche web de la "
+              "prospection (fournisseur au choix dans Prospects). « Tester » lit le compteur d'usage, sans recherche.",
+        "en": "Tavily account, dashboard home page: the key (tvly-…) is shown there. 1,000 free credits a month, no "
+              "card; a basic search costs 1 credit. Powers the prospecting web search (provider chosen in "
+              "Prospects). « Test » reads the usage counter, without searching.",
+    },
+    "EXA_API_KEY": {
+        "nom": "Exa",
+        "console": "https://dashboard.exa.ai/api-keys",
+        "tarifs": "https://exa.ai/docs/reference/pricing",
+        "verifie_le": _VU509,
+        "fr": "Compte Exa, tableau de bord → API Keys. 10 $ de crédits offerts chaque mois. Sert à la recherche web "
+              "de la prospection. Exa n'offre aucun appel gratuit pour vérifier une clé : « Tester » le dit, et la "
+              "première recherche (sur devis) la vérifiera.",
+        "en": "Exa account, dashboard → API Keys. $10 of free credits each month. Powers the prospecting web search. "
+              "Exa offers no free call to check a key: « Test » says so, and the first search (quoted) will check it.",
+    },
+    "SERPER_API_KEY": {
+        "nom": "Serper",
+        "console": "https://serper.dev/dashboard",
+        "tarifs": "https://serper.dev/",
+        "verifie_le": _VU509,
+        "fr": "Compte Serper, tableau de bord : la clé y est affichée. 2 500 requêtes gratuites, sans carte ; "
+              "ensuite des paquets de crédits. Sert à la recherche web de la prospection. Serper n'a aucun appel "
+              "gratuit documenté pour vérifier une clé : « Tester » le dit, la première recherche la vérifiera.",
+        "en": "Serper account, dashboard: the key is shown there. 2,500 free queries, no card; then credit packs. "
+              "Powers the prospecting web search. Serper documents no free call to check a key: « Test » says so, "
+              "the first search will check it.",
+    },
+    "YOUTUBE_CLIENT_ID": {
+        "nom": "YouTube (Google Cloud)",
+        "console": "https://console.cloud.google.com/apis/credentials",
+        "verifie_le": _VU509,
+        "fr": "Google Cloud, API et services → Identifiants, créer un ID client OAuth de type « Application de "
+              "bureau » (activer d'abord YouTube Data API v3). Collez l'ID et le secret, puis « Connecter ». "
+              "Gratuit, dans la limite du quota de l'API.",
+        "en": "Google Cloud, APIs & Services → Credentials, create an OAuth client ID of type « Desktop app » "
+              "(enable YouTube Data API v3 first). Paste the ID and secret, then « Connect ». Free, within the API "
+              "quota.",
+    },
+    "IG_ACCESS_TOKEN": {
+        "nom": "Instagram (Meta for Developers)",
+        "console": "https://developers.facebook.com/apps",
+        "verifie_le": _VU509,
+        "doc_fr": "/guide/fr.html#instagram",
+        "doc_en": "/guide/en.html#instagram",
+        "fr": "Compte Instagram professionnel, puis une application Meta : « API setup with Unified login », "
+              "portefeuille business, configuration créée depuis le modèle, autorisations instagram_basic, "
+              "instagram_content_publish, instagram_manage_insights, instagram_manage_comments. Collez le jeton EAA… "
+              "et l'identifiant du compte business (1784…). Pas à pas et dépannage : chapitre « Relier un compte "
+              "Instagram » du guide.",
+        "en": "Professional Instagram account, then a Meta app: « API setup with Unified login », business "
+              "portfolio, configuration created from the template, permissions instagram_basic, "
+              "instagram_content_publish, instagram_manage_insights, instagram_manage_comments. Paste the EAA… token "
+              "and the business account ID (1784…). Step by step and troubleshooting: the « Link an Instagram "
+              "account » chapter of the guide.",
+    },
+    "TIKTOK_CLIENT_KEY": {
+        "nom": "TikTok for Developers",
+        "console": "https://developers.tiktok.com/portal/apps",
+        "verifie_le": _VU509,
+        "fr": "TikTok for Developers, Apps : une application avec Login Kit, plateforme « Desktop ». Collez la clé "
+              "et le secret client, puis « Connecter ». Sans audit, les envois restent privés.",
+        "en": "TikTok for Developers, Apps: an app with Login Kit, « Desktop » platform. Paste the client key and "
+              "secret, then « Connect ». Without an audit, posts stay private.",
     },
 }
 # Les quatre clés X partagent le guide de X_API_KEY.

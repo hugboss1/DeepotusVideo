@@ -439,7 +439,8 @@ check("6.1 clés espaces.assistant.* à trois segments, FR et EN non vides, mêm
                            for k, v in NEUVES.items()))
 CODES = ("ok", "incomplet", "refuse", "refuse_palier", "quota", "reseau", "indetermine", "non_audite", "chat_introuvable",
          "telephone_verifie", "telephone_jamais", "plateforme_inconnue",
-         "cle_kapso_absente", "liaison_en_cours", "liaison_echouee", "qualite_basse")      # t310 (27/10/2026) : WhatsApp
+         "cle_kapso_absente", "liaison_en_cours", "liaison_echouee", "qualite_basse",      # t310 (27/10/2026) : WhatsApp
+         "app_bloquee")                                                                   # t509 (13/11/2026) : Meta
 import app.services.verif_canaux as VC  # noqa: E402
 check("6.2 un texte par code de vérification (verif_canaux.CODES)", tuple(VC.CODES) == CODES
       and all(f"espaces.assistant.code_{c}" in NEUVES for c in CODES))
