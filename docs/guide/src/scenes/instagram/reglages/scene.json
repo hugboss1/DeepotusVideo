@@ -1,0 +1,122 @@
+{
+  "titre": {
+    "fr": "Comptes connectés › Instagram",
+    "en": "Connected accounts › Instagram"
+  },
+  "legende": {
+    "fr": "Réglages, Comptes connectés, bloc Instagram : le jeton, l'identifiant du compte, la vérification et le guide.",
+    "en": "Settings, Connected accounts, Instagram block: the token, the account ID, the check and the guide."
+  },
+  "captures": [
+    {
+      "fr": "bloc.fr.webp",
+      "en": "bloc.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        467,
+        592,
+        454,
+        43
+      ],
+      "bulle": {
+        "fr": "Collez le jeton EAA…, puis Enregistrer",
+        "en": "Paste the EAA… token, then Save"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        361,
+        740
+      ],
+      "clic": true,
+      "surligne": [
+        275,
+        721,
+        171,
+        38
+      ],
+      "bulle": {
+        "fr": "La réponse donne votre @nom",
+        "en": "The reply shows your @name"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        444,
+        726,
+        41,
+        28
+      ],
+      "bulle": {
+        "fr": "Guide : le pas à pas",
+        "en": "Guide: step by step"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        467,
+        574,
+        503,
+        43
+      ],
+      "bulle": {
+        "fr": "Collez le jeton EAA…, puis Enregistrer",
+        "en": "Paste the EAA… token, then Save"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        347,
+        722
+      ],
+      "clic": true,
+      "surligne": [
+        275,
+        703,
+        144,
+        38
+      ],
+      "bulle": {
+        "fr": "La réponse donne votre @nom",
+        "en": "The reply shows your @name"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        417,
+        708,
+        41,
+        28
+      ],
+      "bulle": {
+        "fr": "Guide : le pas à pas",
+        "en": "Guide: step by step"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}

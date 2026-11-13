@@ -1,0 +1,51 @@
+<p class="chapeau-chap">You will link your Instagram account so the Scheduler publishes your Reels on its own and the Growth tab reads your statistics. Allow thirty minutes the first time; it is <span class="prix">free</span>: Meta's documentation only sets rate limits on these calls, no price.</p>
+
+<h3>Before you start</h3>
+<p>You need a <strong>professional Instagram account</strong>, creator or business. In the Instagram app: Settings, Account type, Switch to professional account. This switch does not require making your contact details public: leave the contact options empty or hidden. You also need a Facebook account to open <strong>Meta for Developers</strong> (developers.facebook.com).</p>
+<p>The token you are about to create grants access to your account. Paste it into Deepotus only, never into a message, a ticket or a screenshot.</p>
+
+<h3>Create the Meta app</h3>
+<ol class="etapes">
+<li>On developers.facebook.com, open <strong>My Apps</strong> then <strong>Create app</strong>. Give it a name, for example "Deepotus".</li>
+<li>Choose the <strong>Manage messaging and content on Instagram</strong> use case; the old "Instagram login" is no longer offered to new apps. Attach your <strong>business portfolio</strong>.</li>
+<li>On the <strong>API setup with Unified login</strong> page, create the configuration from the proposed template.</li>
+<li>Tick the permissions: <code>instagram_basic</code>, <code>instagram_content_publish</code>, <code>instagram_manage_insights</code> and <code>instagram_manage_comments</code>. Add messaging or ads only if you need them.</li>
+<li>In the app roles, add your Instagram account as an <strong>Instagram tester</strong> and accept the invitation from that account. Then generate the configuration's token: it starts with <code>EAA</code> and does not expire. Copy it.</li>
+<li>Note the Instagram <strong>business account ID</strong>: a string of digits starting with <code>1784</code>.</li>
+</ol>
+
+<h3>Paste the token into Deepotus</h3>
+<figure class="scene" data-scene="instagram/reglages"></figure>
+<ol class="etapes">
+<li>Open <b class="ui">Settings</b> › <b class="ui">Connected accounts</b> and expand <strong>Instagram</strong>. For a specific brand space, go through <b class="ui">Brand spaces</b> › <b class="ui">Channels</b> instead.</li>
+<li>Paste the token into <code>IG_ACCESS_TOKEN</code> and the ID into <code>IG_BUSINESS_ID</code>, then <b class="ui">Save</b> next to each. No restart is needed.</li>
+<li>Click <b class="ui">Verify credentials</b>. The reply shows your <strong>@name</strong>: the account is linked. The block's <b class="ui">Guide</b> link takes you back to the Meta console.</li>
+</ol>
+
+<h3>Read your statistics</h3>
+<figure class="scene" data-scene="instagram/croissance"></figure>
+<ol class="etapes">
+<li>Press <kbd>F1</kbd> and open the <b class="ui">Growth</b> tab.</li>
+<li>Pick the period and the space, then <b class="ui">Read now</b>. The <b class="ui">Instagram account</b> block shows views, reach, followers and interactions.</li>
+<li>A metric Instagram refuses stays empty, and the screen says how many were refused.</li>
+</ol>
+
+<h3>Known limits</h3>
+<div class="cartes">
+<article><i data-dz="dz-reseau-instagram"></i><h4>Under 100 followers</h4><p>Instagram does not return follows and unfollows below 100 followers. New followers stay empty; nothing is broken.</p></article>
+<article><i data-dz="dz-etat-avertissement"></i><h4>Posts from before the switch</h4><p>Metrics for media published before the switch to a professional account are refused (subcode 2108006). Only later posts are measured.</p></article>
+</div>
+
+<h3>Troubleshooting: "API access blocked."</h3>
+<p>If <b class="ui">Verify credentials</b> answers <code>instagram 400</code> with <code>"API access blocked."</code>, <code>code 200</code> and <code>error_subcode 5258005</code>, it is <strong>the Meta app</strong> that is blocked, not the Reel nor Deepotus. Deepotus now says so in plain words.</p>
+<p>What Meta says: its error code table lists 5258005 "API access blocked." with no further explanation. Its neighbours are 5258004, archived app, and 5258006, removed app. So the block concerns the app's state, not the token; this is an inference, Meta does not write it. Check in this order:</p>
+<ol class="etapes">
+<li><strong>App state</strong> in the Meta dashboard: alerts, Restricted, Inactive or Archived. An archived app is restored from My Apps, Archived filter. A restricted app is appealed from the dashboard.</li>
+<li><strong>Development mode</strong>: only accounts with a role on the app have access. The Facebook account that created the token must be an admin, developer or tester, and manage the Page linked to the Instagram account. Do not switch the app to Live without Meta's review.</li>
+<li><strong>New token</strong>: generate one from the configuration, paste it, then <b class="ui">Verify credentials</b>. An app that becomes active again requires fresh tokens.</li>
+</ol>
+<p>Sources: developers.facebook.com, pages "Marketing API error codes" and "App States" (read on 13/11/2026).</p>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>As long as Instagram is not linked, its posts go to assisted mode: the Scheduler prepares them and you send them in one click. See <a href="#comptes">Connect your accounts</a>.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Never give the whole token to anyone, assistant included: the first letters are enough to tell which token you mean.</p></aside>

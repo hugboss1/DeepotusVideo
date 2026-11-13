@@ -1,0 +1,51 @@
+<p class="chapeau-chap">Vous saurez relier votre compte Instagram pour que le Planificateur publie vos Reels seul et que l'onglet Croissance lise vos statistiques. Comptez trente minutes la première fois ; c'est <span class="prix">gratuit</span> : la documentation de Meta n'annonce pour ces appels que des limites de débit, aucun tarif.</p>
+
+<h3>Avant de commencer</h3>
+<p>Il faut un <strong>compte Instagram professionnel</strong>, de type créateur ou entreprise. Dans l'application Instagram : Paramètres, Type de compte, Passer à un compte professionnel. Ce passage n'oblige pas à rendre vos coordonnées publiques : laissez les options de contact vides ou masquées. Il faut aussi un compte Facebook pour ouvrir <strong>Meta for Developers</strong> (developers.facebook.com).</p>
+<p>Le jeton que vous allez créer donne accès à votre compte. Collez-le seulement dans Deepotus, jamais dans un message, un ticket ou une capture.</p>
+
+<h3>Créer l'application Meta</h3>
+<ol class="etapes">
+<li>Sur developers.facebook.com, ouvrez <strong>My Apps</strong> puis <strong>Create app</strong>. Donnez-lui un nom, par exemple « Deepotus ».</li>
+<li>Choisissez le cas d'usage <strong>Gérer les messages et les contenus sur Instagram</strong> ; l'ancienne « connexion Instagram » n'est plus proposée aux applications neuves. Rattachez votre <strong>portefeuille business</strong>.</li>
+<li>Sur la page <strong>API setup with Unified login</strong>, créez la configuration à partir du modèle proposé.</li>
+<li>Cochez les autorisations : <code>instagram_basic</code>, <code>instagram_content_publish</code>, <code>instagram_manage_insights</code> et <code>instagram_manage_comments</code>. Ajoutez les messages ou la publicité seulement si vous en avez besoin.</li>
+<li>Dans les rôles de l'application, ajoutez votre compte Instagram comme <strong>testeur Instagram</strong> et acceptez l'invitation depuis ce compte. Générez ensuite le jeton de la configuration : il commence par <code>EAA</code> et n'expire pas. Copiez-le.</li>
+<li>Relevez l'<strong>identifiant du compte business</strong> Instagram : une suite de chiffres qui commence par <code>1784</code>.</li>
+</ol>
+
+<h3>Coller le jeton dans Deepotus</h3>
+<figure class="scene" data-scene="instagram/reglages"></figure>
+<ol class="etapes">
+<li>Ouvrez <b class="ui">Réglages</b> › <b class="ui">Comptes connectés</b> et dépliez <strong>Instagram</strong>. Pour un espace de marque précis, passez plutôt par <b class="ui">Espaces de marque</b> › <b class="ui">Canaux</b>.</li>
+<li>Collez le jeton dans <code>IG_ACCESS_TOKEN</code> et l'identifiant dans <code>IG_BUSINESS_ID</code>, puis <b class="ui">Enregistrer</b> à côté de chacun. Aucun redémarrage n'est nécessaire.</li>
+<li>Cliquez <b class="ui">Vérifier les identifiants</b>. La réponse donne votre <strong>@nom</strong> : le compte est relié. Le lien <b class="ui">Guide</b> du bloc ramène à la console Meta.</li>
+</ol>
+
+<h3>Lire ses statistiques</h3>
+<figure class="scene" data-scene="instagram/croissance"></figure>
+<ol class="etapes">
+<li>Appuyez sur <kbd>F1</kbd> et ouvrez l'onglet <b class="ui">Croissance</b>.</li>
+<li>Choisissez la période et l'espace, puis <b class="ui">Relever maintenant</b>. Le bloc <b class="ui">Compte Instagram</b> affiche les vues, la portée, les abonnés et les interactions.</li>
+<li>Une mesure que Instagram refuse reste vide, et l'écran dit combien ont été refusées.</li>
+</ol>
+
+<h3>Limites constatées</h3>
+<div class="cartes">
+<article><i data-dz="dz-reseau-instagram"></i><h4>Moins de 100 abonnés</h4><p>Instagram ne rend pas les arrivées et départs d'abonnés sous 100 abonnés. Les nouveaux abonnés restent vides, ce n'est pas une panne.</p></article>
+<article><i data-dz="dz-etat-avertissement"></i><h4>Posts d'avant le passage pro</h4><p>Les mesures des médias publiés avant le passage en compte professionnel sont refusées (sous-code 2108006). Seuls les posts suivants sont mesurés.</p></article>
+</div>
+
+<h3>Dépannage : « API access blocked. »</h3>
+<p>Si <b class="ui">Vérifier les identifiants</b> répond <code>instagram 400</code> avec <code>"API access blocked."</code>, <code>code 200</code> et <code>error_subcode 5258005</code>, c'est <strong>l'application Meta</strong> qui est bloquée, pas le Reel ni Deepotus. Deepotus l'écrit désormais en clair.</p>
+<p>Ce que dit Meta : sa table des codes d'erreur liste 5258005 « API access blocked. » sans autre explication. Ses voisins sont 5258004, application archivée, et 5258006, application supprimée. Le blocage porte donc sur l'état de l'application, pas sur le jeton ; c'est une déduction, Meta ne l'écrit pas. Vérifiez dans cet ordre :</p>
+<ol class="etapes">
+<li><strong>État de l'application</strong> dans le tableau de bord Meta : alertes, mention Restreinte, Inactive ou Archivée. Une application archivée se restaure depuis My Apps, filtre Archived. Une application restreinte se conteste depuis le tableau de bord.</li>
+<li><strong>Mode développement</strong> : seuls les comptes qui ont un rôle sur l'application y ont accès. Le compte Facebook qui a créé le jeton doit être administrateur, développeur ou testeur, et gérer la Page reliée au compte Instagram. Ne passez pas l'application en mode Live sans examen par Meta.</li>
+<li><strong>Nouveau jeton</strong> : générez-en un depuis la configuration, collez-le, puis <b class="ui">Vérifier les identifiants</b>. Une application redevenue active exige des jetons neufs.</li>
+</ol>
+<p>Sources : developers.facebook.com, pages « Marketing API error codes » et « App States » (lues le 13/11/2026).</p>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Tant qu'Instagram n'est pas relié, ses posts passent en mode assisté : le Planificateur les prépare et vous les envoyez d'un clic. Voir <a href="#comptes">Connecter ses comptes</a>.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p>Ne donnez jamais le jeton entier à qui que ce soit, assistant compris : les premières lettres suffisent pour savoir de quel jeton on parle.</p></aside>

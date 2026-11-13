@@ -133,6 +133,10 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 - Aucune chaîne visible en dur : `dzT`, avec une clé FR et une clé EN.
 - Une copie `frontend/dist/shared` est identique à sa source, et un banc le vérifie.
 - Un modèle sans clé reste choisissable et n'est jamais grisé : le refus arrive au lancement (503), avant le plafond.
+- Une clé de service neuve (t520) : `_ALLOWED_ENV_KEYS`, `RUBRIQUE_DE_CLE`, `appairage.CONSOLES`, un guide FR/EN daté
+  (`guides_fournisseurs`), `diagnostic.TESTABLES` et une branche de `tester_cle` qui fait une LECTURE gratuite (sinon
+  `SANS_TEST_GRATUIT`, qui le dit sans rien appeler) ; ses messages sont des `Message` (`diag.cle.*`), traduits par la
+  route. Un refus Meta connu se dit par `meta_erreurs.expliquer`. Banc `backend/tests/test_cles_guides_t520.py`.
 - On n'écrit jamais une clé dans un journal, une URL ou une réponse.
 - Les bancs arrivent avant le code (TDD). Les bancs de patch ont leur inverse.
 

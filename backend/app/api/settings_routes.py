@@ -97,7 +97,10 @@ async def diagnostic_cle(body: dict, request: Request):
     valeur = str((body or {}).get("valeur") or "") or env.get(nom, "")
     if not valeur and C.verrouille() and nom in C.SECRETES:
         raise HTTPException(409, "Coffre verrouillé : ouvrez-le pour tester cette clé.")
-    return await D.tester_cle(nom, valeur)
+    r = await D.tester_cle(nom, valeur)
+    from app import i18n as I                       # t520 (13/11/2026) : le verdict dans la langue de l'écran
+    r["message"] = I.texte(r.get("message") or "", I.langue_requete(request))
+    return r
 
 
 @router.get("/guides")
@@ -432,6 +435,8 @@ RUBRIQUE_DE_CLE = {
     # Clés d'API (ligne posée par le maillon dzwhatsapp, comme Decart), là où l'assistant d'espace renvoie.
     "KAPSO_API_KEY": "keys",
     "APIFY_TOKEN": "keys",                                              # t364 : ligne « Apify » (maillon dzapify)
+    # t520 (13/11/2026) : la recherche web de la prospection, lignes de Clés d'API posées par le maillon dzclesguides
+    "TAVILY_API_KEY": "keys", "EXA_API_KEY": "keys", "SERPER_API_KEY": "keys",
     "ELEVENLABS_VOICE_ID_FR": "keys", "ELEVENLABS_VOICE_ID_EN": "keys",  # t221 : voix par défaut, champs texte
     "ANTHROPIC_MODEL": "defaults", "OPENAI_MODEL": "defaults", "GEMINI_MODEL": "defaults", "OLLAMA_MODEL": "defaults",
     "SUMMARIZER_PROVIDER": "defaults", "PLANNER_PROVIDER": "defaults", "AGENT_MODEL": "defaults",   # t285a

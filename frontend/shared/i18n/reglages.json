@@ -459,5 +459,13 @@
   "reglages.unites.ko": {"fr": "Ko", "en": "KB", "contexte": true},
   "reglages.unites.mo": {"fr": "Mo", "en": "MB", "contexte": true},
   "reglages.unites.o": {"fr": "o", "en": "B", "contexte": true},
-  "reglages.unites.to": {"fr": "To", "en": "TB", "contexte": true}
+  "reglages.unites.to": {"fr": "To", "en": "TB", "contexte": true},
+  "reglages.cles.tester_sans_cle": {"fr": "Posez d'abord la clé pour la tester", "en": "Set the key first to test it"},
+  "reglages.cles.tavily": {"fr": "Tavily (recherche web)", "en": "Tavily (web search)"},
+  "reglages.cles.tavily_why": {"fr": "recherche web de la prospection · 1 000 crédits gratuits par mois · app.tavily.com", "en": "prospecting web search · 1,000 free credits a month · app.tavily.com"},
+  "reglages.cles.exa": {"fr": "Exa (recherche web)", "en": "Exa (web search)"},
+  "reglages.cles.exa_why": {"fr": "recherche web de la prospection · 10 $ de crédits offerts par mois · dashboard.exa.ai", "en": "prospecting web search · $10 of free credits a month · dashboard.exa.ai"},
+  "reglages.cles.serper": {"fr": "Serper (recherche web)", "en": "Serper (web search)"},
+  "reglages.cles.serper_why": {"fr": "recherche web de la prospection · 2 500 requêtes gratuites · serper.dev", "en": "prospecting web search · 2,500 free queries · serper.dev"},
+  "reglages.comptes.guide_titre": {"fr": "Où créer les accès de ce réseau, pas à pas", "en": "Where to create this network's access, step by step"}
 }
