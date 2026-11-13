@@ -7,6 +7,8 @@ comme les routeurs montage et cards.
 Toute route qui lit ou teste des clés passe par `_local()` — la garde de boucle locale des Réglages
 (`routes._require_localhost`, un seul propriétaire de la règle), GET compris : les aperçus de clés sont des Réglages.
 """
+import asyncio
+
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from app.config import APP_VERSION
@@ -101,6 +103,43 @@ async def diagnostic_cle(body: dict, request: Request):
     from app import i18n as I                       # t520 (13/11/2026) : le verdict dans la langue de l'écran
     r["message"] = I.texte(r.get("message") or "", I.langue_requete(request))
     return r
+
+
+# ── t521 (13/11/2026) : Moteurs et logiciels 3D (Blender, Godot) ─────────────────────────────────────────────────────
+def _l3d_rendu(r: dict, request: Request) -> dict:
+    from app import i18n as I
+    return {**r, "message": I.texte(r.get("message") or "", I.langue_requete(request))}
+
+
+@router.get("/logiciels3d")
+async def logiciels3d_lire(request: Request):
+    """Les logiciels du lot, leurs champs et leurs valeurs (des chemins, jamais un secret)."""
+    _local(request)
+    from app.services import logiciels_3d as L
+    return {"logiciels": L.etat()}
+
+
+@router.post("/logiciels3d/detecter")
+async def logiciels3d_detecter(body: dict, request: Request):
+    """Les exécutables trouvés, PROPOSÉS : rien n'est enregistré ici (l'écran passe par /api/settings/keys)."""
+    _local(request)
+    from app.services import logiciels_3d as L
+    try:
+        return {"candidats": await asyncio.to_thread(L.detecter, str((body or {}).get("id") or ""))}
+    except KeyError:
+        raise HTTPException(404, "logiciel inconnu")
+
+
+@router.post("/logiciels3d/tester")
+async def logiciels3d_tester(body: dict, request: Request):
+    """La version lue sans ouvrir de fenêtre ; pour Godot, le dossier de projet vérifié."""
+    _local(request)
+    from app.services import logiciels_3d as L
+    try:
+        r = await asyncio.to_thread(L.tester, str((body or {}).get("id") or ""))
+    except KeyError:
+        raise HTTPException(404, "logiciel inconnu")
+    return _l3d_rendu(r, request)
 
 
 @router.get("/guides")
@@ -373,6 +412,7 @@ _RUBRIQUES = {
     "transfert": "Transfert entre machines",
     "espaces": "Espaces",          # t202 : onglet posé par le maillon de queue dzespace
     "mcp": "Serveur MCP",          # t345 : onglet posé par le maillon de queue dzmcp (panneau frontend/shared/dz-mcp.js)
+    "moteurs": "Moteurs et logiciels 3D",   # t521 : maillon de queue dzlogiciels3d (frontend/shared/dz-logiciels3d.js)
 }
 _INDEX_FIXE = [
     ("diag", "Diagnostic", "diagnostic santé état disque poids journal erreurs version soldes crédits test des clés"),
@@ -383,6 +423,9 @@ _INDEX_FIXE = [
     ("appareils", "Appareils appairés", "appareil téléphone mobile compagnon appairer appairage qr code révoquer wi-fi "
                                          "réseau local host jeton perdu"),
     ("keys", "Clés API", "clé api jeton token fournisseur guide tester enregistrer"),
+    # t521 (13/11/2026) : Moteurs et logiciels 3D (Blender, Godot)
+    ("moteurs", "Moteurs et logiciels 3D", "blender godot moteur de jeu logiciel 3d chemin exécutable projet "
+                                               "version détecter tester exporter ouvrir engine"),
     ("accounts", "Comptes connectés", "comptes réseaux sociaux publication x twitter telegram youtube instagram tester"),
     ("personas", "Personas", "persona ton voix audience personnage profil"),
     # t202 (13/10/2026) : les espaces de marque (plusieurs marques, produits ou clients sur une instance)
@@ -437,6 +480,8 @@ RUBRIQUE_DE_CLE = {
     "APIFY_TOKEN": "keys",                                              # t364 : ligne « Apify » (maillon dzapify)
     # t520 (13/11/2026) : la recherche web de la prospection, lignes de Clés d'API posées par le maillon dzclesguides
     "TAVILY_API_KEY": "keys", "EXA_API_KEY": "keys", "SERPER_API_KEY": "keys",
+    # t521 (13/11/2026) : Moteurs et logiciels 3D
+    "BLENDER_PATH": "moteurs", "GODOT_PATH": "moteurs", "GODOT_PROJECT_DIR": "moteurs",
     "ELEVENLABS_VOICE_ID_FR": "keys", "ELEVENLABS_VOICE_ID_EN": "keys",  # t221 : voix par défaut, champs texte
     "ANTHROPIC_MODEL": "defaults", "OPENAI_MODEL": "defaults", "GEMINI_MODEL": "defaults", "OLLAMA_MODEL": "defaults",
     "SUMMARIZER_PROVIDER": "defaults", "PLANNER_PROVIDER": "defaults", "AGENT_MODEL": "defaults",   # t285a

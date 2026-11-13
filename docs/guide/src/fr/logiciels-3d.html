@@ -1,0 +1,31 @@
+<p class="chapeau-chap">Vous saurez dire à Deepotus où sont installés Blender et Godot, vérifier leur version, et savoir ce que chacun reçoit de l'application. Cinq minutes ; <span class="prix">gratuit</span> : rien n'est envoyé hors de votre PC.</p>
+
+<h3>Avant de commencer</h3>
+<p>Il faut <strong>Blender 4.2</strong> ou plus récent (blender.org) et <strong>Godot 4</strong> ou plus récent (godotengine.org, ou Steam). Godot n'a pas d'installeur : c'est un fichier .exe que vous posez où vous voulez. Pour y déposer des ressources, gardez aussi un projet Godot sous la main : son dossier contient le fichier <code>project.godot</code>.</p>
+
+<h3>Régler Blender</h3>
+<figure class="scene" data-scene="logiciels-3d/reglages"></figure>
+<ol class="etapes">
+<li>Ouvrez <b class="ui">Réglages</b> › <b class="ui">Moteurs et logiciels 3D</b>.</li>
+<li>Sur la carte Blender, cliquez <b class="ui">Détecter</b>. Deepotus cherche dans Program Files puis dans le PATH, et liste ce qu'il trouve, la version la plus récente d'abord. Il n'enregistre rien.</li>
+<li>Cliquez <b class="ui">Utiliser</b> en face du Blender voulu, puis <b class="ui">Enregistrer</b>. Champ laissé vide : Deepotus prend lui-même le plus récent des Blender trouvés.</li>
+<li>Cliquez <b class="ui">Tester</b> : la réponse donne la version, lue sans ouvrir de fenêtre. Une version plus ancienne que 4.2 est refusée en le disant.</li>
+</ol>
+
+<h3>Régler Godot</h3>
+<ol class="etapes">
+<li>Sur la carte Godot, cliquez <b class="ui">Détecter</b> ; sinon, collez le chemin complet du fichier .exe dans <strong>Exécutable</strong>.</li>
+<li>Dans <strong>Dossier du projet</strong>, collez le dossier qui contient <code>project.godot</code>.</li>
+<li>Cliquez <b class="ui">Enregistrer</b> à côté de chaque champ : c'est appliqué tout de suite.</li>
+<li>Cliquez <b class="ui">Tester</b> : la réponse donne la version de Godot et le nom du projet. Un dossier sans <code>project.godot</code> est refusé en le disant.</li>
+</ol>
+
+<h3>Ce que chacun reçoit</h3>
+<div class="cartes">
+<article><i data-dz="dz-cat-3d"></i><h4>Blender</h4><p>Les passes du plan, l'export FBX du 3D Studio et l'import FBX. Depuis l'Établi, il ouvre la pièce préparée (voir <a href="#etabli">Préparer une pièce avant le slicer</a>).</p></article>
+<article><i data-dz="dz-cat-sprites"></i><h4>Godot</h4><p>Les SpriteFrames (.tres), les TileSet, les scènes .tscn avec hitboxes et les modèles .glb, déposés dans le dossier <code>deepotus/</code> du projet. Voir <a href="#spritelab">Animer des sprites</a> et <a href="#tilelab">Peindre des décors en tuiles</a>.</p></article>
+</div>
+
+<h3>Bon à savoir</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Unreal Engine et Unity viendront dans cette même page. En attendant, leurs chemins (<code>UNREAL_PATH</code>, <code>UNITY_PATH</code> et leurs dossiers de projet) se règlent encore dans le fichier .env.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p><b class="ui">Détecter</b> ne fait que proposer : tant que vous n'avez pas cliqué <b class="ui">Enregistrer</b>, l'ancien réglage reste en place.</p></aside>

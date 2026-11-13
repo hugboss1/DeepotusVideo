@@ -1,0 +1,32 @@
+{
+  "base": "http://127.0.0.1:8811",
+  "preparation": "Backend de preuve t521 (scripts/guide/serve_guide.py, PORT=8811) : code du worktree, données jetables, aucune clé. La détection lit les vrais dossiers de Program Files du poste (lecture seule) ; aucun chemin d'utilisateur à l'écran (champs Godot vides). Chapitre « Brancher Blender et Godot ».",
+  "scenes": [
+    {
+      "scene": "logiciels-3d/reglages",
+      "taille": [1440, 900],
+      "clip": "css:main",
+      "titre": {"fr": "Réglages › Moteurs et logiciels 3D", "en": "Settings › 3D engines and software"},
+      "legende": {
+        "fr": "Une carte par logiciel : le chemin, Détecter, Tester et le guide.",
+        "en": "One card per program: the path, Detect, Test and the guide."
+      },
+      "avant": [
+        {"clic": {"fr": "texte:Réglages", "en": "texte:Settings"}, "apres": 3500},
+        {"clic": {"fr": "texte:Moteurs et logiciels 3D", "en": "texte:3D engines and software"}, "apres": 2000}
+      ],
+      "captures": [
+        {"nom": "cartes", "etapes": [{"clic": "css:[data-dz-l3d=detecter-blender]"}, {"attente": 3000}]}
+      ],
+      "temps": [
+        {"capture": 0, "duree": 2.4, "curseur": "css:[data-dz-l3d=detecter-blender]", "clic": true,
+         "surligne": "css:[data-dz-l3d=detecter-blender]",
+         "bulle": {"fr": "Détecter propose, n'enregistre rien", "en": "Detect suggests, saves nothing"}},
+        {"capture": 0, "duree": 2.6, "surligne": "css:[data-dz-l3d=trouves-blender]",
+         "bulle": {"fr": "Utiliser, puis Enregistrer", "en": "Use, then Save"}},
+        {"capture": 0, "duree": 2.4, "surligne": "css:[data-dz-l3d=tester-godot]",
+         "bulle": {"fr": "Tester lit la version", "en": "Test reads the version"}}
+      ]
+    }
+  ]
+}

@@ -219,8 +219,11 @@ sys.path.insert(0, str(RACINE / "scripts"))
 sys.path.insert(0, str(_ICI))
 import _i18n_l1_aide as AIDE                                          # noqa: E402
 import patch_bundle_dzclesguides as PM                                # noqa: E402
-check("7.5 avant_dzclesguides == defaire, et sans marqueur rendu tel quel",
-      AIDE.avant_dzclesguides(B) == PM.defaire(B) and AIDE.avant_dzclesguides(PM.defaire(B)) == PM.defaire(B))
+# t521 (13/11) : dzlogiciels3d est posé APRÈS dzclesguides ; l'inverse le défait d'abord
+_sans_aval = AIDE.avant_dzlogiciels3d(B)
+check("7.5 avant_dzclesguides == defaire (maillon aval défait d'abord), et sans marqueur rendu tel quel",
+      AIDE.avant_dzclesguides(B) == PM.defaire(_sans_aval)
+      and AIDE.avant_dzclesguides(PM.defaire(_sans_aval)) == PM.defaire(_sans_aval))
 aide = (_ICI / "_i18n_l1_aide.py").read_text("utf-8")
 i = aide.index("def avant_dzigformat(")
 corps = aide[i:aide.index("\ndef ", i + 10)]

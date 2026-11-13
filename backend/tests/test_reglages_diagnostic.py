@@ -67,8 +67,9 @@ T = getattr(SR, "RUBRIQUE_DE_CLE", {})
 if not hasattr(SR, "rubrique_de"):
     SR.rubrique_de = lambda k: ""
 # t345 (29/10) : 15e rubrique « mcp » (Serveur MCP), posée par le maillon dzmcp.
-check("T0 la barre des Réglages est lue dans le bundle (15 rubriques, dont mcp)", len(YM) == 15 and "defaults" in YM
-      and "mcp" in YM, repr(YM))
+# t521 (13/11) : 16e rubrique « moteurs » (Moteurs et logiciels 3D), posée par le maillon dzlogiciels3d.
+check("T0 la barre des Réglages est lue dans le bundle (16 rubriques, dont mcp et moteurs)", len(YM) == 16
+      and "defaults" in YM and "mcp" in YM and "moteurs" in YM, repr(YM))
 check("T1 AUCUNE clé de l'allowlist sans rubrique", T and not (_ALLOWED_ENV_KEYS - set(T)),
       repr(sorted(_ALLOWED_ENV_KEYS - set(T))))
 check("T2 aucune clé hors de l'allowlist", set(T) <= _ALLOWED_ENV_KEYS, repr(sorted(set(T) - _ALLOWED_ENV_KEYS)))
@@ -154,6 +155,7 @@ tm = BUNDLE[BUNDLE.find("function Tm("):BUNDLE.find("function Tm(") + 9000]
 comptes = set(re.findall(r'k:"([A-Z][A-Z_]+)"', tm))
 zm = tranche("function zm(", "function Cm(") + tranche("function DzNewsLecteur(", "function DzDiag(")
 fourn = set(MT.CLE_MODELE.values()) | {"SUMMARIZER_PROVIDER", "PLANNER_PROVIDER", "AGENT_MODEL"}   # t285a : AGENT_MODEL = ligne_agent()
+_L3D_SRC = (RACINE / "backend" / "app" / "services" / "logiciels_3d.py").read_text("utf-8")   # t521 : champs du panneau
 vide = []
 for k, ru in T.items():
     if ru == "keys" and k not in keys_ecran:
@@ -164,7 +166,9 @@ for k, ru in T.items():
         vide.append(k)
     elif ru == "defaults" and k not in fourn:
         vide.append(k)
-    elif ru not in ("keys", "accounts", "news", "defaults"):
+    elif ru == "moteurs" and not ("data-dz-logiciels3d-hote" in BUNDLE and k in _L3D_SRC):   # t521 : panneau partagé
+        vide.append(k)
+    elif ru not in ("keys", "accounts", "news", "defaults", "moteurs"):
         vide.append(k)
 check("P1 « Régler » ne mène jamais dans le vide : chaque clé est montrée par sa rubrique", T and not vide, repr(vide))
 check("P2 un *_MODEL non configuré renvoie vers une rubrique qui l'affiche (Clés d'API)",

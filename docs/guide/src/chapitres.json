@@ -700,6 +700,17 @@
       "etat": "v3"
     },
     {
+      "id": "logiciels-3d",
+      "famille": "jeu3d",
+      "lot": "t521",
+      "icone": "dz-cat-3d",
+      "fr": "Brancher Blender et Godot",
+      "en": "Connect Blender and Godot",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
       "id": "parcours",
       "famille": "annexes",
       "lot": "t181",

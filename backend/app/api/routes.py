@@ -7776,6 +7776,8 @@ _ALLOWED_ENV_KEYS = {
     "DECART_API_KEY",
     # t520 (13/11/2026) : la recherche web de la prospection (t354) se règle aussi dans Clés d'API
     "TAVILY_API_KEY", "EXA_API_KEY", "SERPER_API_KEY",
+    # t521 (13/11/2026) : Réglages › Moteurs et logiciels 3D (lot 1 : Blender et Godot), des chemins, pas des secrets
+    "BLENDER_PATH", "GODOT_PATH", "GODOT_PROJECT_DIR",
 }
 
 

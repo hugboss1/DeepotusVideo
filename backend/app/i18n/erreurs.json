@@ -1636,6 +1636,7 @@
   "erreur.71e64dd9fc": {"fr": "clé : seulement pour un serveur compatible OpenAI", "en": "key: only for an OpenAI-compatible server", "src": "fr"},
   "erreur.71ec0a960d": {"fr": "{v} — rien n'a été lancé.", "en": "{v} — nothing was started.", "src": "fr"},
   "erreur.71fd06b005": {"fr": "noeud {i} sans maillage — aucune pièce à creuser", "en": "node {i} has no mesh — no part to hollow", "src": "fr"},
+  "erreur.71fdfb993f": {"fr": "logiciel inconnu", "en": "unknown software", "src": "fr"},
   "erreur.7208b50ef1": {"fr": "{cid} : {cle} : objet {hue, saturation, lightness, range} attendu", "en": "{cid}: {cle}: object {hue, saturation, lightness, range} expected", "src": "fr"},
   "erreur.72274cc094": {"fr": "mode « prime » : Meshy rend un FBX, qu'aucun lecteur embarqué ne lit — choisis « swift » (BVH), relu et reciblé ici", "en": "\"prime\" mode: Meshy returns an FBX that no embedded reader can read — pick \"swift\" (BVH), read and retargeted here", "src": "fr"},
   "erreur.7228eee979": {"fr": "espace démonstration : importé comme marque (il est lié à un prospect de l'autre installation)", "en": "demo space: imported as a brand (it is tied to a prospect of the other installation)", "src": "fr"},
