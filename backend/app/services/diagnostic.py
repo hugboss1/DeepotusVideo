@@ -134,7 +134,7 @@ def _msg(corps) -> str:
     if isinstance(corps, dict):
         e = corps.get("error") or corps.get("detail") or corps.get("message") or corps.get("description")
         if isinstance(e, dict):
-            e = e.get("message") or e.get("error") or str(e)     # t509 : Tavily rend {"detail": {"error": …}}
+            e = e.get("message") or e.get("error") or str(e)     # t520 : Tavily rend {"detail": {"error": …}}
         return str(e or corps)[:200]
     return str(corps)[:200]
 
@@ -144,7 +144,7 @@ def _res(ok, message, **details):
 
 
 def _M(cle, **vars):
-    """t509 (13/11/2026) : un message de test TRADUISIBLE (`app.i18n.Message`) : son texte est le français d'avant, à
+    """t520 (13/11/2026) : un message de test TRADUISIBLE (`app.i18n.Message`) : son texte est le français d'avant, à
     l'octet ; la route POST /diagnostic/cle le rend dans la langue de l'écran."""
     from app.i18n import Message
     return Message(cle, **vars)
@@ -160,7 +160,7 @@ async def _simple(url, headers, ok_sur=(200,), libelle=""):
 
 
 def _sans(texte: str, secret: str) -> str:
-    """Un message ne recopie jamais la clé (une exception peut porter l'URL qui la contient). t509 : un `Message` garde
+    """Un message ne recopie jamais la clé (une exception peut porter l'URL qui la contient). t520 : un `Message` garde
     sa traduction, ses variables nettoyées de la même façon."""
     from app.i18n import Message
     if not secret:
@@ -227,7 +227,7 @@ async def tester_cle(nom: str, valeur: str) -> dict:
                 r["details"] = {"compte": d.get("username"), "offre": (d.get("plan") or {}).get("id") if isinstance(d.get("plan"), dict) else None}
             r["message"] = _sans(r.get("message") or "", v)
             return r
-        # t509 (13/11/2026) : les clés de service qui n'avaient ni test ni guide. Chaque appel est une LECTURE gratuite,
+        # t520 (13/11/2026) : les clés de service qui n'avaient ni test ni guide. Chaque appel est une LECTURE gratuite,
         # clé en en-tête seulement (docs relues le 13/11 : docs.platform.decart.ai « Get credits », docs.kapso.ai
         # « List phone numbers », docs.tavily.com « Usage »).
         if nom == "DECART_API_KEY":
@@ -288,7 +288,7 @@ TESTABLES = {
     "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "FIGMA_TOKEN",
     "TELEGRAM_BOT_TOKEN", "OLLAMA_URL",
     "APIFY_TOKEN",                                  # t364 (28/10/2026) : GET /v2/users/me, gratuit
-    # t509 (13/11/2026) : Decart (GET /v1/credits), Kapso (GET phone_numbers), Tavily (GET /usage) ; Exa et Serper
+    # t520 (13/11/2026) : Decart (GET /v1/credits), Kapso (GET phone_numbers), Tavily (GET /usage) ; Exa et Serper
     # n'ont pas d'appel gratuit : leur « Tester » le dit sans rien appeler (SANS_TEST_GRATUIT)
     "DECART_API_KEY", "KAPSO_API_KEY", "TAVILY_API_KEY", "EXA_API_KEY", "SERPER_API_KEY",
     "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET",

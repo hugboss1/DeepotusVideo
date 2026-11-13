@@ -107,7 +107,7 @@ def test_montage_conditionnel():
 
 def test_inverse_inscrit_en_tete():
     AIDE = importlib.import_module("_i18n_l1_aide")
-    # t509 (13/11) : dzclesguides est posé APRÈS dzigformat ; l'inverse le défait d'abord
+    # t520 (13/11) : dzclesguides est posé APRÈS dzigformat ; l'inverse le défait d'abord
     sans_aval = AIDE.avant_dzclesguides(BUNDLE)
     assert AIDE.avant_dzigformat(BUNDLE) == M.defaire(sans_aval)
     assert AIDE.avant_dzigformat(M.defaire(sans_aval)) == M.defaire(sans_aval), "sans marqueur : rendu tel quel"

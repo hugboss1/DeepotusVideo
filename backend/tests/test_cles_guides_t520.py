@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""t509 (13/11/2026) — chaque clé de service de Réglages › Clés d'API a son « Guide » et son « Tester », comme HeyGen ou
+"""t520 (13/11/2026) — chaque clé de service de Réglages › Clés d'API a son « Guide » et son « Tester », comme HeyGen ou
 Figma ; les clés des écrans Campagnes, Prospects, Veille, Croissance et du Planificateur qui manquaient à la page y sont ;
 les blocs de Comptes connectés ont leur lien « Guide » ; le refus Meta « API access blocked » (sous-code 5258005) est dit
 en clair, en français et en anglais. Aucun réseau : chaque appel est simulé.
-Run (depuis backend/) : & $PY tests/test_cles_guides_t509.py"""
+Run (depuis backend/) : & $PY tests/test_cles_guides_t520.py"""
 import asyncio, json, os, pathlib, re, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-_tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzt509_"))
+_tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzt520_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_tmp / 't.db').as_posix()}"
 for d in ("images", "outputs"):

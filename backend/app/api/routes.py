@@ -7774,7 +7774,7 @@ _ALLOWED_ENV_KEYS = {
     "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TIKTOK_AUDITED",
     # Avatar live G0 (t161, 10/10) : le Direct (Decart Lucy 2.5)
     "DECART_API_KEY",
-    # t509 (13/11/2026) : la recherche web de la prospection (t354) se règle aussi dans Clés d'API
+    # t520 (13/11/2026) : la recherche web de la prospection (t354) se règle aussi dans Clés d'API
     "TAVILY_API_KEY", "EXA_API_KEY", "SERPER_API_KEY",
 }
 
@@ -10892,7 +10892,7 @@ async def _test_channel(ch, request=None):
             if nom:
                 return {"ok": True, "detail": f"@{nom}"}
             brut = _ip._scrub(f"instagram {r.status_code}: {r.text[:200]}")
-            # t509 (13/11/2026) : un refus Meta connu (5258005 « API access blocked », app archivée, jeton révoqué) est
+            # t520 (13/11/2026) : un refus Meta connu (5258005 « API access blocked », app archivée, jeton révoqué) est
             # dit en clair dans la langue de l'écran, le détail brut gardé après
             from app.services import meta_erreurs as _me
             from app import i18n as _i

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""t509 (13/11/2026) — les refus de la Graph API de Meta (Instagram) DITS EN CLAIR, en français et en anglais.
+"""t520 (13/11/2026) — les refus de la Graph API de Meta (Instagram) DITS EN CLAIR, en français et en anglais.
 
 Relevé du 13/11/2026 sur developers.facebook.com :
   - « Marketing API error codes » : code 200, sous-code 5258005 = « API access blocked. » (sans autre explication),

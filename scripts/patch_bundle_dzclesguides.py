@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # scripts/patch_bundle_dzclesguides.py
 """Maillon de queue : « Guide » et « Tester » pour chaque clé de service, et un « Guide » par réseau de Comptes
-connectés (t509, 13/11/2026 ; banc backend/tests/test_cles_guides_t509.py).
+connectés (t520, 13/11/2026 ; banc backend/tests/test_cles_guides_t520.py).
 
 Ce qu'il pose (quatre ancres uniques relevées le 13/11 sur le bundle de 68f475cc, HORS de tout bloc de couche
 __DZ_*_BEGIN__, vérifié à l'écriture par `hors_couche`) :
