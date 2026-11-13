@@ -1,15 +1,16 @@
 <p class="chapeau-chap">Vous saurez relier votre compte Instagram pour que le Planificateur publie vos Reels seul et que l'onglet Croissance lise vos statistiques. Comptez trente minutes la première fois ; c'est <span class="prix">gratuit</span> : la documentation de Meta n'annonce pour ces appels que des limites de débit, aucun tarif.</p>
 
 <h3>Avant de commencer</h3>
-<p>Il faut un <strong>compte Instagram professionnel</strong>, de type créateur ou entreprise. Dans l'application Instagram : Paramètres, Type de compte, Passer à un compte professionnel. Il faut aussi un compte Facebook pour ouvrir <strong>Meta for Developers</strong> (developers.facebook.com).</p>
+<p>Il faut un <strong>compte Instagram professionnel</strong>, de type créateur ou entreprise. Dans l'application Instagram : Paramètres, Type de compte, Passer à un compte professionnel. Ce passage n'oblige pas à rendre vos coordonnées publiques : laissez les options de contact vides ou masquées. Il faut aussi un compte Facebook pour ouvrir <strong>Meta for Developers</strong> (developers.facebook.com).</p>
 <p>Le jeton que vous allez créer donne accès à votre compte. Collez-le seulement dans Deepotus, jamais dans un message, un ticket ou une capture.</p>
 
 <h3>Créer l'application Meta</h3>
 <ol class="etapes">
 <li>Sur developers.facebook.com, ouvrez <strong>My Apps</strong> puis <strong>Create app</strong>. Donnez-lui un nom, par exemple « Deepotus ».</li>
-<li>Le cas d'usage « connexion Instagram » n'est plus proposé aux applications neuves. Choisissez <strong>API setup with Unified login</strong>, rattachez votre <strong>portefeuille business</strong>, puis créez la configuration à partir du modèle proposé.</li>
+<li>Choisissez le cas d'usage <strong>Gérer les messages et les contenus sur Instagram</strong> ; l'ancienne « connexion Instagram » n'est plus proposée aux applications neuves. Rattachez votre <strong>portefeuille business</strong>.</li>
+<li>Sur la page <strong>API setup with Unified login</strong>, créez la configuration à partir du modèle proposé.</li>
 <li>Cochez les autorisations : <code>instagram_basic</code>, <code>instagram_content_publish</code>, <code>instagram_manage_insights</code> et <code>instagram_manage_comments</code>. Ajoutez les messages ou la publicité seulement si vous en avez besoin.</li>
-<li>Générez le jeton de la configuration : il commence par <code>EAA</code> et n'expire pas. Copiez-le.</li>
+<li>Dans les rôles de l'application, ajoutez votre compte Instagram comme <strong>testeur Instagram</strong> et acceptez l'invitation depuis ce compte. Générez ensuite le jeton de la configuration : il commence par <code>EAA</code> et n'expire pas. Copiez-le.</li>
 <li>Relevez l'<strong>identifiant du compte business</strong> Instagram : une suite de chiffres qui commence par <code>1784</code>.</li>
 </ol>
 

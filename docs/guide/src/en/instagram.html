@@ -1,15 +1,16 @@
 <p class="chapeau-chap">You will link your Instagram account so the Scheduler publishes your Reels on its own and the Growth tab reads your statistics. Allow thirty minutes the first time; it is <span class="prix">free</span>: Meta's documentation only sets rate limits on these calls, no price.</p>
 
 <h3>Before you start</h3>
-<p>You need a <strong>professional Instagram account</strong>, creator or business. In the Instagram app: Settings, Account type, Switch to professional account. You also need a Facebook account to open <strong>Meta for Developers</strong> (developers.facebook.com).</p>
+<p>You need a <strong>professional Instagram account</strong>, creator or business. In the Instagram app: Settings, Account type, Switch to professional account. This switch does not require making your contact details public: leave the contact options empty or hidden. You also need a Facebook account to open <strong>Meta for Developers</strong> (developers.facebook.com).</p>
 <p>The token you are about to create grants access to your account. Paste it into Deepotus only, never into a message, a ticket or a screenshot.</p>
 
 <h3>Create the Meta app</h3>
 <ol class="etapes">
 <li>On developers.facebook.com, open <strong>My Apps</strong> then <strong>Create app</strong>. Give it a name, for example "Deepotus".</li>
-<li>The "Instagram login" use case is no longer offered to new apps. Choose <strong>API setup with Unified login</strong>, attach your <strong>business portfolio</strong>, then create the configuration from the proposed template.</li>
+<li>Choose the <strong>Manage messaging and content on Instagram</strong> use case; the old "Instagram login" is no longer offered to new apps. Attach your <strong>business portfolio</strong>.</li>
+<li>On the <strong>API setup with Unified login</strong> page, create the configuration from the proposed template.</li>
 <li>Tick the permissions: <code>instagram_basic</code>, <code>instagram_content_publish</code>, <code>instagram_manage_insights</code> and <code>instagram_manage_comments</code>. Add messaging or ads only if you need them.</li>
-<li>Generate the configuration's token: it starts with <code>EAA</code> and does not expire. Copy it.</li>
+<li>In the app roles, add your Instagram account as an <strong>Instagram tester</strong> and accept the invitation from that account. Then generate the configuration's token: it starts with <code>EAA</code> and does not expire. Copy it.</li>
 <li>Note the Instagram <strong>business account ID</strong>: a string of digits starting with <code>1784</code>.</li>
 </ol>
 
