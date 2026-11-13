@@ -172,6 +172,12 @@ def ouvrir(job: str, version: int, cible: str) -> dict:
     _cible(cible)
     cle = EXE_ENV[cible]
     exe = os.environ.get(cle, "").strip()
+    if not exe and cible == "blender":
+        # t521 (13/11/2026) : une seule règle trouve Blender, celle des passes (Program Files, puis PATH) — l'Établi ne
+        # réclame plus BLENDER_PATH quand Blender est installé à sa place habituelle
+        from app.services import passes_blender as _pb
+        e = _pb.etat_blender()
+        exe = e["exe"] if e.get("dispo") else ""
     if not exe:
         raise RuntimeError(f"{cle} n'est pas renseigné — pose le chemin de l'exécutable dans le .env pour ouvrir "
                            f"{CIBLES[cible]['nom']} d'ici.")

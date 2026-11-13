@@ -137,6 +137,10 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
   (`guides_fournisseurs`), `diagnostic.TESTABLES` et une branche de `tester_cle` qui fait une LECTURE gratuite (sinon
   `SANS_TEST_GRATUIT`, qui le dit sans rien appeler) ; ses messages sont des `Message` (`diag.cle.*`), traduits par la
   route. Un refus Meta connu se dit par `meta_erreurs.expliquer`. Banc `backend/tests/test_cles_guides_t520.py`.
+- Un logiciel 3D externe (t521) se règle dans Réglages › Moteurs et logiciels 3D (section `moteurs`, panneau
+  `frontend/shared/dz-logiciels3d.js`, service `logiciels_3d.py`) : ses champs dans `LOGICIELS`, la liste blanche et
+  `RUBRIQUE_DE_CLE`, une détection qui PROPOSE seulement, un test de version sans fenêtre. Blender se trouve par une
+  seule règle, `passes_blender._racines` / `candidats_auto`. Banc `backend/tests/test_logiciels3d_t521.py`.
 - On n'écrit jamais une clé dans un journal, une URL ou une réponse.
 - Les bancs arrivent avant le code (TDD). Les bancs de patch ont leur inverse.
 

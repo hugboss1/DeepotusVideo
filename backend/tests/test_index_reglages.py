@@ -53,6 +53,10 @@ if _ESP == 1:
     barre["espaces"] = AIDE.DICO["espaces.reglages.onglet"]["fr"]
 # t345 (29/10/2026) : l'onglet « mcp » (Serveur MCP) est posé par le maillon de QUEUE dzmcp, lui aussi après la traduction
 _MCP = s.count('{k:"pricing",l:dzT("reglages.onglet.tarifs")},{k:"mcp",l:dzT("mcp.reglages.onglet")},')
+# t521 (13/11/2026) : l'onglet « moteurs » (Moteurs et logiciels 3D) est posé par le maillon de QUEUE dzlogiciels3d
+_MOT = s.count('{k:"paths",l:dzT("reglages.onglet.chemins")},{k:"moteurs",l:dzT("logiciels3d.reglages.onglet")},')
+if _MOT == 1:
+    barre["moteurs"] = AIDE.DICO["logiciels3d.reglages.onglet"]["fr"]
 if _MCP == 1:
     barre["mcp"] = AIDE.DICO["mcp.reglages.onglet"]["fr"]
 fu = re.search(r'Fu=\[(.*?)\];function bm\(', s_av)
@@ -87,7 +91,7 @@ with TestClient(app, client=("192.168.1.20", 50000), headers=_JA.entetes(app)) a
     code_distant = c2.get("/api/reglages/index").status_code
 
 print("\n[1] les sections")
-check("1.0 le miroir a bien lu le bundle (14 sections dont Appareils depuis #56 + Espaces depuis t202 + Serveur MCP depuis t345, 9 clés, Ollama, 16 comptes dont TikTok depuis #31)", len(barre) == 14 + _ESP + _MCP and _ESP == 1 and _MCP == 1 and len(cles_keys) == 9
+check("1.0 le miroir a bien lu le bundle (14 sections dont Appareils depuis #56 + Espaces depuis t202 + Serveur MCP depuis t345, 9 clés, Ollama, 16 comptes dont TikTok depuis #31)", len(barre) == 14 + _ESP + _MCP + _MOT and _ESP == 1 and _MCP == 1 and _MOT == 1 and len(cles_keys) == 9
       and cles_ollama == {"OLLAMA_URL", "OLLAMA_MODEL"} and len(cles_comptes) == 16, f"{barre} {cles_keys} {cles_ollama} {cles_comptes}")
 vues = {x["section"] for x in e}
 check("1.1 CHAQUE section de la barre a au moins une entrée, et aucune entrée ne vise une section qui n'existe pas",
@@ -96,7 +100,7 @@ check("1.2 chaque entrée porte le libellé de sa rubrique tel que la barre l'af
       e and all(x.get("rubrique") == barre.get(x["section"]) for x in e),
       str([x for x in e if x.get("rubrique") != barre.get(x["section"])][:2]))
 # t141 : la barre LIVRÉE (dzT) résolue par le dictionnaire, comparée à l'index servi — informatif, ne rougit pas.
-_cles_barre = dict(re.findall(r'\{k:"([a-z]+)",l:dzT\("([a-z_.]+)"\)\}', s))
+_cles_barre = dict(re.findall(r'\{k:"([a-z]+)",l:dzT\("([a-z0-9_.]+)"\)\}', s))   # t521 : une clé à chiffre (logiciels3d)
 check("1.2b la barre livrée nomme les MÊMES sections par une clé i18n chacune", set(_cles_barre) == set(barre)
       and all(k in AIDE.DICO for k in _cles_barre.values()), str(_cles_barre))
 _ecarts = {sec: (r_, AIDE.DICO[_cles_barre[sec]]["fr"], AIDE.DICO[_cles_barre[sec]]["en"])

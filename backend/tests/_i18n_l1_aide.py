@@ -334,11 +334,22 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzlogiciels3d(bundle: str) -> str:
+    """Le bundle d'avant l'onglet « Moteurs et logiciels 3D » (maillon de queue patch_bundle_dzlogiciels3d, t521,
+    13/11/2026, posé APRÈS dzclesguides : c'est la queue de la chaîne) : ses paires défaites, lues dans le maillon
+    lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzlogiciels3d as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzclesguides(bundle: str) -> str:
     """Le bundle d'avant « Guide » et « Tester » pour chaque clé de service (maillon de queue
     patch_bundle_dzclesguides, t520, 13/11/2026, posé APRÈS dzigformat : c'est la queue de la chaîne) : ses paires
     défaites, lues dans le maillon lui-même. Sans son marqueur : rendu tel quel."""
     import patch_bundle_dzclesguides as _m
+    bundle = avant_dzlogiciels3d(bundle)         # 13/11 (t521) : le maillon posé APRÈS dzclesguides, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

@@ -1,0 +1,31 @@
+<p class="chapeau-chap">You will tell Deepotus where Blender and Godot are installed, check their version, and know what each one receives from the app. Five minutes; <span class="prix">free</span>: nothing is sent outside your PC.</p>
+
+<h3>Before you start</h3>
+<p>You need <strong>Blender 4.2</strong> or later (blender.org) and <strong>Godot 4</strong> or later (godotengine.org, or Steam). Godot has no installer: it is an .exe file you put wherever you like. To drop assets into it, also keep a Godot project at hand: its folder contains the <code>project.godot</code> file.</p>
+
+<h3>Set up Blender</h3>
+<figure class="scene" data-scene="logiciels-3d/reglages"></figure>
+<ol class="etapes">
+<li>Open <b class="ui">Settings</b> › <b class="ui">3D engines and software</b>.</li>
+<li>On the Blender card, click <b class="ui">Detect</b>. Deepotus looks in Program Files, then in the PATH, and lists what it finds, newest version first. It saves nothing.</li>
+<li>Click <b class="ui">Use</b> next to the Blender you want, then <b class="ui">Save</b>. Field left empty: Deepotus itself picks the newest Blender it finds.</li>
+<li>Click <b class="ui">Test</b>: the reply gives the version, read without opening a window. A version older than 4.2 is refused, and the reply says so.</li>
+</ol>
+
+<h3>Set up Godot</h3>
+<ol class="etapes">
+<li>On the Godot card, click <b class="ui">Detect</b>; otherwise, paste the full path to the .exe file into <strong>Executable</strong>.</li>
+<li>In <strong>Project folder</strong>, paste the folder that contains <code>project.godot</code>.</li>
+<li>Click <b class="ui">Save</b> next to each field: it applies right away.</li>
+<li>Click <b class="ui">Test</b>: the reply gives the Godot version and the project name. A folder without <code>project.godot</code> is refused, and the reply says so.</li>
+</ol>
+
+<h3>What each one receives</h3>
+<div class="cartes">
+<article><i data-dz="dz-cat-3d"></i><h4>Blender</h4><p>Shot passes, 3D Studio FBX export and FBX import. From the Workbench, it opens the prepared part (see <a href="#etabli">Prepare a part before slicing</a>).</p></article>
+<article><i data-dz="dz-cat-sprites"></i><h4>Godot</h4><p>SpriteFrames (.tres), TileSets, .tscn scenes with hitboxes and .glb models, dropped into the project's <code>deepotus/</code> folder. See <a href="#spritelab">Animate sprites</a> and <a href="#tilelab">Paint tiled levels</a>.</p></article>
+</div>
+
+<h3>Good to know</h3>
+<aside class="astuce"><i data-dz="dz-etat-information"></i><p>Unreal Engine and Unity will come to this same page. Until then, their paths (<code>UNREAL_PATH</code>, <code>UNITY_PATH</code> and their project folders) are still set in the .env file.</p></aside>
+<aside class="attention"><i data-dz="dz-etat-avertissement"></i><p><b class="ui">Detect</b> only suggests: until you click <b class="ui">Save</b>, the previous setting stays in place.</p></aside>

@@ -82,6 +82,12 @@ def _racines() -> list[Path]:          # couture : remplacée au banc
     env = os.environ.get("BLENDER_PATH", "").strip().strip('"')
     if env:
         out.append(Path(env))
+    return out + candidats_auto()
+
+
+def candidats_auto() -> list[Path]:     # t521 (13/11/2026) : aussi la « Détection » de Réglages › Moteurs et logiciels 3D
+    """Les candidats trouvés SANS réglage : Program Files (plus récent d'abord), puis PATH."""
+    out = []
     if DOSSIER_PF.is_dir():
         def cle(d: Path):
             m = re.search(r"(\d+)\.(\d+)", d.name)
