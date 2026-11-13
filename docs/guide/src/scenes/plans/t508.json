@@ -1,0 +1,53 @@
+{
+  "base": "http://127.0.0.1:8811",
+  "preparation": "Backend de preuve t508 (scripts/guide/serve_guide.py, PORT=8811) : code du worktree, données jetables, aucune clé réelle. Jeton Instagram FACTICE (EAAfaux…) et identifiant 1784… factice posés par Réglages › Comptes connectés pour montrer le bloc rempli. Rien de payant, rien de publié. Chapitre « Relier un compte Instagram ».",
+  "scenes": [
+    {
+      "scene": "instagram/reglages",
+      "taille": [1440, 900],
+      "clip": "css:main",
+      "titre": {"fr": "Comptes connectés › Instagram", "en": "Connected accounts › Instagram"},
+      "legende": {
+        "fr": "Réglages, Comptes connectés, bloc Instagram : le jeton, l'identifiant du compte, la vérification et le guide.",
+        "en": "Settings, Connected accounts, Instagram block: the token, the account ID, the check and the guide."
+      },
+      "avant": [
+        {"clic": {"fr": "texte:Réglages", "en": "texte:Settings"}, "apres": 3500},
+        {"clic": {"fr": "texte:Comptes connectés", "en": "texte:Connected accounts"}, "apres": 1500},
+        {"clic": "texte:X (Twitter)", "apres": 900},
+        {"clic": "texte:Instagram", "apres": 1200}
+      ],
+      "captures": [{"nom": "bloc"}],
+      "temps": [
+        {"capture": 0, "duree": 2.6, "surligne": "css:input[type=password]",
+         "bulle": {"fr": "Collez le jeton EAA…, puis Enregistrer", "en": "Paste the EAA… token, then Save"}},
+        {"capture": 0, "duree": 2.6, "curseur": {"fr": "texte:Vérifier les identifiants", "en": "texte:Verify credentials"}, "clic": true,
+         "surligne": {"fr": "texte:Vérifier les identifiants", "en": "texte:Verify credentials"},
+         "bulle": {"fr": "La réponse donne votre @nom", "en": "The reply shows your @name"}},
+        {"capture": 0, "duree": 2.4, "surligne": "css:[data-dz-guide-compte=IG_ACCESS_TOKEN]",
+         "bulle": {"fr": "Guide : le pas à pas", "en": "Guide: step by step"}}
+      ]
+    },
+    {
+      "scene": "instagram/croissance",
+      "taille": [1440, 900],
+      "titre": {"fr": "F1 › Croissance", "en": "F1 › Growth"},
+      "legende": {
+        "fr": "L'onglet Croissance du tiroir F1 : période, espace, puis Relever maintenant.",
+        "en": "The Growth tab of the F1 drawer: period, space, then Read now."
+      },
+      "avant": [{"attente": 1500}, {"touche": "F1"}, {"attente": 800}],
+      "captures": [
+        {"nom": "onglet", "etapes": [{"clic": "css:[data-dz-agent=onglet-croissance]"}, {"attente": 1800}]}
+      ],
+      "temps": [
+        {"capture": 0, "duree": 2.2, "curseur": "css:[data-dz-agent=onglet-croissance]", "clic": true,
+         "surligne": "css:[data-dz-agent=onglet-croissance]",
+         "bulle": {"fr": "Onglet Croissance", "en": "Growth tab"}, "ancre": "css:[data-dz-agent=onglet-croissance]"},
+        {"capture": 0, "duree": 2.6, "curseur": "css:[data-dz-croissance=relever]", "clic": true,
+         "surligne": "css:[data-dz-croissance=relever]",
+         "bulle": {"fr": "Relève les mesures, gratuit", "en": "Reads the metrics, free"}, "ancre": "css:[data-dz-croissance=relever]"}
+      ]
+    }
+  ]
+}

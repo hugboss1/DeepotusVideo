@@ -1,0 +1,120 @@
+{
+  "titre": {
+    "fr": "F1 › Croissance",
+    "en": "F1 › Growth"
+  },
+  "legende": {
+    "fr": "L'onglet Croissance du tiroir F1 : période, espace, puis Relever maintenant.",
+    "en": "The Growth tab of the F1 drawer: period, space, then Read now."
+  },
+  "captures": [
+    {
+      "fr": "onglet.fr.webp",
+      "en": "onglet.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1381,
+        76
+      ],
+      "clic": true,
+      "surligne": [
+        1335,
+        55,
+        92,
+        43
+      ],
+      "bulle": {
+        "fr": "Onglet Croissance",
+        "en": "Growth tab"
+      },
+      "ancre": [
+        1381,
+        91
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        1121,
+        147
+      ],
+      "clic": true,
+      "surligne": [
+        1047,
+        127,
+        148,
+        40
+      ],
+      "bulle": {
+        "fr": "Relève les mesures, gratuit",
+        "en": "Reads the metrics, free"
+      },
+      "ancre": [
+        1121,
+        161
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1332,
+        76
+      ],
+      "clic": true,
+      "surligne": [
+        1296,
+        55,
+        71,
+        43
+      ],
+      "bulle": {
+        "fr": "Onglet Croissance",
+        "en": "Growth tab"
+      },
+      "ancre": [
+        1332,
+        91
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        1327,
+        114
+      ],
+      "clic": true,
+      "surligne": [
+        1281,
+        94,
+        91,
+        40
+      ],
+      "bulle": {
+        "fr": "Relève les mesures, gratuit",
+        "en": "Reads the metrics, free"
+      },
+      "ancre": [
+        1327,
+        128
+      ]
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

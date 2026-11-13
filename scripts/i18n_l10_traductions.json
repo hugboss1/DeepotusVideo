@@ -14714,5 +14714,9 @@
  "{name} : {l} px de large, il en faut au moins {IMAGE_LARGEUR_MIN}": {
   "fr": "{name} : {l} px de large, il en faut au moins {IMAGE_LARGEUR_MIN}",
   "en": "{name}: {l} px wide, at least {IMAGE_LARGEUR_MIN} are needed"
+ },
+ "logiciel inconnu": {
+  "fr": "logiciel inconnu",
+  "en": "unknown software"
  }
 }

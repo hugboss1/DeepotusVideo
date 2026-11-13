@@ -400,6 +400,17 @@
       "etat": "v3"
     },
     {
+      "id": "instagram",
+      "famille": "publier",
+      "lot": "t508",
+      "icone": "dz-reseau-instagram",
+      "fr": "Relier un compte Instagram",
+      "en": "Link an Instagram account",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
       "id": "clients-canaux",
       "famille": "publier",
       "lot": "t320",
@@ -686,6 +697,17 @@
       "ecrans": [
         "Plateau 3D"
       ],
+      "etat": "v3"
+    },
+    {
+      "id": "logiciels-3d",
+      "famille": "jeu3d",
+      "lot": "t521",
+      "icone": "dz-cat-3d",
+      "fr": "Brancher Blender et Godot",
+      "en": "Connect Blender and Godot",
+      "anciens": [],
+      "ecrans": [],
       "etat": "v3"
     },
     {

@@ -2,7 +2,8 @@
 # scripts/patch_bundle_dzplanifaff.py
 """Maillon de queue : deux défauts d'AFFICHAGE du Planificateur (10/11/2026).
 
-Ce qu'il pose (TROIS ancres uniques, relevées le 10/11 sur le bundle de 68f475cc, HORS de tout bloc de couche
+Ce qu'il pose (TROIS ancres uniques, relevées le 10/11 sur le bundle de 68f475cc et toujours uniques sur celui de
+1d520419 le 14/11, HORS de tout bloc de couche
 __DZ_*_BEGIN__, vérifié à l'écriture par `hors_couche`) :
   P1 le graphe d'acheminement (composant Fm) ne disait « auto possible » que pour Telegram et X : la condition
      codée en dur `I==="telegram"&&…||I==="x"&&…` ignorait YouTube et Instagram, que le serveur publie pourtant
@@ -16,9 +17,11 @@ Les deux clés vivent dans frontend/shared/i18n/planif_news.json (écrit à la m
 scripts/i18n_assembler.py).
 Épingles intouchées : x.useState( 731, v2.8.0 x4, DzTracks 181, `await window.__dzDialogue.confirmer(` x30.
 
-Maillon de QUEUE, APRÈS dzigformat (dont il sonde le marqueur) ; il garde un .js.bak_dzplanifaff le temps de
-l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Son INVERSE est `avant_dzplanifaff` dans
-backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de `avant_dzigformat`. Lecture et écriture
+Maillon de QUEUE, APRÈS dzlogiciels3d (t521) : écrit le 10/11 après dzigformat, rejoué le 14/11 à la fusion de main
+(dzclesguides t520 puis dzlogiciels3d t521 s'étaient posés après dzigformat entre-temps) ; il sonde leurs marqueurs.
+Il garde un .js.bak_dzplanifaff le temps de l'écriture puis le SUPPRIME, et `version` reste le dernier maillon. Son
+INVERSE est `avant_dzplanifaff` dans backend/tests/_i18n_l1_aide.py (lu sur les PAIRES d'ici), appelé EN TÊTE de
+`avant_dzlogiciels3d`. Lecture et écriture
 en OCTETS (le bundle est en CRLF) ; aucune paire ne contient de fin de ligne.
 DÉFAIRE le maillon AVANT de changer ses paires (`defaire` relit les paires d'ici).
 Banc : backend/tests/test_planif_affichage.py.
@@ -38,6 +41,8 @@ MARKER_ATTENDU = 1
 CONFIRMER = "await window.__dzDialogue.confirmer("
 
 SONDE_AMONT = [
+    ("dzlogiciels3d", "/*dzlogiciels3d*/", 1),
+    ("dzclesguides", "/*dzclesguides*/", 4),
     ("dzigformat", "/*dzigformat*/", 1),
     ("dzdiffusion", "/*dzdiffusion*/", 1),
     ("version", "v2.8.0", 4),

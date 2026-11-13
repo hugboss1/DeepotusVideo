@@ -67,7 +67,7 @@ for cle in sorted(D.TESTABLES):
     # t364 (28/10/2026) : un guide ajouté après le relevé du 29/09 porte la date où SON lien a été ouvert
     check(f"1.x {cle} : console https, textes FR et EN, lien OUVERT le 29/09 ou après",
           e.get("console", "").startswith("https://") and len(e.get("fr", "")) > 80 and len(e.get("en", "")) > 80
-          and e.get("verifie_le") == "2026-09-29" or (cle == "APIFY_TOKEN" and e.get("verifie_le") == "2026-10-28"
+          and e.get("verifie_le", "") >= "2026-09-29" or (cle == "APIFY_TOKEN" and e.get("verifie_le") == "2026-10-28"
                                                       and e.get("console", "").startswith("https://")),
           json.dumps(e, ensure_ascii=False)[:160])
 brut = json.dumps(g)

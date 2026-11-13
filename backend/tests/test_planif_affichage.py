@@ -74,7 +74,8 @@ def test_epingles_figees_et_fins_de_ligne():
 
 def test_idempotent_et_voisins():
     py = sys.executable
-    for nom in ("patch_bundle_dzplanifaff.py", "patch_bundle_dzigformat.py"):
+    for nom in ("patch_bundle_dzplanifaff.py", "patch_bundle_dzlogiciels3d.py", "patch_bundle_dzclesguides.py",
+                "patch_bundle_dzigformat.py"):
         r = subprocess.run([py, str(R / "scripts" / nom), "--check"], capture_output=True, cwd=R)
         assert r.returncode == 0, (nom, r.stdout[-300:], r.stderr[-300:])
         assert "appliqu".encode() in r.stdout, (nom, r.stdout)
@@ -85,8 +86,12 @@ def test_inverse_inscrit_en_tete():
     assert AIDE.avant_dzplanifaff(BUNDLE) == M.defaire(BUNDLE)
     assert AIDE.avant_dzplanifaff(M.defaire(BUNDLE)) == M.defaire(BUNDLE), "sans marqueur : rendu tel quel"
     corps = pathlib.Path(AIDE.__file__).read_text(encoding="utf-8")
-    c = corps[corps.index("def avant_dzigformat("):corps.index("def avant_dzmethodes(")]
+    # fusion 14/11 : rejoué APRÈS dzlogiciels3d (t521), son inverse est appelé en tête de avant_dzlogiciels3d
+    c = corps[corps.index("def avant_dzlogiciels3d("):corps.index("def avant_dzclesguides(")]
     assert "bundle = avant_dzplanifaff(bundle)" in c and c.index("avant_dzplanifaff(") < c.index("if _m.MARKER not in bundle")
+    assert corps.index("def avant_dzplanifaff(") < corps.index("def avant_dzlogiciels3d(")
+    A = importlib.import_module("patch_bundle_dzlogiciels3d")
+    assert AIDE.avant_dzlogiciels3d(BUNDLE) == A.defaire(M.defaire(BUNDLE)), "la chaîne défait dzplanifaff puis dzlogiciels3d"
 
 
 def test_bundle_syntaxe():

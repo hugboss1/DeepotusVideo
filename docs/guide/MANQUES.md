@@ -4,7 +4,7 @@ Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
 - 1148 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 58 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 52 chapitres dans le sommaire v3, en 6 familles.
+- 54 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -580,6 +580,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] « YouTube et Instagram restent en mode assisté » (dépassé : Scheduler YouTube #25 / Instagram #26 ; TikTok #27 absent)
 - [x] « Connected accounts », « Send test message », « Verify credentials » (anglais)
 - [x] Réglages + OAuth (#28) non décrits ; redémarrage après Save
+
+
+### Relier un compte Instagram (`instagram`, lot t508, reprend : nouveau) — 0 manques
 
 
 ### Travailler pour des clients (`clients-canaux`, lot t320, reprend : nouveau) — 0 manques
@@ -1486,6 +1489,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Keyframes et mouvement de caméra** : Poser des keyframes caméra sur la tête de lecture, choisir un preset (travelling avant, orbite 90°, grue descendante, plan fixe) et lire le mouvement en boucle. — *Touche K pour poser un keyframe, Espace pour lire* (PR #257 · commit fcaeb561 · t127)
 - [x] **Listes groupées** : Les maillages à poser sont groupés sous « Entités de la bible » et « Maillages 3D ». (PR #291 · commit a360d7ef)
 
+### Brancher Blender et Godot (`logiciels-3d`, lot t521, reprend : nouveau) — 0 manques
+
+
 ## Repères
 
 ### Parcours complets, de l'idée au post (`parcours`, lot t181, reprend : nouveau) — 0 manques
@@ -1585,3 +1591,5 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t360 | 9 | 9 |
 | t404 | 22 | 22 |
 | t443 | 0 | 0 |
+| t508 | 0 | 0 |
+| t521 | 0 | 0 |

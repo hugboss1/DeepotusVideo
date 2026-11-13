@@ -7787,6 +7787,10 @@ _ALLOWED_ENV_KEYS = {
     "TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN", "TIKTOK_AUDITED",
     # Avatar live G0 (t161, 10/10) : le Direct (Decart Lucy 2.5)
     "DECART_API_KEY",
+    # t520 (13/11/2026) : la recherche web de la prospection (t354) se règle aussi dans Clés d'API
+    "TAVILY_API_KEY", "EXA_API_KEY", "SERPER_API_KEY",
+    # t521 (13/11/2026) : Réglages › Moteurs et logiciels 3D (lot 1 : Blender et Godot), des chemins, pas des secrets
+    "BLENDER_PATH", "GODOT_PATH", "GODOT_PROJECT_DIR",
 }
 
 
@@ -10851,11 +10855,11 @@ async def test_channel(body: dict, request: Request):
         except KeyError:
             raise HTTPException(404, f"compte inconnu : {cpt}")
         with _cpt.sous_compte(cpt):
-            return await _test_channel(ch)
-    return await _test_channel(ch)
+            return await _test_channel(ch, request)
+    return await _test_channel(ch, request)
 
 
-async def _test_channel(ch):
+async def _test_channel(ch, request=None):
     from app.services.comptes import cred as settings      # noqa: F811 — t203 : les identifiants du compte courant
     if ch == "telegram":
         if not settings.has_telegram:
@@ -10902,7 +10906,16 @@ async def _test_channel(ch):
             nom = r.json().get("username") if r.status_code == 200 else None
             if nom:
                 return {"ok": True, "detail": f"@{nom}"}
-            return {"ok": False, "detail": _ip._scrub(f"instagram {r.status_code}: {r.text[:200]}")}
+            brut = _ip._scrub(f"instagram {r.status_code}: {r.text[:200]}")
+            # t520 (13/11/2026) : un refus Meta connu (5258005 « API access blocked », app archivée, jeton révoqué) est
+            # dit en clair dans la langue de l'écran, le détail brut gardé après
+            from app.services import meta_erreurs as _me
+            from app import i18n as _i
+            expl = _me.expliquer(r.text)
+            if expl is not None:
+                lang = _i.langue_requete(request) if request is not None else _i.langue_ui()
+                return {"ok": False, "detail": f"{_i.texte(expl, lang)} — {brut}"}
+            return {"ok": False, "detail": brut}
         except Exception as e:
             return {"ok": False, "detail": _ip._scrub(f"instagram : {e}")}
     if ch == "tiktok":

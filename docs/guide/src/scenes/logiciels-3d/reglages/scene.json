@@ -1,0 +1,122 @@
+{
+  "titre": {
+    "fr": "Réglages › Moteurs et logiciels 3D",
+    "en": "Settings › 3D engines and software"
+  },
+  "legende": {
+    "fr": "Une carte par logiciel : le chemin, Détecter, Tester et le guide.",
+    "en": "One card per program: the path, Detect, Test and the guide."
+  },
+  "captures": [
+    {
+      "fr": "cartes.fr.webp",
+      "en": "cartes.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        326,
+        317
+      ],
+      "clic": true,
+      "surligne": [
+        273,
+        297,
+        106,
+        40
+      ],
+      "bulle": {
+        "fr": "Détecter propose, n'enregistre rien",
+        "en": "Detect suggests, saves nothing"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        273,
+        333,
+        814,
+        126
+      ],
+      "bulle": {
+        "fr": "Utiliser, puis Enregistrer",
+        "en": "Use, then Save"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        375,
+        635,
+        91,
+        40
+      ],
+      "bulle": {
+        "fr": "Tester lit la version",
+        "en": "Test reads the version"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        320,
+        317
+      ],
+      "clic": true,
+      "surligne": [
+        273,
+        297,
+        95,
+        40
+      ],
+      "bulle": {
+        "fr": "Détecter propose, n'enregistre rien",
+        "en": "Detect suggests, saves nothing"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        273,
+        333,
+        814,
+        126
+      ],
+      "bulle": {
+        "fr": "Utiliser, puis Enregistrer",
+        "en": "Use, then Save"
+      }
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        364,
+        635,
+        79,
+        40
+      ],
+      "bulle": {
+        "fr": "Tester lit la version",
+        "en": "Test reads the version"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    900
+  ]
+}
