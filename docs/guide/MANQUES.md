@@ -1489,7 +1489,7 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Keyframes et mouvement de caméra** : Poser des keyframes caméra sur la tête de lecture, choisir un preset (travelling avant, orbite 90°, grue descendante, plan fixe) et lire le mouvement en boucle. — *Touche K pour poser un keyframe, Espace pour lire* (PR #257 · commit fcaeb561 · t127)
 - [x] **Listes groupées** : Les maillages à poser sont groupés sous « Entités de la bible » et « Maillages 3D ». (PR #291 · commit a360d7ef)
 
-### Brancher Blender et Godot (`logiciels-3d`, lot t521, reprend : nouveau) — 0 manques
+### Brancher ses logiciels 3D (`logiciels-3d`, lot t521, reprend : nouveau) — 0 manques
 
 
 ## Repères

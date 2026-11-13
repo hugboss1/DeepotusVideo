@@ -140,7 +140,9 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
 - Un logiciel 3D externe (t521) se règle dans Réglages › Moteurs et logiciels 3D (section `moteurs`, panneau
   `frontend/shared/dz-logiciels3d.js`, service `logiciels_3d.py`) : ses champs dans `LOGICIELS`, la liste blanche et
   `RUBRIQUE_DE_CLE`, une détection qui PROPOSE seulement, un test de version sans fenêtre. Blender se trouve par une
-  seule règle, `passes_blender._racines` / `candidats_auto`. Banc `backend/tests/test_logiciels3d_t521.py`.
+  seule règle, `passes_blender._racines` / `candidats_auto`. Lot 2 (14/11) : Blender MCP (sonde existante), Unreal
+  (version lue dans Engine/Build/Build.version, lanceur Epic), Unity (version du dossier Unity Hub, glTFast vérifié) :
+  aucun test ne LANCE Unreal ni Unity. Bancs `backend/tests/test_logiciels3d_t521.py`, `test_logiciels3d_lot2_t521.py`.
 - On n'écrit jamais une clé dans un journal, une URL ou une réponse.
 - Les bancs arrivent avant le code (TDD). Les bancs de patch ont leur inverse.
 

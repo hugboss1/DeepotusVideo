@@ -1,4 +1,4 @@
-/* dz-logiciels3d.js — Réglages › « Moteurs et logiciels 3D » (t521, 13/11/2026), lot 1 : Blender et Godot.
+/* dz-logiciels3d.js — Réglages › « Moteurs et logiciels 3D » (t521, 13/11/2026) : Blender, Blender MCP, Godot, Unreal Engine, Unity (lot 2 du 14/11).
    SOURCE : frontend/shared/dz-logiciels3d.js ; copie OCTET POUR OCTET : frontend/dist/shared/dz-logiciels3d.js, servie à
    /shared/dz-logiciels3d.js, chargée par une balise classique dans la SPA (frontend/dist/index.html). L'onglet est posé
    par le maillon de queue scripts/patch_bundle_dzlogiciels3d.py, qui rend un <div data-dz-logiciels3d-hote> et appelle
@@ -74,11 +74,16 @@
   function champ(lid, ch, retour) {
     var ligne = el("div", { style: S.ligne, "data-dz-l3d-champ": ch.cle });
     var lab = el("div", { style: S.lib });
-    lab.appendChild(el("div", {}, T(ch.genre === "projet" ? "logiciels3d.champ.projet" : "logiciels3d.champ.exe")));
+    lab.appendChild(el("div", {}, T(ch.genre === "projet" ? "logiciels3d.champ.projet"
+                                   : ch.genre === "port" ? "logiciels3d.champ.port" : "logiciels3d.champ.exe")));
+    // t521 lot 2 : l'aide du dossier de projet dit ce que chaque moteur y attend (project.godot, .uproject, Assets)
+    var cleAide = ch.genre === "port" ? "logiciels3d.champ.port_aide"
+                : ch.genre !== "projet" ? "logiciels3d.champ.exe_aide"
+                : lid === "godot" ? "logiciels3d.champ.projet_aide" : "logiciels3d.champ.projet_aide_" + lid;
     lab.appendChild(el("div", { style: "font:10px 'IBM Plex Mono',monospace;color:var(--txt-mid,#9aa4ae)" }, ch.cle));
     ligne.appendChild(lab);
     var inp = el("input", { type: "text", style: S.champ, spellcheck: "false", "data-dz-l3d": "valeur-" + ch.cle,
-                            placeholder: T(ch.genre === "projet" ? "logiciels3d.champ.projet_aide" : "logiciels3d.champ.exe_aide") });
+                            placeholder: T(cleAide) });
     inp.value = ch.valeur || "";
     ligne.appendChild(inp);
     var b = bouton("enregistrer-" + ch.cle, T("logiciels3d.bouton.enregistrer"), "dz-action-enregistrer", true);

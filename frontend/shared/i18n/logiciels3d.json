@@ -1,7 +1,7 @@
 {
   "logiciels3d.reglages.onglet": {"fr": "Moteurs et logiciels 3D", "en": "3D engines and software"},
   "logiciels3d.reglages.titre": {"fr": "Moteurs et logiciels 3D", "en": "3D engines and software"},
-  "logiciels3d.reglages.intro": {"fr": "Indiquez où sont installés vos logiciels 3D pour que Deepotus y envoie ses exports et les ouvre. Détecter cherche aux endroits habituels et ne fait que proposer ; Tester lit la version sans ouvrir de fenêtre. Blender et Godot pour commencer ; Unreal Engine et Unity suivront.", "en": "Tell Deepotus where your 3D software is installed so it can send its exports there and open them. Detect looks in the usual places and only suggests; Test reads the version without opening a window. Blender and Godot to start with; Unreal Engine and Unity will follow."},
+  "logiciels3d.reglages.intro": {"fr": "Indiquez où sont installés vos logiciels 3D pour que Deepotus y envoie ses exports et les ouvre. Détecter cherche aux endroits habituels et ne fait que proposer ; Tester lit la version sans ouvrir de fenêtre. Une carte par logiciel : Blender et son pont MCP, Godot, Unreal Engine, Unity.", "en": "Tell Deepotus where your 3D software is installed so it can send its exports there and open them. Detect looks in the usual places and only suggests; Test reads the version without opening a window. One card per program: Blender and its MCP bridge, Godot, Unreal Engine, Unity."},
   "logiciels3d.blender.titre": {"fr": "Blender", "en": "Blender"},
   "logiciels3d.blender.permet": {"fr": "Sert aux passes du plan (Previs), à l'export FBX du 3D Studio, à l'import FBX et à « Ouvrir dans Blender » de l'Établi. Blender 4.2 ou plus récent ; laissé vide, Deepotus le cherche dans Program Files puis dans le PATH.", "en": "Used for shot passes (Previs), 3D Studio FBX export, FBX import and Workbench « Open in Blender ». Blender 4.2 or later; left empty, Deepotus looks for it in Program Files, then in the PATH."},
   "logiciels3d.godot.titre": {"fr": "Godot", "en": "Godot"},
@@ -19,5 +19,15 @@
   "logiciels3d.etat.aucun_trouve": {"fr": "Rien trouvé aux endroits habituels : indiquez le chemin vous-même.", "en": "Nothing found in the usual places: enter the path yourself."},
   "logiciels3d.etat.trouves": {"fr": "Trouvé — cliquez Utiliser pour remplir le champ, puis Enregistrer :", "en": "Found — click Use to fill the field, then Save:"},
   "logiciels3d.etat.enregistre": {"fr": "Enregistré, appliqué tout de suite.", "en": "Saved, applied right away."},
-  "logiciels3d.etat.non_regle": {"fr": "non réglé", "en": "not set"}
+  "logiciels3d.etat.non_regle": {"fr": "non réglé", "en": "not set"},
+  "logiciels3d.blender_mcp.titre": {"fr": "Blender MCP", "en": "Blender MCP"},
+  "logiciels3d.blender_mcp.permet": {"fr": "Le pont qui laisse l'agent Réalisateur lire et regarder la scène ouverte dans Blender (mcp-for-blender et son add-on). Laissé vide, Deepotus cherche mcp-for-blender à son emplacement d'installation habituel ; port 9876 par défaut.", "en": "The bridge that lets the Director agent read and look at the scene open in Blender (mcp-for-blender and its add-on). Left empty, Deepotus looks for mcp-for-blender in its usual install location; port 9876 by default."},
+  "logiciels3d.unreal.titre": {"fr": "Unreal Engine", "en": "Unreal Engine"},
+  "logiciels3d.unreal.permet": {"fr": "Reçoit les modèles .glb (import glTF natif), les textures nommées T_…_BC/N/ORM et les sprites Paper2D, déposés dans Content/Deepotus du projet ; l'Établi ouvre le .uproject. Unreal Engine 5.", "en": "Receives .glb models (native glTF import), textures named T_…_BC/N/ORM and Paper2D sprites, dropped into the project's Content/Deepotus; the Workbench opens the .uproject. Unreal Engine 5."},
+  "logiciels3d.unity.titre": {"fr": "Unity", "en": "Unity"},
+  "logiciels3d.unity.permet": {"fr": "Reçoit les modèles .glb (avec le paquet glTFast), les MaskMap URP/HDRP et les feuilles de sprites avec leur script d'import, déposés dans Assets/Deepotus du projet ; l'Établi ouvre le projet.", "en": "Receives .glb models (with the glTFast package), URP/HDRP MaskMaps and sprite sheets with their import script, dropped into the project's Assets/Deepotus; the Workbench opens the project."},
+  "logiciels3d.champ.port": {"fr": "Port", "en": "Port"},
+  "logiciels3d.champ.port_aide": {"fr": "9876 par défaut", "en": "9876 by default"},
+  "logiciels3d.champ.projet_aide_unreal": {"fr": "dossier qui contient le fichier .uproject", "en": "folder that contains the .uproject file"},
+  "logiciels3d.champ.projet_aide_unity": {"fr": "dossier qui contient Assets", "en": "folder that contains Assets"}
 }

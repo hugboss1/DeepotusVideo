@@ -424,7 +424,7 @@ _INDEX_FIXE = [
                                          "réseau local host jeton perdu"),
     ("keys", "Clés API", "clé api jeton token fournisseur guide tester enregistrer"),
     # t521 (13/11/2026) : Moteurs et logiciels 3D (Blender, Godot)
-    ("moteurs", "Moteurs et logiciels 3D", "blender godot moteur de jeu logiciel 3d chemin exécutable projet "
+    ("moteurs", "Moteurs et logiciels 3D", "blender godot unreal unity mcp moteur de jeu logiciel 3d chemin exécutable projet port "
                                                "version détecter tester exporter ouvrir engine"),
     ("accounts", "Comptes connectés", "comptes réseaux sociaux publication x twitter telegram youtube instagram tester"),
     ("personas", "Personas", "persona ton voix audience personnage profil"),
@@ -482,6 +482,8 @@ RUBRIQUE_DE_CLE = {
     "TAVILY_API_KEY": "keys", "EXA_API_KEY": "keys", "SERPER_API_KEY": "keys",
     # t521 (13/11/2026) : Moteurs et logiciels 3D
     "BLENDER_PATH": "moteurs", "GODOT_PATH": "moteurs", "GODOT_PROJECT_DIR": "moteurs",
+    "UNREAL_PATH": "moteurs", "UNREAL_PROJECT_DIR": "moteurs", "UNITY_PATH": "moteurs", "UNITY_PROJECT_DIR": "moteurs",
+    "BLENDER_MCP_EXE": "moteurs", "BLENDER_MCP_PORT": "moteurs",                     # t521 lot 2
     "ELEVENLABS_VOICE_ID_FR": "keys", "ELEVENLABS_VOICE_ID_EN": "keys",  # t221 : voix par défaut, champs texte
     "ANTHROPIC_MODEL": "defaults", "OPENAI_MODEL": "defaults", "GEMINI_MODEL": "defaults", "OLLAMA_MODEL": "defaults",
     "SUMMARIZER_PROVIDER": "defaults", "PLANNER_PROVIDER": "defaults", "AGENT_MODEL": "defaults",   # t285a
