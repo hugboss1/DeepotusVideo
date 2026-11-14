@@ -10267,9 +10267,17 @@ async def schedule_analytics(days: int = 28, request: Request = None):
 async def schedule_croissance(days: int = 30, espace_id: str | None = None, tz: int = 0):
     from app.services import metrics_service as _ms, instagram_publisher as _ig
     t = await _ms.tableau(max(1, min(365, days)), (espace_id or "").strip()[:40] or None, max(-840, min(840, tz)))
+    # 10/11/2026 (essai réel) : le compte lu est celui de l'espace demandé (l'espace ACTIF pour « tous les espaces »),
+    # jamais le compte historique d'un autre espace ; un espace sans compte Instagram rend None sans aucun appel.
+    from app.services import comptes as _cpt, espaces as _esp
+    cid = next((v["id"] for v in _cpt.lister(t["espace_id"] or _esp.lire()["actif"]) if v["plateforme"] == "instagram"), None)
     try:
-        t["compte"] = {"instagram": await _ig.fetch_compte(t["days"])}
-    except Exception as e:                    # réseau coupé : le tableau des posts reste lisible
+        if cid is None:
+            t["compte"] = {"instagram": None}
+        else:
+            with _cpt.sous_compte(cid):
+                t["compte"] = {"instagram": await _ig.fetch_compte(t["days"])}
+    except Exception as e:                   # réseau coupé : le tableau des posts reste lisible
         logger.warning(f"croissance compte instagram : {_ig._scrub(str(e))[:200]}")
         t["compte"] = {"instagram": None, "erreur": True}
     return t
