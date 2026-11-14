@@ -334,11 +334,23 @@ def _bloc_tag(s, tag, f):
     return head + b + lead + f(bloc.strip("\r\n")) + trail + e + tail
 
 
+def avant_dzplanifaff(bundle: str) -> str:
+    """Le bundle d'avant les correctifs d'affichage du Planificateur (maillon de queue patch_bundle_dzplanifaff,
+    10/11/2026, rejoué à la fusion du 14/11 APRÈS dzlogiciels3d : c'est la queue de la chaîne : « auto possible »
+    d'après /api/health, titre « Planificateur » et bouton « Statistiques » traduits) : ses paires défaites, lues dans
+    le maillon lui-même. Sans son marqueur : rendu tel quel."""
+    import patch_bundle_dzplanifaff as _m
+    if _m.MARKER not in bundle:
+        return bundle
+    return _m.defaire(bundle)
+
+
 def avant_dzlogiciels3d(bundle: str) -> str:
-    """Le bundle d'avant l'onglet « Moteurs et logiciels 3D » (maillon de queue patch_bundle_dzlogiciels3d, t521,
-    13/11/2026, posé APRÈS dzclesguides : c'est la queue de la chaîne) : ses paires défaites, lues dans le maillon
-    lui-même. Sans son marqueur : rendu tel quel."""
+    """Le bundle d'avant l'onglet « Moteurs et logiciels 3D » (maillon patch_bundle_dzlogiciels3d, t521,
+    13/11/2026, posé APRÈS dzclesguides) : ses paires défaites, lues dans le maillon lui-même. Sans son marqueur :
+    rendu tel quel."""
     import patch_bundle_dzlogiciels3d as _m
+    bundle = avant_dzplanifaff(bundle)           # fusion 14/11 : dzplanifaff, rejoué APRÈS dzlogiciels3d, défait d'abord
     if _m.MARKER not in bundle:
         return bundle
     return _m.defaire(bundle)

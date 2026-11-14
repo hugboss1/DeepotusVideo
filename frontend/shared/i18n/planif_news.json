@@ -1,4 +1,6 @@
 {
+  "scheduler.calendrier.analytics": {"fr": "Statistiques", "en": "Analytics"},
+  "scheduler.calendrier.titre": {"fr": "Planificateur", "en": "Scheduler"},
   "scheduler.etat.draft": {"fr": "brouillon", "en": "draft"},
   "scheduler.etat.failed": {"fr": "échec", "en": "failed"},
   "scheduler.etat.posted": {"fr": "publié", "en": "posted"},

@@ -41,7 +41,7 @@ ent = s[s.find(NEW_POST):s.find(NEW_POST) + 1600]
 boutons = [("__dzSchedComptes()", 'dzT("scheduler.calendrier.comptes")', "Comptes"),
            ("__dzSchedValider()", 'dzT("scheduler.calendrier.valider")', "Valider la semaine"),
            ("__dzSchedCreneaux()", 'dzT("scheduler.calendrier.creneaux")', "Créneaux"),
-           ("__dzSchedAnalytics()", '"Analytics"', "Analytics")]
+           ("__dzSchedAnalytics()", 'dzT("scheduler.calendrier.analytics")', "Statistiques")]   # 10/11 : dzplanifaff
 check("1.9 l'en-tête porte les quatre boutons, chacun avec son title (E-12)",
       all(f"onClick:function(){{{fn}}},children:{lib}" in ent for fn, lib, _fr in boutons)
       and all(AIDE.fr(lib[5:-2]) == fr for _fn, lib, fr in boutons if lib.startswith("dzT("))
