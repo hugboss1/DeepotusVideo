@@ -1444,13 +1444,13 @@ function svmLeftNeighbor(cs,c){
 /* clip V1 réel (src vidéo ou image) actif sous t — fin exclusive, dernier départ gagne */
 function svmActiveV1(cs,t){var best=null;
   for(var i=0;i<cs.length;i++){var c=cs[i];
-    if(c.tr==="v1"&&c.src&&(c.src.job_id||c.src.image)&&c.start<=t&&t<c.end&&(!best||c.start>=best.start))best=c}
+    if(c.tr==="v1"&&c.src&&svI(c.src)/*t409         */&&c.start<=t&&t<c.end&&(!best||c.start>=best.start))best=c}
   return best}
 /* musique A2 réelle (bouclée au rendu) — même règle que le backend : PREMIÈRE
    occurrence a2 avec source dans l'ordre des clips ; bouclée dans les bornes de son clip,
    son fade_out = fondu de fin du clip (retours L6, 26/09/2026) */
 function svmFirstA2Id(cs){for(var i=0;i<cs.length;i++){var c=cs[i];
-  if(c.tr==="a2"&&c.src&&(c.src.audio||c.src.job_id))return c.id}
+  if(c.tr==="a2"&&c.src&&svA(c.src)/*t409         */)return c.id}
   return null}
 function svmDbTxt(g){return g>0?"+"+g+" dB":g<0?"−"+Math.abs(g)+" dB":"0 dB"}
 /* ── courbes de fondu par clip audio (R2/I4) — vocabulaire partagé backend :
@@ -1514,11 +1514,11 @@ function svmRatioW(rt){var p=String(rt||"9:16").split(":"),w=Number(p[0])||9,h=N
    frame jamais extraite deux fois), travaux SÉQUENTIELS lancés en idle
    (requestIdleCallback, repli setTimeout 0) : aucun fetch / décodage ne
    démarre pendant un drag. Échec de décodage (codec) : silencieux. */
-var SVM_TRACK_BUS={a1:"dialogue",a2:"musique",a3:"sfx"}; /* bus de mixage backend */
-function svmSrcKey(s){return s?(s.job_id?"j:"+s.job_id:s.audio?"a:"+s.audio:s.image?"i:"+s.image:""):""}
+var SVM_TRACK_BUS={a1:"dialogue",a2:"musique",a3:"sfx"};
+function svmSrcKey(s){return s?s.job_id?"j:"+s.job_id:s.audio?"a:"+s.audio:s.image?"i:"+s.image:s.file_path?"f:"+s.file_path:"":""}
 function svmSrcUrl(s){return s.job_id?"/api/jobs/"+s.job_id+"/video"
-  :s.audio?"/api/audio/"+encodeURIComponent(s.audio)
-  :s.image?"/api/images/"+encodeURIComponent(s.image):""}
+ :s.audio?"/api/audio/"+encodeURIComponent(s.audio)
+:s.image?"/api/images/"+encodeURIComponent(s.image):svO(s)}
 var SVM_AC=null;
 function svmSharedAC(){var AC=window.AudioContext||window.webkitAudioContext;
   if(!AC)return null;
@@ -2845,19 +2845,19 @@ function DzMontage(props){
      instantané. Tout ce qui est par-frame (currentTime, couches) est écrit
      impérativement dans deux hôtes (fond V1 / overlays V2) — aucun
      re-render ajouté par frame. ── */
-  function livePoolKey(src,role){return role+(src.job_id?"j:"+src.job_id:"i:"+src.image)}
+  function livePoolKey(src,role){return role+svmSrcKey(src)/*t409                     */}
   function livePoolGet(src,role){
     var pool=livePoolRef.current||(livePoolRef.current=new Map());
     var key=livePoolKey(src,role),it=pool.get(key);
     if(!it){
       var el;
-      if(src.job_id){el=document.createElement("video");
+      if(svW(src)  ){el=document.createElement("video");
         el.src=svU(src,role);/* t282 : calque */el.preload="auto";
         el.muted=!0;el.playsInline=!0}
       else{el=document.createElement("img");
-        el.src="/api/images/"+encodeURIComponent(src.image);el.alt="";el.draggable=!1}
+        el.src=svmSrcUrl(src);/*t409                      */el.alt="";el.draggable=!1}
       el.className="svm-livemedia";
-      it={el:el,video:!!src.job_id,at:0};pool.set(key,it);
+      it=svG(el,src,role,liveSync);pool.set(key,it);/*t4*/
       while(pool.size>6){
         var old=null,ok=null;
         pool.forEach(function(o,k2){if(o!==it&&!o.el.isConnected&&(!old||o.at<old.at)){old=o;ok=k2}});
@@ -3012,7 +3012,7 @@ function DzMontage(props){
     /* overlays V2 actifs à t, au-dessus du fond, opacité appliquée */
     var act={};
     cs.forEach(function(k){
-      if(DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)&&k.src&&(k.src.job_id||k.src.image)&&k.start<=t&&t<k.end)act[k.id]=k});
+      if(DzTracks.isOverlayTrack(k.tr,dzTracksRef.current)&&k.src&&svI(k.src)/*t409         */&&k.start<=t&&t<k.end)act[k.id]=k});
     /* P14 — l'ORDRE d'empilement suit l'ordre des pistes (la plus haute
        listée au-dessus, même loi que `layer` au rendu) : `dzOrd` est
        l'ordre d'ajout au DOM, le plus bas d'abord ; `dzReord` ne vaut
@@ -3069,7 +3069,7 @@ function DzMontage(props){
   x.useEffect(function(){
     if(previewUrl||proj.demo)return;
     clips.slice().sort(function(a,b){return a.start-b.start}).forEach(function(c){
-      if(c.tr!=="v1"||!c.src||!c.src.job_id)return;
+      if(c.tr!=="v1"||!c.src||!svW(c.src)  )return;
       var pool=livePoolRef.current;
       if(pool&&pool.size>=6)return;
       livePoolGet(c.src,"b")})},[clips,previewUrl,proj.demo]);
@@ -3443,7 +3443,7 @@ function DzMontage(props){
     var pool=livePoolRef.current;
     if(pool){var it=pool.get(livePoolKey(c.src,"o"));
       if(it){v=rd(it.el);if(v)return v}}
-    if(c.src&&(c.src.job_id||c.src.image))livePoolGet(c.src,"o");
+    if(c.src&&svI(c.src)/*t409         */)livePoolGet(c.src,"o");
     return null}
   /* grille d'alignement 3×3 — colle le BORD RÉEL de l'overlay au bord du
      canvas avec une marge de 4 % : largeur_frac = scale, hauteur_frac =
@@ -6371,8 +6371,8 @@ function DzMontage(props){
           /* D-12 — LE VOILE DES FONDUS EN DIRECT. Vide, transparent au
              repos, et écrit impérativement par `liveSync` (couleur +
              opacité) à chaque frame : le lecteur vivant n'a qu'un
-             hôte, donc pas de crossfade A/B — un voile dit OÙ tombe
-             la transition et COMBIEN elle dure. */
+             hôte, pas de crossfade A/B : un voile dit OÙ. */
+          liveOn?r.jsx(svL,{c:liveClip}):null,/*t409    */
           liveOn?r.jsx("i",{className:"svm-xfveil",ref:dzVeilRef,"aria-hidden":!0}):null,
           liveOn&&!liveClip?r.jsx("div",{className:"svm-livegap",children:dzT("montage.lecteur.trou")}):null,
           /* cadre de sélection des overlays : boîte + 8 poignées (échelle) +
@@ -6961,13 +6961,13 @@ function DzMontage(props){
                      pointer-events:none, la démo (sans src) reste inchangée */
                   var media=null;
                   if(c.src){
-                    if(trackKind(tr.id)==="audio"&&(c.src.audio||c.src.job_id))
+                    if(trackKind(tr.id)==="audio"&&svA(c.src)/*t409         */)
                       media=r.jsx(SvmWave,{src:c.src,k:svmSrcKey(c.src),srcIn:c.srcIn||0,
                         /* vitesse ×s : la fenêtre source réellement consommée
                            est s fois plus longue — la waveform reste honnête */
                         len:(c.end-c.start)*(typeof c.speed==="number"&&c.speed>0?c.speed:1),
                         color:tr.c,theme:theme,zoom:zoomPct,dur:dur});
-                    else if(svV(tr.id,c)&&c.src.job_id)
+                    else if(svV(tr.id,c)&&svW(c.src)  )
                       media=r.jsx(SvFilmstripO,{src:c.src,k:svK(c.src,tr.id),
                         /* vitesse ×s (C) : la fenêtre source AFFICHÉE suit
                            ce que le rendu consomme — durée × vitesse */
@@ -6977,7 +6977,7 @@ function DzMontage(props){
                         style:{backgroundImage:"url('/api/images/"+encodeURIComponent(c.src.image)+"')"}})}
                   /* mixage par clip : rampes + poignées de fondu (clips audio
                      réels seulement) — masquées si la piste est verrouillée */
-                  var aud=trackKind(tr.id)==="audio"&&c.src&&(c.src.audio||c.src.job_id);
+                  var aud=trackKind(tr.id)==="audio"&&c.src&&svA(c.src)/*t409         */;
                   var fIn=aud?Number(c.fade_in)||0:0,fOut=aud?Number(c.fade_out)||0:0;
                   var clen=Math.max(.01,c.end-c.start);
                   var fiP=Math.min(100,fIn/clen*100),foP=Math.min(100,fOut/clen*100);
@@ -7260,8 +7260,8 @@ function svD(f){var k="catalogue.sfx.famille."+f.id+".desc";return window.DZ_I18
    navigateur la lit, sinon un WebM VP9 + alpha fabriqué par le serveur) ; les pistes hautes ont leur bande, vignettes
    posées sur un damier. Noms de trois lettres : svU, svV, svK remplacent à LONGUEUR ÉGALE (tables L4 et G1 par
    position) ; SvFilmstripO rend SvmFilmstrip tel quel pour V1 (clé sans préfixe), la bande de calque sinon. */
-function svmCalqueUrl(s){return "/api/montage/calque?src="+encodeURIComponent(JSON.stringify({job_id:s.job_id}))}
-function svU(src,role){return role==="o"?svmCalqueUrl(src):"/api/jobs/"+src.job_id+"/video"}
+function svmCalqueUrl(s){return "/api/montage/calque?src="+encodeURIComponent(JSON.stringify(svJ(s)))}
+function svU(src,role){return role==="o"?svmCalqueUrl(src):svmSrcUrl(src)}
 function svV(t,c){return /^v\d+$/.test(String(t||""))&&!!(c&&c.src)}
 function svK(s,t){return (t==="v1"?"":"c")+svmSrcKey(s)}
 function svmDamier(g,w,h){var c=8;for(var y=0;y<h;y+=c)for(var x0=0;x0<w;x0+=c){
@@ -7322,6 +7322,68 @@ function SvmFilmstripCalque(props){
 /* aiguillage : deux types de composant distincts (jamais de hooks conditionnels) */
 function SvFilmstripO(props){
   return String(props.k||"").charAt(0)==="c"?r.jsx(SvmFilmstripCalque,props):r.jsx(SvmFilmstrip,props)}
+
+/* ═══════════ t409 (05/11/2026) : l'écran lit ce que le rendu lit ═══════════
+   CHEMINS. `/api/montage/render` accepte `src.file_path` ; le lecteur vivant, les ondes et les bandes passent désormais
+   par GET /api/montage/source (mêmes gardes que les précalculs, média seulement). Image ou vidéo se décide à l'extension,
+   la liste `_IMAGE_EXTS` du serveur. Noms de trois lettres : retouches à LONGUEUR ÉGALE (tables L4 et G1 par position).
+   SOURCE ILLISIBLE (ProRes, HEVC…). Le rôle « o » a son aperçu de calque ; le fond V1 (rôle « b ») n'avait rien : un
+   élément en erreur, ou des métadonnées sans image, et le moniteur restait muet. svG écoute ces deux signaux, la source
+   entre alors dans une file (POST /api/montage/proxy, UN aperçu à la fois : un projet entier ne lance pas N ffmpeg),
+   svL le dit dans le moniteur, et l'élément repart sur l'aperçu 480p. Le rendu, lui, lit toujours l'original. */
+function svJ(s){return s.job_id?{job_id:s.job_id}:s.file_path?{file_path:s.file_path}:s}
+function svO(s){return s.file_path?"/api/montage/source?src="+encodeURIComponent(JSON.stringify({file_path:s.file_path})):""}
+function svM(s){return /\.(png|jpe?g|webp)$/i.test(String(s.file_path||""))}
+function svW(s){return !!s&&(!!s.job_id||(!!s.file_path&&!svM(s)))}
+function svI(s){return !!(s&&(s.job_id||s.image||s.file_path))}
+function svA(s){return !!(s&&(s.audio||s.job_id||s.file_path))}
+var SVM_PX=new Map(),SVM_PX_EC=new Set(),SVM_PX_Q=[],SVM_PX_VOL=!1,SVM_PX_MS=1500;
+function svmPxUrl(s){return "/api/montage/proxy?src="+encodeURIComponent(JSON.stringify(svJ(s)))}
+function svmPxAvis(){SVM_PX_EC.forEach(function(f){try{f()}catch(_e){}})}
+/* `b.sync` : le lecteur remet la tête sur l'aperçu dès sa première image (à l'arrêt, rien d'autre ne le ferait) */
+function svmPxBranche(b){var el=b.el;if(!el.getAttribute("src"))return; /* évincé du pool entre-temps */
+  var prete=function(){el.removeEventListener("loadeddata",prete);try{b.sync()}catch(_e){}};
+  el.addEventListener("loadeddata",prete);el.src=svmPxUrl(b.src);try{el.load()}catch(_e){}}
+function svmPxFin(e,st,msg){e.st=st;e.msg=String(msg||"");SVM_PX_VOL=!1;
+  var l=e.attente;e.attente=[];if(st==="ok")l.forEach(svmPxBranche);
+  svmPxAvis();svmPxLance()}
+function svmPxSuit(e,id){fetch("/api/jobs/"+id).then(function(r3){return r3.json()}).then(function(j){
+    var st=j&&j.status;
+    if(st==="done")return svmPxFin(e,"ok");
+    if(!st||st==="failed")return svmPxFin(e,"err",j&&(j.error||j.detail));
+    setTimeout(function(){svmPxSuit(e,id)},SVM_PX_MS)})
+  .catch(function(x2){svmPxFin(e,"err",x2)})}
+function svmPxLance(){if(SVM_PX_VOL)return;var e=SVM_PX_Q.shift();if(!e)return;SVM_PX_VOL=!0;
+  fetch("/api/montage/proxy",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({src:svJ(e.src)})})
+  .then(function(r2){return r2.json().then(function(d){return {ok:r2.ok,d:d}})}).then(function(o){
+    if(o.ok&&o.d&&o.d.ready)return svmPxFin(e,"ok");
+    if(!o.ok||!o.d||!o.d.job_id)return svmPxFin(e,"err",o.d&&(o.d.detail||o.d.error));
+    svmPxSuit(e,o.d.job_id)})
+  .catch(function(x2){svmPxFin(e,"err",x2)})}
+function svmPxDemande(src,el,sync){var k=svmSrcKey(src),e=SVM_PX.get(k),b={el:el,src:src,sync:sync};
+  if(e){if(e.st==="ok")svmPxBranche(b);else if(e.st==="pend")e.attente.push(b);return}
+  e={st:"pend",msg:"",src:src,attente:[b]};SVM_PX.set(k,e);SVM_PX_Q.push(e);svmPxAvis();svmPxLance()}
+/* l'entrée du pool : un fond vidéo surveille son décodage, une source déjà connue pour illisible va droit à son aperçu */
+function svG(el,src,role,sync){var it={el:el,video:svW(src),at:0};
+  if(!it.video||role!=="b")return it;
+  var e=SVM_PX.get(svmSrcKey(src));
+  if(e&&e.st==="ok"){el.src=svmPxUrl(src);return it}
+  var ko=function(){if(el._svmPx||!el.getAttribute("src"))return;el._svmPx=1;svmPxDemande(src,el,sync)};
+  el.addEventListener("error",ko);
+  el.addEventListener("loadedmetadata",function(){if(!el.videoWidth)ko()});
+  return it}
+/* le moniteur le dit : composant à part, abonné aux états, sans rien ajouter aux hooks de l'écran */
+function svL(p){var c=p.c,st=x["useState"](0),maj=st[1];
+  x["useEffect"](function(){var f=function(){maj(function(t){return t+1})};SVM_PX_EC.add(f);
+    return function(){SVM_PX_EC.delete(f)}},[]);
+  var e=c&&SVM_PX.get(svmSrcKey(c.src));
+  if(!e)return null;
+  var nom=String(c.label||c.src.file_path||c.src.job_id||"").split(/[\\/]/).pop(),
+      gs={color:"#ffffffd0",textTransform:"none",letterSpacing:0,textAlign:"center",padding:"0 18px"};
+  if(e.st==="ok")return r.jsx("div",{className:"svm-livegap",style:{inset:"8px auto auto 8px",height:"fit-content",width:"fit-content",color:"#ffffff90",textTransform:"none",letterSpacing:0},
+    children:dzT("montage.lecteur.codec_ok")});
+  return r.jsx("div",{className:"svm-livegap",role:"status",style:gs,
+    children:e.st==="err"?dzT("montage.lecteur.codec_err",{nom:nom,raison:e.msg.length>140?e.msg.slice(0,140)+"…":e.msg||"?"}):dzT("montage.lecteur.codec_pend",{nom:nom})})}
 
 /*__DZ_SONVFX_END__*/
 /*__DZ_SFXSTUDIO_BEGIN__*/
@@ -22667,7 +22729,7 @@ var DZM_SC_CLE="dz_montage_scopes",DZM_SC_MS=300,DZM_LB_W=240,DZM_LB_MAX=3;
 function dzmScopesAt(clips,head){
   var t=dzmRfNum(head),best=null,bs=0;
   if(!Array.isArray(clips)||t===null)return null;
-  clips.forEach(function(k){if(!k||typeof k!=="object"||k.tr!=="v1"||!k.src||!(k.src.job_id||k.src.image))return;
+  clips.forEach(function(k){if(!k||k.tr!=="v1"||!k.src||!(k.src.job_id||k.src.image||k.src.file_path))return;/**/
     var s=dzmRfNum(k.start),e=dzmRfNum(k.end);
     if(s!==null&&e!==null&&t>=s&&t<e&&(!best||s>=bs)){best=k;bs=s}});
   return best}

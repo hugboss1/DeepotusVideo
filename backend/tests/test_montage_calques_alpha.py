@@ -189,11 +189,11 @@ SRCJS = open(os.path.join(REPO, "frontend", "patches", "son-vfx-montage.js"), en
 check("ecran_svmCalqueUrl", 'function svmCalqueUrl(s){return "/api/montage/calque?src="' in SRCJS)
 # le lecteur vivant : rôle « o » sur l'aperçu de calque, à LONGUEUR ÉGALE (tables L4/G1 par position, voir t280)
 check("ecran_lecteur_role_o_calque", 'el.src=svU(src,role);/* t282 : calque */el.preload="auto";' in SRCJS
-      and 'function svU(src,role){return role==="o"?svmCalqueUrl(src):"/api/jobs/"+src.job_id+"/video"}' in SRCJS)
+      and 'function svU(src,role){return role==="o"?svmCalqueUrl(src):svmSrcUrl(src)}' in SRCJS)
 check("ecran_vignette_calque", "var url=svmCalqueUrl(src);" in SRCJS and 'var key="c"+svmSrcKey(src)+"@"+sec' in SRCJS)
 check("ecran_vignette_damier", "svmDamier(g,SVM_THUMB_W,SVM_THUMB_H);" in SRCJS)
 check("ecran_filmstrip_pistes_hautes",
-      "else if(svV(tr.id,c)&&c.src.job_id)" in SRCJS
+      "else if(svV(tr.id,c)&&svW(c.src)  )" in SRCJS
       and "media=r.jsx(SvFilmstripO,{src:c.src,k:svK(c.src,tr.id)," in SRCJS
       and 'function svK(s,t){return (t==="v1"?"":"c")+svmSrcKey(s)}' in SRCJS)
 BUNDLE = open(os.path.join(REPO, "frontend", "dist", "assets", "index-BEOJX8L5.js"), "rb").read()

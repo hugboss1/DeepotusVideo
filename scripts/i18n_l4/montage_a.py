@@ -518,4 +518,14 @@ ENTREES = [
     # t282 (23/10/2026) — changement FONCTIONNEL posé APRÈS L4 : le lecteur vivant lit un overlay (rôle « o ») sur
     # son aperçu de calque (svU, fin de couche : entrée t188 de montage_d.py), à LONGUEUR ÉGALE (tables L4 et G1).
     S(167555, 'el.src="/api/jobs/"+src.job_id+"/video";', 'el.src=svU(src,role);/* t282 : calque */', {}),
+    # t409 (05/11/2026) — changement FONCTIONNEL posé APRÈS L4 : `src.file_path` au moniteur, sur les pistes, et la
+    # source illisible dite à l'écran (aides en fin de couche : entrée t188 de montage_d.py), à LONGUEUR ÉGALE.
+    # Mêmes retouches dans RETOUCHES de scripts/icones/g1_generer.py.
+    S(167215, 'function livePoolKey(src,role){return role+(src.job_id?"j:"+src.job_id:"i:"+src.image)}', 'function livePoolKey(src,role){return role+svmSrcKey(src)/*t409                     */}', {}),
+    S(167495, 'if(src.job_id){el=document.createElement("video");', 'if(svW(src)  ){el=document.createElement("video");', {}),
+    S(167709, 'el.src="/api/images/"+encodeURIComponent(src.image);el.alt=""', 'el.src=svmSrcUrl(src);/*t409                      */el.alt=""', {}),
+    S(167832, 'it={el:el,video:!!src.job_id,at:0};pool.set(key,it);', 'it=svG(el,src,role,liveSync);pool.set(key,it);/*t4*/', {}),
+    S(177096, 'k.src&&(k.src.job_id||k.src.image)&&k.start<=t', 'k.src&&svI(k.src)/*t409         */&&k.start<=t', {}),
+    S(180763, 'if(c.tr!=="v1"||!c.src||!c.src.job_id)return;', 'if(c.tr!=="v1"||!c.src||!svW(c.src)  )return;', {}),
+    S(201379, 'if(c.src&&(c.src.job_id||c.src.image))livePoolGet(c.src,"o");', 'if(c.src&&svI(c.src)/*t409         */)livePoolGet(c.src,"o");', {}),
 ]

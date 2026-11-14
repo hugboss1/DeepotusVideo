@@ -48,6 +48,7 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               (JobRecord provider="montage_proxy", SANS aucun
                               chemin d'artefact : un cache n'est pas un plan).
   GET  /api/montage/proxy     P7 — sert cet aperçu s'il existe, 404 sinon.
+  GET  /api/montage/source    t409 — les octets d'un média donné par `src.file_path`, pour l'écran.
                               Les quatre sont bornées à la boucle locale et
                               calculées par `montage_media` ; leur cache vit
                               dans outputs/montage_cache/, hors de tout
@@ -6905,6 +6906,31 @@ async def montage_stab_state(request: Request, src: str = ""):
     except Exception as e:
         raise _media_http(e)
     return {"ready": out.exists()}
+
+
+# t409 (05/11/2026) — LA SOURCE TELLE QU'ELLE, pour ce que `/api/montage/render` accepte et que l'écran ne savait pas lire :
+# `src.file_path`. Mêmes gardes que les précalculs (`_media_source` : boucle locale, 404), et trois de plus parce que
+# cette route RENVOIE LES OCTETS d'un chemin choisi par l'appelant : un chemin ABSOLU vers un vrai fichier, un MÉDIA
+# (l'union plate du pré-vol, jamais un .env ni une base), et jamais une requête venue d'un autre site : la boucle locale
+# ne protège pas d'une page ouverte dans le navigateur de l'utilisateur, qui appelle 127.0.0.1 depuis la même machine.
+_TYPES_SOURCE = {".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/mp4", ".webm": "video/webm",
+                 ".mkv": "video/webm"}
+
+
+@router.get("/source")
+async def montage_source(request: Request, src: str = ""):
+    """Les octets de `src` (plages acceptées, le lecteur s'y déplace). 404 si le chemin n'est pas un fichier absolu,
+    415 si ce n'est pas un média, 403 hors boucle locale ou depuis un autre site."""
+    if request.headers.get("sec-fetch-site", "") == "cross-site":
+        raise HTTPException(403, "Les sources du Montage ne se lisent pas depuis un autre site.")
+    p = await _media_source(request, src, video=False)
+    if not p.is_absolute() or not p.is_file():
+        raise HTTPException(404, "Source introuvable pour ce précalcul.")
+    if not _ffmpeg_ouvrira(p):
+        raise HTTPException(415, f"« {p.name} » n'est pas un média lisible par le Montage.")
+    import mimetypes
+    return FileResponse(p, media_type=_TYPES_SOURCE.get(p.suffix.lower()) or mimetypes.guess_type(p.name)[0]
+                        or "application/octet-stream")
 
 
 @router.get("/proxy")
