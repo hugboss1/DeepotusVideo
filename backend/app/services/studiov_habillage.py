@@ -32,6 +32,7 @@ from app.services import studiov as S
 
 TEXTURES = Path(__file__).resolve().parent.parent / "studiov" / "textures"
 SCRIPT_CUISSON = TEXTURES.parent / "cuire_matiere_blender.py"
+SCRIPT_EXPORT = TEXTURES.parent / "exporter_objet_blender.py"
 MAX_CUISSONS = 12                          # matières cuites par appel
 DELAI_BLENDER = 900                        # secondes
 SLUG = re.compile(r"^[a-z0-9_]{2,40}$")
@@ -244,9 +245,9 @@ def _fichier_blend(chemin) -> Path:
     return f
 
 
-def _lancer_blender(blend: Path, arguments: list) -> str:      # couture : remplacée au banc
+def _lancer_blender(blend: Path, arguments: list, script: Path | None = None) -> str:      # couture : remplacée au banc
     """Blender sans fenêtre, scripts du fichier NON exécutés (--disable-autoexec) ; rend ce qu'il imprime."""
-    argv = [_blender(), "--background", "--disable-autoexec", str(blend), "--python", str(SCRIPT_CUISSON), "--"] + arguments
+    argv = [_blender(), "--background", "--disable-autoexec", str(blend), "--python", str(script or SCRIPT_CUISSON), "--"] + arguments
     try:
         r = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=DELAI_BLENDER)
     except subprocess.TimeoutExpired:
@@ -325,6 +326,37 @@ def cuire_blender(chemin, matiere=None, metres=1.0) -> list:
         if not out:
             raise RefusHabillage("La cuisson n'a rien produit : la matière existe-t-elle dans ce fichier ?", 502)
         return out
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+# ── depuis Blender : sortir un OBJET d'un fichier .blend vers la bibliothèque d'objets importés (lot SVO) ──
+
+def objets_blender(chemin) -> list:
+    """Les objets de premier niveau d'un fichier .blend qui portent une surface : [{nom, faces}]."""
+    obs = _ligne(_lancer_blender(_fichier_blend(chemin), ["--liste"], SCRIPT_EXPORT), "OBJETS")
+    if not isinstance(obs, list):
+        raise RefusHabillage("Blender n'a pas pu lire ce fichier.", 502)
+    return [{"nom": str(o.get("nom"))[:120], "faces": int(o.get("faces") or 0)} for o in obs if isinstance(o, dict) and o.get("nom")][:300]
+
+
+def exporter_blender(chemin, objet, meta=None) -> dict:
+    """Sort un objet (et ses enfants) en GLB autonome et le range dans la bibliothèque : rend sa fiche. `meta` =
+    {source, licence, auteur, url} déclarés par l'utilisateur (un asset BlenderKit garde ses droits restreints)."""
+    from app.services import studiov_objets as OB
+    blend = _fichier_blend(chemin)
+    if not isinstance(objet, str) or not objet.strip():
+        raise RefusHabillage("Choisissez l'objet à sortir de Blender.", 400)
+    m = meta if isinstance(meta, dict) else {}
+    tmp = Path(tempfile.mkdtemp(prefix="dzexport_"))
+    try:
+        fait = _ligne(_lancer_blender(blend, ["--sortie", str(tmp), "--objet", objet.strip()[:120]], SCRIPT_EXPORT), "EXPORT_OK")
+        f = (tmp / str((fait or {}).get("fichier") or "")).resolve() if isinstance(fait, dict) else None
+        if f is None or not f.is_relative_to(tmp.resolve()) or f.suffix.lower() != ".glb" or not f.is_file():
+            raise RefusHabillage("Blender n'a rien exporté : l'objet existe-t-il dans ce fichier ?", 502)
+        source = m.get("source") if m.get("source") in ("blenderkit", "creation") else "blender"
+        return OB.importer(f.read_bytes(), {"nom": objet.strip(), "source": source, "licence": m.get("licence"),
+                                            "auteur": m.get("auteur"), "url": m.get("url")})
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
@@ -456,5 +488,7 @@ STYLES = [
 def habillage() -> dict:
     """Tout ce que le décorateur propose. Les noms des styles, ambiances, finitions, familles et objets sont dans le
     dictionnaire de l'écran (studiov.style.<id>, studiov.ambiance.<id>…) ; ceux des matières viennent avec elles."""
+    from app.services import studiov_images as SI
+    from app.services import studiov_objets as OB
     return {"textures": textures(), "familles_texture": FAMILLES_TEXTURE, "finitions": FINITIONS,
-            "ambiances": AMBIANCES, "styles": STYLES, "catalogue": S.catalogue()}
+            "ambiances": AMBIANCES, "styles": STYLES, "catalogue": S.catalogue(), "objets": OB.lister(), "images": SI.lister()}

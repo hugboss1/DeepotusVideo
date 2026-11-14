@@ -213,8 +213,8 @@ def batir(d):
     plan("dz_sol", [(-l / 2 - 2, 0, p / 2 + av), (l / 2 + 2, 0, p / 2 + av), (l / 2 + 2, 0, -p / 2), (-l / 2 - 2, 0, -p / 2)], mats[P["sol"]])
     plan("dz_mur_fond", [(-l / 2 - 2, 0, -p / 2), (l / 2 + 2, 0, -p / 2), (l / 2 + 2, h, -p / 2), (-l / 2 - 2, h, -p / 2)], mats[P.get("fond") or P["mur"]])
     if not P["ouvert"]:
-        plan("dz_mur_gauche", [(-l / 2, 0, p / 2 + av), (-l / 2, 0, -p / 2), (-l / 2, h, -p / 2), (-l / 2, h, p / 2 + av)], mats[P["mur"]])
-        plan("dz_mur_droit", [(l / 2, 0, -p / 2), (l / 2, 0, p / 2 + av), (l / 2, h, p / 2 + av), (l / 2, h, -p / 2)], mats[P["mur"]])
+        plan("dz_mur_gauche", [(-l / 2, 0, p / 2 + av), (-l / 2, 0, -p / 2), (-l / 2, h, -p / 2), (-l / 2, h, p / 2 + av)], mats[P.get("gauche") or P["mur"]])
+        plan("dz_mur_droit", [(l / 2, 0, -p / 2), (l / 2, 0, p / 2 + av), (l / 2, h, p / 2 + av), (l / 2, h, -p / 2)], mats[P.get("droite") or P["mur"]])
         plan("dz_plafond", [(-l / 2, h, -p / 2), (l / 2, h, -p / 2), (l / 2, h, p / 2 + av), (-l / 2, h, p / 2 + av)], mats[P["plafond"]])
     # le ciel : la couleur de fond de l'ambiance + la lumière d'ambiance
     monde = bpy.data.worlds.new("dz_monde")

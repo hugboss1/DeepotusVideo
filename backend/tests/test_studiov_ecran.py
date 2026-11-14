@@ -13,6 +13,10 @@ Conception docs/superpowers/specs/2026-11-14-studio-virtuel-3d-design.md.
     d'une texture, pose d'une matière (la recette d'entrée n'est jamais modifiée, la lueur et l'usage sont gardés),
     ambiance lumineuse (clé, appoint, contre ; néons et objets lumineux à tour de rôle), style complet (une matière
     par usage + son ambiance), objet neuf posé au sol, au mur ou au plafond, DANS la pièce ;
+[A] atelier (lots SVA, SVO), sous node : qui emploie une matière ; un pan de mur ou un objet se DÉTACHE de ce qui
+    partageait sa matière ; matières inemployées ôtées ; le plan (cadre, échelle aller-retour, aimant, emprise tournée
+    d'un meuble, point dans un polygone, cône d'une caméra, collage au mur le plus proche, ce qu'on touche : repères
+    avant meubles) ; caméra et lumière neuves ; objet importé posé par sa référence ;
 [P] livraison : copies shared == dist, balise avant dz-capture.js, three.js chargé depuis /assets (aucun CDN), la
     source « ecran » n'entre jamais dans le moteur (seul le canevas déporté), ni alert/confirm/prompt ni emoji ni
     innerHTML, angles vifs, clés studiov.* FR/EN employées et assemblées, un nom traduit par décor livré.
@@ -39,7 +43,7 @@ def check(label, cond, detail=""):
 
 SH = REPO / "frontend" / "shared"
 DI = REPO / "frontend" / "dist" / "shared"
-FICHIERS = ["dz-studiov.js", "dz-studiov-logique.js", "dz-studiov-moteur.js"]
+FICHIERS = ["dz-studiov.js", "dz-studiov-logique.js", "dz-studiov-moteur.js", "dz-studiov-plan.js"]
 DICO = json.loads((SH / "i18n" / "studiov.json").read_text("utf-8"))
 URL = lambda nom: (SH / nom).resolve().as_uri()               # noqa: E731
 LIVRES = json.loads((BACKEND / "app" / "studiov" / "livres.json").read_text("utf-8"))
@@ -166,7 +170,75 @@ if "_erreur" not in Hn:
     check("H8 objet neuf : au sol devant le présentateur, au mur du fond à hauteur d'yeux (les tasseaux à 1,2 m), la suspension au plafond — toujours DANS la pièce",
           n7[0]["y"] == 0 and n7[0]["z"] == 0.9 and n7[1]["y"] == 1.6 and abs(n7[1]["z"] + 2.48) < 1e-9 and n7[2]["y"] == 1.2 and n7[3]["y"] == 2.8
           and all(abs(o["x"]) <= 3 and -2.5 <= o["z"] <= 2.5 and o["e"] == 1 for o in n7), n7)
-    check("H9 127 types ; chaque type mural est au catalogue", Hn["types"] == 127 and Hn["muraux"], Hn["types"])
+    check("H9 131 types ; chaque type mural est au catalogue", Hn["types"] == 131 and Hn["muraux"], Hn["types"])
+
+print("[A] atelier")
+An = node(r"""
+import * as G from "%s";
+const M = () => ({couleur: "#111111", rugosite: 0.8, metal: 0, emission: 0, motif: "uni", echelle: 1, texture: "", teinte: false, usage: "autre"});
+const decor = () => ({piece: {l: 6, p: 5, h: 2.8, sol: "sol", mur: "mur", fond: "mur", gauche: "mur", droite: "mur", plafond: "plafond", ouvert: false},
+  matieres: {sol: M(), mur: {...M(), texture: "stu:platre"}, plafond: M(), bois: {...M(), usage: "bois"}, orpheline: M()},
+  objets: [{type: "bureau", x: 0, y: 0, z: 0.5, ry: 90, e: 1, matiere: "bois", matiere2: null, couleur: "#aa0000"}, {type: "table", x: 2, y: 0, z: 1, ry: 0, e: 1, matiere: "bois", matiere2: null},
+           {type: "cadre", x: -2.8, y: 1.6, z: 0.3, ry: 0, e: 1, matiere: null, matiere2: null}],
+  cameras: [{nom: "Large", x: 0, y: 1.4, z: 3, vers: [0, 1.2, 0], focale: 35, mouvement: "respiration", amplitude: 0.03, periode_s: 9}],
+  lumieres: [{type: "cle", x: -1.8, y: 2.3, z: 2.4, vers: [0, 1.2, 0]}, {type: "ambiance", x: 0, y: 2.6, z: 0}],
+  ecrans: [{x: 0, y: 1.5, z: -2.44, ry: 0, l: 1.9, h: 1.07}], enseigne: {actif: true, x: 2, y: 2.3, z: -2.44, ry: 0, l: 1},
+  presentateur: {x: 0, z: 0, h: 1.7}});
+const d = decor(), avant = JSON.stringify(d);
+const c1 = decor(); const k1 = G.clePan(c1, "gauche"), k1b = G.clePan(c1, "gauche"), k2 = G.clePan(c1, "sol");
+const c2 = decor(); const o1 = G.cleObjet(c2, 0, 1), o1b = G.cleObjet(c2, 0, 1), o2 = G.cleObjet(c2, 2, 1), o3 = G.cleObjet(c2, 0, 2);
+const emp = {x0: -0.8, x1: 0.8, z0: -0.35, z1: 0.35};
+const E = G.echellePlan(G.cadrePlan(d), 800, 450), aller = E.vers(1.25, -0.75), retour = E.depuis(aller[0], aller[1]);
+const cone = G.coneCamera(d.cameras[0]);
+const ouvert = {...d.piece, ouvert: true};
+console.log(JSON.stringify({
+  emplois: G.emplois(d, "mur"), emploisBois: G.emplois(d, "bois"), intact: JSON.stringify(d) === avant,
+  pan: [k1, k1b, c1.piece.gauche, c1.piece.droite, c1.matieres.gauche.texture, k2], objet: [o1, o1b, c2.objets[0].matiere, c2.objets[1].matiere, o2, c2.matieres[o2].couleur, o3, c2.objets[0].matiere2],
+  nettoyees: Object.keys(G.nettoyerMatieres(d).matieres), aimant: [G.aimanter(1.23, 0.05), G.aimanter(1.23, 0), G.aimanter(-0.02, 0.05)],
+  cadre: G.cadrePlan(d), retour, echelle: E.k > 0,
+  tourne: G.tourner(1, 0, 90).map((v) => Math.round(v * 1000) / 1000), coins: G.coinsObjet(d.objets[0], emp).map((p) => p.map((v) => Math.round(v * 100) / 100)),
+  mini: G.coinsObjet({x: 0, z: 0, ry: 0}, {x0: -0.01, x1: 0.01, z0: -0.01, z1: 0.01}).map((p) => p.map((v) => Math.round(v * 100) / 100)),
+  dedans: [G.dansPolygone(0, 0.5, G.coinsObjet(d.objets[0], emp)), G.dansPolygone(0.6, 0.5, G.coinsObjet(d.objets[0], emp))],
+  cone: cone.map((p) => p.map((v) => Math.round(v * 100) / 100)), demi: Math.round((Math.atan2(cone[1][0] - cone[0][0], cone[0][1] - cone[1][1]) * 180 / Math.PI) * 10) / 10,
+  murs: [G.collerAuMur({x: -2.7, z: 0.3, ry: 0}, d.piece), G.collerAuMur({x: 2.9, z: 9, ry: 0}, d.piece), G.collerAuMur({x: 0.4, z: -2.2, ry: 45}, d.piece), G.collerAuMur({x: -2.9, z: 0.3, ry: 0}, ouvert)],
+  touche: [G.toucherPlan(d, [emp], 0, 3, 0.15), G.toucherPlan(d, [emp], -1.8, 2.4, 0.15), G.toucherPlan(d, [emp], 0.05, 0.02, 0.15), G.toucherPlan(d, [emp], 0, 0.9, 0.15),
+           G.toucherPlan(d, [emp], 0.5, -2.44, 0.15), G.toucherPlan(d, [emp], 2, -2.44, 0.15), G.toucherPlan(d, [emp], -2.5, -2, 0.15), G.toucherPlan(d, [emp], 0, 2.6, 0.15)],
+  camera: G.cameraNeuve(d), neon: G.lumiereNeuve(d, "neon"), contre: G.lumiereNeuve(d, "contre"), modele: G.objetNeuf(d, "modele", "obj:0123456789abcdef"), pans: G.PANS,
+  images: ["tableau", "logo_mural", "kakemono"].map((t) => G.objetNeuf(d, t, "img:0123456789abcdef")), typesImage: G.TYPES_IMAGE}));
+""" % URL("dz-studiov-logique.js"))
+check("A0 le module se joue sous node", "_erreur" not in An, An.get("_erreur"))
+if "_erreur" not in An:
+    check("A1 emplois d'une matière : les pans de la pièce puis les objets ; rien n'est modifié", An["emplois"] == ["pan:fond", "pan:gauche", "pan:droite", "pan:mur"]
+          and An["emploisBois"] == ["objet:0:1", "objet:1:1"] and An["intact"])
+    check("A2 un pan de mur se détache des autres au premier changement (une copie à son nom), une fois ; un pan seul sur sa matière la garde",
+          An["pan"] == ["gauche", "gauche", "gauche", "mur", "stu:platre", "sol"], An["pan"])
+    check("A3 un objet se détache de ceux qui partagent sa matière ; sans matière il en reçoit une à sa couleur ; son piètement aussi",
+          An["objet"][0] == "objet_1" and An["objet"][1] == "objet_1" and An["objet"][2] == "objet_1" and An["objet"][3] == "bois" and An["objet"][4] == "objet_3"
+          and An["objet"][6] == "objet_1b" and An["objet"][7] == "objet_1b", An["objet"])
+    check("A4 les matières que plus rien n'emploie sont ôtées, les trois de base restent", An["nettoyees"] == ["sol", "mur", "plafond", "bois"], An["nettoyees"])
+    check("A5 aimant : pas de 5 cm, 0 = libre", abs(An["aimant"][0] - 1.25) < 1e-9 and An["aimant"][1] == 1.23 and abs(An["aimant"][2]) < 1e-9, An["aimant"])
+    check("A6 cadre du plan : la pièce, ses caméras et ses lumières, avec une marge ; l'échelle fait l'aller-retour",
+          An["cadre"]["x0"] == -3.6 and An["cadre"]["x1"] == 3.6 and An["cadre"]["z0"] == -3.1 and An["cadre"]["z1"] == 3.6 and An["echelle"]
+          and abs(An["retour"][0] - 1.25) < 1e-9 and abs(An["retour"][1] + 0.75) < 1e-9, An["cadre"])
+    check("A7 un meuble tourné de 90° : son emprise tourne avec lui ; un objet minuscule garde une prise de 14 cm",
+          An["tourne"] == [0, -1] and sorted(An["coins"]) == sorted([[-0.35, 1.3], [-0.35, -0.3], [0.35, -0.3], [0.35, 1.3]]) and An["mini"][0] == [-0.07, -0.07] and An["dedans"] == [True, False], An["coins"])
+    check("A8 cône d'une caméra : sa pointe, puis le champ horizontal d'une image 16:9 (35 mm : 31,4° de demi-angle)", An["cone"][0] == [0, 3] and abs(An["demi"] - 31.4) < 0.2
+          and abs(An["cone"][1][0] + An["cone"][2][0]) < 1e-6, (An["cone"], An["demi"]))
+    check("A9 un objet mural se colle au mur le plus proche et lui tourne le dos ; pièce ouverte : le mur du fond seulement",
+          An["murs"][0] == {"x": -2.98, "z": 0.3, "ry": 90} and An["murs"][1]["x"] == 2.98 and An["murs"][1]["ry"] == -90 and An["murs"][1]["z"] == 4.5
+          and An["murs"][2] == {"x": 0.4, "z": -2.48, "ry": 0} and An["murs"][3]["ry"] == 0 and An["murs"][3]["z"] == -2.48, An["murs"])
+    t9 = An["touche"]
+    check("A10 ce qu'on touche sur le plan : caméra, lumière, présentateur AVANT le meuble ; puis le meuble, l'écran, l'enseigne ; rien dans le vide ; l'ambiance jamais",
+          t9[0] == {"genre": "camera", "index": 0} and t9[1] == {"genre": "lumiere", "index": 0} and t9[2] == {"genre": "presentateur", "index": 0}
+          and t9[3] == {"genre": "objet", "index": 0} and t9[4] == {"genre": "ecran", "index": 0} and t9[5] == {"genre": "enseigne", "index": 0} and t9[6] is None and t9[7] is None, t9)
+    check("A11 caméra neuve (fixe, décalée, numérotée), néon neuf au mur du fond, contre derrière le présentateur, objet importé posé par sa référence",
+          An["camera"]["nom"] == "Caméra 2" and An["camera"]["x"] == 1.2 and An["camera"]["mouvement"] == "fixe" and An["neon"]["type"] == "neon" and An["neon"]["z"] == -2.44
+          and An["contre"]["type"] == "contre" and An["contre"]["z"] < 0 and An["modele"]["ref"] == "obj:0123456789abcdef" and An["modele"]["type"] == "modele"
+          and An["pans"] == ["sol", "fond", "gauche", "droite", "plafond"], (An["camera"], An["neon"]))
+    im9 = An["images"]
+    check("A12 image de la Bibliothèque : le tableau et le logo se posent au mur du fond à hauteur d'yeux, le kakémono au sol devant ce mur — avec leur référence, dans la pièce",
+          all(o["image"] == "img:0123456789abcdef" and abs(o["x"]) <= 3 and -2.5 <= o["z"] <= 2.5 for o in im9) and im9[0]["y"] == 1.6 and abs(im9[0]["z"] + 2.48) < 1e-9
+          and im9[2]["y"] == 0 and im9[2]["z"] > -2.5 and An["typesImage"] == ["tableau", "logo_mural", "kakemono"], im9)
 
 print("[D] écran déporté (scène t315)")
 D = node(r"""
@@ -254,11 +326,15 @@ check("P10 clés assemblées dans dz-i18n-dico.js", all(k in assemble for k in D
 sys.path.insert(0, str(BACKEND))
 from app.services import studiov as SV                                   # noqa: E402
 from app.services import studiov_habillage as HV                         # noqa: E402
+from app.services import studiov_objets as OV                            # noqa: E402
 composees = ([f"studiov.objet.{t}" for t in SV.TYPES_OBJET] + [f"studiov.famille.{f}" for f in SV.CATALOGUE] + [f"studiov.usage.{u}" for u in SV.USAGES]
              + [f"studiov.lumiere.{t}" for t in SV.TYPES_LUMIERE] + [f"studiov.enseigne.{s}" for s in SV.STYLES_ENSEIGNE]
              + [f"studiov.style.{s['id']}" for s in HV.STYLES] + [f"studiov.ambiance.{a['id']}" for a in HV.AMBIANCES]
-             + [f"studiov.finition.{f['id']}" for f in HV.FINITIONS] + [f"studiov.surface.{s}" for s in ("sol", "fond", "mur", "plafond")]
-             + [f"studiov.deco.onglet.{o}" for o in ("style", "matieres", "objets", "lumieres", "enseigne")] + ["studiov.deco.role.principale", "studiov.deco.role.accent"])
+             + [f"studiov.finition.{f['id']}" for f in HV.FINITIONS] + [f"studiov.surface.{s}" for s in ("sol", "fond", "gauche", "droite", "plafond")]
+             + [f"studiov.deco.onglet.{o}" for o in ("style", "matieres", "objets", "bibli", "biblio", "lumieres", "cameras", "enseigne")]
+             + ["studiov.deco.role.principale", "studiov.deco.role.accent"] + [f"studiov.vue.{v}" for v in ("cameras", "plan", "libre")]
+             + [f"studiov.mouvement.{m}" for m in SV.MOUVEMENTS] + [f"studiov.source.{s}" for s in OV.SOURCES]
+             + [f"studiov.licence.{l.lower().replace('-', '_')}" for l in list(OV.LICENCES) + ["CC-BY-NC", "CC-BY-ND", "CC-BY-SA"]])
 check("P12 chaque clé composée a son texte FR et EN : objets, catégories, usages, lumières, enseignes, styles, ambiances, finitions, surfaces, onglets",
       all(k in DICO and DICO[k].get("fr") and DICO[k].get("en") for k in composees), sorted(k for k in composees if k not in DICO)[:12])
 check("P13 rien d'orphelin parmi les clés composées", all(k in cles or k in composees or k.startswith("studiov.livre.") for k in DICO),
@@ -268,6 +344,16 @@ check("P14 le moteur ne fabrique aucune adresse depuis la recette : les textures
       "/api/" not in moteur_src and "INDEX[m.texture]" in moteur_src and "url(/fonts/${nom}.ttf)" in moteur_src and "/^[A-Za-z0-9]{2,24}$/.test(nom" in moteur_src)
 check("P15 le décorateur enregistre par le serveur (PUT) et ne retouche jamais un décor livré", 'api("PUT", "/api/studiov/" + encodeURIComponent(id), d.decor)' in sources["dz-studiov.js"]
       and "if (!apercu || apercu.livre || !apercu.habit) return;" in sources["dz-studiov.js"])
+plan_src, ecran_src = sources["dz-studiov-plan.js"], sources["dz-studiov.js"]
+check("P19 images de la Bibliothèque : le moteur lit leur adresse dans l'index servi ; l'écran les fait entrer par le serveur (copie), jamais par leur fichier d'origine",
+      "IMAGES[ref]" in moteur_src and "images: hab ? hab.indexImages : {}" in ecran_src and 'api("POST", "/api/studiov/bibliotheque/image", { filename: imgChoisie })' in ecran_src
+      and 'api("POST", "/api/studiov/bibliotheque/modele", { job: j.id })' in ecran_src and "/api/images/" not in moteur_src)
+check("P16 objets importés : le moteur lit leur fichier dans l'index servi (jamais une adresse de la recette) ; le chargeur GLB vient de l'application",
+      "OBJETS[m.ref]" in moteur_src and "F.modele" in moteur_src and 'import("/api/studiov/three/GLTFLoader.js")' in ecran_src and "objets: hab ? hab.indexObjets : {}" in ecran_src)
+check("P17 atelier : le pointeur ignore les halos et le présentateur ; les repères des lumières et des caméras ne se montrent qu'en vue libre",
+      "x.userData.halo || x.isSprite" in moteur_src and "perso.userData.ignorer = true" in moteur_src and "outils.visible = !!libre" in moteur_src)
+check("P18 plan : la géométrie vient de la logique (jouée sous node) ; un décor livré ne se déplace pas ; le plan et la vue 3D partagent le même « choisi »",
+      'from "./dz-studiov-logique.js"' in plan_src and "!o.livre()" in plan_src and "choisir: choisirCible" in ecran_src and "selection: () => (apercu ? apercu.sel : null)" in ecran_src)
 capture = (SH / "dz-capture.js").read_text("utf-8")
 check("P11 la capture pose le studio APRÈS le skin et AVANT la première image ; l'option « decor » part de la boîte",
       0 < capture.find("__dzSkins.habiller(scene") < capture.find("__dzStudiov.habiller(scene") < capture.find("scene.dessiner();")

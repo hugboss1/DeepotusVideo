@@ -12,6 +12,16 @@
 //   m.rendre(t, {ecran, camera})   une image : `ecran` = le canevas DÉJÀ CAVIARDÉ de la scène (jamais la source brute),
 //                                  `camera` = la vidéo de la webcam (mode fond vert) ; t en ms
 //   m.camera(i) ; m.cameras() ; m.courante() ; m.detruire()
+// Atelier du décor (lot SVA) — l'écran s'en sert pour placer et choisir :
+//   m.vueLibre(true | false)       quitte les caméras de la recette pour une vue qu'on tourne à la main ;
+//   m.orbiter(dAz, dEl) ; m.zoomer(k) ; m.glisser(dx, dy) ; m.poseLibre() -> {x, y, z, vers, focale}
+//   m.viser(nx, ny)                ce qu'il y a sous le pointeur (coordonnées -1..1) : {genre: "objet" | "surface" |
+//                                  "lumiere" | "camera" | "ecran" | "enseigne", index | pan} ou null
+//   m.choisir(cible | null)        entoure ce qui est choisi ; m.empreintes() -> l'emprise au sol de chaque objet
+// Objets importés (lot SVO) : `objets` = {ref: fiche} (l'index de la bibliothèque) et `chargeur` = {classe: GLTFLoader} ;
+// un objet de type « modele » y trouve son fichier — jamais une adresse écrite dans la recette.
+// Images de la Bibliothèque (lot SVB) : `images` = {ref: {url, l, h, alpha}} ; un tableau, un logo mural, un kakémono,
+// un écran du décor ou l'enseigne y trouvent leur image.
 // `textures` = {ref: {cartes: {basecolor, normal, roughness}, taille_m, moyenne}} : l'index servi par
 // le catalogue d'habillage du serveur. Le moteur ne fabrique JAMAIS une adresse depuis la recette : une référence absente de
 // l'index retombe sur le motif dessiné.
@@ -74,7 +84,7 @@ export function creerMoteur(THREE, o) {
   const O = o || {}, doc = O.doc || document;
   const L = Math.max(2, Math.round(O.largeur || 1280)), H = Math.max(2, Math.round(O.hauteur || 720));
   const qualite = O.qualite === "haute" ? "haute" : "legere";
-  const INDEX = O.textures || {};
+  const INDEX = O.textures || {}, OBJETS = O.objets || {}, IMAGES = O.images || {};
   const canvas = O.canvas || doc.createElement("canvas");
   const rendu = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
   rendu.setPixelRatio(1);
@@ -154,6 +164,31 @@ export function creerMoteur(THREE, o) {
     pose(C.normal, "normalMap", false, () => {});
     pose(C.roughness, "roughnessMap", false, () => { mat.roughness = Math.min(1, m.rugosite * 1.25); });
   }
+  // une image de la Bibliothèque posée sur une matière : `cadre` = [l, h] du support (l'image le COUVRE, centrée, sans se
+  // déformer) ; `eclaire` = elle garde un peu de sa propre lumière (une affiche reste lisible dans un décor sombre)
+  const imgPretes = new Map();
+  function poserImage(mat, ref, eclaire, cadre) {
+    const I = IMAGES[ref]; if (!I) return;
+    const g0 = generation;
+    image(I.url).then((im) => {
+      if (!im || g0 !== generation || detruit) return;
+      const id = ["img", I.url, cadre ? cadre.join("x") : ""].join("|");
+      let t = gpu.get(id);
+      if (!t) {
+        t = new THREE.Texture(im); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = anisotropie;
+        if (cadre) {
+          const ri = (im.naturalWidth || im.width) / (im.naturalHeight || im.height), rc = cadre[0] / cadre[1];
+          if (ri > rc) { t.repeat.set(rc / ri, 1); t.offset.set((1 - rc / ri) / 2, 0); } else { t.repeat.set(1, ri / rc); t.offset.set(0, (1 - ri / rc) / 2); }
+        }
+        t.needsUpdate = true; gpu.set(id, t);
+      }
+      t.userData.vue = generation; mat.map = t; mat.color.set(0xffffff);
+      if (eclaire) { mat.emissive = new THREE.Color(0xffffff); mat.emissiveMap = t; mat.emissiveIntensity = 0.22; }
+      mat.needsUpdate = true;
+    });
+  }
+  // les dimensions d'une image posée au mur : son plus grand côté fait 1 m (la taille de l'objet fait le reste)
+  const formatImage = (ref) => { const I = IMAGES[ref], r = I && I.h ? I.l / I.h : 1.4; return r >= 1 ? [1, 1 / r] : [r, 1]; };
   // la matière d'une clé de la recette ; `coul` (la couleur propre d'un objet) repeint la matière. Ses UV sont en
   // MÈTRES (userData.metres) : la même matière sert un sol de 40 m² et un plateau de bureau, au même grain.
   function matiere(cle, coul) {
@@ -244,12 +279,12 @@ export function creerMoteur(THREE, o) {
   const additif = (hex, force, carte) => garder(new THREE.MeshBasicMaterial({ map: carte, color: new THREE.Color(entier(hex)).multiplyScalar(force == null ? 0.6 : force),
     transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }));
   // un halo posé à plat (sur un mur, un sol) : plan l × h centré sur (x, y, z), face vers +z
-  function halo(g, hex, l, h, x, y, z, force, forme) { const m = plan(g, additif(hex, force, texHalo(forme || "rond")), l, h, x, y, z); m.renderOrder = 3; return m; }
+  function halo(g, hex, l, h, x, y, z, force, forme) { const m = plan(g, additif(hex, force, texHalo(forme || "rond")), l, h, x, y, z); m.renderOrder = 3; m.userData.halo = true; return m; }
   // la lueur d'une source ponctuelle (lampe, bougie) : toujours face à la caméra
   function eclat(g, hex, taille, x, y, z, force) {
     const s = new THREE.Sprite(garder(new THREE.SpriteMaterial({ map: texHalo("rond"), color: new THREE.Color(entier(hex)).multiplyScalar(force == null ? 0.5 : force),
       transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })));
-    s.scale.set(taille, taille, 1); s.position.set(x || 0, y || 0, z || 0); s.renderOrder = 3; g.add(s); return s;
+    s.scale.set(taille, taille, 1); s.position.set(x || 0, y || 0, z || 0); s.renderOrder = 3; s.userData.halo = true; g.add(s); return s;
   }
 
   // ── images dessinées : mots, écran en attente, enseigne, silhouette, ombre ──
@@ -299,7 +334,7 @@ export function creerMoteur(THREE, o) {
     const mat = garder(new THREE.MeshBasicMaterial(additive
       ? { map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }
       : { map: tex, transparent: !fond, depthWrite: !!fond, toneMapped: false, alphaTest: fond ? 0 : 0.02 }));
-    const m = plan(g, mat, l, l / 4, x, y, z); m.renderOrder = additive ? 3 : 4;
+    const m = plan(g, mat, l, l / 4, x, y, z); m.renderOrder = additive ? 3 : 4; if (additive) m.userData.halo = true;
     return m;
   }
 
@@ -436,11 +471,51 @@ export function creerMoteur(THREE, o) {
     haltere(g, m) { const n = m.s || uni(NOIR, 0.6, 0.3), a = uni(ACIER, 0.3, 0.9); const b = cy(g, a, 0.012, 0.32, 0, 0, 0, null, 10); b.rotation.z = Math.PI / 2; b.position.set(0, 0.065, 0); for (const x of [-0.13, -0.08, 0.08, 0.13]) { const d = cy(g, n, 0.065, 0.04, 0, 0, 0, null, 24); d.rotation.z = Math.PI / 2; d.position.set(x, 0.065, 0); } },
     gant_boxe(g, m) { const c = uni(m.c || "#c0162c", 0.35); sp(g, c, 0.085, 0, 0.17, 0.01, 1, 1.15, 1.05); sp(g, c, 0.04, 0.075, 0.15, 0.03, 1, 1.4, 1); cy(g, c, 0.06, 0.08, 0, 0, 0, 0.066, 18); cy(g, uni(BLANC, 0.6), 0.062, 0.02, 0, 0.03, 0, 0.064, 18); },
     skateboard(g, m) { const c = uni(m.c || pal.principale, 0.5); bx(g, c, 0.2, 0.6, 0.012, 0, -0.3, 0.02); dq(g, c, 0.1, 0.012, 0, 0.3, 0.02, 28); dq(g, c, 0.1, 0.012, 0, -0.3, 0.02, 28); bx(g, uni(pal.accent, 0.5), 0.2, 0.08, 0.002, 0, 0.05, 0.027); bx(g, uni(BLANC, 0.5), 0.2, 0.02, 0.002, 0, -0.03, 0.027); for (const y of [-0.24, 0.24]) { bx(g, uni(ACIER, 0.3, 0.9), 0.14, 0.03, 0.02, 0, y - 0.015, 0.036); for (const x of [-0.085, 0.085]) { const w = cy(g, uni("#f1ede4", 0.6), 0.026, 0.03, 0, 0, 0, null, 14); w.rotation.z = Math.PI / 2; w.position.set(x, y, 0.05); } } },
+    modele(g, m) {
+      const F = OBJETS[m.ref], attente = bx(g, garder(new THREE.MeshBasicMaterial({ color: 0x8a94a0, wireframe: true })), 0.5, 0.5, 0.5, 0, 0, 0);
+      if (!F || !(O.chargeur && O.chargeur.classe)) return;
+      const g0 = generation;
+      modeleDe(F).then((src) => {
+        if (!src || g0 !== generation || detruit) return;
+        const c = src.clone(true);
+        c.traverse((x) => { if (x.isMesh) { ombres(x); if (m.forcer) x.material = m.p; } });
+        g.remove(attente); g.add(c); g.userData.boite = boiteLocale(g);
+        marquer(); if (O.surChange) O.surChange();
+      });
+    },
+    tableau(g, m) { const [l, h] = formatImage(m.image), mat = garder(new THREE.MeshStandardMaterial({ color: 0x8a94a0, roughness: 0.85 })); bx(g, m.s || uni("#1b1d21", 0.5), l + 0.06, h + 0.06, 0.03, 0, -(h + 0.06) / 2, 0.015); plan(g, mat, l, h, 0, 0, 0.0315); poserImage(mat, m.image, true); },
+    logo_mural(g, m) { const [l, h] = formatImage(m.image), mat = garder(new THREE.MeshBasicMaterial({ color: 0x8a94a0, transparent: true, alphaTest: 0.02, toneMapped: false })); if (m.c) halo(g, m.c, l * 1.8, h * 1.8, 0, 0, 0.004, 0.45); const p = plan(g, mat, l, h, 0, 0, 0.03); p.renderOrder = 4; poserImage(mat, m.image, false); },
+    kakemono(g, m) { const n = m.s || uni(ACIER, 0.35, 0.8), mat = garder(new THREE.MeshStandardMaterial({ color: 0x8a94a0, roughness: 0.8, side: THREE.DoubleSide })); bx(g, n, 0.86, 0.03, 0.3, 0, 0, 0); cy(g, n, 0.012, 2.06, 0, 0.03, -0.03, null, 8); bx(g, n, 0.84, 0.03, 0.03, 0, 2.06, 0); plan(g, mat, 0.8, 2.0, 0, 1.05, 0); poserImage(mat, m.image, true, [0.8, 2.0]); },
     trophee(g, m) { const o = uni(m.c || "#f0c040", 0.25, 1.0); bx(g, uni(NOIR, 0.4), 0.14, 0.05, 0.14, 0, 0); cy(g, o, 0.02, 0.1, 0, 0.05); cy(g, o, 0.035, 0.14, 0, 0.15, 0, 0.085); tore(g, o, 0.05, 0.008, -0.1, 0.23, 0); tore(g, o, 0.05, 0.008, 0.1, 0.23, 0); },
     coupe(g, m) { const o = uni(m.c || "#e9c04a", 0.32, 0.9); bx(g, uni("#2a1a12", 0.5), 0.2, 0.07, 0.2, 0, 0); bx(g, uni(LAITON, 0.35, 1), 0.12, 0.03, 0.003, 0, 0.02, 0.1); cy(g, o, 0.06, 0.03, 0, 0.07, 0, 0.03, 24); cy(g, o, 0.022, 0.12, 0, 0.1, 0, null, 16); sp(g, o, 0.03, 0, 0.16, 0); cy(g, o, 0.035, 0.22, 0, 0.22, 0, 0.14, 28); cy(g, o, 0.145, 0.015, 0, 0.44, 0, null, 28); for (const s of [-1, 1]) { const t = tore(g, o, 0.075, 0.01, s * 0.14, 0.34, 0, Math.PI); t.rotation.z = s > 0 ? -Math.PI / 2 : Math.PI / 2; } },
     medaille(g, m) { const c = uni(m.c || pal.principale, 0.9); for (const s of [-1, 1]) { const b = bx(g, c, 0.035, 0.26, 0.004, s * 0.045, -0.13, 0.004); b.rotation.z = s * 0.34; } dq(g, uni("#e9c04a", 0.22, 1.0), 0.055, 0.008, 0, -0.17, 0.008, 32); dq(g, uni("#b8923a", 0.3, 1.0), 0.038, 0.01, 0, -0.17, 0.009, 32); },
     plaque_createur(g, m) { const o = uni(m.c || "#cfd4da", 0.18, 1.0); bx(g, uni("#17181c", 0.5), 0.32, 0.42, 0.03, 0, -0.21, 0.015); bx(g, uni("#0c0c0e", 0.8), 0.27, 0.37, 0.004, 0, -0.185, 0.031); bx(g, o, 0.2, 0.14, 0.014, 0, -0.03, 0.04); const f = new THREE.Shape(); f.moveTo(-0.022, -0.03); f.lineTo(0.034, 0); f.lineTo(-0.022, 0.03); f.closePath(); const t = new THREE.Mesh(garder(new THREE.ExtrudeGeometry(f, { depth: 0.006, bevelEnabled: false })), uni("#17181c", 0.4, 0.4)); t.position.set(0, 0.04, 0.054); g.add(t); bx(g, o, 0.16, 0.012, 0.004, 0, -0.1, 0.034); bx(g, o, 0.1, 0.008, 0.004, 0, -0.125, 0.034); },
   };
+
+  // ── les modèles importés : chargés une fois, posés au sol (centrés, la base à y = 0), clonés à chaque emploi ──
+  const modeles = new Map();
+  function modeleDe(F) {
+    if (!modeles.has(F.ref)) modeles.set(F.ref, new Promise((res) => {
+      try {
+        new O.chargeur.classe().load(F.modele, (gltf) => {
+          const sc = gltf.scene, b = new THREE.Box3().setFromObject(sc), c = b.getCenter(new THREE.Vector3()), pose = new THREE.Group();
+          sc.position.set(-c.x, -b.min.y, -c.z); pose.add(sc); res(pose);
+        }, undefined, () => res(null));
+      } catch (e) { res(null); }
+    }));
+    return modeles.get(F.ref);
+  }
+  // la boîte d'un groupe dans SON repère (sans sa place, son tour ni sa taille), halos exclus
+  function boiteLocale(g) {
+    const b = new THREE.Box3(), inv = new THREE.Matrix4(), m4 = new THREE.Matrix4();
+    g.updateWorldMatrix(true, true); inv.copy(g.matrixWorld).invert();
+    g.traverse((x) => {
+      if (!x.isMesh || x.userData.halo || !x.geometry) return;
+      if (!x.geometry.boundingBox) x.geometry.computeBoundingBox();
+      b.union(x.geometry.boundingBox.clone().applyMatrix4(m4.multiplyMatrices(inv, x.matrixWorld)));
+    });
+    return b.isEmpty() ? null : b;
+  }
 
   function attente(source) {
     return toile(640, 360, (x, l, h) => {
@@ -455,6 +530,7 @@ export function creerMoteur(THREE, o) {
   // l'enseigne : `couche` = "face" (ce qu'on lit) ou "halo" (la lueur seule, pour le rétroéclairage)
   function peindreEnseigne(x, l, h, e, couche) {
     const large = e.source === "texte" && e.texte, c = couleur(e.couleur, pal), halo2 = couche === "halo";
+    const LG = e.source === "image" ? imgPretes.get((IMAGES[e.image] || {}).url) : O.logo;       // l'image choisie, sinon le logo de l'espace
     x.clearRect(0, 0, l, h); x.shadowBlur = 0;
     if (!halo2 && (e.style === "panneau" || e.style === "ecran" || e.style === "caisson")) {
       x.fillStyle = e.style === "ecran" ? "#05070b" : e.style === "caisson" ? melange(c, "#ffffff", 0.82) : "#f4f1ea"; x.fillRect(0, 0, l, h);
@@ -469,9 +545,9 @@ export function creerMoteur(THREE, o) {
       for (const b of lueurs) { x.shadowBlur = b; x.fillText(e.texte, l / 2, h / 2); }
       x.shadowBlur = 0;
       if (!halo2) { x.fillStyle = neon ? melange(c, "#ffffff", 0.78) : e.style === "retro" ? "#f2f3f5" : e.style === "caisson" ? "#15171c" : c; x.fillText(e.texte, l / 2, h / 2); }
-    } else if (O.logo && (O.logo.naturalWidth || O.logo.width)) {
-      const w = O.logo.naturalWidth || O.logo.width, hh = O.logo.naturalHeight || O.logo.height, k = Math.min((l - 2 * marge) / w, (h - 2 * marge) / hh);
-      const poser = () => x.drawImage(O.logo, (l - w * k) / 2, (h - hh * k) / 2, w * k, hh * k);
+    } else if (LG && (LG.naturalWidth || LG.width)) {
+      const w = LG.naturalWidth || LG.width, hh = LG.naturalHeight || LG.height, k = Math.min((l - 2 * marge) / w, (h - 2 * marge) / hh);
+      const poser = () => x.drawImage(LG, (l - w * k) / 2, (h - hh * k) / 2, w * k, hh * k);
       x.shadowColor = c; for (const b of lueurs) { x.shadowBlur = b; poser(); }
       x.shadowBlur = 0; if (!halo2) poser();
     } else {                                     // ni texte ni logo : un anneau à la couleur de l'espace
@@ -508,7 +584,7 @@ export function creerMoteur(THREE, o) {
   // trouvent quoi refléter. Refaite seulement quand les lumières ou les murs changent. ──
   let refletCle = "", refletCible = null;
   function reflets(d) {
-    const P = d.piece, mur = d.matieres[P.mur] || {}, T = mur.texture && INDEX[mur.texture];
+    const P = d.piece, mur = d.matieres[P.fond || P.mur] || {}, T = mur.texture && INDEX[mur.texture];
     const teinteMur = (T && !mur.teinte && T.moyenne) || couleur(mur.couleur, pal, "#2a2f36");
     const sol = d.matieres[P.sol] || {}, Ts = sol.texture && INDEX[sol.texture];
     const teinteSol = (Ts && !sol.teinte && Ts.moyenne) || couleur(sol.couleur, pal, "#3a3f47");
@@ -542,6 +618,7 @@ export function creerMoteur(THREE, o) {
     if (racine) scene.remove(racine);
     for (const x of jetables.splice(0)) { try { x.dispose(); } catch (e) { /* déjà libéré */ } }
     cache = new Map(); texEcrans = []; perso = null; texVideo = null; videoVue = null; racine = null; aRepeindre = [];
+    groupes = []; pans = {}; outils = null; reperes = { lumiere: [], camera: [], ecran: [], enseigne: [] }; marque = null;
     if (gpu.size > 40) for (const [id, t] of gpu) if (t.userData.vue < generation - 1) { t.dispose(); gpu.delete(id); }
   }
   function construire(d) {
@@ -555,30 +632,50 @@ export function creerMoteur(THREE, o) {
     try { reflets(d); } catch (e) { scene.environment = null; }
     // la pièce : sol prolongé vers la caméra, mur du fond, murs de côté et plafond (sauf pièce ouverte)
     const av = 5;                                   // mètres de sol et de murs devant la pièce (côté caméra)
-    const sol = plan(racine, matiere(P.sol), P.l + 4, P.p + av, 0, 0, av / 2);
+    const pan = (nom, m) => { m.userData.cible = { genre: "surface", pan: nom }; pans[nom] = m; return m; };
+    const sol = pan("sol", plan(racine, matiere(P.sol), P.l + 4, P.p + av, 0, 0, av / 2));
     sol.rotation.x = -Math.PI / 2; sol.receiveShadow = qualite === "haute";
-    plan(racine, matiere(P.fond || P.mur), P.l + 4, P.h, 0, P.h / 2, -P.p / 2);
+    pan("fond", plan(racine, matiere(P.fond || P.mur), P.l + 4, P.h, 0, P.h / 2, -P.p / 2));
     if (!P.ouvert) {
-      const g = plan(racine, matiere(P.mur), P.p + av, P.h, -P.l / 2, P.h / 2, av / 2); g.rotation.y = Math.PI / 2;
-      const dr = plan(racine, matiere(P.mur), P.p + av, P.h, P.l / 2, P.h / 2, av / 2); dr.rotation.y = -Math.PI / 2;
-      const pf = plan(racine, matiere(P.plafond), P.l, P.p + av, 0, P.h, av / 2); pf.rotation.x = Math.PI / 2;
+      pan("gauche", plan(racine, matiere(P.gauche || P.mur), P.p + av, P.h, -P.l / 2, P.h / 2, av / 2)).rotation.y = Math.PI / 2;
+      pan("droite", plan(racine, matiere(P.droite || P.mur), P.p + av, P.h, P.l / 2, P.h / 2, av / 2)).rotation.y = -Math.PI / 2;
+      pan("plafond", plan(racine, matiere(P.plafond), P.l, P.p + av, 0, P.h, av / 2)).rotation.x = Math.PI / 2;
     }
     if (P.plinthe && !P.ouvert) bx(racine, uni("#0e0f12", 0.6), P.l, 0.08, 0.02, 0, 0, -P.p / 2 + 0.01);
     // les objets
-    for (const ob of d.objets) {
-      const f = B[ob.type]; if (!f) continue;
-      const g = new THREE.Group(), c = ob.couleur ? couleur(ob.couleur, pal) : null;
+    d.objets.forEach((ob, i) => {
+      const f = B[ob.type], g = new THREE.Group(), c = ob.couleur ? couleur(ob.couleur, pal) : null;
+      groupes[i] = g; g.userData.cible = { genre: "objet", index: i };
+      if (!f) return;
       f(g, { p: ob.matiere ? matiere(ob.matiere, c) : uni(c || "#3a3f47", 0.6), s: ob.matiere2 ? matiere(ob.matiere2) : null, c,
-        t: (ob.texte || "").trim(), f: ob.police || "Inter" });
+        t: (ob.texte || "").trim(), f: ob.police || "Inter", ref: ob.ref, forcer: !!ob.matiere, image: ob.image });
+      g.userData.boite = boiteLocale(g);                     // l'emprise de l'objet, avant sa place et sa taille
       g.position.set(ob.x, ob.y, ob.z); g.rotation.y = (ob.ry * Math.PI) / 180; g.scale.setScalar(ob.e);
       racine.add(g);
-    }
+    });
+    // les outils de l'atelier : un repère par lumière et par caméra, visibles (et cliquables) en vue libre seulement
+    outils = new THREE.Group(); outils.visible = !!libre; racine.add(outils);
+    const repere = (genre, index, objet) => { objet.userData.cible = { genre, index }; reperes[genre][index] = objet; return objet; };
+    d.cameras.forEach((cm, i) => {
+      const g = repere("camera", i, new THREE.Group()), noir = garder(new THREE.MeshBasicMaterial({ color: 0x1b1d21 })), clair = garder(new THREE.MeshBasicMaterial({ color: 0xf0b429, toneMapped: false }));
+      const corps = new THREE.Mesh(garder(new THREE.BoxGeometry(0.14, 0.1, 0.18)), noir); g.add(corps);
+      const geo = garder(new THREE.ConeGeometry(0.09, 0.14, 4)); geo.rotateX(-Math.PI / 2); geo.rotateZ(Math.PI / 4);
+      const cone = new THREE.Mesh(geo, clair); cone.position.z = 0.15; g.add(cone);
+      g.position.set(cm.x, cm.y, cm.z); g.lookAt(cm.vers[0], cm.vers[1], cm.vers[2]); outils.add(g);
+    });
     // les lumières
     const allumees = budgetLumieres(d.lumieres, qualite);
     racine.add(new THREE.AmbientLight(0xffffff, 0.12));
     let ombrePosee = false;
     d.lumieres.forEach((l, i) => {
       const hex = couleur(l.couleur, pal, "#ffffff"), c = entier(hex);
+      if (l.type !== "ambiance" && l.type !== "neon") {
+        const g = repere("lumiere", i, new THREE.Group());
+        g.add(new THREE.Mesh(garder(new THREE.SphereGeometry(0.075, 14, 10)), garder(new THREE.MeshBasicMaterial({ color: c, toneMapped: false }))));
+        const trait = garder(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(l.vers[0] - l.x, l.vers[1] - l.y, l.vers[2] - l.z)]));
+        const ligne = new THREE.Line(trait, garder(new THREE.LineBasicMaterial({ color: c, transparent: true, opacity: 0.55 }))); ligne.userData.halo = true; g.add(ligne);
+        g.position.set(l.x, l.y, l.z); outils.add(g);
+      }
       if (l.type === "ambiance") { racine.add(new THREE.HemisphereLight(c, entier(couleur(decor.matieres[P.sol].couleur, pal, "#333333")), l.intensite * K_AMBIANCE)); return; }
       if (l.type === "neon") {
         const g = new THREE.Group(), t = cy(g, lueur(hex, 2.6), 0.022, l.l, 0, -l.l / 2, 0, null, 10);
@@ -587,6 +684,7 @@ export function creerMoteur(THREE, o) {
         const f = Math.min(0.55, 0.14 * l.intensite), a = halo(g, hex, 0.6, l.l * 1.25, 0, 0, 0, f), b = halo(g, hex, 0.6, l.l * 1.25, 0, 0, 0, f);
         a.rotation.set(Math.PI / 2, Math.PI / 2, 0); b.rotation.x = Math.PI / 2;
         g.position.set(l.x, l.y, l.z); g.rotation.y = (l.ry * Math.PI) / 180; racine.add(g);
+        repere("lumiere", i, g);
         if (allumees.has(i)) { const p = new THREE.PointLight(c, l.intensite * K_NEON, 7, 2); p.position.set(l.x, l.y, l.z); const vers = new THREE.Vector3(-l.x, 1.2 - l.y, -l.z).normalize().multiplyScalar(0.25); p.position.add(vers); racine.add(p); }
         return;
       }
@@ -597,22 +695,25 @@ export function creerMoteur(THREE, o) {
       racine.add(s); racine.add(s.target);
     });
     // les écrans du décor
-    d.ecrans.forEach((e) => {
-      const g = new THREE.Group();
+    d.ecrans.forEach((e, i) => {
+      const g = repere("ecran", i, new THREE.Group());
       bx(g, uni(couleur(e.bord, pal, "#0c0d10"), 0.4, 0.3), e.l + 0.08, e.h + 0.08, 0.05, 0, -(e.h + 0.08) / 2, 0.025);
       const tex = texture(attente(e.source)), mat = garder(new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
       plan(g, mat, e.l, e.h, 0, 0, 0.052);
       if (e.source !== "eteint") halo(g, pal.principale, e.l * 1.5, e.h * 1.7, 0, 0, 0.003, 0.14);
       if (e.source === "ecran") texEcrans.push({ mat, attente: tex, vive: null });
+      if (e.source === "image") poserImage(mat, e.image, false, [e.l, e.h]);       // une image de la Bibliothèque, qui couvre la dalle
       g.position.set(e.x, e.y, e.z); g.rotation.y = (e.ry * Math.PI) / 180; racine.add(g);
     });
     // l'enseigne : néon (tube clair et lueur), panneau, écran, rétroéclairée (lueur sur le mur, face détachée),
     // caisson lumineux
     const E = d.enseigne;
     if (E.actif) {
-      const g = new THREE.Group(), large = E.source === "texte" && E.texte, h = large ? E.l / 4 : E.l, hexE = couleur(E.couleur, pal);
+      const g = repere("enseigne", 0, new THREE.Group()), large = E.source === "texte" && E.texte, h = large ? E.l / 4 : E.l, hexE = couleur(E.couleur, pal);
       const tl = large ? 1024 : 512, th = large ? 256 : 512;
-      const couche = (nom) => { const c = toile(tl, th, () => {}), x = c.getContext("2d"), peindre = () => peindreEnseigne(x, tl, th, E, nom); peindre(); const tex = texture(c); aRepeindre.push({ police: E.police, peindre, tex }); return tex; };
+      const urlE = E.source === "image" && IMAGES[E.image] ? IMAGES[E.image].url : null;
+      const couche = (nom) => { const c = toile(tl, th, () => {}), x = c.getContext("2d"), peindre = () => peindreEnseigne(x, tl, th, E, nom); peindre(); const tex = texture(c); aRepeindre.push({ police: E.police, peindre, tex, image: urlE }); return tex; };
+      if (urlE && !imgPretes.has(urlE)) { const g0 = generation; image(urlE).then((im) => { if (!im || detruit) return; imgPretes.set(urlE, im); if (g0 === generation) for (const r of aRepeindre) if (r.image === urlE) { r.peindre(); r.tex.needsUpdate = true; } }); }
       if (large) police(E.police);
       const plein = E.style === "panneau" || E.style === "ecran" || E.style === "caisson";
       if (E.style === "retro") { const hl = plan(g, garder(new THREE.MeshBasicMaterial({ map: couche("halo"), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })), E.l * 1.12, h * 1.12, 0, 0, 0.004); hl.renderOrder = 3; halo(g, hexE, E.l * 1.9, h * 1.9, 0, 0, 0.003, 0.22); }
@@ -627,7 +728,7 @@ export function creerMoteur(THREE, o) {
     // le présentateur : silhouette en aperçu ; vidéo incrustée en mode fond vert (posée par `rendre`)
     // le plan du présentateur : un buste (0,95 m) pour qui est assis, la personne jusqu'au sol pour qui est debout
     const R = d.presentateur, hp = R.assis ? 0.95 : R.h + 0.08, lp = R.assis ? hp * 0.75 : hp * 0.42;
-    perso = new THREE.Group(); perso.position.set(R.x, 0, R.z); perso.visible = false; racine.add(perso);
+    perso = new THREE.Group(); perso.position.set(R.x, 0, R.z); perso.visible = false; perso.userData.ignorer = true; racine.add(perso);
     perso.userData = { h: R.h, hp, lp };
     const contre = d.lumieres.find((l) => l.type === "contre");
     perso.userData.teinte = contre ? couleur(contre.couleur, pal, "#ffffff") : "#ffffff";
@@ -636,6 +737,74 @@ export function creerMoteur(THREE, o) {
     if (R.ombre) { const so = plan(perso, garder(new THREE.MeshBasicMaterial({ map: texture(ombreSol()), transparent: true, depthWrite: false })), 1.1, 0.7, 0, 0.012, 0); so.rotation.x = -Math.PI / 2; }
     perso.visible = !!O.apercu;
     scene.add(racine);
+    marquer();
+  }
+
+  // ── l'atelier : vue libre, pointeur, choix ──
+  let groupes = [], pans = {}, outils = null, reperes = { lumiere: [], camera: [], ecran: [], enseigne: [] }, marque = null;
+  let libre = null, selection = null;
+  const rayon = new THREE.Raycaster(); rayon.params.Line = { threshold: 0.03 };
+  const point = new THREE.Vector2();
+  function vueLibre(oui) {
+    if (!oui) { libre = null; if (outils) outils.visible = false; return; }
+    if (!libre) {
+      const p = reg.pose(decor.cameras, performance.now()), dx = p.x - p.vers[0], dy = p.y - p.vers[1], dz = p.z - p.vers[2], d = Math.hypot(dx, dy, dz) || 3;
+      libre = { cible: new THREE.Vector3(p.vers[0], p.vers[1], p.vers[2]), d: borne(d * 1.35, 1.5, 25), az: Math.atan2(dx, dz), el: borne(Math.asin(dy / d) + 0.25, -0.1, 1.5), champ: 45 };
+    }
+    if (outils) outils.visible = true;
+  }
+  const orbiter = (dAz, dEl) => { if (libre) { libre.az -= dAz; libre.el = borne(libre.el + dEl, -0.1, 1.52); } };
+  const zoomer = (k) => { if (libre) libre.d = borne(libre.d * k, 0.6, 30); };
+  function glisser(dx, dy) {                       // déplace le point visé, à plat (dx : vers la droite de l'œil ; dy : vers le fond)
+    if (!libre) return;
+    const ca = Math.cos(libre.az), sa = Math.sin(libre.az), k = libre.d * 0.0016;
+    libre.cible.x = borne(libre.cible.x - (dx * ca + dy * sa) * k, -10, 10);
+    libre.cible.z = borne(libre.cible.z + (dx * sa - dy * ca) * k, -10, 12);
+  }
+  function oeilLibre() {
+    const c = Math.cos(libre.el);
+    return { x: libre.cible.x + libre.d * c * Math.sin(libre.az), y: libre.cible.y + libre.d * Math.sin(libre.el), z: libre.cible.z + libre.d * c * Math.cos(libre.az) };
+  }
+  // la vue libre, dite comme une caméra de la recette (« garder cette vue comme caméra »)
+  function poseLibre() {
+    if (!libre) return null;
+    const o = oeilLibre(), r = (v) => Math.round(v * 100) / 100;
+    return { x: r(o.x), y: r(Math.max(0.2, o.y)), z: r(o.z), vers: [r(libre.cible.x), r(libre.cible.y), r(libre.cible.z)], focale: Math.round(12 / Math.tan((libre.champ * Math.PI) / 360)) };
+  }
+  // ce qu'il y a sous le pointeur : le premier maillage touché qui appartient à une cible (halos et présentateur exclus)
+  function viser(nx, ny) {
+    if (!racine) return null;
+    point.set(nx, ny); rayon.setFromCamera(point, oeil);
+    for (const t of rayon.intersectObjects(racine.children, true)) {
+      let x = t.object, cible = null, ignore = !!(x.userData.halo || x.isSprite);
+      for (; x && !ignore; x = x.parent) { if (x.userData.ignorer || x === marque) ignore = true; else if (!cible && x.userData.cible) cible = x.userData.cible; }
+      if (!ignore && cible && (cible.genre === "surface" || cible.genre === "objet" || !outils || outils.visible || cible.genre === "ecran" || cible.genre === "enseigne")) return { ...cible };
+    }
+    return null;
+  }
+  function marquer() {
+    if (marque) { if (marque.parent) marque.parent.remove(marque); marque = null; }
+    for (const g of reperes.lumiere.concat(reperes.camera)) if (g && g.parent === outils) g.scale.setScalar(1);
+    const S2 = selection; if (!S2 || !racine) return;
+    const jaune = 0xf0b429;
+    if (S2.genre === "surface" && pans[S2.pan]) {
+      const p = pans[S2.pan];
+      marque = new THREE.Mesh(p.geometry, garder(new THREE.MeshBasicMaterial({ color: jaune, transparent: true, opacity: 0.2, depthWrite: false, toneMapped: false })));
+      marque.position.copy(p.position); marque.rotation.copy(p.rotation); marque.translateZ(0.006); marque.renderOrder = 6; marque.userData.halo = true; racine.add(marque);
+      return;
+    }
+    const g = S2.genre === "objet" ? groupes[S2.index] : (reperes[S2.genre] || [])[S2.index || 0];
+    if (!g) return;
+    if ((S2.genre === "lumiere" || S2.genre === "camera") && g.parent === outils) { g.scale.setScalar(1.7); return; }
+    const b = g.userData.boite || boiteLocale(g); if (!b) return;
+    marque = new THREE.Box3Helper(b.clone().expandByScalar(0.015), jaune); marque.material.toneMapped = false; marque.material.depthTest = false; marque.renderOrder = 7;
+    marque.userData.halo = true; garder(marque.geometry); garder(marque.material); g.add(marque);
+  }
+  function empreintes() {
+    return decor.objets.map((ob, i) => {
+      const b = groupes[i] && groupes[i].userData.boite; if (!b) return null;
+      return { x0: b.min.x * ob.e, x1: b.max.x * ob.e, z0: b.min.z * ob.e, z1: b.max.z * ob.e, y0: b.min.y * ob.e, y1: b.max.y * ob.e };
+    });
   }
 
   function poserVideo(video) {
@@ -660,7 +829,8 @@ export function creerMoteur(THREE, o) {
     }
     if (canvasEcran && S.ecran) for (const e of texEcrans) if (e.vive) e.vive.needsUpdate = true;
     poserVideo(S.camera || null);
-    const p = reg.pose(decor.cameras, t);
+    let p = reg.pose(decor.cameras, t);
+    if (libre) { const o2 = oeilLibre(); p = { x: o2.x, y: o2.y, z: o2.z, champ: libre.champ, vers: [libre.cible.x, libre.cible.y, libre.cible.z] }; }
     oeil.position.set(p.x, p.y, p.z); oeil.fov = p.champ; oeil.updateProjectionMatrix();
     cible.set(p.vers[0], p.vers[1], p.vers[2]); oeil.lookAt(cible);
     if (perso && perso.visible) perso.rotation.y = Math.atan2(p.x - perso.position.x, p.z - perso.position.z);
@@ -677,11 +847,16 @@ export function creerMoteur(THREE, o) {
     courante: () => reg.courante,
     taille(l, h) { rendu.setSize(Math.max(2, Math.round(l)), Math.max(2, Math.round(h)), false); oeil.aspect = l / h; oeil.updateProjectionMatrix(); },
     types: () => Object.keys(B),
+    vueLibre, orbiter, zoomer, glisser, poseLibre, viser, empreintes,
+    libre: () => !!libre,
+    choisir(c) { selection = c || null; marquer(); },
     detruire() {
       detruit = true; vider();
       for (const x of durables.splice(0)) { try { x.dispose(); } catch (e) { /* déjà libéré */ } }
       for (const t of gpu.values()) { try { t.dispose(); } catch (e) { /* déjà libéré */ } }
       gpu.clear();
+      for (const pr of modeles.values()) pr.then((m) => { if (m) m.traverse((x) => { if (x.isMesh) { try { x.geometry.dispose(); for (const mt of [].concat(x.material)) { for (const k of ["map", "normalMap", "roughnessMap", "metalnessMap", "emissiveMap", "aoMap"]) if (mt[k]) mt[k].dispose(); mt.dispose(); } } catch (e) { /* déjà libéré */ } } }); });
+      modeles.clear();
       if (refletCible) { try { refletCible.dispose(); } catch (e) { /* déjà libéré */ } refletCible = null; }
       try { rendu.dispose(); } catch (e) { /* contexte déjà perdu */ }
     },

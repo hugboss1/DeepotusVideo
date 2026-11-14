@@ -72,6 +72,9 @@ Couleurs : un rôle du kit de l'espace (`principale`, `accent`, `texte`, `fond`)
 |---|---|---|
 | SV1 | Recette, service + routes `/api/studiov`, 11 décors livrés (niveau direct), moteur three.js, calque de scène, caméras et mouvements, écran du décor caviardé, enseigne, groupe « Studio virtuel » de la boîte de capture, aperçu | **ce lot** |
 | SVH | **Habillage — le décorateur d'intérieur** (14/11, § 6) : vraies textures (pack d'intérieur de 42 matières + les 30 de la Forge + les matières de l'utilisateur), mur du fond, finitions, 16 ambiances lumineuses, 14 styles complets, 127 objets en 20 catégories (67 neufs : rubans LED, panneaux hexagonaux, néons à mot, lettres rétroéclairées, caisson, bibelots par thème), reflets, panneau « Décorer » de l'aperçu, cuisson d'une matière depuis Blender, les 11 décors livrés rhabillés | **fait** |
+| SVO | **Objets importés — le socle** (14/11, § 7) : bibliothèque de modèles GLB de l'utilisateur (fichier téléchargé, export d'un objet depuis Blender), lecture du GLB avant de le garder, provenance et licence par objet, droits tirés de la licence (vidéo, export, partage, crédit), licences NC / ND / SA refusées, crédits du décor prêts à coller, objet `modele` de la recette, affichage des modèles par le moteur | **fait** |
+| SVA | **Atelier du décor** (14/11, § 8) : trois vues du même décor — par ses caméras, en PLAN (placer meubles, lumières, caméras, présentateur à la souris), en 3D LIBRE (tourner autour de la pièce, choisir d'un clic un pan de mur, un meuble, une lumière, une caméra) ; une matière par pan de mur et par objet ; onglets Caméras (hauteur, focale, visée, mouvement) et Mes objets | **fait** |
+| SVB | **Depuis la Bibliothèque de l'application** (15/11, § 9) : les assets que l'utilisateur a générés — illustrations, logos, modèles 3D — entrent dans le studio : tableau, logo mural, kakémono, image sur l'écran du décor, enseigne, modèle 3D posé | **fait** |
 | SV2 | Skill `studio-volumetrique` + fabrique Blender sans fenêtre : GLB biseauté, textures, lightmap, vignette ; les 11 décors passent au niveau « fabriqué » | skill et script livrés avec SV1, cuisson à faire |
 | SV3 | Présentateur détouré sans fond vert (MediaPipe embarqué), ombre au sol, teinte par la lumière du décor ; option fond vert | à faire |
 | SV4 | Éditeur : déplacer objets, lumières, enseigne, caméras (poignées), réglages par section, annuler/rétablir | à faire |
@@ -121,3 +124,67 @@ Catalogue servi par `GET /api/studiov/habillage` (`services/studiov_habillage.py
 ambiances, styles. Les cartes du pack : `GET /api/studiov/textures/stu/<slug>/<carte>.jpg` ; celles de la Forge par
 ses propres routes. Reste à faire dans ce sillage : poignées de placement à la souris (SV4), modèles GLB réalistes
 (SV5), cuisson des lumières (SV2), mesure sur portable à carte intégrée, guide et assistant « Demander » (SV10).
+
+## 7. Lot SVO — les objets importés (14/11)
+
+Les sources qu'on ne peut pas LIVRER (BlenderKit, Sketchfab, Poly Pizza) restent utilisables si c'est l'utilisateur
+qui fait entrer l'objet, sous son compte et sous sa licence. Le socle est commun à toutes :
+
+- **Bibliothèque** `DATA_ROOT/studiov/objets/<id>/{modele.glb, fiche.json}` (`services/studiov_objets.py`), celle de
+  l'utilisateur, tous espaces confondus. Deux entrées dans ce lot : un fichier GLB qu'il a téléchargé (il déclare la
+  source, l'auteur, la licence, l'adresse) ; un objet sorti d'un fichier .blend par l'application
+  (`backend/app/studiov/exporter_objet_blender.py`, Blender sans fenêtre) — le chemin des assets BlenderKit.
+- **Le GLB est lu avant d'être gardé** : format et version, autonomie (aucun fichier voisin, aucune adresse),
+  compression que le moteur n'ouvre pas (Draco, Meshopt, Basis : refus), poids (300 000 triangles au plus ; au-delà de
+  60 000 la fiche dit « lourd pour un portable »).
+- **Droits tirés de la licence** : CC0 et création = tout ; CC BY = tout, auteur à citer ; BlenderKit Royalty Free =
+  vidéo oui, ni export ni partage ; « à vérifier » = l'application n'affirme rien, le décor le signale. Refusées à
+  l'import : NC (une chaîne monétisée est un usage commercial), ND (habiller un modèle le modifie), SA, Standard.
+- **Crédits du décor** (`GET /api/studiov/{id}/credits`) : les lignes dues, le texte FR / EN à coller sous la vidéo, et
+  ce que les licences permettent pour le décor entier (un seul objet BlenderKit interdit son export).
+- **Recette** : type `modele` + `ref: "obj:<16 hex>"` — une référence, jamais un chemin. Le moteur charge le GLB par
+  l'index servi ; le chargeur three.js embarqué est servi avec ses imports réécrits (`/api/studiov/three/…`, liste
+  fermée) car la coque n'a pas de carte d'import.
+
+Relevé du 14/11 pour les connecteurs (non construits) : Poly Pizza a une API documentée (clé de l'utilisateur, en-tête
+`x-auth-token`, recherche par mot et par licence, GLB sur `static.poly.pizza`) ; Sketchfab garde sa Download API
+(compte de l'utilisateur, filtres `cc0` / `by`, archive glTF en ZIP à convertir, attribution et mention Sketchfab à
+afficher). Les deux demandent une clé rangée dans Réglages › Clés : c'est le lot suivant. ShareTextures : import manuel
+seulement, sauf accord écrit.
+
+## 8. Lot SVA — l'atelier du décor (14/11)
+
+Demande : voir le studio en plan d'architecte pour placer les meubles, ouvrir les bibliothèques, puis passer dans une
+vue 3D pour s'orienter, choisir les pans de mur et les meubles à habiller, placer les lampes, régler la hauteur et la
+focale des caméras.
+
+| # | Sujet | Décision |
+|---|---|---|
+| A1 | Trois vues, un seul décor | « Par les caméras » (ce que le direct montrera), « Plan », « Vue 3D libre ». Un seul « choisi », partagé par le plan, la vue 3D et le panneau : choisir un meuble sur le plan l'entoure en 3D et ouvre ses réglages |
+| A2 | Plan | vue de dessus à l'échelle : murs, grille de 50 cm, emprise RÉELLE de chaque meuble (mesurée par le moteur), objets muraux, lumières, caméras et leur champ, présentateur, écrans. Glisser déplace (aimant 5 cm, Alt = libre) ; poignée ronde ou molette = tourner (15°) ; poignée carrée = orienter une caméra ou une lumière ; un objet mural se colle au mur le plus proche |
+| A3 | Vue 3D libre | glisser tourne autour de la pièce, Maj + glisser la déplace, la molette approche ; les murs vus de dos s'effacent (maison de poupée). Un clic choisit un objet, un pan de mur, une lumière ou une caméra (repères visibles dans cette vue seulement). « Garder cette vue comme caméra » |
+| A4 | Habiller au clic | chaque pan (sol, mur du fond, de gauche, de droite, plafond) a sa matière ; un pan ou un meuble se DÉTACHE de ce qui partageait sa matière au premier changement (les autres ne bougent pas) ; les matières que plus rien n'emploie sont ôtées |
+| A5 | Lumières et caméras | lumière choisie : place, hauteur, longueur d'un néon ; ajout d'un projecteur, d'un contre, d'un néon. Caméra : hauteur, focale, visée, mouvement ; ajout (6 au plus), retrait ; présentateur : place, taille, assis |
+
+La géométrie du plan (échelle, emprises, cône d'une caméra, collage au mur, ce qu'on touche) est dans
+`dz-studiov-logique.js`, jouée sous node par le banc ; `dz-studiov-plan.js` ne fait que dessiner et écouter la souris.
+Reste : poignées de déplacement DANS la vue 3D (aujourd'hui on déplace sur le plan ou par curseurs), annuler / rétablir,
+redimensionner la pièce à la souris.
+
+## 9. Lot SVB — depuis la Bibliothèque de l'application (15/11)
+
+Demande : poser dans le studio ce qu'on a généré dans l'application — modèles 3D, illustrations, logos.
+
+- **Onglet « Bibliothèque »** du panneau Décorer : les images de la Bibliothèque (celles de l'espace, cherchées par
+  nom ou mot-clé, filtrées par fonction d'origine) et les modèles 3D générés (Game Assets 3D, Établi).
+- **Copie à la première utilisation** (doctrine du catalogue de matières de la Forge) : le décor reste entier si
+  l'élément quitte ensuite la Bibliothèque. Une image est désignée par son NOM de fichier seul, ramenée à 2 048 px,
+  sa transparence gardée (`services/studiov_images.py`, référence `img:<id>`) ; un modèle 3D entre dans les objets du
+  studio (`studiov_objets.depuis_bibliotheque` : la version allégée de l'Établi d'abord, sinon la dernière ; il passe
+  la même lecture que tout GLB, plafond de triangles compris). La même source, inchangée, n'est copiée qu'une fois.
+- **Où va une image** : trois objets neufs — `tableau` (encadré), `logo_mural` (détouré, rétroéclairé si on lui donne
+  une couleur), `kakemono` (sur pied, l'image couvre la toile) — ; un écran du décor (`ecrans[].image`, source
+  `image`) ; l'enseigne (`enseigne.source = "image"`), qui garde ses styles néon, rétroéclairé, caisson.
+- **Droits** : ce que l'utilisateur a généré est à lui (tous droits, rien à citer). Une image importée dans la
+  Bibliothèque garde la licence que la Bibliothèque lui connaît : CC BY = créditée dans les crédits du décor, licence
+  inconnue = signalée « à vérifier ».

@@ -21,7 +21,17 @@ Sections :
      fenêtre et SANS exécuter les scripts du fichier ; les cartes cuites deviennent une matière ordinaire de la Forge
      (référence `mat:`), proposée aussitôt au décorateur ; un dossier de sortie hostile est ignoré, une sortie sans
      marque est un refus (502) ; le script de cuisson est livré dans l'application. Blender est remplacé par une
-     couture : aucun logiciel n'est lancé par ce banc.
+     couture : aucun logiciel n'est lancé par ce banc ;
+  9. objets importés et atelier (lots SVO, SVA) : un GLB est LU avant d'être gardé (format, version, compression,
+     fichiers voisins, poids) ; la licence retenue dit les droits (vidéo, export, partage, crédit) et les licences
+     NC, ND, SA sont refusées ; bibliothèque (import, liste, identifiant hostile, suppression refusée tant qu'un
+     décor l'emploie) ; la recette garde un objet `modele` par sa RÉFÉRENCE seulement, et une matière par pan de
+     mur ; crédits d'un décor ; routes (dont le chargeur three.js réécrit, liste fermée) ; export depuis Blender ;
+ 10. depuis la Bibliothèque de l'application (lot SVB) : une image (illustration, logo) est RECOPIÉE dans le studio,
+     désignée par son nom de fichier seul, ramenée à 2 048 px, sa transparence gardée, copiée une seule fois ; la
+     recette la porte par référence (tableau, logo mural, kakémono, écran du décor, enseigne) ; un modèle 3D généré
+     entre dans les objets du studio (version allégée d'abord) ; suppression refusée tant qu'un décor l'emploie ;
+     crédits : une image sous licence à citer ou à vérifier est signalée.
 Données jetables (DEEPOTUS_DATA_DIR temporaire), aucun réseau.
 Run (depuis backend/) : & $PY tests/test_studiov_service.py"""
 import json, os, pathlib, re, subprocess, sys, tempfile
@@ -30,6 +40,7 @@ _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzstudiov_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{(_tmp / 't.db').as_posix()}"
 os.environ["OUTPUTS_FOLDER"] = str(_tmp / "outputs")                 # les matières de la Forge (section 8) : jetables
+os.environ["IMAGES_FOLDER"] = str(_tmp / "images")                   # la Bibliothèque d'images (section 10) : jetable
 _ICI = pathlib.Path(__file__).resolve().parent
 REPO = _ICI.parent.parent
 sys.path.insert(0, str(_ICI.parent))
@@ -145,8 +156,8 @@ types_moteur = re.findall(r"^    ([a-z0-9_]+)\(g", bloc, re.M)
 check("5.1 types du serveur = types de la logique JS (même ordre)", list(S.TYPES_OBJET) == types_js, set(S.TYPES_OBJET) ^ set(types_js))
 check("5.2 chaque type a son constructeur dans le moteur, et rien de plus", sorted(types_moteur) == sorted(S.TYPES_OBJET), set(S.TYPES_OBJET) ^ set(types_moteur))
 check("5.3 aucun type en double", len(set(S.TYPES_OBJET)) == len(S.TYPES_OBJET))
-check("5.4 le catalogue servi : familles, motifs, lumières, mouvements, usages, polices, styles d'enseigne, types à mot et lumineux",
-      set(S.catalogue()) == {"familles", "motifs", "lumieres", "mouvements", "usages", "polices", "styles_enseigne", "types_texte", "types_lumineux"})
+check("5.4 le catalogue servi : familles, motifs, lumières, mouvements, usages, polices, styles d'enseigne, types à mot, lumineux et à image",
+      set(S.catalogue()) == {"familles", "motifs", "lumieres", "mouvements", "usages", "polices", "styles_enseigne", "types_texte", "types_lumineux", "types_image"})
 check("5.5 les types à mot et les types lumineux sont au catalogue ; chaque police proposée est embarquée (frontend/dist/fonts)",
       set(S.TYPES_TEXTE) <= set(S.TYPES_OBJET) and set(S.TYPES_LUMINEUX) <= set(S.TYPES_OBJET)
       and all((REPO / "frontend" / "dist" / "fonts" / f"{p}.ttf").is_file() for p in S.POLICES))
@@ -229,7 +240,7 @@ check("7.16 vignette de la Forge : catalogue rendu en JPEG ; inconnue, source ho
       and all(_refus_h(H.vignette, *a) == 404 for a in [("cat", "absente"), ("cat", "../x"), ("mat", "zzzzzzzz"), ("mat", "00000000"), ("disque", "brick_wall_001")]))
 r = local.get("/api/studiov/habillage")
 check("7.17 route du catalogue : textures, familles, finitions, ambiances, styles, catalogue ; hors boucle locale refusée", r.status_code == 200
-      and set(r.json()) == {"textures", "familles_texture", "finitions", "ambiances", "styles", "catalogue"} and len(r.json()["textures"]) >= 72
+      and set(r.json()) == {"textures", "familles_texture", "finitions", "ambiances", "styles", "catalogue", "objets", "images"} and len(r.json()["textures"]) >= 72
       and loin.get("/api/studiov/habillage").status_code in (401, 403))
 check("7.18 route d'une carte : JPEG du pack ; carte inconnue 404 ; vignette de la Forge ; carte de la Forge par cette route 404 ; hors boucle refusé",
       local.get("/api/studiov/textures/stu/oak_veneer_01/normal.jpg").headers.get("content-type") == "image/jpeg"
@@ -304,6 +315,211 @@ src8 = H.SCRIPT_CUISSON.read_text("utf-8")
 check("8.9 le script de cuisson est livré dans l'application, se compile, travaille sur une COPIE et n'enregistre jamais le fichier ouvert",
       H.SCRIPT_CUISSON.is_file() and compile(src8, "cuisson", "exec") is not None and "source.copy()" in src8 and "save_as_mainfile" not in src8
       and "save_mainfile" not in src8)
+
+print("9. objets importés et atelier")
+import struct                                                        # noqa: E402
+from app.services import studiov_objets as OB                        # noqa: E402
+
+
+def _refus_o(f, *a):
+    try:
+        f(*a)
+    except OB.RefusObjet as e:
+        return e.statut
+    return None
+
+
+def _glb(j, version=2):
+    corps = json.dumps(j).encode("utf-8")
+    corps += b" " * (-len(corps) % 4)
+    return b"glTF" + struct.pack("<II", version, 20 + len(corps)) + struct.pack("<II", len(corps), 0x4E4F534A) + corps
+
+
+CUBE = {"asset": {"version": "2.0"}, "accessors": [{"count": 36}, {"count": 24, "min": [-0.5, 0, -0.25], "max": [0.5, 2, 0.25]}],
+        "meshes": [{"primitives": [{"attributes": {"POSITION": 1}, "indices": 0}]}]}
+check("9.1 un GLB sain est mesuré : triangles et dimensions", OB.analyser_glb(_glb(CUBE)) == {"triangles": 12, "dims": [1.0, 2.0, 0.5], "maillages": 1, "images": 0})
+check("9.2 refusés avant toute écriture : pas un GLB, version 1, JSON cassé (415) ; trop gros (413)",
+      [_refus_o(OB.analyser_glb, x) for x in (b"PK\x03\x04" + b"x" * 40, _glb(CUBE, 1), b"glTF" + struct.pack("<IIII", 2, 28, 8, 0x4E4F534A) + b"{pas du ", None)] == [415, 415, 415, 415]
+      and _refus_o(OB.analyser_glb, b"glTF" + b"\0" * (OB.MAX_OCTETS + 8)) == 413)
+check("9.3 refusés : compression que le moteur n'ouvre pas, fichier voisin (tampon ou image), aucune surface, trop de triangles",
+      _refus_o(OB.analyser_glb, _glb(dict(CUBE, extensionsRequired=["KHR_draco_mesh_compression"]))) == 415
+      and _refus_o(OB.analyser_glb, _glb(dict(CUBE, buffers=[{"uri": "scene.bin"}]))) == 415
+      and _refus_o(OB.analyser_glb, _glb(dict(CUBE, images=[{"uri": "http://ailleurs/t.png"}]))) == 415
+      and OB.analyser_glb(_glb(dict(CUBE, images=[{"uri": "data:image/png;base64,AAAA"}])))["images"] == 1
+      and _refus_o(OB.analyser_glb, _glb({"asset": {}, "meshes": []})) == 415
+      and _refus_o(OB.analyser_glb, _glb(dict(CUBE, accessors=[{"count": 3 * (OB.MAX_TRIANGLES + 1)}, CUBE["accessors"][1]]))) == 413)
+check("9.4 licence retenue : CC0 et CC BY sous toutes leurs écritures ; BlenderKit = Royalty Free sauf CC0 ; création ; inconnue = à vérifier",
+      [OB.licence_propre(*x) for x in (("cc0 1.0", "polypizza"), ("CC-BY-4.0", "sketchfab"), ("CC BY 3.0", "polypizza"), ("Royalty Free", "blenderkit"),
+                                        ("CC0", "blenderkit"), ("n'importe", "creation"), ("", "fichier"), ("GPL", "fichier"))]
+      == ["CC0", "CC-BY", "CC-BY", "BLENDERKIT-RF", "CC0", "CREATION", "A-VERIFIER", "A-VERIFIER"])
+check("9.5 licences refusées (409) : usage commercial interdit, modification interdite, partage à l'identique, fichier non extractible",
+      all(_refus_o(OB.licence_propre, x, "sketchfab") == 409 for x in ("CC BY-NC 4.0", "cc-by-nd", "CC-BY-SA-4.0", "CC-BY-NC-SA", "Standard")))
+check("9.6 droits : CC0 tout ; CC BY tout + crédit ; BlenderKit ni export ni partage ; à vérifier : vidéo non affirmée",
+      OB.droits("CC0") == {"video": True, "export": True, "partage": True, "credit": False} and OB.droits("CC-BY")["credit"] is True
+      and OB.droits("BLENDERKIT-RF") == {"video": True, "export": False, "partage": False, "credit": False}
+      and OB.droits("A-VERIFIER")["video"] is None and OB.droits("inconnue") == OB.droits("A-VERIFIER"))
+o1 = OB.importer(_glb(CUBE), {"nom": "Lampe  de\x00 studio", "source": "polypizza", "licence": "CC-BY 3.0", "auteur": "Jeanne Martin", "url": "https://poly.pizza/m/abc"})
+o2 = OB.importer(_glb(CUBE), {"nom": "Fauteuil", "source": "blenderkit", "licence": "Royalty Free", "url": "javascript:alert(1)"})
+o3 = OB.importer(_glb(CUBE), {"source": "disque C:", "licence": "?"})
+check("9.7 importer : fiche propre (nom sans contrôle, source fermée, adresse http(s) seulement), référence obj:, droits, GLB sur le disque",
+      o1["nom"] == "Lampe de studio" and o1["ref"] == "obj:" + o1["id"] and S.REF_OBJET.match(o1["ref"]) and o1["licence"] == "CC-BY" and o1["droits"]["credit"]
+      and o1["url"] == "https://poly.pizza/m/abc" and o2["url"] == "" and o2["licence"] == "BLENDERKIT-RF" and o3["source"] == "fichier" and o3["licence"] == "A-VERIFIER"
+      and o3["nom"] == "Objet importé" and OB.chemin(o1["id"]).read_bytes()[:4] == b"glTF" and o1["triangles"] == 12 and o1["lourd"] is False, (o1, o2, o3))
+check("9.8 une licence refusée ou un fichier illisible ne laissent rien sur le disque", _refus_o(OB.importer, _glb(CUBE), {"licence": "CC-BY-NC"}) == 409
+      and _refus_o(OB.importer, b"pas un glb", {"licence": "CC0"}) == 415 and len(OB.lister()) == 3 and len(list(OB.racine().iterdir())) == 3)
+check("9.9 bibliothèque : liste, index par référence ; identifiant hostile 400, inconnu 404", set(OB.index()) == {o1["ref"], o2["ref"], o3["ref"]}
+      and all(_refus_o(OB.lire, x) == 400 for x in ("../x", "ABC", "", None, "0" * 15)) and _refus_o(OB.lire, "0" * 16) == 404 and _refus_o(OB.chemin, "0" * 16) == 404)
+r9 = S.normaliser({"piece": {"gauche": "brique", "droite": "absente"}, "matieres": {"brique": {}},
+                   "objets": [{"type": "modele", "ref": o1["ref"], "x": 1}, {"type": "modele", "ref": "C:/x.glb"}, {"type": "modele", "ref": "obj:../../x"},
+                              {"type": "modele"}, {"type": "bureau", "ref": o1["ref"]}]})
+check("9.10 recette : un objet « modele » est gardé par sa référence seule ; sans référence valide il n'est rien ; un autre type n'en porte pas",
+      [(o["type"], o.get("ref")) for o in r9["objets"]] == [("modele", o1["ref"]), ("bureau", None)] and S.normaliser(r9) == r9)
+check("9.11 recette : chaque pan de mur a sa matière (défaut : celle des murs) ; 48 matières au plus", r9["piece"]["gauche"] == "brique" and r9["piece"]["droite"] == "mur"
+      and S.normaliser({})["piece"]["gauche"] == "mur" and S.MAX_MATIERES == 48
+      and len(S.normaliser({"matieres": {f"m{i}": {} for i in range(90)}})["matieres"]) <= 51)
+dc = S.creer(None, "Décor aux objets", "esp-o")
+dc = S.enregistrer(dc["id"], dict(dc, objets=[{"type": "modele", "ref": o1["ref"]}, {"type": "modele", "ref": o1["ref"], "x": 1}, {"type": "modele", "ref": o2["ref"]},
+                                             {"type": "modele", "ref": o3["ref"]}, {"type": "modele", "ref": "obj:" + "f" * 16}, {"type": "bureau"}]))
+cr = OB.credits(dc)
+check("9.12 crédits : un modèle cité une fois, les obligatoires d'abord, le texte FR et EN prêts ; l'objet disparu est compté",
+      [x["nom"] for x in cr["lignes"]][0] == "Lampe de studio" and len(cr["lignes"]) == 3 and cr["absents"] == 1
+      and cr["texte_fr"] == "Crédits du décor :\n- « Lampe de studio » par Jeanne Martin (CC BY) via Poly Pizza — https://poly.pizza/m/abc\n- « Objet importé »"
+      and cr["texte_en"].startswith("Set credits:\n- \"Lampe de studio\" by Jeanne Martin (CC BY) via Poly Pizza"), cr)
+check("9.13 droits du décor entier : un objet BlenderKit interdit l'export et le partage ; la licence à vérifier est signalée",
+      cr["export"] is False and cr["partage"] is False and cr["a_verifier"] == ["Objet importé"] and OB.credits(dict(dc, objets=[]))["export"] is True
+      and OB.credits(dict(dc, objets=[]))["texte_fr"] == "")
+check("9.14 supprimer : refusé tant qu'un décor l'emploie (409), permis ensuite ; inconnu 404", _refus_o(OB.supprimer, o2["id"]) == 409
+      and _refus_o(OB.supprimer, "0" * 16) == 404)
+S.enregistrer(dc["id"], dict(dc, objets=[{"type": "modele", "ref": o1["ref"]}]))
+OB.supprimer(o2["id"])
+check("9.15 … l'objet retiré du décor se supprime ; les autres restent", _refus_o(OB.lire, o2["id"]) == 404 and len(OB.lister()) == 2)
+r = local.get("/api/studiov/objets")
+check("9.16 routes : la bibliothèque, ses sources, ses licences et leurs droits ; hors boucle locale refusée", r.status_code == 200 and len(r.json()["objets"]) == 2
+      and r.json()["licences"]["CC-BY"]["credit"] is True and "polypizza" in r.json()["sources"] and loin.get("/api/studiov/objets").status_code in (401, 403))
+r = local.post("/api/studiov/objets", files={"fichier": ("Vase bleu.glb", _glb(CUBE), "model/gltf-binary")}, data={"source": "sketchfab", "licence": "CC0", "auteur": "A"})
+oid = r.json().get("id", "")
+check("9.17 routes : import d'un fichier (le nom vient du fichier), lecture du GLB, refus d'une licence (409) et d'un faux GLB (415)",
+      r.status_code == 200 and r.json()["nom"] == "Vase bleu" and r.json()["licence"] == "CC0"
+      and local.get(f"/api/studiov/objets/{oid}/modele.glb").content[:4] == b"glTF"
+      and local.post("/api/studiov/objets", files={"fichier": ("x.glb", _glb(CUBE))}, data={"licence": "CC-BY-NC"}).status_code == 409
+      and local.post("/api/studiov/objets", files={"fichier": ("x.glb", b"zip")}, data={"licence": "CC0"}).status_code == 415
+      and local.get("/api/studiov/objets/ZZZ/modele.glb").status_code == 400, r.text[:200])
+check("9.18 routes : crédits d'un décor ; suppression (409 s'il est posé, puis 200)", local.get(f"/api/studiov/{dc['id']}/credits").status_code in (200, 409)
+      and local.delete(f"/api/studiov/objets/{oid}").json() == {"supprime": oid} and local.delete(f"/api/studiov/objets/{oid}").status_code == 404)
+m = local.get("/api/studiov/three/GLTFLoader.js")
+check("9.19 chargeur three.js : servi avec ses imports réécrits vers les fichiers de l'application ; liste FERMÉE (remontée de dossier, autre module : 404)",
+      m.status_code == 200 and "javascript" in m.headers["content-type"] and "from '/assets/three/three.module.min.js'" in m.text and "from 'three'" not in m.text
+      and "'/api/studiov/three/BufferGeometryUtils.js'" in m.text and "from 'three'" not in local.get("/api/studiov/three/SkeletonUtils.js").text
+      and local.get("/api/studiov/three/OrbitControls.js").status_code == 404 and local.get("/api/studiov/three/..%2f..%2fx.js").status_code == 404
+      and loin.get("/api/studiov/three/GLTFLoader.js").status_code in (401, 403))
+appels9 = []
+def _faux_export(fichier, arguments, script=None):
+    appels9.append((list(arguments), script))
+    if "--liste" in arguments:
+        return 'OBJETS [{"nom": "Fauteuil club", "faces": 1200}, {"nom": "Lampe", "faces": 90}, "pirate"]\n'
+    sortie = pathlib.Path(arguments[arguments.index("--sortie") + 1])
+    sortie.mkdir(parents=True, exist_ok=True)
+    (sortie / "fauteuil_club.glb").write_bytes(_glb(CUBE))
+    return 'EXPORT_OK {"nom": "Fauteuil club", "fichier": "fauteuil_club.glb"}\n'
+H._blender, H._lancer_blender = (lambda: "blender-de-banc"), _faux_export
+check("9.20 depuis Blender : lister les objets d'un fichier (script d'export de l'application)", H.objets_blender(str(blend)) == [{"nom": "Fauteuil club", "faces": 1200}, {"nom": "Lampe", "faces": 90}]
+      and appels9[0] == (["--liste"], H.SCRIPT_EXPORT))
+ex = H.exporter_blender(str(blend), "Fauteuil club", {"source": "blenderkit", "licence": "Royalty Free", "auteur": "B"})
+check("9.21 depuis Blender : l'objet sorti entre dans la bibliothèque avec ses droits (un asset BlenderKit : ni export ni partage) ; le dossier de travail est ôté",
+      ex["nom"] == "Fauteuil club" and ex["source"] == "blenderkit" and ex["licence"] == "BLENDERKIT-RF" and ex["droits"]["export"] is False
+      and appels9[1][0][2:] == ["--objet", "Fauteuil club"] and not pathlib.Path(appels9[1][0][1]).exists() and OB.chemin(ex["id"]).is_file(), ex)
+H._lancer_blender = lambda f, a, s=None: 'EXPORT_OK {"nom": "x", "fichier": "../../ailleurs.glb"}\n'
+check("9.22 fichier hors du dossier de travail, objet non choisi, fichier absent : refusés", _refus_h(H.exporter_blender, str(blend), "x") == 502
+      and _refus_h(H.exporter_blender, str(blend), "") == 400 and _refus_h(H.objets_blender, str(_tmp / "absent.blend")) == 404)
+H._blender, H._lancer_blender = vrai_blender, vrai_lancer
+src9 = H.SCRIPT_EXPORT.read_text("utf-8")
+check("9.23 le script d'export est livré dans l'application, se compile, n'enregistre jamais le fichier ouvert et coupe la compression",
+      H.SCRIPT_EXPORT.is_file() and compile(src9, "export", "exec") is not None and "save_as_mainfile" not in src9 and "save_mainfile" not in src9
+      and "export_draco_mesh_compression_enable" in src9)
+
+print("10. depuis la Bibliothèque de l'application")
+from app.config import settings as _reglages                         # noqa: E402
+from app.services import studiov_images as SI                        # noqa: E402
+
+
+def _refus_i(f, *a):
+    try:
+        f(*a)
+    except SI.RefusImage as e:
+        return e.statut
+    return None
+
+
+BIB = _reglages.images_path
+BIB.mkdir(parents=True, exist_ok=True)
+Image.new("RGB", (3000, 1500), (30, 90, 160)).save(BIB / "gen_illustration.png")
+logo = Image.new("RGBA", (600, 600), (0, 0, 0, 0)); logo.paste((240, 180, 41, 255), (150, 150, 450, 450)); logo.save(BIB / "gen_logo.png")
+Image.new("RGBA", (400, 300), (200, 30, 50, 255)).save(BIB / "opaque.png")
+(BIB / "note.txt").write_text("x", "utf-8"); (BIB / "faux.png").write_bytes(b"pas une image")
+check("10.1 une image est désignée par son NOM seul : chemin, remontée, autre extension, absente, non-texte -> refus",
+      [_refus_i(SI.fichier_bibliotheque, x) for x in ("../gen_logo.png", str(BIB / "gen_logo.png"), "note.txt", "absente.png", "", None, 12)] == [400, 400, 404, 404, 400, 400, 400])
+i1 = SI.depuis_bibliotheque("gen_illustration.png", {"licence": "propriétaire", "auteur": ""})
+i2 = SI.depuis_bibliotheque("gen_logo.png", {"licence": "CC BY 4.0", "auteur": "Studio Martin"})
+i3 = SI.depuis_bibliotheque("opaque.png", {"licence": "inconnue"})
+check("10.2 copie : ramenée à 2 048 px (JPEG), le logo garde sa transparence (PNG), une couche alpha toute opaque n'en est pas une",
+      (i1["l"], i1["h"], i1["alpha"]) == (2048, 1024, False) and SI.chemin(i1["id"]).name == "image.jpg" and (i2["l"], i2["alpha"]) == (600, True)
+      and SI.chemin(i2["id"]).name == "image.png" and Image.open(SI.chemin(i2["id"])).mode == "RGBA" and i3["alpha"] is False and S.REF_IMAGE.match(i1["ref"]), (i1, i2, i3))
+check("10.3 la même image, inchangée, n'est copiée qu'une fois ; la fiche garde l'origine, la licence et l'auteur de la Bibliothèque",
+      SI.depuis_bibliotheque("gen_logo.png")["id"] == i2["id"] and len(SI.lister()) == 3 and i2["origine"] == "gen_logo.png" and i2["licence"] == "CC BY 4.0"
+      and i2["auteur"] == "Studio Martin" and i1["nom"] == "gen_illustration")
+check("10.4 fichier illisible -> 415, rien n'est écrit ; identifiant hostile 400, inconnu 404", _refus_i(SI.depuis_bibliotheque, "faux.png") == 415 and len(SI.lister()) == 3
+      and all(_refus_i(SI.lire, x) == 400 for x in ("../x", "", None)) and _refus_i(SI.lire, "0" * 16) == 404 and _refus_i(SI.chemin, "0" * 16) == 404)
+check("10.5 vignette d'une image de la Bibliothèque : JPEG ; fichier hostile ou illisible refusé", SI.vignette_bibliotheque("gen_logo.png")[:2] == b"\xff\xd8"
+      and _refus_i(SI.vignette_bibliotheque, "../x.png") == 400 and _refus_i(SI.vignette_bibliotheque, "faux.png") == 415)
+r10 = S.normaliser({"objets": [{"type": "tableau", "image": i1["ref"]}, {"type": "logo_mural", "image": i2["ref"], "couleur": "accent"}, {"type": "kakemono", "image": i3["ref"]},
+                               {"type": "tableau"}, {"type": "tableau", "image": "C:/x.png"}, {"type": "logo_mural", "image": "http://x/y.png"}, {"type": "bureau", "image": i1["ref"]}],
+                    "ecrans": [{"source": "image", "image": i1["ref"]}, {"source": "image", "image": "../x"}, {}],
+                    "enseigne": {"source": "image", "image": i2["ref"]}})
+check("10.6 recette : tableau, logo mural et kakémono gardés par leur référence ; sans image valide ils ne sont rien ; un autre type n'en porte pas",
+      [(o["type"], o.get("image")) for o in r10["objets"]] == [("tableau", i1["ref"]), ("logo_mural", i2["ref"]), ("kakemono", i3["ref"]), ("bureau", None)] and S.normaliser(r10) == r10)
+check("10.7 recette : image d'un écran du décor et de l'enseigne par référence ; « image » sans image = le logo de l'espace",
+      [e["image"] for e in r10["ecrans"]] == [i1["ref"], "", ""] and r10["enseigne"]["source"] == "image" and r10["enseigne"]["image"] == i2["ref"]
+      and S.normaliser({"enseigne": {"source": "image"}})["enseigne"]["source"] == "espace" and S.normaliser({"enseigne": {"source": "image", "image": "x"}})["enseigne"]["source"] == "espace")
+di = S.creer(None, "Décor aux images", "esp-i")
+di = S.enregistrer(di["id"], dict(di, objets=[{"type": "tableau", "image": i1["ref"]}, {"type": "logo_mural", "image": i2["ref"]}], ecrans=[{"source": "image", "image": i3["ref"]}]))
+ci = OB.credits(di)
+check("10.8 crédits : l'image à l'utilisateur n'est pas citée ; la CC BY l'est avec son auteur ; la licence inconnue est à vérifier",
+      [x["nom"] for x in ci["lignes"]] == ["gen_logo", "opaque"] and ci["texte_fr"] == "Crédits du décor :\n- « gen_logo » par Studio Martin (CC BY)"
+      and ci["a_verifier"] == ["opaque"] and ci["export"] is True, ci)
+check("10.9 supprimer une image : refusé tant qu'un décor l'emploie (objet, écran), permis ensuite", _refus_i(SI.supprimer, i1["id"]) == 409 and _refus_i(SI.supprimer, i3["id"]) == 409
+      and SI.emplois(di) == {i1["ref"], i2["ref"], i3["ref"]})
+S.enregistrer(di["id"], dict(di, objets=[], ecrans=[]))
+SI.supprimer(i3["id"])
+check("10.10 … l'image retirée du décor se supprime", _refus_i(SI.lire, i3["id"]) == 404 and len(SI.lister()) == 2)
+J = _reglages.outputs_path / "assets3d"
+(J / "job1").mkdir(parents=True); (J / "job1" / "model.glb").write_bytes(_glb(CUBE)); (J / "job1" / "model.v2.glb").write_bytes(_glb(CUBE) + b"    ")
+(J / "job1" / "asset.json").write_text(json.dumps({"name": "Robot généré", "engine": "meshy"}), "utf-8")
+(J / "job2").mkdir(); (J / "job2" / "model.glb").write_bytes(_glb(dict(CUBE, accessors=[{"count": 3 * (OB.MAX_TRIANGLES + 1)}, CUBE["accessors"][1]])))
+(J / "job2" / "model.opt.glb").write_bytes(_glb(CUBE)); (J / "_banc").mkdir()
+m1 = OB.depuis_bibliotheque("job1")
+check("10.11 modèle 3D généré : copié dans les objets du studio, à l'utilisateur (tous droits, rien à citer), la DERNIÈRE version, une seule fois",
+      m1["nom"] == "Robot généré" and m1["source"] == "bibliotheque" and m1["licence"] == "CREATION" and m1["droits"] == OB.droits("CREATION")
+      and OB._fiche(m1["id"])["origine"].startswith("assets3d:job1:model.v2.glb:") and OB.depuis_bibliotheque("job1")["id"] == m1["id"])
+m2 = OB.depuis_bibliotheque("job2")
+check("10.12 la version allégée passe d'abord (le modèle plein dépasserait le plafond de triangles) ; une version nommée se demande ; trop lourde : 413",
+      OB._fiche(m2["id"])["origine"].startswith("assets3d:job2:model.opt.glb:") and _refus_o(OB.depuis_bibliotheque, "job2", "model.glb") == 413
+      and OB._fiche(OB.depuis_bibliotheque("job1", "model.glb")["id"])["origine"].startswith("assets3d:job1:model.glb:"))
+check("10.13 job hostile, réservé, absent, fichier hors convention -> 404", all(_refus_o(OB.depuis_bibliotheque, *x) == 404 for x in
+      (("../job1",), ("_banc",), ("absent",), ("",), (None,), ("job1", "../asset.json"), ("job1", "asset.json"), ("job1", "model.v9.glb"))))
+r = local.post("/api/studiov/bibliotheque/image", json={"filename": "gen_illustration.png"})
+check("10.14 routes : copie d'une image (déjà copiée : la même), son fichier, sa vignette ; nom hostile 400 ; hors boucle locale refusé",
+      r.status_code == 200 and r.json()["id"] == i1["id"] and local.get(f"/api/studiov/images/{i1['id']}/fichier").headers["content-type"] == "image/jpeg"
+      and local.get(f"/api/studiov/images/{i2['id']}/fichier").headers["content-type"] == "image/png"
+      and local.get("/api/studiov/bibliotheque/vignette", params={"f": "gen_logo.png"}).content[:2] == b"\xff\xd8"
+      and local.post("/api/studiov/bibliotheque/image", json={"filename": "../x.png"}).status_code == 400
+      and local.get("/api/studiov/bibliotheque/vignette", params={"f": "absente.png"}).status_code == 404
+      and loin.post("/api/studiov/bibliotheque/image", json={"filename": "gen_logo.png"}).status_code in (401, 403), r.text[:200])
+check("10.15 routes : copie d'un modèle 3D généré ; job absent 404 ; suppression d'une image posée 409 ; le catalogue liste images et objets",
+      local.post("/api/studiov/bibliotheque/modele", json={"job": "job1"}).json()["id"] == m1["id"]
+      and local.post("/api/studiov/bibliotheque/modele", json={"job": "absent"}).status_code == 404
+      and local.delete(f"/api/studiov/images/{i1['id']}").status_code in (200, 409)
+      and {x["ref"] for x in local.get("/api/studiov/habillage").json()["objets"]} >= {m1["ref"], m2["ref"]}
+      and i2["ref"] in {x["ref"] for x in local.get("/api/studiov/habillage").json()["images"]})
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

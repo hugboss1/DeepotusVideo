@@ -14786,5 +14786,113 @@
  "La cuisson n'a rien produit : la matière existe-t-elle dans ce fichier ?": {
   "fr": "La cuisson n'a rien produit : la matière existe-t-elle dans ce fichier ?",
   "en": "Baking produced nothing: does the material exist in this file?"
+ },
+ "Module inconnu.": {
+  "fr": "Module inconnu.",
+  "en": "Unknown module."
+ },
+ "Choisissez l'objet à sortir de Blender.": {
+  "fr": "Choisissez l'objet à sortir de Blender.",
+  "en": "Pick the object to export from Blender."
+ },
+ "Blender n'a rien exporté : l'objet existe-t-il dans ce fichier ?": {
+  "fr": "Blender n'a rien exporté : l'objet existe-t-il dans ce fichier ?",
+  "en": "Blender exported nothing: does the object exist in this file?"
+ },
+ "Ce fichier n'est pas un modèle GLB.": {
+  "fr": "Ce fichier n'est pas un modèle GLB.",
+  "en": "This file is not a GLB model."
+ },
+ "Modèle trop lourd : 30 Mo au plus.": {
+  "fr": "Modèle trop lourd : 30 Mo au plus.",
+  "en": "Model too large: 30 MB at most."
+ },
+ "Modèle GLB illisible (version 2 attendue).": {
+  "fr": "Modèle GLB illisible (version 2 attendue).",
+  "en": "Unreadable GLB model (version 2 expected)."
+ },
+ "Ce modèle est compressé (Draco, Meshopt ou Basis) : exportez-le en GLB sans compression.": {
+  "fr": "Ce modèle est compressé (Draco, Meshopt ou Basis) : exportez-le en GLB sans compression.",
+  "en": "This model is compressed (Draco, Meshopt or Basis): export it as an uncompressed GLB."
+ },
+ "Ce modèle ne contient aucune surface à afficher.": {
+  "fr": "Ce modèle ne contient aucune surface à afficher.",
+  "en": "This model has no surface to display."
+ },
+ "Modèle trop lourd pour un décor en direct : {triangles} triangles (plafond : {MAX_TRIANGLES}).": {
+  "fr": "Modèle trop lourd pour un décor en direct : {triangles} triangles (plafond : {MAX_TRIANGLES}).",
+  "en": "Model too heavy for a live set: {triangles} triangles (limit: {MAX_TRIANGLES})."
+ },
+ "Licence refusée : elle interdit l'usage commercial, donc une vidéo publiée sur une chaîne.": {
+  "fr": "Licence refusée : elle interdit l'usage commercial, donc une vidéo publiée sur une chaîne.",
+  "en": "Licence refused: it forbids commercial use, hence a video published on a channel."
+ },
+ "Licence refusée : elle interdit de modifier le modèle, donc de l'habiller.": {
+  "fr": "Licence refusée : elle interdit de modifier le modèle, donc de l'habiller.",
+  "en": "Licence refused: it forbids modifying the model, hence dressing it."
+ },
+ "Licence refusée : elle impose de publier la vidéo sous la même licence.": {
+  "fr": "Licence refusée : elle impose de publier la vidéo sous la même licence.",
+  "en": "Licence refused: it requires publishing the video under the same licence."
+ },
+ "Licence refusée : elle interdit de sortir le fichier du service d'origine.": {
+  "fr": "Licence refusée : elle interdit de sortir le fichier du service d'origine.",
+  "en": "Licence refused: it forbids taking the file out of its original service."
+ },
+ "Identifiant d'objet invalide.": {
+  "fr": "Identifiant d'objet invalide.",
+  "en": "Invalid object identifier."
+ },
+ "Objet illisible.": {
+  "fr": "Objet illisible.",
+  "en": "Unreadable object."
+ },
+ "Objet introuvable.": {
+  "fr": "Objet introuvable.",
+  "en": "Object not found."
+ },
+ "Ce GLB renvoie à des fichiers voisins : exportez un GLB autonome (tout dans un seul fichier).": {
+  "fr": "Ce GLB renvoie à des fichiers voisins : exportez un GLB autonome (tout dans un seul fichier).",
+  "en": "This GLB points to sibling files: export a self-contained GLB (everything in one file)."
+ },
+ "Bibliothèque d'objets pleine : supprimez-en un d'abord.": {
+  "fr": "Bibliothèque d'objets pleine : supprimez-en un d'abord.",
+  "en": "Object library full: delete one first."
+ },
+ "Cet objet est posé dans {emploi} décor(s) : retirez-le d'abord de « {v} ».": {
+  "fr": "Cet objet est posé dans {emploi} décor(s) : retirez-le d'abord de « {v} ».",
+  "en": "This object is placed in {emploi} set(s): remove it from \"{v}\" first."
+ },
+ "L'objet n'a pas pu être enregistré.": {
+  "fr": "L'objet n'a pas pu être enregistré.",
+  "en": "The object could not be saved."
+ },
+ "Nom de fichier invalide.": {
+  "fr": "Nom de fichier invalide.",
+  "en": "Invalid file name."
+ },
+ "Image introuvable dans la Bibliothèque.": {
+  "fr": "Image introuvable dans la Bibliothèque.",
+  "en": "Image not found in the Library."
+ },
+ "Identifiant d'image invalide.": {
+  "fr": "Identifiant d'image invalide.",
+  "en": "Invalid image identifier."
+ },
+ "Trop d'images dans le studio : retirez-en une d'abord.": {
+  "fr": "Trop d'images dans le studio : retirez-en une d'abord.",
+  "en": "Too many images in the studio: remove one first."
+ },
+ "L'image n'a pas pu être enregistrée.": {
+  "fr": "L'image n'a pas pu être enregistrée.",
+  "en": "The image could not be saved."
+ },
+ "Cette image est posée dans {noms} décor(s) : retirez-la d'abord de « {v} ».": {
+  "fr": "Cette image est posée dans {noms} décor(s) : retirez-la d'abord de « {v} ».",
+  "en": "This image is placed in {noms} set(s): remove it from \"{v}\" first."
+ },
+ "Modèle 3D introuvable dans la Bibliothèque.": {
+  "fr": "Modèle 3D introuvable dans la Bibliothèque.",
+  "en": "3D model not found in the Library."
  }
 }
