@@ -7778,6 +7778,8 @@ _ALLOWED_ENV_KEYS = {
     "TAVILY_API_KEY", "EXA_API_KEY", "SERPER_API_KEY",
     # t521 (13/11/2026) : Réglages › Moteurs et logiciels 3D (lot 1 : Blender et Godot), des chemins, pas des secrets
     "BLENDER_PATH", "GODOT_PATH", "GODOT_PROJECT_DIR",
+    # t521 lot 2 (14/11/2026) : Unreal Engine, Unity, Blender MCP
+    "UNREAL_PATH", "UNREAL_PROJECT_DIR", "UNITY_PATH", "UNITY_PROJECT_DIR", "BLENDER_MCP_EXE", "BLENDER_MCP_PORT",
 }
 
 
