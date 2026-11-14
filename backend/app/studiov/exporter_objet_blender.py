@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SVO (15/11/2026) — SORT un objet d'un fichier Blender en GLB autonome, pour la bibliothèque d'objets importés du
+"""SVO (14/11/2026) — SORT un objet d'un fichier Blender en GLB autonome, pour la bibliothèque d'objets importés du
 studio virtuel. C'est le chemin des assets qu'on ne trouve que DANS Blender (BlenderKit, bibliothèques d'assets,
 modèles faits main) : l'utilisateur pose l'asset dans son fichier, avec son compte ; l'application en tire un GLB.
 

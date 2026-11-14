@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SVO (15/11/2026) — la BIBLIOTHÈQUE D'OBJETS IMPORTÉS du studio virtuel : les modèles 3D (GLB) que l'utilisateur fait
+"""SVO (14/11/2026) — la BIBLIOTHÈQUE D'OBJETS IMPORTÉS du studio virtuel : les modèles 3D (GLB) que l'utilisateur fait
 entrer LUI-MÊME — téléchargés chez Poly Pizza ou Sketchfab, sortis de son Blender (BlenderKit compris), ou de sa
 création — et qu'il pose dans un décor comme un objet du catalogue (type `modele`, référence `obj:<id>`).
 Conception docs/superpowers/specs/2026-11-14-studio-virtuel-3d-design.md (§ 7).

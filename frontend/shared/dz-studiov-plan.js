@@ -1,4 +1,4 @@
-// dz-studiov-plan.js — SVA (15/11/2026, studio virtuel 3D), la VUE EN PLAN de l'atelier du décor : la pièce vue d'en
+// dz-studiov-plan.js — SVA (14/11/2026, studio virtuel 3D), la VUE EN PLAN de l'atelier du décor : la pièce vue d'en
 // haut, comme un plan d'architecte — murs, meubles (leur emprise réelle, mesurée par le moteur), objets muraux,
 // lumières, caméras et leur champ, présentateur, écrans. On y CHOISIT d'un clic et on y PLACE à la souris : glisser
 // déplace, la poignée ronde tourne un meuble, la poignée carrée oriente une caméra ou une lumière.
