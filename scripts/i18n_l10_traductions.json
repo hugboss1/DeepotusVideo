@@ -14754,5 +14754,37 @@
  "Décor non fabriqué.": {
   "fr": "Décor non fabriqué.",
   "en": "This set has not been built."
+ },
+ "Matière ou carte inconnue.": {
+  "fr": "Matière ou carte inconnue.",
+  "en": "Unknown material or map."
+ },
+ "Blender est introuvable : indiquez son chemin dans Réglages › Moteurs et logiciels 3D.": {
+  "fr": "Blender est introuvable : indiquez son chemin dans Réglages › Moteurs et logiciels 3D.",
+  "en": "Blender was not found: set its path in Settings › 3D engines and software."
+ },
+ "Indiquez le chemin d'un fichier .blend.": {
+  "fr": "Indiquez le chemin d'un fichier .blend.",
+  "en": "Enter the path of a .blend file."
+ },
+ "Fichier .blend introuvable.": {
+  "fr": "Fichier .blend introuvable.",
+  "en": ".blend file not found."
+ },
+ "La cuisson a pris trop de temps : essayez une matière à la fois.": {
+  "fr": "La cuisson a pris trop de temps : essayez une matière à la fois.",
+  "en": "Baking took too long: try one material at a time."
+ },
+ "Blender n'a pas pu être lancé.": {
+  "fr": "Blender n'a pas pu être lancé.",
+  "en": "Blender could not be started."
+ },
+ "Blender n'a pas pu lire ce fichier.": {
+  "fr": "Blender n'a pas pu lire ce fichier.",
+  "en": "Blender could not read this file."
+ },
+ "La cuisson n'a rien produit : la matière existe-t-elle dans ce fichier ?": {
+  "fr": "La cuisson n'a rien produit : la matière existe-t-elle dans ce fichier ?",
+  "en": "Baking produced nothing: does the material exist in this file?"
  }
 }

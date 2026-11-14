@@ -9,6 +9,10 @@ Conception docs/superpowers/specs/2026-11-14-studio-virtuel-3d-design.md.
     plus peints dans l'image, le caviardage de l'image se tait, et le canevas déporté reçoit l'écran PUIS le cache de
     chaque secret ; mesure en panne -> canevas noir, jamais la source ; un calque tiers qui écrit `s.deporte` ne fait
     PAS taire le caviardage de l'image ; ecranDeporte(false) remet l'écran dans l'image ;
+[H] habillage (lot SVH), toujours sous node : usage d'une matière (place dans la pièce, déclaré, deviné), répétition
+    d'une texture, pose d'une matière (la recette d'entrée n'est jamais modifiée, la lueur et l'usage sont gardés),
+    ambiance lumineuse (clé, appoint, contre ; néons et objets lumineux à tour de rôle), style complet (une matière
+    par usage + son ambiance), objet neuf posé au sol, au mur ou au plafond, DANS la pièce ;
 [P] livraison : copies shared == dist, balise avant dz-capture.js, three.js chargé depuis /assets (aucun CDN), la
     source « ecran » n'entre jamais dans le moteur (seul le canevas déporté), ni alert/confirm/prompt ni emoji ni
     innerHTML, angles vifs, clés studiov.* FR/EN employées et assemblées, un nom traduit par décor livré.
@@ -103,6 +107,67 @@ if "_erreur" not in L:
     check("L13 nom d'un décor : clé traduite, sinon nom du serveur ; un décor de l'espace garde son nom",
           L["nom"] == "Traduit" and L["nomSans"] == "Brut" and L["nomEspace"] == "Mien")
 
+print("[H] habillage")
+Hn = node(r"""
+import * as G from "%s";
+const decor = {piece: {l: 6, p: 5, h: 2.8, sol: "sol", mur: "mur", fond: "fond", plafond: "plafond"},
+  matieres: {sol: {couleur: "#111111", rugosite: 0.5, metal: 0, emission: 0, motif: "parquet", echelle: 1, texture: "", teinte: false, usage: "autre"},
+    mur: {couleur: "#222222", rugosite: 0.9, metal: 0, emission: 0, motif: "uni", echelle: 1, texture: "", teinte: false, usage: "autre"},
+    fond: {couleur: "#333333", rugosite: 0.9, metal: 0, emission: 0, motif: "brique", echelle: 1, texture: "", teinte: false, usage: "autre"},
+    plafond: {couleur: "#444444", rugosite: 0.9, metal: 0, emission: 0, motif: "uni", echelle: 1, texture: "", teinte: false, usage: "autre"},
+    chene: {couleur: "#555555", rugosite: 0.6, metal: 0, emission: 0, motif: "uni", echelle: 2, texture: "", teinte: false, usage: "autre"},
+    assise: {couleur: "#666666", rugosite: 0.6, metal: 0, emission: 0, motif: "uni", echelle: 1, texture: "", teinte: false, usage: "cuir"},
+    alu: {couleur: "#777777", rugosite: 0.3, metal: 0.9, emission: 0, motif: "uni", echelle: 1, texture: "", teinte: false, usage: "autre"},
+    lueur: {couleur: "#18e0ff", rugosite: 0.4, metal: 0, emission: 3, motif: "uni", echelle: 1, texture: "", teinte: false, usage: "bois"},
+    divers: {couleur: "#888888", rugosite: 0.4, metal: 0, emission: 0, motif: "uni", echelle: 1, texture: "", teinte: false, usage: "autre"}},
+  lumieres: [{type: "cle", couleur: "#000001"}, {type: "appoint", couleur: "#000002"}, {type: "contre", couleur: "#000003"}, {type: "contre", couleur: "#000004"},
+    {type: "neon", couleur: "#000005"}, {type: "neon", couleur: "#000006"}, {type: "ambiance", couleur: "#000007"}, {type: "fenetre", couleur: "#000008"}],
+  objets: [{type: "bureau", couleur: null}, {type: "ruban_led", couleur: "#000009"}, {type: "lampe", couleur: null}],
+  enseigne: {style: "neon", couleur: "#00000a"}};
+const avant = JSON.stringify(decor);
+const usages = Object.fromEntries(Object.keys(decor.matieres).map((k) => [k, G.usageDe(decor, k)]));
+const A = {id: "a", cle: "#aaaaaa", appoint: "#bbbbbb", contre: "#cccccc", neons: ["#111111", "#222222"], ambiance: "#dddddd"};
+const amb = G.appliquerAmbiance(decor, A, ["ruban_led", "lampe"]);
+const style = {id: "s", ambiance: "a", matieres: {sol: {texture: "stu:parquet", teinte: false}, mur: {texture: "stu:platre", couleur: "accent", teinte: true},
+  bois: {texture: "", couleur: "#f2f2ee", rugosite: 0.16, metal: 0, motif: "uni", teinte: false}, metal: {texture: "", couleur: "#d9a941", rugosite: 0.22, metal: 1, motif: "uni", teinte: false}}};
+const st = G.appliquerStyle(decor, style, [A], ["ruban_led", "lampe"]);
+const pose = G.poserMatiere(decor, "chene", {texture: "cat:noyer"});
+const sansAmb = G.appliquerStyle(decor, {id: "x", ambiance: "absente", matieres: {}}, [A], []);
+const neufs = ["bureau", "cadre", "mur_lattes", "suspension", "neon_texte"].map((t) => G.objetNeuf(decor, t));
+console.log(JSON.stringify({usages, intact: JSON.stringify(decor) === avant,
+  rep: [G.repetition(2, 1), G.repetition(0.5, 2), G.repetition(0, 1), G.repetition(1, 99)],
+  lum: amb.lumieres.map((l) => l.couleur), obj: amb.objets.map((o) => o.couleur), ens: amb.enseigne.couleur,
+  st: {sol: st.matieres.sol, mur: st.matieres.mur, fond: st.matieres.fond, chene: st.matieres.chene, alu: st.matieres.alu, lueur: st.matieres.lueur,
+       divers: st.matieres.divers, assise: st.matieres.assise, cle: st.lumieres[0].couleur},
+  pose: pose.matieres.chene, inconnue: JSON.stringify(G.poserMatiere(decor, "absente", {texture: "stu:x"})) === avant,
+  sansAmb: sansAmb.lumieres[0].couleur, neufs, types: G.TYPES.length, muraux: G.MURAUX.every((t) => G.TYPES.includes(t))}));
+""" % URL("dz-studiov-logique.js"))
+check("H0 le module se joue sous node", "_erreur" not in Hn, Hn.get("_erreur"))
+if "_erreur" not in Hn:
+    check("H1 usage : la place dans la pièce (sol, murs, plafond) passe avant tout ; puis l'usage déclaré ; puis le nom, le motif ou le métal ; sinon « autre »",
+          Hn["usages"] == {"sol": "sol", "mur": "mur", "fond": "mur", "plafond": "plafond", "chene": "bois", "assise": "cuir", "alu": "metal", "lueur": "bois", "divers": "autre"}, Hn["usages"])
+    check("H2 aucune fonction ne modifie la recette qu'on lui donne ; une clé inconnue ne change rien", Hn["intact"] and Hn["inconnue"])
+    check("H3 répétition : 1 / (taille × échelle), bornée", Hn["rep"][0] == 0.5 and Hn["rep"][1] == 1 and abs(Hn["rep"][2] - 1) < 1e-9 and abs(Hn["rep"][3] - 0.1) < 1e-9, Hn["rep"])
+    check("H4 ambiance : clé et fenêtre, appoint, premier contre, ambiance ; le second contre, les néons puis les objets lumineux prennent les néons à tour de rôle",
+          Hn["lum"] == ["#aaaaaa", "#bbbbbb", "#cccccc", "#111111", "#222222", "#111111", "#dddddd", "#aaaaaa"] and Hn["obj"] == [None, "#222222", "#111111"]
+          and Hn["ens"] == "#111111", (Hn["lum"], Hn["obj"], Hn["ens"]))
+    s7 = Hn["st"]
+    check("H5 style : la texture remplace le motif (sol), la teinte et la couleur du kit passent (murs et mur du fond), une finition ôte la texture (bois, métal)",
+          s7["sol"]["texture"] == "stu:parquet" and s7["sol"]["motif"] == "uni" and s7["sol"]["teinte"] is False and s7["sol"]["rugosite"] == 0.8
+          and s7["mur"]["texture"] == "stu:platre" and s7["mur"]["couleur"] == "accent" and s7["mur"]["teinte"] is True and s7["fond"]["texture"] == "stu:platre"
+          and s7["chene"]["texture"] == "" and s7["chene"]["couleur"] == "#f2f2ee" and s7["chene"]["rugosite"] == 0.16 and s7["chene"]["echelle"] == 1
+          and s7["alu"]["metal"] == 1 and s7["alu"]["couleur"] == "#d9a941", s7)
+    check("H6 style : une matière lumineuse garde sa lueur, un usage sans matière dans le style reste tel quel, l'ambiance du style est posée ; ambiance inconnue = aucune",
+          s7["lueur"]["emission"] == 3 and s7["lueur"]["texture"] == "" and s7["lueur"]["couleur"] == "#18e0ff" and s7["divers"]["couleur"] == "#888888"
+          and s7["assise"]["couleur"] == "#666666" and s7["cle"] == "#aaaaaa" and Hn["sansAmb"] == "#000001", s7)
+    check("H7 poser une matière : la texture ôte le motif, l'échelle revient à 1, l'usage est gardé", Hn["pose"]["texture"] == "cat:noyer" and Hn["pose"]["motif"] == "uni"
+          and Hn["pose"]["echelle"] == 1 and Hn["pose"]["usage"] == "autre" and Hn["pose"]["teinte"] is False, Hn["pose"])
+    n7 = Hn["neufs"]
+    check("H8 objet neuf : au sol devant le présentateur, au mur du fond à hauteur d'yeux (les tasseaux à 1,2 m), la suspension au plafond — toujours DANS la pièce",
+          n7[0]["y"] == 0 and n7[0]["z"] == 0.9 and n7[1]["y"] == 1.6 and abs(n7[1]["z"] + 2.48) < 1e-9 and n7[2]["y"] == 1.2 and n7[3]["y"] == 2.8
+          and all(abs(o["x"]) <= 3 and -2.5 <= o["z"] <= 2.5 and o["e"] == 1 for o in n7), n7)
+    check("H9 127 types ; chaque type mural est au catalogue", Hn["types"] == 127 and Hn["muraux"], Hn["types"])
+
 print("[D] écran déporté (scène t315)")
 D = node(r"""
 import { creerScene, calqueEcran, calqueClics } from "%s";
@@ -175,13 +240,34 @@ check("P4 la source « ecran » n'entre jamais dans le moteur : seul le canevas 
 check("P5 ni alert/confirm/prompt, ni innerHTML, ni emoji", not re.search(r"\b(alert|confirm|prompt)\(", tout) and "innerHTML" not in tout
       and not re.search("[\U0001F300-\U0001FAFF☀-➿]", tout))
 check("P6 angles vifs : aucun border-radius autre que 0", not re.search(r"border-radius:(?!0[;\"])", sources["dz-studiov.js"]))
-cles = {k for k in re.findall(r'T\("(studiov\.[a-z_.0-9]+)"', tout) if not k.endswith(".")} | {"studiov.qualite.legere", "studiov.qualite.haute", "studiov.niveau.direct", "studiov.niveau.fabrique"}
+# toute clé écrite en toutes lettres : T("…"), mais aussi celles passées aux aides du décorateur (curseur, titre)
+cles = {k for k in re.findall(r'"(studiov\.[a-z_.0-9]+)"', tout) if not k.endswith(".")} | {"studiov.qualite.legere", "studiov.qualite.haute", "studiov.niveau.direct", "studiov.niveau.fabrique"}
 check("P7 chaque clé employée existe en FR et EN", all(k in DICO and DICO[k].get("fr") and DICO[k].get("en") for k in cles), sorted(k for k in cles if k not in DICO))
-check("P8 aucune clé orpheline (hors noms des décors livrés)", all(k in cles or k.startswith("studiov.livre.") for k in DICO), sorted(k for k in DICO if k not in cles and not k.startswith("studiov.livre.")))
+# les clés composées à l'exécution (T("studiov.objet." + type)) : leur préfixe est relevé, leurs valeurs sont vérifiées en P12
+prefixes = {k for k in re.findall(r'T\("(studiov\.[a-z_.0-9]+)"', tout) if k.endswith(".")} | {"studiov.livre."}
+check("P8 aucune clé orpheline (hors noms des décors livrés et clés composées)", all(k in cles or any(k.startswith(p) for p in prefixes) for k in DICO),
+      sorted(k for k in DICO if k not in cles and not any(k.startswith(p) for p in prefixes)))
 check("P9 un nom FR/EN par décor livré, le FR égal au nom du serveur",
       all(DICO.get("studiov.livre." + k[6:], {}).get("fr") == v["nom"] and DICO["studiov.livre." + k[6:]].get("en") for k, v in LIVRES.items()))
 assemble = (SH / "dz-i18n-dico.js").read_text("utf-8")
 check("P10 clés assemblées dans dz-i18n-dico.js", all(k in assemble for k in DICO))
+sys.path.insert(0, str(BACKEND))
+from app.services import studiov as SV                                   # noqa: E402
+from app.services import studiov_habillage as HV                         # noqa: E402
+composees = ([f"studiov.objet.{t}" for t in SV.TYPES_OBJET] + [f"studiov.famille.{f}" for f in SV.CATALOGUE] + [f"studiov.usage.{u}" for u in SV.USAGES]
+             + [f"studiov.lumiere.{t}" for t in SV.TYPES_LUMIERE] + [f"studiov.enseigne.{s}" for s in SV.STYLES_ENSEIGNE]
+             + [f"studiov.style.{s['id']}" for s in HV.STYLES] + [f"studiov.ambiance.{a['id']}" for a in HV.AMBIANCES]
+             + [f"studiov.finition.{f['id']}" for f in HV.FINITIONS] + [f"studiov.surface.{s}" for s in ("sol", "fond", "mur", "plafond")]
+             + [f"studiov.deco.onglet.{o}" for o in ("style", "matieres", "objets", "lumieres", "enseigne")] + ["studiov.deco.role.principale", "studiov.deco.role.accent"])
+check("P12 chaque clé composée a son texte FR et EN : objets, catégories, usages, lumières, enseignes, styles, ambiances, finitions, surfaces, onglets",
+      all(k in DICO and DICO[k].get("fr") and DICO[k].get("en") for k in composees), sorted(k for k in composees if k not in DICO)[:12])
+check("P13 rien d'orphelin parmi les clés composées", all(k in cles or k in composees or k.startswith("studiov.livre.") for k in DICO),
+      sorted(k for k in DICO if k not in cles and k not in composees and not k.startswith("studiov.livre."))[:12])
+moteur_src = sources["dz-studiov-moteur.js"]
+check("P14 le moteur ne fabrique aucune adresse depuis la recette : les textures viennent de l'index servi, les polices de /fonts sous un nom vérifié",
+      "/api/" not in moteur_src and "INDEX[m.texture]" in moteur_src and "url(/fonts/${nom}.ttf)" in moteur_src and "/^[A-Za-z0-9]{2,24}$/.test(nom" in moteur_src)
+check("P15 le décorateur enregistre par le serveur (PUT) et ne retouche jamais un décor livré", 'api("PUT", "/api/studiov/" + encodeURIComponent(id), d.decor)' in sources["dz-studiov.js"]
+      and "if (!apercu || apercu.livre || !apercu.habit) return;" in sources["dz-studiov.js"])
 capture = (SH / "dz-capture.js").read_text("utf-8")
 check("P11 la capture pose le studio APRÈS le skin et AVANT la première image ; l'option « decor » part de la boîte",
       0 < capture.find("__dzSkins.habiller(scene") < capture.find("__dzStudiov.habiller(scene") < capture.find("scene.dessiner();")
