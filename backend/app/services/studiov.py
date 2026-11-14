@@ -38,7 +38,7 @@ LIVRES_FICHIER = Path(__file__).resolve().parent.parent / "studiov" / "livres.js
 FABRIQUES = LIVRES_FICHIER.parent / "fabriques"
 MAX_DECORS = 80
 MAX_NOM, MAX_TEXTE, MAX_MOT = 60, 40, 24
-MAX_MATIERES, MAX_LUMIERES, MAX_OBJETS, MAX_ECRANS, MAX_CAMERAS = 24, 16, 120, 4, 6
+MAX_MATIERES, MAX_LUMIERES, MAX_OBJETS, MAX_ECRANS, MAX_CAMERAS = 48, 16, 120, 4, 6
 
 MOTIFS = ("uni", "bois", "parquet", "brique", "beton", "tissu", "pelouse", "grille", "carreaux", "metal", "lattes")
 TYPES_LUMIERE = ("cle", "appoint", "contre", "ambiance", "neon", "fenetre")
@@ -49,6 +49,8 @@ STYLES_ENSEIGNE = ("neon", "panneau", "ecran", "retro", "caisson")
 # ou matière de l'utilisateur dans la Forge (mat:). Ce n'est qu'une RÉFÉRENCE : jamais un chemin, jamais une URL ;
 # le décorateur la résout dans le catalogue servi par services/studiov_habillage.py.
 REF_TEXTURE = re.compile(r"^(?:(?:stu|cat):[a-z0-9_]{2,40}|mat:[0-9a-f]{8})$")
+# SVO : un objet de type `modele` désigne un modèle importé par sa RÉFÉRENCE (services/studiov_objets.py)
+REF_OBJET = re.compile(r"^obj:[a-f0-9]{16}$")
 USAGES = ("autre", "sol", "mur", "plafond", "bois", "tissu", "cuir", "metal", "pierre", "plastique")
 # les polices embarquées (frontend/dist/fonts) proposées aux enseignes et aux objets à texte
 POLICES = ("Inter", "BebasNeue", "Anton", "ArchivoBlack", "Monoton", "Pacifico", "Righteous", "Bungee", "Cinzel",
@@ -86,6 +88,7 @@ CATALOGUE = {
     "sports_us": ("ballon_ovale", "batte", "casque_foot_us"),
     "autres_sports": ("raquette", "balle_tennis", "haltere", "gant_boxe", "skateboard"),
     "recompenses": ("trophee", "coupe", "medaille", "plaque_createur"),
+    "importes": ("modele",),          # SVO : un modèle 3D de la bibliothèque de l'utilisateur (champ `ref`)
 }
 TYPES_OBJET = tuple(t for f in CATALOGUE.values() for t in f)
 # les objets qui PORTENT UN MOT (champs `texte` et `police`) et ceux dont la couleur est une LUMIÈRE (les ambiances
@@ -178,6 +181,8 @@ def normaliser(doc) -> dict:
              "mur": cle_mat(p.get("mur"), "mur"), "plafond": cle_mat(p.get("plafond"), "plafond"),
              "plinthe": p.get("plinthe") is not False,
              "fond": cle_mat(p.get("fond"), cle_mat(p.get("mur"), "mur")),       # le mur du fond (mur d'accent)
+             "gauche": cle_mat(p.get("gauche"), cle_mat(p.get("mur"), "mur")),   # SVA : chaque pan de mur a sa matière
+             "droite": cle_mat(p.get("droite"), cle_mat(p.get("mur"), "mur")),
              "ouvert": p.get("ouvert") is True}            # ouvert : ni plafond ni murs latéraux (stade, extérieur)
     lumieres = []
     for x in _liste(d.get("lumieres"), MAX_LUMIERES):
@@ -191,9 +196,13 @@ def normaliser(doc) -> dict:
     for x in _liste(d.get("objets"), MAX_OBJETS):
         if x.get("type") not in TYPES_OBJET:
             continue                                   # hors catalogue : retiré (jamais un chemin, jamais une URL)
+        if x["type"] == "modele" and not (isinstance(x.get("ref"), str) and REF_OBJET.match(x["ref"])):
+            continue                                   # un modèle importé sans référence valide n'est rien
         o = {"type": x["type"], "ry": _n(x.get("ry"), 0.0, -360, 360), "e": _n(x.get("e"), 1.0, 0.1, 6.0),
              "matiere": cle_mat(x.get("matiere"), None), "couleur": K._couleur(x.get("couleur"), None, nul=True),
              "matiere2": cle_mat(x.get("matiere2"), None)}
+        if o["type"] == "modele":
+            o["ref"] = x["ref"]
         if o["type"] in TYPES_TEXTE:
             o["texte"] = K._texte(x.get("texte"), "", MAX_MOT)
             o["police"] = K._choix(x.get("police"), POLICES, "Inter")

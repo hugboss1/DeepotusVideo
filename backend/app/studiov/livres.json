@@ -11,6 +11,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "fond",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -651,6 +653,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "fond",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -1211,6 +1215,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "mur",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -1703,6 +1709,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "mur",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -2173,6 +2181,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "mur",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -2710,6 +2720,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "mur",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -3235,6 +3247,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "mur",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -3826,6 +3840,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "mur",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -4275,6 +4291,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "mur",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": true
   },
   "matieres": {
@@ -4685,6 +4703,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "mur",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": true
   },
   "matieres": {
@@ -5157,6 +5177,8 @@
    "plafond": "plafond",
    "plinthe": true,
    "fond": "mur",
+   "gauche": "mur",
+   "droite": "mur",
    "ouvert": false
   },
   "matieres": {
