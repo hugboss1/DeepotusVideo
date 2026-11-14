@@ -71,6 +71,7 @@ Couleurs : un rôle du kit de l'espace (`principale`, `accent`, `texte`, `fond`)
 | Lot | Contenu | État |
 |---|---|---|
 | SV1 | Recette, service + routes `/api/studiov`, 11 décors livrés (niveau direct), moteur three.js, calque de scène, caméras et mouvements, écran du décor caviardé, enseigne, groupe « Studio virtuel » de la boîte de capture, aperçu | **ce lot** |
+| SVH | **Habillage — le décorateur d'intérieur** (14/11, § 6) : vraies textures (pack d'intérieur de 42 matières + les 30 de la Forge + les matières de l'utilisateur), mur du fond, finitions, 16 ambiances lumineuses, 14 styles complets, 127 objets en 20 catégories (67 neufs : rubans LED, panneaux hexagonaux, néons à mot, lettres rétroéclairées, caisson, bibelots par thème), reflets, panneau « Décorer » de l'aperçu, cuisson d'une matière depuis Blender, les 11 décors livrés rhabillés | **fait** |
 | SV2 | Skill `studio-volumetrique` + fabrique Blender sans fenêtre : GLB biseauté, textures, lightmap, vignette ; les 11 décors passent au niveau « fabriqué » | skill et script livrés avec SV1, cuisson à faire |
 | SV3 | Présentateur détouré sans fond vert (MediaPipe embarqué), ombre au sol, teinte par la lumière du décor ; option fond vert | à faire |
 | SV4 | Éditeur : déplacer objets, lumières, enseigne, caméras (poignées), réglages par section, annuler/rétablir | à faire |
@@ -88,3 +89,35 @@ Couleurs : un rôle du kit de l'espace (`principale`, `accent`, `texte`, `fond`)
 - Deux contextes graphiques (2D de la scène + WebGL) : une copie d'image par trame. Mesure à faire sur portable.
 - Poly Haven : CC0 vérifié à l'import (déjà noté par le pont) ; Sketchfab et Poly Pizza exclus du pack livré.
 - Poids de l'installeur : GLB fabriqués + lightmaps ≈ 3 à 6 Mo par décor (Draco + WebP), à mesurer en SV2.
+
+## 6. Lot SVH — l'habillage (demande de l'utilisateur, 14/11 soir)
+
+« Le rendu est trop générique » : le studio doit s'habiller de vraies matières, venues de la Forge ou de Blender, et
+se décorer comme on meuble une pièce — meubles, bibelots, couleurs d'éclairage, LED, néons, typographies,
+rétroéclairage — avec des objets rangés par catégories.
+
+| # | Sujet | Décision |
+|---|---|---|
+| H1 | D'où viennent les matières | trois sources, toutes désignées dans la recette par une RÉFÉRENCE (jamais un chemin ni une URL) : `stu:<slug>` le pack d'intérieur du studio (42 matières Poly Haven CC0, `scripts/studiov/composer_textures.py`, 10,6 Mo : couleur 1024 px, normale et rugosité 512 px, vignette) ; `cat:<slug>` les 30 matières du catalogue de la Forge (déjà dans l'installeur) ; `mat:<8hex>` une matière de l'utilisateur dans la Forge |
+| H2 | Depuis Blender | l'application lance Blender sans fenêtre (`--disable-autoexec`) sur un fichier .blend, cuit la matière choisie (couleur, normale OpenGL, rugosité, métal) sur une COPIE, et range les cartes dans la Forge : elle devient une matière `mat:` ordinaire. Script livré : `backend/app/studiov/cuire_matiere_blender.py` |
+| H3 | Ce qu'on exclut du pack livré | BlenderKit (redistribution et export interdits par ses CGU), Sketchfab et Poly Pizza (licence par modèle, attribution), ShareTextures (CC0 « sur mesure », pas de redistribution). Sûrs : Poly Haven, ambientCG, Kenney, Quaternius (relevé du 14/11) |
+| H4 | Teinter | une matière peut être TEINTÉE : sa carte de couleur n'apporte plus que son relief clair / sombre, la couleur vient de la recette (un #hex ou un rôle du kit) — n'importe quelle matière dans n'importe quelle teinte |
+| H5 | Échelle | les UV du moteur sont en MÈTRES pour toute matière à texture ou à motif : un carreau mesure sa taille réelle (relevée chez Poly Haven) × `echelle` |
+| H6 | Lumière qui déborde | pas de calcul d'éclairage en plus (carte intégrée) : halos additifs (lueur d'un ruban sur le mur ou au sol, d'un néon, d'une lettre rétroéclairée), et une carte de reflets rendue une fois par décor (PMREM) pour les métaux, les laques et les sols cirés |
+| H7 | Mots et typographies | quatre objets portent un mot (24 caractères) dans une des 14 polices embarquées : néon à mot, lettres rétroéclairées, caisson lumineux, panneau « ON AIR » ; l'enseigne gagne les styles rétroéclairé et caisson |
+| H8 | Le décorateur | dans l'aperçu, panneau « Décorer » d'un décor de l'ESPACE (un décor livré se personnalise par copie) : Style · Matières · Objets · Lumières · Enseigne. Chaque geste est montré aussitôt puis enregistré par le serveur, seul juge du format |
+| H9 | Styles et ambiances | un style pose une matière par USAGE (sol, mur, plafond, bois, tissu, cuir, métal) et une ambiance ; une ambiance recolore la clé, l'appoint, le contre, les néons et les objets lumineux — la couleur vive reste dans le fond, jamais sur le visage |
+
+Ajouts à la recette (version 1 inchangée, tout est facultatif) :
+
+```
+piece.fond            la matière du mur du fond (défaut : celle des murs)
+matieres.<clé>        + texture: "" | stu:… | cat:… | mat:…   + teinte: bool   + usage: sol|mur|plafond|bois|tissu|cuir|metal|pierre|plastique|autre
+objets[]              + matiere2 (piètement, structure)   + texte, police (objets à mot seulement)
+enseigne              + police   + style: retro | caisson
+```
+
+Catalogue servi par `GET /api/studiov/habillage` (`services/studiov_habillage.py`) : textures, familles, finitions,
+ambiances, styles. Les cartes du pack : `GET /api/studiov/textures/stu/<slug>/<carte>.jpg` ; celles de la Forge par
+ses propres routes. Reste à faire dans ce sillage : poignées de placement à la souris (SV4), modèles GLB réalistes
+(SV5), cuisson des lumières (SV2), mesure sur portable à carte intégrée, guide et assistant « Demander » (SV10).

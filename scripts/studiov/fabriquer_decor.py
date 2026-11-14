@@ -7,6 +7,11 @@ caméra et exporte un GLB. Conception docs/superpowers/specs/2026-11-14-studio-v
 
   blender --background --python scripts/studiov/fabriquer_decor.py -- --decor livre-tech --sortie <dossier>
       [--recette fichier.json] [--objets direct.glb] [--rendu 1] [--echantillons 32] [--largeur 1280]
+      [--forge <dossier des matières de l'utilisateur>]
+
+Lot SVH : une matière qui porte une VRAIE texture (`stu:` pack du studio, `cat:` catalogue de la Forge, `mat:` matière
+de l'utilisateur avec --forge) est bâtie avec ses cartes — couleur, normale, rugosité — répétées en mètres comme dans
+le moteur three.js ; teintée, la carte de couleur n'apporte que son relief clair / sombre.
 
 `--objets` : le GLB des objets du niveau « direct » (exporté par le moteur three.js) ; il est importé tel quel, puis
 biseauté. Sans lui, la coque seule est bâtie (les objets restent ceux du rendu direct).
@@ -36,6 +41,7 @@ def arguments():
     p.add_argument("--largeur", type=int, default=1280)
     p.add_argument("--principale")
     p.add_argument("--accent")
+    p.add_argument("--forge")
     return p.parse_args(brut)
 
 
@@ -53,6 +59,83 @@ def noeud(mat, type_):
     return next(n for n in mat.node_tree.nodes if n.type == type_)
 
 
+FORGE = None            # --forge : le dossier des matières de l'utilisateur (outputs/materials)
+_catalogues = {}
+
+
+def _catalogue(dossier, cle):
+    if dossier not in _catalogues:
+        try:
+            d = json.loads((dossier / "catalog.json").read_text("utf-8"))
+            _catalogues[dossier] = {x["id"]: x for x in d.get(cle, [])}
+        except (OSError, ValueError):
+            _catalogues[dossier] = {}
+    return _catalogues[dossier]
+
+
+def cartes_de(ref):
+    """Les fichiers d'une texture référencée -> ({carte: chemin}, taille en mètres, #moyenne | None) ou None."""
+    if not isinstance(ref, str) or ":" not in ref:
+        return None
+    source, ident = ref.split(":", 1)
+    if source == "stu":
+        base = RACINE / "backend" / "app" / "studiov" / "textures"
+        x = _catalogue(base, "textures").get(ident)
+        taille, moyenne, ext, dossier = (x or {}).get("taille_m", 1.0), (x or {}).get("moyenne"), "jpg", base / ident
+    elif source == "cat":
+        base = RACINE / "backend" / "app" / "assets" / "materials"
+        x = _catalogue(base, "materials").get(ident)
+        taille, moyenne, ext, dossier = float(((x or {}).get("dimensions") or [1000])[0]) / 1000.0, None, "jpg", base / ident
+    elif source == "mat" and FORGE:
+        taille, moyenne, ext, dossier = 1.0, None, "png", pathlib.Path(FORGE) / f"mat_{ident}"
+    else:
+        return None
+    cartes = {c: dossier / f"{c}.{ext}" for c in ("basecolor", "normal", "roughness") if (dossier / f"{c}.{ext}").is_file()}
+    return (cartes, max(0.05, min(50.0, taille)), moyenne) if "basecolor" in cartes else None
+
+
+def poser_cartes(mat, b, m, cartes, taille, moyenne):
+    arbre, liens = mat.node_tree.nodes, mat.node_tree.links
+    coord, place = arbre.new("ShaderNodeTexCoord"), arbre.new("ShaderNodeMapping")
+    k = 1.0 / (taille * m["echelle"])
+    place.inputs["Scale"].default_value = (k, k, k)
+    liens.new(coord.outputs["UV"], place.inputs["Vector"])              # les UV des plans sont en MÈTRES
+
+    def carte(nom, couleur):
+        n = arbre.new("ShaderNodeTexImage")
+        n.image = bpy.data.images.load(str(cartes[nom]), check_existing=True)
+        if not couleur:
+            n.image.colorspace_settings.name = "Non-Color"
+        liens.new(place.outputs["Vector"], n.inputs["Vector"])
+        return n
+
+    base = carte("basecolor", True)
+    if m.get("teinte"):
+        # la carte ramenée à son relief (clair / sombre autour de sa moyenne), multipliée par la couleur choisie
+        c = rvb(moyenne) if moyenne else [0.5, 0.5, 0.5, 1.0]
+        lum = max(0.02, 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2])
+        gris, mult, teinte = arbre.new("ShaderNodeRGBToBW"), arbre.new("ShaderNodeMath"), arbre.new("ShaderNodeVectorMath")
+        mult.operation, teinte.operation = "MULTIPLY", "SCALE"
+        mult.inputs[1].default_value = 1.0 / lum
+        teinte.inputs[0].default_value = rvb(m["couleur"])[:3]
+        liens.new(base.outputs["Color"], gris.inputs["Color"])
+        liens.new(gris.outputs["Val"], mult.inputs[0])
+        liens.new(mult.outputs["Value"], teinte.inputs["Scale"])
+        liens.new(teinte.outputs["Vector"], b.inputs["Base Color"])
+    else:
+        liens.new(base.outputs["Color"], b.inputs["Base Color"])
+    if "normal" in cartes:
+        nm = arbre.new("ShaderNodeNormalMap")
+        liens.new(carte("normal", False).outputs["Color"], nm.inputs["Color"])
+        liens.new(nm.outputs["Normal"], b.inputs["Normal"])
+    if "roughness" in cartes:
+        rug = arbre.new("ShaderNodeMath")
+        rug.operation, rug.use_clamp = "MULTIPLY", True
+        rug.inputs[1].default_value = min(1.0, m["rugosite"] * 1.25)
+        liens.new(carte("roughness", False).outputs["Color"], rug.inputs[0])
+        liens.new(rug.outputs["Value"], b.inputs["Roughness"])
+
+
 def matiere(nom, m):
     mat = bpy.data.materials.new(nom)
     mat.use_nodes = True
@@ -63,6 +146,11 @@ def matiere(nom, m):
     if m["emission"] > 0:
         b.inputs["Emission Color"].default_value = rvb(m["couleur"])
         b.inputs["Emission Strength"].default_value = m["emission"]
+    vraie = cartes_de(m.get("texture"))
+    if vraie:
+        poser_cartes(mat, b, m, *vraie)
+        mat["dz_texture"] = m["texture"]                     # la provenance suit la matière (export, lightmap)
+        return mat
     motif = m["motif"]
     if motif != "uni":                              # un relief procédural discret : la texture finale vient de Poly Haven
         arbre, liens = mat.node_tree.nodes, mat.node_tree.links
@@ -123,7 +211,7 @@ def batir(d):
     P, mats = d["piece"], {k: matiere("dz_" + k, m) for k, m in d["matieres"].items()}
     l, p, h, av = P["l"], P["p"], P["h"], 5.0
     plan("dz_sol", [(-l / 2 - 2, 0, p / 2 + av), (l / 2 + 2, 0, p / 2 + av), (l / 2 + 2, 0, -p / 2), (-l / 2 - 2, 0, -p / 2)], mats[P["sol"]])
-    plan("dz_mur_fond", [(-l / 2 - 2, 0, -p / 2), (l / 2 + 2, 0, -p / 2), (l / 2 + 2, h, -p / 2), (-l / 2 - 2, h, -p / 2)], mats[P["mur"]])
+    plan("dz_mur_fond", [(-l / 2 - 2, 0, -p / 2), (l / 2 + 2, 0, -p / 2), (l / 2 + 2, h, -p / 2), (-l / 2 - 2, h, -p / 2)], mats[P.get("fond") or P["mur"]])
     if not P["ouvert"]:
         plan("dz_mur_gauche", [(-l / 2, 0, p / 2 + av), (-l / 2, 0, -p / 2), (-l / 2, h, -p / 2), (-l / 2, h, p / 2 + av)], mats[P["mur"]])
         plan("dz_mur_droit", [(l / 2, 0, -p / 2), (l / 2, 0, p / 2 + av), (l / 2, h, p / 2 + av), (l / 2, h, -p / 2)], mats[P["mur"]])
@@ -215,6 +303,8 @@ def main():
         ROLES["principale"] = a.principale
     if a.accent:
         ROLES["accent"] = a.accent
+    global FORGE
+    FORGE = a.forge
     if a.recette:
         d = json.loads(pathlib.Path(a.recette).read_text("utf-8"))
     else:
@@ -235,7 +325,8 @@ def main():
     glb = sortie / f"{a.decor}.glb"
     bpy.ops.export_scene.gltf(filepath=str(glb), export_format="GLB", export_cameras=True, export_lights=True)
     bpy.ops.wm.save_as_mainfile(filepath=str(sortie / f"{a.decor}.blend"))
-    bilan = {"decor": a.decor, "blender": bpy.app.version_string, "moteur": moteur, "objets_importes": objets,
+    textures = sorted({m["dz_texture"] for m in bpy.data.materials if "dz_texture" in m})
+    bilan = {"decor": a.decor, "blender": bpy.app.version_string, "moteur": moteur, "objets_importes": objets, "textures": textures,
              "cameras": [c.name for c in cams], "rendus": rendus, "glb": glb.name, "glb_octets": glb.stat().st_size}
     (sortie / f"{a.decor}.fabrique.json").write_text(json.dumps(bilan, ensure_ascii=False, indent=1), "utf-8")
     print("FABRIQUE_OK " + json.dumps(bilan, ensure_ascii=False))

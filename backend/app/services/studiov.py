@@ -3,8 +3,9 @@
 (t315) et le live (t318), EN PLUS des skins (t316) qui restent par-dessus. Conception :
 docs/superpowers/specs/2026-11-14-studio-virtuel-3d-design.md.
 
-Un décor est une RECETTE (`deepotus-studio`, version 1) : pièce, matières, lumières, objets du catalogue, écrans,
-enseigne, place du présentateur, caméras, ambiance. La même recette est lue par le moteur three.js de l'écran
+Un décor est une RECETTE (`deepotus-studio`, version 1) : pièce, matières (motif dessiné OU vraie texture référencée,
+lot SVH : services/studiov_habillage.py), lumières, objets du catalogue, écrans, enseigne, place du présentateur,
+caméras, ambiance. La même recette est lue par le moteur three.js de l'écran
 (/shared/dz-studiov-moteur.js) et par la fabrique Blender (scripts/studiov/fabriquer_decor.py).
 
 - `DATA_ROOT/studiov/<id>.json` (id = 16 hex) : un décor de l'utilisateur, rattaché à un espace ;
@@ -36,45 +37,75 @@ CLE = re.compile(r"^[a-z][a-z0-9_]{0,23}$")
 LIVRES_FICHIER = Path(__file__).resolve().parent.parent / "studiov" / "livres.json"
 FABRIQUES = LIVRES_FICHIER.parent / "fabriques"
 MAX_DECORS = 80
-MAX_NOM, MAX_TEXTE = 60, 40
+MAX_NOM, MAX_TEXTE, MAX_MOT = 60, 40, 24
 MAX_MATIERES, MAX_LUMIERES, MAX_OBJETS, MAX_ECRANS, MAX_CAMERAS = 24, 16, 120, 4, 6
 
 MOTIFS = ("uni", "bois", "parquet", "brique", "beton", "tissu", "pelouse", "grille", "carreaux", "metal", "lattes")
 TYPES_LUMIERE = ("cle", "appoint", "contre", "ambiance", "neon", "fenetre")
 SOURCES_ECRAN = ("ecran", "image", "eteint")
 SOURCES_ENSEIGNE = ("espace", "texte")
-STYLES_ENSEIGNE = ("neon", "panneau", "ecran")
+STYLES_ENSEIGNE = ("neon", "panneau", "ecran", "retro", "caisson")
+# SVH (habillage) : une matière peut porter une VRAIE texture — pack du studio (stu:), catalogue de la Forge (cat:)
+# ou matière de l'utilisateur dans la Forge (mat:). Ce n'est qu'une RÉFÉRENCE : jamais un chemin, jamais une URL ;
+# le décorateur la résout dans le catalogue servi par services/studiov_habillage.py.
+REF_TEXTURE = re.compile(r"^(?:(?:stu|cat):[a-z0-9_]{2,40}|mat:[0-9a-f]{8})$")
+USAGES = ("autre", "sol", "mur", "plafond", "bois", "tissu", "cuir", "metal", "pierre", "plastique")
+# les polices embarquées (frontend/dist/fonts) proposées aux enseignes et aux objets à texte
+POLICES = ("Inter", "BebasNeue", "Anton", "ArchivoBlack", "Monoton", "Pacifico", "Righteous", "Bungee", "Cinzel",
+           "PermanentMarker", "PressStart2P", "Staatliches", "AbrilFatface", "SpaceGrotesk")
 MODES_PRESENTATEUR = ("detoure", "fondvert", "avatar", "encart")
 MOUVEMENTS = ("fixe", "respiration", "travelling", "poussee", "orbite")
 MODES = ("plateau", "incruste")
 # le CATALOGUE du niveau « direct » : chaque type a son constructeur dans dz-studiov-moteur.js (banc : les deux
 # listes sont égales) ; famille -> types
 CATALOGUE = {
-    "mobilier": ("bureau", "table", "table_ronde", "chaise", "fauteuil", "canape", "etagere", "bibliotheque", "tapis",
-                 "pupitre", "vitrine", "etabli", "casier", "banc"),
+    "tables": ("bureau", "table", "table_ronde", "pupitre", "etabli", "bureau_angle", "table_basse", "console",
+               "comptoir"),
+    "assises": ("chaise", "fauteuil", "canape", "banc", "chaise_bureau", "chaise_gaming", "tabouret", "pouf"),
+    "rangement": ("etagere", "bibliotheque", "vitrine", "casier", "etagere_murale", "cube_rangement", "meuble_tv"),
     "image_son": ("ecran_bureau", "micro_bras", "micro_table", "casque", "softbox", "projecteur", "camera_pied",
-                  "panneau_acoustique"),
-    "lumiere": ("lampe", "lampadaire", "neon_barre", "neon_anneau", "guirlande"),
-    "decor": ("plante", "cadre", "colonne", "arche", "caisse", "horloge", "fenetre"),
+                  "panneau_acoustique", "enceinte", "table_mixage", "anneau_lumineux", "ordinateur_portable",
+                  "clavier", "tour_pc", "appareil_photo"),
+    "lumiere": ("lampe", "lampadaire", "neon_barre", "neon_anneau", "guirlande", "tube_lumineux", "ruban_led",
+                "ruban_led_sol", "panneau_hexa", "barre_led", "suspension", "applique", "lampe_coucher",
+                "lampe_lave", "bougie"),
+    "enseignes": ("neon_texte", "lettres_retro", "caisson_lumineux", "panneau_direct"),
+    "murs": ("cadre", "horloge", "fenetre", "affiche", "miroir", "vinyle_mural", "mur_lattes", "panneau_perfore",
+             "rideau"),
+    "plantes": ("plante", "cactus", "plante_tombante", "vase"),
+    "bibelots": ("livres", "globe", "sablier", "cadre_photo", "tasse", "sculpture", "tapis"),
+    "structure": ("colonne", "arche", "caisse", "paravent", "estrade"),
     "atelier": ("imprimante3d", "bobine", "figurine"),
-    "jeux": ("boite_jeu", "plateau_jeu", "pion", "de"),
-    "scifi": ("console_scifi", "hublot", "tube_lumineux", "hologramme"),
+    "jeux": ("boite_jeu", "plateau_jeu", "pion", "de", "manette", "borne_arcade", "console_jeu", "casque_vr"),
+    "musique": ("guitare", "platine", "clap"),
+    "scifi": ("console_scifi", "hublot", "hologramme"),
     "cartoon": ("nuage", "arbre_cartoon", "champignon", "etoile"),
-    "sport": ("but_foot", "ballon_foot", "gradin", "panier_basket", "ballon_basket", "ballon_ovale", "batte",
-              "trophee", "tableau_tactique", "fanion", "maillot"),
+    "football": ("but_foot", "ballon_foot", "gradin", "tableau_tactique", "fanion", "maillot", "echarpe",
+                 "crampons", "plot"),
+    "basket": ("panier_basket", "ballon_basket"),
+    "sports_us": ("ballon_ovale", "batte", "casque_foot_us"),
+    "autres_sports": ("raquette", "balle_tennis", "haltere", "gant_boxe", "skateboard"),
+    "recompenses": ("trophee", "coupe", "medaille", "plaque_createur"),
 }
 TYPES_OBJET = tuple(t for f in CATALOGUE.values() for t in f)
+# les objets qui PORTENT UN MOT (champs `texte` et `police`) et ceux dont la couleur est une LUMIÈRE (les ambiances
+# lumineuses du décorateur les recolorent)
+TYPES_TEXTE = ("neon_texte", "lettres_retro", "caisson_lumineux", "panneau_direct")
+TYPES_LUMINEUX = ("lampe", "lampadaire", "neon_barre", "neon_anneau", "tube_lumineux", "ruban_led", "ruban_led_sol",
+                  "panneau_hexa", "barre_led", "suspension", "applique", "lampe_coucher", "lampe_lave", "neon_texte",
+                  "lettres_retro", "caisson_lumineux")
 
 DEFAUT = {
     "piece": {"l": 6.0, "p": 5.0, "h": 2.8, "sol": "sol", "mur": "mur", "plafond": "plafond", "plinthe": True},
     "enseigne": {"actif": True, "source": "espace", "texte": "", "style": "neon", "couleur": "principale",
-                 "x": 0.0, "y": 1.9, "z": -2.4, "ry": 0.0, "l": 1.2},
+                 "police": "Inter", "x": 0.0, "y": 1.9, "z": -2.4, "ry": 0.0, "l": 1.2},
     "presentateur": {"x": 0.0, "z": 0.0, "h": 1.7, "mode": "detoure", "ombre": True, "teinte": 0.25},
     "ambiance": {"fond": "#0b0f14", "brouillard": 0.0, "exposition": 1.0, "flou_fond": 0.0, "grain": 0.0,
                  "vignette": 0.25},
     "mode": "plateau",
 }
-MATIERE_DEFAUT = {"couleur": "#808890", "rugosite": 0.8, "metal": 0.0, "emission": 0.0, "motif": "uni", "echelle": 1.0}
+MATIERE_DEFAUT = {"couleur": "#808890", "rugosite": 0.8, "metal": 0.0, "emission": 0.0, "motif": "uni", "echelle": 1.0,
+                  "texture": "", "teinte": False, "usage": "autre"}
 CAMERA_DEFAUT = {"nom": "Large", "x": 0.0, "y": 1.4, "z": 3.2, "vers": [0.0, 1.2, 0.0], "focale": 35.0,
                  "mouvement": "respiration", "amplitude": 0.03, "periode_s": 9.0}
 
@@ -113,6 +144,10 @@ def _place(d, defaut=(0.0, 0.0, 0.0)):
             "z": _n(d.get("z"), defaut[2], -12, 12)}
 
 
+def _ref_texture(v) -> str:
+    return v if isinstance(v, str) and REF_TEXTURE.match(v) else ""
+
+
 def _matieres(v) -> dict:
     out = {}
     if isinstance(v, dict):
@@ -124,6 +159,8 @@ def _matieres(v) -> dict:
                 "rugosite": _n(m.get("rugosite"), 0.8, 0.02, 1.0), "metal": _n(m.get("metal"), 0.0, 0.0, 1.0),
                 "emission": _n(m.get("emission"), 0.0, 0.0, 8.0),
                 "motif": K._choix(m.get("motif"), MOTIFS, "uni"), "echelle": _n(m.get("echelle"), 1.0, 0.1, 10.0),
+                "texture": _ref_texture(m.get("texture")), "teinte": m.get("teinte") is True,
+                "usage": K._choix(m.get("usage"), USAGES, "autre"),
             }
     for cle, coul in (("sol", "#3a3f47"), ("mur", "#2a2f36"), ("plafond", "#1c2026")):
         out.setdefault(cle, dict(MATIERE_DEFAUT, couleur=coul))
@@ -140,6 +177,7 @@ def normaliser(doc) -> dict:
              "h": _n(p.get("h"), P["h"], 2.2, 7.0), "sol": cle_mat(p.get("sol"), "sol"),
              "mur": cle_mat(p.get("mur"), "mur"), "plafond": cle_mat(p.get("plafond"), "plafond"),
              "plinthe": p.get("plinthe") is not False,
+             "fond": cle_mat(p.get("fond"), cle_mat(p.get("mur"), "mur")),       # le mur du fond (mur d'accent)
              "ouvert": p.get("ouvert") is True}            # ouvert : ni plafond ni murs latéraux (stade, extérieur)
     lumieres = []
     for x in _liste(d.get("lumieres"), MAX_LUMIERES):
@@ -154,7 +192,11 @@ def normaliser(doc) -> dict:
         if x.get("type") not in TYPES_OBJET:
             continue                                   # hors catalogue : retiré (jamais un chemin, jamais une URL)
         o = {"type": x["type"], "ry": _n(x.get("ry"), 0.0, -360, 360), "e": _n(x.get("e"), 1.0, 0.1, 6.0),
-             "matiere": cle_mat(x.get("matiere"), None), "couleur": K._couleur(x.get("couleur"), None, nul=True)}
+             "matiere": cle_mat(x.get("matiere"), None), "couleur": K._couleur(x.get("couleur"), None, nul=True),
+             "matiere2": cle_mat(x.get("matiere2"), None)}
+        if o["type"] in TYPES_TEXTE:
+            o["texte"] = K._texte(x.get("texte"), "", MAX_MOT)
+            o["police"] = K._choix(x.get("police"), POLICES, "Inter")
         o.update(_place(x))
         objets.append(o)
     ecrans = []
@@ -166,7 +208,8 @@ def normaliser(doc) -> dict:
     s, S = (d.get("enseigne") if isinstance(d.get("enseigne"), dict) else {}), DEFAUT["enseigne"]
     enseigne = {"actif": s.get("actif", True) is not False, "source": K._choix(s.get("source"), SOURCES_ENSEIGNE, "espace"),
                 "texte": K._texte(s.get("texte"), "", MAX_TEXTE), "style": K._choix(s.get("style"), STYLES_ENSEIGNE, "neon"),
-                "couleur": K._couleur(s.get("couleur"), "principale"), "ry": _n(s.get("ry"), 0.0, -360, 360),
+                "couleur": K._couleur(s.get("couleur"), "principale"),
+                "police": K._choix(s.get("police"), POLICES, "Inter"), "ry": _n(s.get("ry"), 0.0, -360, 360),
                 "l": _n(s.get("l"), S["l"], 0.2, 6.0)}
     enseigne.update(_place(s, (S["x"], S["y"], S["z"])))
     r, R = (d.get("presentateur") if isinstance(d.get("presentateur"), dict) else {}), DEFAUT["presentateur"]
@@ -234,7 +277,9 @@ def livres() -> list:
 
 def catalogue() -> dict:
     return {"familles": {f: list(t) for f, t in CATALOGUE.items()}, "motifs": list(MOTIFS),
-            "lumieres": list(TYPES_LUMIERE), "mouvements": list(MOUVEMENTS)}
+            "lumieres": list(TYPES_LUMIERE), "mouvements": list(MOUVEMENTS), "usages": list(USAGES),
+            "polices": list(POLICES), "styles_enseigne": list(STYLES_ENSEIGNE), "types_texte": list(TYPES_TEXTE),
+            "types_lumineux": list(TYPES_LUMINEUX)}
 
 
 # ── stockage ──

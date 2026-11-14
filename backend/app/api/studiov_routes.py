@@ -11,6 +11,11 @@ Boucle locale SEULEMENT (`routes._require_localhost`). L'espace est celui de la 
 - `PUT    /{id}`           recette -> décor (livré : 409)
 - `DELETE /{id}`           -> {supprime}
 - `GET    /{id}/fabrique`  le GLB fabriqué par Blender, s'il existe (404 sinon)
+- `GET    /habillage`      le catalogue du décorateur (lot SVH) : matières réelles, finitions, ambiances, styles
+- `GET    /textures/stu/{slug}/{carte}.jpg`      une carte du pack d'intérieur (basecolor, normal, roughness, vignette)
+- `GET    /textures/{cat|mat}/{id}/vignette.jpg` la vignette d'une matière de la Forge (catalogue ou utilisateur)
+- `POST   /blender/matieres` {blend} -> {matieres} : les matières d'un fichier .blend (Blender sans fenêtre)
+- `POST   /blender/cuire`    {blend, matiere?, metres?} -> {materials: [{ref, id, nom}]} : cuites et rangées dans la Forge
 Aucun réseau, aucune dépense. Journaux : identifiants seulement."""
 from __future__ import annotations
 
@@ -18,10 +23,11 @@ import asyncio
 import json
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from loguru import logger
 
 from app.services import studiov as S
+from app.services import studiov_habillage as H
 
 router = APIRouter()
 
@@ -91,6 +97,50 @@ async def creer(request: Request):
     v = await _faire(S.creer, d.get("base") or None, d.get("nom"), _espace())
     logger.info("studiov: décor créé {} (base {})", v["id"], v["base"])
     return v
+
+
+@router.get("/habillage")
+async def habillage(request: Request):
+    _local(request)
+    return await asyncio.to_thread(H.habillage)
+
+
+@router.get("/textures/{source}/{ident}/{carte}.jpg")
+async def texture(source: str, ident: str, carte: str, request: Request):
+    _local(request)
+    try:
+        if source == "stu":
+            f = await asyncio.to_thread(H.chemin_carte, ident, carte)
+            return FileResponse(f, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})
+        if carte != "vignette":
+            raise H.RefusHabillage("Matière ou carte inconnue.", 404)
+        octets = await asyncio.to_thread(H.vignette, source, ident)
+    except H.RefusHabillage as e:
+        raise HTTPException(e.statut, str(e)) from None
+    return Response(content=octets, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
+
+
+async def _habiller(f, *args):
+    try:
+        return await asyncio.to_thread(f, *args)
+    except H.RefusHabillage as e:
+        raise HTTPException(e.statut, str(e)) from None
+
+
+@router.post("/blender/matieres")
+async def blender_matieres(request: Request):
+    _local(request)
+    d = await _json(request, 8 * 1024)
+    return {"matieres": await _habiller(H.matieres_blender, d.get("blend"))}
+
+
+@router.post("/blender/cuire")
+async def blender_cuire(request: Request):
+    _local(request)
+    d = await _json(request, 8 * 1024)
+    faits = await _habiller(H.cuire_blender, d.get("blend"), d.get("matiere"), d.get("metres"))
+    logger.info("studiov: {} matière(s) cuite(s) depuis Blender", len(faits))
+    return {"materials": faits}
 
 
 @router.get("/{sid}")

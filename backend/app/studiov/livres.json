@@ -10,16 +10,20 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "fond",
    "ouvert": false
   },
   "matieres": {
    "sol": {
     "couleur": "#2b2622",
-    "rugosite": 0.55,
+    "rugosite": 0.6,
     "metal": 0.0,
     "emission": 0.0,
     "motif": "parquet",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:wood_floor",
+    "teinte": false,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#1d2128",
@@ -27,7 +31,21 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:plastered_wall",
+    "teinte": true,
+    "usage": "mur"
+   },
+   "fond": {
+    "couleur": "#2a211b",
+    "rugosite": 0.75,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "lattes",
+    "echelle": 1.6,
+    "texture": "stu:wood_table_001",
+    "teinte": false,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#14171c",
@@ -35,7 +53,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "bois": {
     "couleur": "#7a5a3c",
@@ -43,7 +64,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "bois",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:oak_veneer_01",
+    "teinte": false,
+    "usage": "bois"
    },
    "noir": {
     "couleur": "#15171b",
@@ -51,7 +75,10 @@
     "metal": 0.2,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "metal"
    },
    "lattes": {
     "couleur": "#3b2f26",
@@ -59,7 +86,21 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "lattes",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:rosewood_veneer1",
+    "teinte": false,
+    "usage": "bois"
+   },
+   "tapis": {
+    "couleur": "#23262d",
+    "rugosite": 1.0,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0,
+    "texture": "stu:poly_wool_herringbone",
+    "teinte": true,
+    "usage": "tissu"
    }
   },
   "lumieres": [
@@ -167,6 +208,7 @@
     "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": "noir",
     "x": 0.0,
     "y": 0.0,
     "z": 0.55
@@ -177,6 +219,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -0.55,
     "y": 0.75,
     "z": 0.45
@@ -187,6 +230,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.6,
     "y": 0.75,
     "z": 0.5
@@ -197,6 +241,7 @@
     "e": 1.0,
     "matiere": "noir",
     "couleur": null,
+    "matiere2": null,
     "x": -1.9,
     "y": 0.0,
     "z": -2.25
@@ -207,6 +252,7 @@
     "e": 1.0,
     "matiere": "noir",
     "couleur": null,
+    "matiere2": null,
     "x": 1.9,
     "y": 0.0,
     "z": -2.25
@@ -217,6 +263,7 @@
     "e": 1.2,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -2.6,
     "y": 0.0,
     "z": -1.6
@@ -227,6 +274,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "accent",
+    "matiere2": null,
     "x": 0.75,
     "y": 0.75,
     "z": 0.35
@@ -237,6 +285,7 @@
     "e": 1.0,
     "matiere": "lattes",
     "couleur": null,
+    "matiere2": null,
     "x": -2.95,
     "y": 1.5,
     "z": -0.4
@@ -247,6 +296,7 @@
     "e": 1.0,
     "matiere": "lattes",
     "couleur": null,
+    "matiere2": null,
     "x": -2.95,
     "y": 1.5,
     "z": 0.9
@@ -257,6 +307,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 2.95,
     "y": 1.6,
     "z": -0.6
@@ -265,18 +316,20 @@
     "type": "tapis",
     "ry": 0.0,
     "e": 1.4,
-    "matiere": null,
-    "couleur": "#23262d",
+    "matiere": "tapis",
+    "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": 0.3
    },
    {
-    "type": "fauteuil",
-    "ry": 180.0,
+    "type": "chaise_bureau",
+    "ry": 0.0,
     "e": 1.0,
     "matiere": "noir",
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": -0.1
@@ -287,9 +340,197 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 2.3,
     "y": 0.0,
     "z": 1.4
+   },
+   {
+    "type": "ruban_led",
+    "ry": 0.0,
+    "e": 0.95,
+    "matiere": null,
+    "couleur": "principale",
+    "matiere2": null,
+    "x": -1.9,
+    "y": 2.03,
+    "z": -2.47
+   },
+   {
+    "type": "ruban_led",
+    "ry": 0.0,
+    "e": 0.95,
+    "matiere": null,
+    "couleur": "accent",
+    "matiere2": null,
+    "x": 1.9,
+    "y": 2.03,
+    "z": -2.47
+   },
+   {
+    "type": "ruban_led_sol",
+    "ry": 0.0,
+    "e": 1.5,
+    "matiere": null,
+    "couleur": "accent",
+    "matiere2": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.93
+   },
+   {
+    "type": "livres",
+    "ry": 0.0,
+    "e": 0.9,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -2.12,
+    "y": 1.27,
+    "z": -2.22
+   },
+   {
+    "type": "appareil_photo",
+    "ry": -15.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -1.72,
+    "y": 1.27,
+    "z": -2.22
+   },
+   {
+    "type": "globe",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -1.75,
+    "y": 0.87,
+    "z": -2.22
+   },
+   {
+    "type": "plante_tombante",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -2.15,
+    "y": 1.67,
+    "z": -2.2
+   },
+   {
+    "type": "figurine",
+    "ry": 0.0,
+    "e": 1.2,
+    "matiere": null,
+    "couleur": "principale",
+    "matiere2": null,
+    "x": -2.1,
+    "y": 0.87,
+    "z": -2.22
+   },
+   {
+    "type": "cadre_photo",
+    "ry": 12.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 1.72,
+    "y": 1.27,
+    "z": -2.2
+   },
+   {
+    "type": "sculpture",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 2.1,
+    "y": 1.27,
+    "z": -2.22
+   },
+   {
+    "type": "lampe_lave",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "accent",
+    "matiere2": null,
+    "x": 1.72,
+    "y": 0.87,
+    "z": -2.22
+   },
+   {
+    "type": "livres",
+    "ry": 180.0,
+    "e": 0.9,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 2.05,
+    "y": 0.47,
+    "z": -2.22
+   },
+   {
+    "type": "trophee",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#f0c040",
+    "matiere2": null,
+    "x": 2.12,
+    "y": 0.87,
+    "z": -2.22
+   },
+   {
+    "type": "plaque_createur",
+    "ry": -90.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 2.97,
+    "y": 1.55,
+    "z": 0.35
+   },
+   {
+    "type": "clavier",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 0.02,
+    "y": 0.75,
+    "z": 0.62
+   },
+   {
+    "type": "tasse",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 0.36,
+    "y": 0.75,
+    "z": 0.78
+   },
+   {
+    "type": "tour_pc",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "matiere2": null,
+    "x": 1.12,
+    "y": 0.0,
+    "z": 0.5
    }
   ],
   "ecrans": [
@@ -308,13 +549,14 @@
    "actif": true,
    "source": "espace",
    "texte": "",
-   "style": "neon",
+   "style": "retro",
    "couleur": "principale",
+   "police": "Inter",
    "ry": 0.0,
-   "l": 1.1,
+   "l": 0.6,
    "x": 0.0,
-   "y": 2.35,
-   "z": -2.44
+   "y": 2.42,
+   "z": -2.47
   },
   "presentateur": {
    "x": 0.0,
@@ -408,6 +650,7 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "fond",
    "ouvert": false
   },
   "matieres": {
@@ -417,7 +660,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "parquet",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:herringbone_parquet",
+    "teinte": false,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#2a1f1c",
@@ -425,7 +671,21 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:plastered_wall",
+    "teinte": true,
+    "usage": "mur"
+   },
+   "fond": {
+    "couleur": "#5a3a30",
+    "rugosite": 0.95,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "brique",
+    "echelle": 1.0,
+    "texture": "cat:brick_wall_001",
+    "teinte": false,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#120f0e",
@@ -433,7 +693,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "bois": {
     "couleur": "#5d4330",
@@ -441,7 +704,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "bois",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:rosewood_veneer1",
+    "teinte": false,
+    "usage": "bois"
    },
    "mousse": {
     "couleur": "#3a2a25",
@@ -449,7 +715,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "grille",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "tissu"
    },
    "cuir": {
     "couleur": "#3b2418",
@@ -457,7 +726,21 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:fabric_leather_02",
+    "teinte": false,
+    "usage": "cuir"
+   },
+   "tapis": {
+    "couleur": "#4a2b22",
+    "rugosite": 1.0,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 2.0,
+    "texture": "stu:quatrefoil_jacquard_fabric",
+    "teinte": true,
+    "usage": "tissu"
    }
   },
   "lumieres": [
@@ -549,6 +832,7 @@
     "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": 0.5
@@ -559,6 +843,7 @@
     "e": 1.0,
     "matiere": "cuir",
     "couleur": null,
+    "matiere2": null,
     "x": -0.95,
     "y": 0.0,
     "z": 0.2
@@ -569,6 +854,7 @@
     "e": 1.0,
     "matiere": "cuir",
     "couleur": null,
+    "matiere2": null,
     "x": 0.95,
     "y": 0.0,
     "z": 0.2
@@ -579,6 +865,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -0.45,
     "y": 0.74,
     "z": 0.5
@@ -589,6 +876,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.45,
     "y": 0.74,
     "z": 0.5
@@ -599,6 +887,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.74,
     "z": 0.7
@@ -609,6 +898,7 @@
     "e": 1.0,
     "matiere": "mousse",
     "couleur": null,
+    "matiere2": null,
     "x": -1.8,
     "y": 1.5,
     "z": -2.44
@@ -619,6 +909,7 @@
     "e": 1.0,
     "matiere": "mousse",
     "couleur": null,
+    "matiere2": null,
     "x": 1.8,
     "y": 1.5,
     "z": -2.44
@@ -629,6 +920,7 @@
     "e": 1.0,
     "matiere": "mousse",
     "couleur": null,
+    "matiere2": null,
     "x": -3.2,
     "y": 1.5,
     "z": -0.5
@@ -639,6 +931,7 @@
     "e": 1.0,
     "matiere": "mousse",
     "couleur": null,
+    "matiere2": null,
     "x": 3.2,
     "y": 1.5,
     "z": -0.5
@@ -649,6 +942,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#ffb46b",
+    "matiere2": null,
     "x": -2.6,
     "y": 0.0,
     "z": -1.9
@@ -659,16 +953,18 @@
     "e": 1.3,
     "matiere": null,
     "couleur": null,
-    "x": 2.7,
+    "matiere2": null,
+    "x": 2.95,
     "y": 0.0,
-    "z": -1.9
+    "z": -1.1
    },
    {
     "type": "tapis",
     "ry": 0.0,
     "e": 1.7,
-    "matiere": null,
-    "couleur": "#4a2b22",
+    "matiere": "tapis",
+    "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": 0.4
@@ -679,9 +975,122 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -2.4,
     "y": 0.0,
     "z": 1.9
+   },
+   {
+    "type": "panneau_direct",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ff2b2b",
+    "matiere2": null,
+    "texte": "ON AIR",
+    "police": "BebasNeue",
+    "x": -2.7,
+    "y": 2.35,
+    "z": -2.46
+   },
+   {
+    "type": "suspension",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ffb060",
+    "matiere2": null,
+    "x": -1.0,
+    "y": 2.8,
+    "z": 0.4
+   },
+   {
+    "type": "suspension",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ffb060",
+    "matiere2": null,
+    "x": 1.0,
+    "y": 2.8,
+    "z": 0.4
+   },
+   {
+    "type": "console",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "matiere2": null,
+    "x": 2.25,
+    "y": 0.0,
+    "z": -2.2
+   },
+   {
+    "type": "platine",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": "accent",
+    "matiere2": null,
+    "x": 1.9,
+    "y": 0.67,
+    "z": -2.2
+   },
+   {
+    "type": "livres",
+    "ry": 0.0,
+    "e": 0.9,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 2.65,
+    "y": 0.67,
+    "z": -2.2
+   },
+   {
+    "type": "vinyle_mural",
+    "ry": -90.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "matiere2": null,
+    "x": 3.23,
+    "y": 1.6,
+    "z": 0.4
+   },
+   {
+    "type": "vinyle_mural",
+    "ry": -90.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "accent",
+    "matiere2": null,
+    "x": 3.23,
+    "y": 1.6,
+    "z": 0.86
+   },
+   {
+    "type": "tasse",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -0.22,
+    "y": 0.74,
+    "z": 0.78
+   },
+   {
+    "type": "tasse",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#2a2d33",
+    "matiere2": null,
+    "x": 0.28,
+    "y": 0.74,
+    "z": 0.28
    }
   ],
   "ecrans": [
@@ -702,6 +1111,7 @@
    "texte": "",
    "style": "neon",
    "couleur": "accent",
+   "police": "Inter",
    "ry": 0.0,
    "l": 1.6,
    "x": 0.0,
@@ -800,6 +1210,7 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -809,7 +1220,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "parquet",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:laminate_floor_02",
+    "teinte": false,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#a2553d",
@@ -817,7 +1231,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "brique",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "cat:brick_wall_001",
+    "teinte": false,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#e8e2d8",
@@ -825,7 +1242,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "bois": {
     "couleur": "#a47a50",
@@ -833,7 +1253,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "bois",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:oak_veneer_01",
+    "teinte": false,
+    "usage": "bois"
    },
    "tissu": {
     "couleur": "#c9b79c",
@@ -841,7 +1264,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "tissu",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:curly_teddy_natural",
+    "teinte": false,
+    "usage": "tissu"
    },
    "blanc": {
     "couleur": "#efe9df",
@@ -849,7 +1275,21 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "autre"
+   },
+   "tapis": {
+    "couleur": "#d6c3a3",
+    "rugosite": 1.0,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0,
+    "texture": "stu:poly_wool_herringbone",
+    "teinte": true,
+    "usage": "tissu"
    }
   },
   "lumieres": [
@@ -941,6 +1381,7 @@
     "e": 1.0,
     "matiere": "tissu",
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": -1.3
@@ -951,6 +1392,7 @@
     "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": null,
     "x": 2.3,
     "y": 0.0,
     "z": -2.5
@@ -961,6 +1403,7 @@
     "e": 1.6,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -2.6,
     "y": 0.0,
     "z": -2.1
@@ -971,6 +1414,7 @@
     "e": 1.1,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 3.0,
     "y": 0.0,
     "z": -0.9
@@ -981,16 +1425,18 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#ffca8a",
+    "matiere2": null,
     "x": -1.7,
     "y": 0.0,
     "z": -1.9
    },
    {
-    "type": "table",
+    "type": "table_basse",
     "ry": 0.0,
-    "e": 0.7,
+    "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": 0.6
@@ -999,8 +1445,9 @@
     "type": "tapis",
     "ry": 0.0,
     "e": 2.0,
-    "matiere": null,
-    "couleur": "#d6c3a3",
+    "matiere": "tapis",
+    "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": 0.0
@@ -1011,6 +1458,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -1.0,
     "y": 1.9,
     "z": -2.72
@@ -1021,6 +1469,7 @@
     "e": 0.7,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -0.2,
     "y": 2.0,
     "z": -2.72
@@ -1031,6 +1480,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -3.48,
     "y": 1.7,
     "z": -0.6
@@ -1041,6 +1491,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 2.75,
     "z": -2.6
@@ -1051,9 +1502,87 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 1.0,
     "y": 2.2,
     "z": -2.72
+   },
+   {
+    "type": "lampe_coucher",
+    "ry": 0.0,
+    "e": 0.8,
+    "matiere": null,
+    "couleur": "#ff8a4a",
+    "matiere2": null,
+    "x": -2.35,
+    "y": 2.05,
+    "z": -2.73
+   },
+   {
+    "type": "pouf",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "tissu",
+    "couleur": null,
+    "matiere2": null,
+    "x": 1.45,
+    "y": 0.0,
+    "z": 0.35
+   },
+   {
+    "type": "livres",
+    "ry": 20.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -0.25,
+    "y": 0.4,
+    "z": 0.62
+   },
+   {
+    "type": "tasse",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 0.28,
+    "y": 0.4,
+    "z": 0.72
+   },
+   {
+    "type": "bougie",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 0.12,
+    "y": 0.4,
+    "z": 0.48
+   },
+   {
+    "type": "vase",
+    "ry": 0.0,
+    "e": 0.9,
+    "matiere": null,
+    "couleur": "#f0b6c8",
+    "matiere2": null,
+    "x": 0.36,
+    "y": 0.4,
+    "z": 0.5
+   },
+   {
+    "type": "guitare",
+    "ry": -90.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#b5651d",
+    "matiere2": null,
+    "x": 3.48,
+    "y": 1.5,
+    "z": -1.9
    }
   ],
   "ecrans": [
@@ -1074,6 +1603,7 @@
    "texte": "",
    "style": "panneau",
    "couleur": "principale",
+   "police": "Inter",
    "ry": 0.0,
    "l": 0.8,
    "x": 1.0,
@@ -1172,6 +1702,7 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -1181,7 +1712,10 @@
     "metal": 0.3,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#101a30",
@@ -1189,7 +1723,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:concrete_wall_008",
+    "teinte": true,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#070b14",
@@ -1197,7 +1734,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "laque": {
     "couleur": "#eef2f8",
@@ -1205,7 +1745,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plastique"
    },
    "verre": {
     "couleur": "#16284a",
@@ -1213,7 +1756,10 @@
     "metal": 0.6,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "autre"
    },
    "alu": {
     "couleur": "#9aa6b8",
@@ -1221,7 +1767,10 @@
     "metal": 0.9,
     "emission": 0.0,
     "motif": "metal",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "metal"
    }
   },
   "lumieres": [
@@ -1340,11 +1889,12 @@
   ],
   "objets": [
    {
-    "type": "bureau",
+    "type": "comptoir",
     "ry": 0.0,
-    "e": 1.25,
+    "e": 1.0,
     "matiere": "laque",
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": 0.75
@@ -1355,6 +1905,7 @@
     "e": 1.0,
     "matiere": "alu",
     "couleur": null,
+    "matiere2": null,
     "x": -3.4,
     "y": 0.0,
     "z": -2.6
@@ -1365,6 +1916,7 @@
     "e": 1.0,
     "matiere": "alu",
     "couleur": null,
+    "matiere2": null,
     "x": 3.4,
     "y": 0.0,
     "z": -2.6
@@ -1375,6 +1927,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -2.4,
     "y": 3.3,
     "z": 1.2
@@ -1385,6 +1938,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 2.4,
     "y": 3.3,
     "z": 1.2
@@ -1395,6 +1949,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 3.3,
     "z": 1.6
@@ -1405,6 +1960,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "principale",
+    "matiere2": null,
     "x": -4.3,
     "y": 0.0,
     "z": -1.2
@@ -1415,6 +1971,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "principale",
+    "matiere2": null,
     "x": 4.3,
     "y": 0.0,
     "z": -1.2
@@ -1425,9 +1982,67 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 3.4,
     "y": 0.0,
     "z": 2.2
+   },
+   {
+    "type": "panneau_direct",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ff2b2b",
+    "matiere2": null,
+    "texte": "ON AIR",
+    "police": "BebasNeue",
+    "x": -2.9,
+    "y": 2.85,
+    "z": -2.96
+   },
+   {
+    "type": "ordinateur_portable",
+    "ry": 165.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 0.72,
+    "y": 1.05,
+    "z": 0.72
+   },
+   {
+    "type": "tasse",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -0.85,
+    "y": 1.05,
+    "z": 0.8
+   },
+   {
+    "type": "ruban_led_sol",
+    "ry": 0.0,
+    "e": 2.0,
+    "matiere": null,
+    "couleur": "accent",
+    "matiere2": null,
+    "x": -2.6,
+    "y": 0.0,
+    "z": -2.92
+   },
+   {
+    "type": "ruban_led_sol",
+    "ry": 0.0,
+    "e": 2.0,
+    "matiere": null,
+    "couleur": "accent",
+    "matiere2": null,
+    "x": 2.6,
+    "y": 0.0,
+    "z": -2.92
    }
   ],
   "ecrans": [
@@ -1458,6 +2073,7 @@
    "texte": "",
    "style": "ecran",
    "couleur": "principale",
+   "police": "Inter",
    "ry": -50.0,
    "l": 1.3,
    "x": 3.9,
@@ -1556,16 +2172,20 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "mur",
    "ouvert": false
   },
   "matieres": {
    "sol": {
     "couleur": "#0c0a14",
-    "rugosite": 0.25,
+    "rugosite": 0.2,
     "metal": 0.2,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#120d1f",
@@ -1573,7 +2193,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:concrete_wall_008",
+    "teinte": true,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#08060e",
@@ -1581,7 +2204,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "noir": {
     "couleur": "#0e0e12",
@@ -1589,7 +2215,10 @@
     "metal": 0.3,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "metal"
    },
    "hex": {
     "couleur": "#1a1330",
@@ -1597,7 +2226,21 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "grille",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "tissu"
+   },
+   "cuir": {
+    "couleur": "#16161c",
+    "rugosite": 0.6,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0,
+    "texture": "stu:leather_white",
+    "teinte": true,
+    "usage": "cuir"
    }
   },
   "lumieres": [
@@ -1721,6 +2364,7 @@
     "e": 1.0,
     "matiere": "noir",
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": 0.5
@@ -1731,6 +2375,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -0.55,
     "y": 0.75,
     "z": 0.4
@@ -1741,16 +2386,18 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.55,
     "y": 0.75,
     "z": 0.4
    },
    {
-    "type": "fauteuil",
-    "ry": 180.0,
+    "type": "chaise_gaming",
+    "ry": 0.0,
     "e": 1.0,
-    "matiere": null,
+    "matiere": "cuir",
     "couleur": "#ff2bd6",
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": -0.15
@@ -1761,19 +2408,21 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#ff2bd6",
+    "matiere2": null,
     "x": -1.6,
     "y": 1.7,
     "z": -2.24
    },
    {
-    "type": "neon_anneau",
+    "type": "panneau_hexa",
     "ry": 0.0,
-    "e": 0.7,
+    "e": 1.25,
     "matiere": null,
     "couleur": "#00e5ff",
-    "x": 1.6,
-    "y": 1.7,
-    "z": -2.24
+    "matiere2": null,
+    "x": 1.45,
+    "y": 1.72,
+    "z": -2.27
    },
    {
     "type": "etagere",
@@ -1781,6 +2430,7 @@
     "e": 1.0,
     "matiere": "noir",
     "couleur": null,
+    "matiere2": null,
     "x": -2.2,
     "y": 0.0,
     "z": -2.05
@@ -1791,6 +2441,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -2.2,
     "y": 1.27,
     "z": -2.05
@@ -1801,6 +2452,7 @@
     "e": 0.8,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -1.95,
     "y": 0.87,
     "z": -2.05
@@ -1811,6 +2463,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.7,
     "y": 0.75,
     "z": 0.6
@@ -1821,6 +2474,7 @@
     "e": 1.0,
     "matiere": "hex",
     "couleur": null,
+    "matiere2": null,
     "x": 2.72,
     "y": 1.5,
     "z": 0.3
@@ -1831,6 +2485,7 @@
     "e": 1.0,
     "matiere": "hex",
     "couleur": null,
+    "matiere2": null,
     "x": -2.72,
     "y": 1.5,
     "z": 0.3
@@ -1841,9 +2496,100 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.65,
     "y": 0.75,
     "z": 0.45
+   },
+   {
+    "type": "neon_texte",
+    "ry": 0.0,
+    "e": 0.42,
+    "matiere": null,
+    "couleur": "#ffffff",
+    "matiere2": null,
+    "texte": "GG",
+    "police": "PressStart2P",
+    "x": -1.6,
+    "y": 1.7,
+    "z": -2.26
+   },
+   {
+    "type": "tour_pc",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ff2bd6",
+    "matiere2": null,
+    "x": 1.12,
+    "y": 0.0,
+    "z": 0.45
+   },
+   {
+    "type": "clavier",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#00e5ff",
+    "matiere2": null,
+    "x": 0.0,
+    "y": 0.75,
+    "z": 0.6
+   },
+   {
+    "type": "manette",
+    "ry": 25.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -0.32,
+    "y": 0.75,
+    "z": 0.72
+   },
+   {
+    "type": "console_jeu",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -2.2,
+    "y": 0.47,
+    "z": -2.02
+   },
+   {
+    "type": "casque_vr",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -2.25,
+    "y": 1.67,
+    "z": -2.02
+   },
+   {
+    "type": "borne_arcade",
+    "ry": -32.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#8a4bff",
+    "matiere2": null,
+    "x": 2.25,
+    "y": 0.0,
+    "z": -1.55
+   },
+   {
+    "type": "ruban_led_sol",
+    "ry": 0.0,
+    "e": 1.5,
+    "matiere": null,
+    "couleur": "#8a4bff",
+    "matiere2": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.9
    }
   ],
   "ecrans": [
@@ -1864,6 +2610,7 @@
    "texte": "",
    "style": "neon",
    "couleur": "accent",
+   "police": "Inter",
    "ry": 0.0,
    "l": 1.0,
    "x": 0.0,
@@ -1962,6 +2709,7 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -1971,7 +2719,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "beton",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "cat:brushed_concrete",
+    "teinte": false,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#dfe3e6",
@@ -1979,7 +2730,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:plastered_wall",
+    "teinte": true,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#f2f4f5",
@@ -1987,7 +2741,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "bois": {
     "couleur": "#c49a62",
@@ -1995,15 +2752,21 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "bois",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:plywood",
+    "teinte": false,
+    "usage": "bois"
    },
    "perfo": {
-    "couleur": "#2f3a44",
+    "couleur": "#e9ecef",
     "rugosite": 0.8,
     "metal": 0.0,
     "emission": 0.0,
-    "motif": "grille",
-    "echelle": 1.0
+    "motif": "uni",
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "autre"
    },
    "acier": {
     "couleur": "#8c949c",
@@ -2011,7 +2774,10 @@
     "metal": 0.85,
     "emission": 0.0,
     "motif": "metal",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "metal"
    }
   },
   "lumieres": [
@@ -2103,6 +2869,7 @@
     "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": "acier",
     "x": 0.0,
     "y": 0.0,
     "z": -2.0
@@ -2113,6 +2880,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -1.1,
     "y": 0.9,
     "z": -2.0
@@ -2123,6 +2891,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "principale",
+    "matiere2": null,
     "x": 0.0,
     "y": 0.9,
     "z": -2.0
@@ -2133,29 +2902,32 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 1.1,
     "y": 0.9,
     "z": -2.0
    },
    {
-    "type": "panneau_acoustique",
+    "type": "panneau_perfore",
     "ry": 0.0,
-    "e": 1.3,
+    "e": 1.2,
     "matiere": "perfo",
     "couleur": null,
+    "matiere2": "bois",
     "x": -2.0,
-    "y": 1.75,
-    "z": -2.44
+    "y": 1.85,
+    "z": -2.48
    },
    {
-    "type": "panneau_acoustique",
+    "type": "panneau_perfore",
     "ry": 0.0,
-    "e": 1.3,
+    "e": 1.2,
     "matiere": "perfo",
     "couleur": null,
+    "matiere2": "bois",
     "x": 2.0,
-    "y": 1.75,
-    "z": -2.44
+    "y": 1.85,
+    "z": -2.48
    },
    {
     "type": "etagere",
@@ -2163,6 +2935,7 @@
     "e": 1.0,
     "matiere": "acier",
     "couleur": null,
+    "matiere2": null,
     "x": 2.8,
     "y": 0.0,
     "z": -1.2
@@ -2173,6 +2946,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "principale",
+    "matiere2": null,
     "x": 2.8,
     "y": 1.27,
     "z": -1.4
@@ -2183,6 +2957,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "accent",
+    "matiere2": null,
     "x": 2.8,
     "y": 1.27,
     "z": -1.0
@@ -2193,6 +2968,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#e5484d",
+    "matiere2": null,
     "x": 2.8,
     "y": 0.87,
     "z": -1.4
@@ -2203,6 +2979,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#f0b429",
+    "matiere2": null,
     "x": 2.8,
     "y": 0.87,
     "z": -1.0
@@ -2213,6 +2990,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#3fb950",
+    "matiere2": null,
     "x": 2.8,
     "y": 0.47,
     "z": -1.2
@@ -2223,6 +3001,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -0.55,
     "y": 0.9,
     "z": -1.75
@@ -2233,6 +3012,7 @@
     "e": 0.7,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.55,
     "y": 0.9,
     "z": -1.75
@@ -2243,6 +3023,7 @@
     "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": "acier",
     "x": 0.0,
     "y": 0.0,
     "z": 0.7
@@ -2253,19 +3034,43 @@
     "e": 1.2,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.4,
     "y": 0.74,
     "z": 0.7
    },
    {
-    "type": "caisse",
+    "type": "cube_rangement",
+    "ry": 90.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "matiere2": null,
+    "x": -2.42,
+    "y": 0.0,
+    "z": -1.2
+   },
+   {
+    "type": "plante_tombante",
     "ry": 0.0,
     "e": 1.0,
     "matiere": null,
     "couleur": null,
-    "x": -2.7,
-    "y": 0.0,
-    "z": -1.6
+    "matiere2": null,
+    "x": -2.42,
+    "y": 1.52,
+    "z": -1.45
+   },
+   {
+    "type": "figurine",
+    "ry": 0.0,
+    "e": 1.5,
+    "matiere": null,
+    "couleur": "accent",
+    "matiere2": null,
+    "x": -2.42,
+    "y": 1.52,
+    "z": -0.95
    },
    {
     "type": "lampe",
@@ -2273,9 +3078,43 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "accent",
+    "matiere2": null,
     "x": -0.6,
     "y": 0.74,
     "z": 0.6
+   },
+   {
+    "type": "ordinateur_portable",
+    "ry": 170.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -0.1,
+    "y": 0.74,
+    "z": 0.72
+   },
+   {
+    "type": "tabouret",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "matiere2": null,
+    "x": 1.15,
+    "y": 0.0,
+    "z": 0.55
+   },
+   {
+    "type": "ruban_led",
+    "ry": 0.0,
+    "e": 3.0,
+    "matiere": null,
+    "couleur": "#ffffff",
+    "matiere2": null,
+    "x": 0.0,
+    "y": 0.96,
+    "z": -2.48
    }
   ],
   "ecrans": [
@@ -2294,13 +3133,14 @@
    "actif": true,
    "source": "espace",
    "texte": "",
-   "style": "panneau",
+   "style": "caisson",
    "couleur": "principale",
+   "police": "Inter",
    "ry": 0.0,
-   "l": 1.2,
+   "l": 0.75,
    "x": 0.0,
-   "y": 2.4,
-   "z": -2.44
+   "y": 2.45,
+   "z": -2.47
   },
   "presentateur": {
    "x": 0.0,
@@ -2394,6 +3234,7 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "mur",
    "ouvert": false
   },
   "matieres": {
@@ -2403,7 +3244,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "parquet",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:diagonal_parquet",
+    "teinte": false,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#22382f",
@@ -2411,7 +3255,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:plastered_wall",
+    "teinte": true,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#141d19",
@@ -2419,7 +3266,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "bois": {
     "couleur": "#6e4a2c",
@@ -2427,7 +3277,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "bois",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:rosewood_veneer1",
+    "teinte": false,
+    "usage": "bois"
    },
    "feutre": {
     "couleur": "#1f5a3c",
@@ -2435,7 +3288,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "tissu",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:velour_velvet",
+    "teinte": true,
+    "usage": "tissu"
    }
   },
   "lumieres": [
@@ -2543,6 +3399,7 @@
     "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": null,
     "x": -1.9,
     "y": 0.0,
     "z": -2.2
@@ -2553,6 +3410,7 @@
     "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": null,
     "x": 1.9,
     "y": 0.0,
     "z": -2.2
@@ -2563,6 +3421,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "principale",
+    "matiere2": null,
     "x": -2.15,
     "y": 0.47,
     "z": -2.2
@@ -2573,6 +3432,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#e5484d",
+    "matiere2": null,
     "x": -1.65,
     "y": 0.47,
     "z": -2.2
@@ -2583,6 +3443,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#f0b429",
+    "matiere2": null,
     "x": -2.1,
     "y": 0.87,
     "z": -2.2
@@ -2593,6 +3454,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "accent",
+    "matiere2": null,
     "x": -1.7,
     "y": 0.87,
     "z": -2.2
@@ -2603,6 +3465,7 @@
     "e": 1.2,
     "matiere": null,
     "couleur": "#3fb950",
+    "matiere2": null,
     "x": -1.9,
     "y": 1.27,
     "z": -2.2
@@ -2613,6 +3476,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#8a4bff",
+    "matiere2": null,
     "x": 1.65,
     "y": 0.47,
     "z": -2.2
@@ -2623,6 +3487,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "principale",
+    "matiere2": null,
     "x": 2.15,
     "y": 0.47,
     "z": -2.2
@@ -2633,6 +3498,7 @@
     "e": 1.2,
     "matiere": null,
     "couleur": "#e5484d",
+    "matiere2": null,
     "x": 1.9,
     "y": 0.87,
     "z": -2.2
@@ -2643,6 +3509,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "accent",
+    "matiere2": null,
     "x": 1.7,
     "y": 1.27,
     "z": -2.2
@@ -2653,6 +3520,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#f0b429",
+    "matiere2": null,
     "x": 2.15,
     "y": 1.27,
     "z": -2.2
@@ -2663,6 +3531,7 @@
     "e": 1.0,
     "matiere": "feutre",
     "couleur": null,
+    "matiere2": "bois",
     "x": 0.0,
     "y": 0.0,
     "z": 0.75
@@ -2673,6 +3542,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.75,
     "z": 0.75
@@ -2683,6 +3553,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#e5484d",
+    "matiere2": null,
     "x": -0.2,
     "y": 0.77,
     "z": 0.8
@@ -2693,6 +3564,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "principale",
+    "matiere2": null,
     "x": 0.15,
     "y": 0.77,
     "z": 0.65
@@ -2703,6 +3575,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#f0b429",
+    "matiere2": null,
     "x": 0.3,
     "y": 0.77,
     "z": 0.9
@@ -2713,6 +3586,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -0.4,
     "y": 0.77,
     "z": 0.6
@@ -2723,6 +3597,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -0.47,
     "y": 0.77,
     "z": 0.72
@@ -2733,6 +3608,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#ffc46b",
+    "matiere2": null,
     "x": -2.9,
     "y": 0.0,
     "z": -1.2
@@ -2743,9 +3619,78 @@
     "e": 1.2,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 2.9,
     "y": 0.0,
     "z": -1.2
+   },
+   {
+    "type": "neon_texte",
+    "ry": 0.0,
+    "e": 0.62,
+    "matiere": null,
+    "couleur": "accent",
+    "matiere2": null,
+    "texte": "PLAY",
+    "police": "Righteous",
+    "x": -1.9,
+    "y": 2.42,
+    "z": -2.47
+   },
+   {
+    "type": "sablier",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 0.45,
+    "y": 0.75,
+    "z": 0.98
+   },
+   {
+    "type": "suspension",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ffb060",
+    "matiere2": null,
+    "x": -0.95,
+    "y": 2.8,
+    "z": 0.75
+   },
+   {
+    "type": "suspension",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ffb060",
+    "matiere2": null,
+    "x": 0.95,
+    "y": 2.8,
+    "z": 0.75
+   },
+   {
+    "type": "medaille",
+    "ry": -90.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "matiere2": null,
+    "x": 3.23,
+    "y": 1.75,
+    "z": -0.2
+   },
+   {
+    "type": "trophee",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#f0c040",
+    "matiere2": null,
+    "x": 1.9,
+    "y": 1.67,
+    "z": -2.2
    }
   ],
   "ecrans": [
@@ -2766,6 +3711,7 @@
    "texte": "",
    "style": "panneau",
    "couleur": "accent",
+   "police": "Inter",
    "ry": 0.0,
    "l": 1.3,
    "x": 0.0,
@@ -2879,24 +3825,31 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "mur",
    "ouvert": false
   },
   "matieres": {
    "sol": {
     "couleur": "#141a22",
-    "rugosite": 0.2,
+    "rugosite": 0.3,
     "metal": 0.7,
     "emission": 0.0,
     "motif": "grille",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "cat:metal_plate",
+    "teinte": true,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#1a222c",
-    "rugosite": 0.4,
+    "rugosite": 0.45,
     "metal": 0.6,
     "emission": 0.0,
     "motif": "metal",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "cat:blue_metal_plate",
+    "teinte": true,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#0c1016",
@@ -2904,15 +3857,21 @@
     "metal": 0.6,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "coque": {
     "couleur": "#2b3542",
-    "rugosite": 0.35,
+    "rugosite": 0.4,
     "metal": 0.8,
     "emission": 0.0,
     "motif": "metal",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:metal_plate_02",
+    "teinte": true,
+    "usage": "metal"
    },
    "lueur": {
     "couleur": "#18e0ff",
@@ -2920,7 +3879,10 @@
     "metal": 0.0,
     "emission": 3.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "autre"
    }
   },
   "lumieres": [
@@ -3044,6 +4006,7 @@
     "e": 1.0,
     "matiere": "coque",
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": 0.7
@@ -3054,6 +4017,7 @@
     "e": 1.3,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -2.2,
     "y": 1.6,
     "z": -2.72
@@ -3064,6 +4028,7 @@
     "e": 1.3,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 2.2,
     "y": 1.6,
     "z": -2.72
@@ -3074,6 +4039,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#18e0ff",
+    "matiere2": null,
     "x": -3.2,
     "y": 0.0,
     "z": -2.3
@@ -3084,6 +4050,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#18e0ff",
+    "matiere2": null,
     "x": 3.2,
     "y": 0.0,
     "z": -2.3
@@ -3094,6 +4061,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#18e0ff",
+    "matiere2": null,
     "x": 1.9,
     "y": 0.0,
     "z": -0.9
@@ -3104,6 +4072,7 @@
     "e": 1.0,
     "matiere": "coque",
     "couleur": null,
+    "matiere2": null,
     "x": -3.2,
     "y": 0.0,
     "z": 0.4
@@ -3114,6 +4083,7 @@
     "e": 1.0,
     "matiere": "coque",
     "couleur": null,
+    "matiere2": null,
     "x": 3.2,
     "y": 0.0,
     "z": 0.4
@@ -3124,6 +4094,7 @@
     "e": 1.0,
     "matiere": "coque",
     "couleur": null,
+    "matiere2": null,
     "x": -2.5,
     "y": 0.0,
     "z": -1.9
@@ -3134,6 +4105,7 @@
     "e": 0.7,
     "matiere": "coque",
     "couleur": null,
+    "matiere2": null,
     "x": -2.5,
     "y": 0.6,
     "z": -1.9
@@ -3144,9 +4116,45 @@
     "e": 1.5,
     "matiere": "coque",
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": -2.5
+   },
+   {
+    "type": "lettres_retro",
+    "ry": 0.0,
+    "e": 0.75,
+    "matiere": null,
+    "couleur": "#18e0ff",
+    "matiere2": null,
+    "texte": "DECK 7",
+    "police": "SpaceGrotesk",
+    "x": 0.0,
+    "y": 2.62,
+    "z": -2.73
+   },
+   {
+    "type": "ruban_led_sol",
+    "ry": 0.0,
+    "e": 1.9,
+    "matiere": null,
+    "couleur": "#18e0ff",
+    "matiere2": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.98
+   },
+   {
+    "type": "casque_vr",
+    "ry": 20.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -0.62,
+    "y": 0.86,
+    "z": 0.72
    }
   ],
   "ecrans": [
@@ -3167,6 +4175,7 @@
    "texte": "",
    "style": "ecran",
    "couleur": "#18e0ff",
+   "police": "Inter",
    "ry": 60.0,
    "l": 0.9,
    "x": -2.6,
@@ -3265,6 +4274,7 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "mur",
    "ouvert": true
   },
   "matieres": {
@@ -3274,7 +4284,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "pelouse",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:leafy_grass",
+    "teinte": true,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#7fd0ff",
@@ -3282,7 +4295,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#7fd0ff",
@@ -3290,7 +4306,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "rouge": {
     "couleur": "#ff5a5f",
@@ -3298,7 +4317,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plastique"
    },
    "jaune": {
     "couleur": "#ffd23f",
@@ -3306,7 +4328,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plastique"
    },
    "violet": {
     "couleur": "#9b6bff",
@@ -3314,7 +4339,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plastique"
    }
   },
   "lumieres": [
@@ -3390,6 +4418,7 @@
     "e": 1.4,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -2.5,
     "y": 0.0,
     "z": -1.9
@@ -3400,6 +4429,7 @@
     "e": 1.1,
     "matiere": null,
     "couleur": "#3fb950",
+    "matiere2": null,
     "x": 2.7,
     "y": 0.0,
     "z": -2.1
@@ -3410,6 +4440,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#ff5a5f",
+    "matiere2": null,
     "x": -1.5,
     "y": 0.0,
     "z": -1.3
@@ -3420,6 +4451,7 @@
     "e": 0.7,
     "matiere": null,
     "couleur": "#9b6bff",
+    "matiere2": null,
     "x": 1.9,
     "y": 0.0,
     "z": -0.9
@@ -3430,6 +4462,7 @@
     "e": 1.3,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -1.8,
     "y": 2.5,
     "z": -2.6
@@ -3440,6 +4473,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 1.4,
     "y": 2.8,
     "z": -2.65
@@ -3450,6 +4484,7 @@
     "e": 0.8,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 3.0,
     "y": 2.3,
     "z": -2.6
@@ -3460,6 +4495,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#ffd23f",
+    "matiere2": null,
     "x": -3.0,
     "y": 2.2,
     "z": -2.6
@@ -3470,6 +4506,7 @@
     "e": 0.7,
     "matiere": null,
     "couleur": "#ffd23f",
+    "matiere2": null,
     "x": 0.2,
     "y": 2.9,
     "z": -2.65
@@ -3480,6 +4517,7 @@
     "e": 1.3,
     "matiere": "jaune",
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": -2.3
@@ -3490,6 +4528,7 @@
     "e": 1.0,
     "matiere": "rouge",
     "couleur": null,
+    "matiere2": null,
     "x": -1.2,
     "y": 0.0,
     "z": 0.6
@@ -3500,9 +4539,32 @@
     "e": 1.0,
     "matiere": "violet",
     "couleur": null,
+    "matiere2": null,
     "x": 2.4,
     "y": 0.0,
     "z": 0.3
+   },
+   {
+    "type": "pouf",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "rouge",
+    "couleur": null,
+    "matiere2": null,
+    "x": 1.35,
+    "y": 0.0,
+    "z": 0.95
+   },
+   {
+    "type": "cactus",
+    "ry": 0.0,
+    "e": 3.0,
+    "matiere": null,
+    "couleur": "#43c463",
+    "matiere2": null,
+    "x": 3.05,
+    "y": 0.0,
+    "z": 0.5
    }
   ],
   "ecrans": [
@@ -3523,6 +4585,7 @@
    "texte": "",
    "style": "panneau",
    "couleur": "principale",
+   "police": "Inter",
    "ry": 40.0,
    "l": 0.9,
    "x": -2.4,
@@ -3621,6 +4684,7 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "mur",
    "ouvert": true
   },
   "matieres": {
@@ -3630,7 +4694,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "pelouse",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:leafy_grass",
+    "teinte": true,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#0e1a2e",
@@ -3638,7 +4705,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#0a1220",
@@ -3646,7 +4716,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "blanc": {
     "couleur": "#f4f6f8",
@@ -3654,7 +4727,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plastique"
    },
    "banc": {
     "couleur": "#1c2c4a",
@@ -3662,7 +4738,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plastique"
    }
   },
   "lumieres": [
@@ -3754,6 +4833,7 @@
     "e": 1.0,
     "matiere": "banc",
     "couleur": null,
+    "matiere2": null,
     "x": 0.0,
     "y": 0.0,
     "z": -2.05
@@ -3764,6 +4844,7 @@
     "e": 1.0,
     "matiere": "blanc",
     "couleur": null,
+    "matiere2": null,
     "x": 3.0,
     "y": 0.0,
     "z": -1.3
@@ -3774,6 +4855,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 0.9,
     "y": 0.11,
     "z": 1.0
@@ -3784,6 +4866,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 2.4,
     "y": 0.11,
     "z": -0.4
@@ -3794,16 +4877,18 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -2.9,
     "y": 0.0,
     "z": -0.9
    },
    {
-    "type": "trophee",
+    "type": "coupe",
     "ry": 0.0,
     "e": 1.0,
     "matiere": null,
-    "couleur": "#f0c040",
+    "couleur": "#e9c04a",
+    "matiere2": null,
     "x": -1.5,
     "y": 1.0,
     "z": 0.2
@@ -3814,6 +4899,7 @@
     "e": 1.0,
     "matiere": "blanc",
     "couleur": null,
+    "matiere2": null,
     "x": -1.5,
     "y": 0.0,
     "z": 0.2
@@ -3824,6 +4910,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "principale",
+    "matiere2": null,
     "x": -4.2,
     "y": 0.0,
     "z": -2.2
@@ -3834,6 +4921,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "accent",
+    "matiere2": null,
     "x": 4.2,
     "y": 0.0,
     "z": -2.2
@@ -3844,6 +4932,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "principale",
+    "matiere2": null,
     "x": -3.7,
     "y": 1.7,
     "z": -2.4
@@ -3854,6 +4943,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -3.5,
     "y": 3.3,
     "z": -2.6
@@ -3864,6 +4954,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 3.5,
     "y": 3.3,
     "z": -2.6
@@ -3874,9 +4965,78 @@
     "e": 1.0,
     "matiere": "banc",
     "couleur": null,
+    "matiere2": null,
     "x": 2.6,
     "y": 0.0,
     "z": 1.1
+   },
+   {
+    "type": "echarpe",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "matiere2": null,
+    "x": -2.6,
+    "y": 2.75,
+    "z": -2.97
+   },
+   {
+    "type": "crampons",
+    "ry": 35.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "accent",
+    "matiere2": null,
+    "x": 1.75,
+    "y": 0.0,
+    "z": 1.25
+   },
+   {
+    "type": "plot",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -0.95,
+    "y": 0.0,
+    "z": 1.35
+   },
+   {
+    "type": "plot",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": -0.35,
+    "y": 0.0,
+    "z": 1.65
+   },
+   {
+    "type": "plot",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 0.3,
+    "y": 0.0,
+    "z": 1.4
+   },
+   {
+    "type": "panneau_direct",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ff2b2b",
+    "matiere2": null,
+    "texte": "LIVE",
+    "police": "BebasNeue",
+    "x": 3.6,
+    "y": 3.12,
+    "z": -2.96
    }
   ],
   "ecrans": [
@@ -3897,6 +5057,7 @@
    "texte": "",
    "style": "panneau",
    "couleur": "principale",
+   "police": "Inter",
    "ry": 0.0,
    "l": 0.9,
    "x": 3.6,
@@ -3995,16 +5156,20 @@
    "mur": "mur",
    "plafond": "plafond",
    "plinthe": true,
+   "fond": "mur",
    "ouvert": false
   },
   "matieres": {
    "sol": {
     "couleur": "#b9814a",
-    "rugosite": 0.3,
+    "rugosite": 0.35,
     "metal": 0.0,
     "emission": 0.0,
     "motif": "parquet",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:plank_flooring_02",
+    "teinte": false,
+    "usage": "sol"
    },
    "mur": {
     "couleur": "#16203a",
@@ -4012,7 +5177,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "brique",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "cat:brick_wall_001",
+    "teinte": true,
+    "usage": "mur"
    },
    "plafond": {
     "couleur": "#0b1020",
@@ -4020,7 +5188,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plafond"
    },
    "casier": {
     "couleur": "#b5232c",
@@ -4028,7 +5199,10 @@
     "metal": 0.5,
     "emission": 0.0,
     "motif": "metal",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:painted_metal_shutter",
+    "teinte": true,
+    "usage": "metal"
    },
    "bois": {
     "couleur": "#7a5230",
@@ -4036,7 +5210,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "bois",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "stu:oak_veneer_01",
+    "teinte": false,
+    "usage": "bois"
    },
    "blanc": {
     "couleur": "#f2f2f2",
@@ -4044,7 +5221,10 @@
     "metal": 0.0,
     "emission": 0.0,
     "motif": "uni",
-    "echelle": 1.0
+    "echelle": 1.0,
+    "texture": "",
+    "teinte": false,
+    "usage": "plastique"
    }
   },
   "lumieres": [
@@ -4152,6 +5332,7 @@
     "e": 1.0,
     "matiere": "casier",
     "couleur": null,
+    "matiere2": null,
     "x": -3.4,
     "y": 0.0,
     "z": -2.7
@@ -4162,6 +5343,7 @@
     "e": 1.0,
     "matiere": "casier",
     "couleur": null,
+    "matiere2": null,
     "x": -2.7,
     "y": 0.0,
     "z": -2.7
@@ -4172,6 +5354,7 @@
     "e": 1.0,
     "matiere": "casier",
     "couleur": null,
+    "matiere2": null,
     "x": 2.7,
     "y": 0.0,
     "z": -2.7
@@ -4182,6 +5365,7 @@
     "e": 1.0,
     "matiere": "casier",
     "couleur": null,
+    "matiere2": null,
     "x": 3.4,
     "y": 0.0,
     "z": -2.7
@@ -4192,6 +5376,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 3.6,
     "y": 0.0,
     "z": -0.6
@@ -4202,6 +5387,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": 2.6,
     "y": 0.12,
     "z": 0.6
@@ -4212,6 +5398,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -1.35,
     "y": 1.0,
     "z": 0.25
@@ -4222,6 +5409,7 @@
     "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": null,
     "x": -1.4,
     "y": 0.0,
     "z": 0.2
@@ -4232,6 +5420,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -3.9,
     "y": 0.0,
     "z": -1.4
@@ -4242,6 +5431,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#f0c040",
+    "matiere2": null,
     "x": 1.5,
     "y": 1.0,
     "z": 0.2
@@ -4252,6 +5442,7 @@
     "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": null,
     "x": 1.5,
     "y": 0.0,
     "z": 0.2
@@ -4262,6 +5453,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#b5232c",
+    "matiere2": null,
     "x": -3.05,
     "y": 2.2,
     "z": -2.9
@@ -4272,6 +5464,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "#1f4fd0",
+    "matiere2": null,
     "x": 3.05,
     "y": 2.2,
     "z": -2.9
@@ -4282,6 +5475,7 @@
     "e": 1.0,
     "matiere": "bois",
     "couleur": null,
+    "matiere2": null,
     "x": -2.9,
     "y": 0.0,
     "z": -1.6
@@ -4292,6 +5486,7 @@
     "e": 1.0,
     "matiere": null,
     "couleur": null,
+    "matiere2": null,
     "x": -4.0,
     "y": 0.0,
     "z": 0.4
@@ -4302,9 +5497,67 @@
     "e": 1.0,
     "matiere": null,
     "couleur": "accent",
+    "matiere2": null,
     "x": 4.2,
     "y": 0.0,
     "z": 1.4
+   },
+   {
+    "type": "casque_foot_us",
+    "ry": 25.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#1f4fd0",
+    "matiere2": null,
+    "x": -2.9,
+    "y": 0.48,
+    "z": -1.6
+   },
+   {
+    "type": "neon_texte",
+    "ry": 0.0,
+    "e": 0.85,
+    "matiere": null,
+    "couleur": "#ff4b4b",
+    "matiere2": null,
+    "texte": "GAME DAY",
+    "police": "Anton",
+    "x": -2.05,
+    "y": 3.05,
+    "z": -2.97
+   },
+   {
+    "type": "haltere",
+    "ry": 40.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "matiere2": null,
+    "x": 3.3,
+    "y": 0.0,
+    "z": 1.0
+   },
+   {
+    "type": "ruban_led_sol",
+    "ry": 0.0,
+    "e": 1.3,
+    "matiere": null,
+    "couleur": "#ff4b4b",
+    "matiere2": null,
+    "x": -3.05,
+    "y": 0.0,
+    "z": -2.42
+   },
+   {
+    "type": "ruban_led_sol",
+    "ry": 0.0,
+    "e": 1.3,
+    "matiere": null,
+    "couleur": "#3b7bff",
+    "matiere2": null,
+    "x": 3.05,
+    "y": 0.0,
+    "z": -2.42
    }
   ],
   "ecrans": [
@@ -4325,6 +5578,7 @@
    "texte": "",
    "style": "neon",
    "couleur": "principale",
+   "police": "Inter",
    "ry": 0.0,
    "l": 1.6,
    "x": 0.0,
