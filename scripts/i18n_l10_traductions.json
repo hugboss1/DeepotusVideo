@@ -14866,5 +14866,33 @@
  "L'objet n'a pas pu être enregistré.": {
   "fr": "L'objet n'a pas pu être enregistré.",
   "en": "The object could not be saved."
+ },
+ "Nom de fichier invalide.": {
+  "fr": "Nom de fichier invalide.",
+  "en": "Invalid file name."
+ },
+ "Image introuvable dans la Bibliothèque.": {
+  "fr": "Image introuvable dans la Bibliothèque.",
+  "en": "Image not found in the Library."
+ },
+ "Identifiant d'image invalide.": {
+  "fr": "Identifiant d'image invalide.",
+  "en": "Invalid image identifier."
+ },
+ "Trop d'images dans le studio : retirez-en une d'abord.": {
+  "fr": "Trop d'images dans le studio : retirez-en une d'abord.",
+  "en": "Too many images in the studio: remove one first."
+ },
+ "L'image n'a pas pu être enregistrée.": {
+  "fr": "L'image n'a pas pu être enregistrée.",
+  "en": "The image could not be saved."
+ },
+ "Cette image est posée dans {noms} décor(s) : retirez-la d'abord de « {v} ».": {
+  "fr": "Cette image est posée dans {noms} décor(s) : retirez-la d'abord de « {v} ».",
+  "en": "This image is placed in {noms} set(s): remove it from \"{v}\" first."
+ },
+ "Modèle 3D introuvable dans la Bibliothèque.": {
+  "fr": "Modèle 3D introuvable dans la Bibliothèque.",
+  "en": "3D model not found in the Library."
  }
 }

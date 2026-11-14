@@ -488,6 +488,7 @@ STYLES = [
 def habillage() -> dict:
     """Tout ce que le décorateur propose. Les noms des styles, ambiances, finitions, familles et objets sont dans le
     dictionnaire de l'écran (studiov.style.<id>, studiov.ambiance.<id>…) ; ceux des matières viennent avec elles."""
+    from app.services import studiov_images as SI
     from app.services import studiov_objets as OB
     return {"textures": textures(), "familles_texture": FAMILLES_TEXTURE, "finitions": FINITIONS,
-            "ambiances": AMBIANCES, "styles": STYLES, "catalogue": S.catalogue(), "objets": OB.lister()}
+            "ambiances": AMBIANCES, "styles": STYLES, "catalogue": S.catalogue(), "objets": OB.lister(), "images": SI.lister()}

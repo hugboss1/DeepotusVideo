@@ -93,6 +93,9 @@ if (!window.__dzStudiov) {
       h.indexObjets = hab ? hab.indexObjets : {};
       for (const k of Object.keys(h.indexObjets)) delete h.indexObjets[k];
       for (const v of h.objets || []) h.indexObjets[v.ref] = v;
+      h.indexImages = hab ? hab.indexImages : {};
+      for (const k of Object.keys(h.indexImages)) delete h.indexImages[k];
+      for (const v of h.images || []) h.indexImages[v.ref] = v;
       hab = h;
     }
     return hab;
@@ -248,7 +251,7 @@ if (!window.__dzStudiov) {
     // ── Objets : par catégorie ; l'objet choisi se place, se tourne, s'habille ──
     function panneauObjets(d) {
       const noeud = el("div", { style: S.groupe }), C = hab.catalogue, P = d.piece;
-      noeud.appendChild(liste(familleObjets, Object.keys(C.familles).filter((f) => f !== "importes").map((f) => [f, T("studiov.famille." + f)]), (v) => { familleObjets = v; peindre(); }, T("studiov.deco.categorie")));
+      noeud.appendChild(liste(familleObjets, Object.keys(C.familles).filter((f) => f !== "importes" && f !== "images").map((f) => [f, T("studiov.famille." + f)]), (v) => { familleObjets = v; peindre(); }, T("studiov.deco.categorie")));
       const grille = el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:4px", "data-dz-studiov-objets": true });
       for (const type of C.familles[familleObjets] || []) {
         grille.appendChild(bouton(T("studiov.objet." + type), () => {
@@ -340,7 +343,7 @@ if (!window.__dzStudiov) {
       const actif = el("input", { type: "checkbox", "data-dz-studiov-enseigne": true });
       actif.checked = !!E.actif; actif.addEventListener("change", () => regler("actif", actif.checked));
       noeud.appendChild(el("label", { style: S.ligne }, [actif, el("span", { texte: T("studiov.deco.enseigne.active") })]));
-      noeud.appendChild(liste(E.source, [["espace", T("studiov.deco.enseigne.logo")], ["texte", T("studiov.deco.enseigne.texte")]], (v) => { regler("source", v); peindre(); }, T("studiov.deco.enseigne.source")));
+      noeud.appendChild(liste(E.source, [["espace", T("studiov.deco.enseigne.logo")], ["texte", T("studiov.deco.enseigne.texte")]].concat(E.image ? [["image", T("studiov.deco.enseigne.image")]] : []), (v) => { regler("source", v); peindre(); }, T("studiov.deco.enseigne.source")));
       if (E.source === "texte") {
         const mot = el("input", { type: "text", maxlength: 40, value: E.texte || "", style: S.champ, placeholder: T("studiov.deco.mot"), "aria-label": T("studiov.deco.mot") });
         mot.addEventListener("input", () => regler("texte", mot.value, true));
@@ -464,7 +467,70 @@ if (!window.__dzStudiov) {
       return noeud;
     }
 
-    const ONGLETS = [["style", panneauStyle], ["matieres", panneauMatieres], ["objets", panneauObjets], ["biblio", panneauBiblio], ["lumieres", panneauLumieres],
+    // ── Bibliothèque : ce que l'utilisateur a généré ou rangé dans l'application — illustrations, logos, modèles 3D ──
+    let bib = null, bibFiltre = "", bibSource = "", imgChoisie = "", etatBib = "", occupeBib = false;
+    async function chargerBib() {
+      try {
+        const [im, tr] = await Promise.all([api("GET", "/api/images?espace=" + encodeURIComponent(ctx.espace() || "*")), api("GET", "/api/etabli/sources").catch(() => ({ jobs: [] }))]);
+        bib = { images: (im.images || []).slice().sort((a, b) => (b.mtime || 0) - (a.mtime || 0)), sources: im.sources || {},
+          jobs: (tr.jobs || []).filter((j) => !String(j.id).startsWith("_")).sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))) };
+      } catch (e) { bib = { images: [], sources: {}, jobs: [] }; etatBib = (e && e.message) || "—"; }
+      if (onglet === "bibli") peindre();
+    }
+    function panneauBibli(d) {
+      const noeud = el("div", { style: S.groupe }), etat = el("div", { style: S.note, role: "status", texte: etatBib });
+      noeud.appendChild(el("div", { style: S.note, texte: T("studiov.bibli.note") }));
+      if (!bib) { noeud.appendChild(el("div", { style: S.note, texte: T("studiov.biblio.patience") })); chargerBib(); return noeud; }
+      const faire = async (action) => { if (occupeBib) return; occupeBib = true; etatBib = T("studiov.biblio.patience"); etat.textContent = etatBib;
+        try { await action(); } catch (e) { etatBib = (e && e.message) || "—"; } occupeBib = false; peindre(); };
+      // les images : chercher, filtrer par fonction d'origine, choisir
+      const champ = el("input", { type: "search", value: bibFiltre, style: S.champ, placeholder: T("studiov.bibli.chercher"), "aria-label": T("studiov.bibli.chercher"), "data-dz-studiov-bibli-filtre": true });
+      champ.addEventListener("change", () => { bibFiltre = champ.value; peindre(); });
+      const origines = [["", T("studiov.bibli.toutes")]].concat(Object.entries(bib.sources).filter(([k]) => bib.images.some((i) => i.source === k)));
+      noeud.appendChild(el("div", { style: S.ligne + ";flex-wrap:nowrap" }, [champ, liste(bibSource, origines, (v) => { bibSource = v; peindre(); }, T("studiov.bibli.origine"))]));
+      const mots = bibFiltre.toLowerCase().split(/\s+/).filter(Boolean);
+      const vues = bib.images.filter((i) => (!bibSource || i.source === bibSource) && mots.every((m) => (i.filename + " " + (i.tags || []).join(" ")).toLowerCase().indexOf(m) >= 0)).slice(0, 80);
+      const grille = el("div", { style: "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-height:262px;overflow-y:auto", "data-dz-studiov-bibli": true });
+      for (const i of vues) {
+        grille.appendChild(el("button", { type: "button", title: i.filename, "aria-label": i.filename, "data-dz-studiov-bibli-image": i.filename,
+          style: `padding:0;border-radius:0;cursor:pointer;background:#1b2028;border:2px solid ${imgChoisie === i.filename ? "var(--brand,#f0b429)" : "transparent"}`,
+          on: { click: () => { imgChoisie = i.filename; etatBib = ""; peindre(); } } },
+          [el("img", { src: "/api/studiov/bibliotheque/vignette?f=" + encodeURIComponent(i.filename), alt: i.filename, loading: "lazy", width: 70, height: 70, style: "display:block;width:100%;aspect-ratio:1;object-fit:contain" })]));
+      }
+      if (!vues.length) grille.appendChild(el("div", { style: S.note + ";grid-column:1/-1", texte: T("studiov.bibli.vide") }));
+      noeud.appendChild(grille);
+      if (imgChoisie) {
+        noeud.appendChild(el("div", { style: S.note + ";overflow:hidden;text-overflow:ellipsis;white-space:nowrap", texte: imgChoisie }));
+        // l'image choisie entre dans le studio (une copie), puis se pose : au mur, sur pied, sur l'écran du décor, en enseigne
+        const entrer = async () => { const v = await api("POST", "/api/studiov/bibliotheque/image", { filename: imgChoisie }); await habillage(true); return v; };
+        const objet = (type) => () => faire(async () => { const v = await entrer(), nd = copie(ctx.decor()); if (nd.objets.length >= 120) return;
+          nd.objets.push(objetNeuf(nd, type, v.ref)); etatBib = T("studiov.bibli.pose", { nom: v.nom }); ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 }); });
+        noeud.appendChild(el("div", { style: S.ligne }, [bouton(T("studiov.objet.tableau"), objet("tableau")), bouton(T("studiov.objet.logo_mural"), objet("logo_mural")), bouton(T("studiov.objet.kakemono"), objet("kakemono")),
+          bouton(T("studiov.bibli.ecran"), () => faire(async () => { const nd0 = ctx.decor(); if (!nd0.ecrans.length) { etatBib = T("studiov.bibli.sansecran"); return; }
+            const v = await entrer(), nd = copie(ctx.decor()); nd.ecrans[0].source = "image"; nd.ecrans[0].image = v.ref; etatBib = T("studiov.bibli.pose", { nom: v.nom }); ctx.modifier(nd); })),
+          bouton(T("studiov.bibli.enseigne"), () => faire(async () => { const v = await entrer(), nd = copie(ctx.decor()); nd.enseigne.actif = true; nd.enseigne.source = "image"; nd.enseigne.image = v.ref;
+            etatBib = T("studiov.bibli.pose", { nom: v.nom }); ctx.modifier(nd); }))]));
+      }
+      if (d.ecrans.some((e) => e.source === "image")) noeud.appendChild(bouton(T("studiov.bibli.ecran.rendre"), () => { const nd = copie(ctx.decor());
+        for (const e of nd.ecrans) if (e.source === "image") { e.source = "ecran"; e.image = ""; } ctx.modifier(nd); }));
+      // les modèles 3D générés dans l'application (Game Assets 3D, Établi) : la version allégée si elle existe
+      noeud.appendChild(titre("studiov.bibli.modeles"));
+      for (const j of bib.jobs.slice(0, 60)) {
+        const der = (j.etapes || []).slice(-1)[0] || {};
+        noeud.appendChild(el("div", { style: S.ligne + ";flex-wrap:nowrap;gap:6px;border-bottom:1px solid var(--brd-soft,#222830);padding-bottom:4px", "data-dz-studiov-bibli-modele": j.id }, [
+          el("div", { style: "flex:1;min-width:0;display:flex;flex-direction:column" }, [el("span", { texte: j.nom || j.id, style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }),
+            el("span", { style: S.badge, texte: [j.moteur, der.libelle, der.triangles ? T("studiov.bibli.triangles", { n: der.triangles }) : null].filter(Boolean).join(" · ") })]),
+          bouton(T("studiov.biblio.poser"), () => faire(async () => { const v = await api("POST", "/api/studiov/bibliotheque/modele", { job: j.id }); await habillage(true); await chargeurGLB();
+            const nd = copie(ctx.decor()); if (nd.objets.length >= 120) return; nd.objets.push(objetNeuf(nd, "modele", v.ref)); etatBib = T("studiov.bibli.pose", { nom: v.nom });
+            ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 }); }))]));
+      }
+      if (!bib.jobs.length) noeud.appendChild(el("div", { style: S.note, texte: T("studiov.bibli.modeles.vide") }));
+      noeud.appendChild(etat);
+      noeud.appendChild(el("div", { style: S.ligne }, [bouton(T("studiov.bibli.actualiser"), () => { bib = null; etatBib = ""; peindre(); })]));
+      return noeud;
+    }
+
+    const ONGLETS = [["style", panneauStyle], ["matieres", panneauMatieres], ["objets", panneauObjets], ["bibli", panneauBibli], ["biblio", panneauBiblio], ["lumieres", panneauLumieres],
       ["cameras", panneauCameras], ["enseigne", panneauEnseigne]];
     // ce qu'on vient de choisir sur le plan ou dans la vue 3D : le panneau ouvre l'onglet qui le règle
     function viser(c) {
@@ -518,7 +584,7 @@ if (!window.__dzStudiov) {
   function poser(scene, d, env) {
     const E = env || {};
     const m = creerMoteur(THREE, { largeur: scene.largeur, hauteur: scene.hauteur, decor: d.decor, contexte: d.contexte,
-      logo: d.logo, qualite: qualite(), apercu: !!E.apercu, textures: hab ? hab.index : {}, objets: hab ? hab.indexObjets : {}, chargeur: porteGLB,
+      logo: d.logo, qualite: qualite(), apercu: !!E.apercu, textures: hab ? hab.index : {}, objets: hab ? hab.indexObjets : {}, images: hab ? hab.indexImages : {}, chargeur: porteGLB,
       surChange: E.surChange });
     const plateau = d.decor.mode === "plateau" && !E.apercu;
     const ecran = plateau && typeof scene.ecranDeporte === "function" ? scene.ecranDeporte(true) : null;
@@ -731,7 +797,7 @@ if (!window.__dzStudiov) {
       if (!leger) { deco.peindre(); peindreCams(); }
     }
     const deco = decorateur(droite, { decor: () => (apercu ? apercu.edition : null), contexte: () => (apercu ? apercu.contexte : null),
-      livre: () => !apercu || apercu.livre, modifier, moteur, choisir: choisirCible,
+      livre: () => !apercu || apercu.livre, modifier, moteur, choisir: choisirCible, espace: () => (liste ? liste.espace : "*"),
       credits: async () => { if (!apercu || !apercu.id || apercu.livre) return null; const id = apercu.id; await finir(); return api("GET", "/api/studiov/" + encodeURIComponent(id) + "/credits"); },
       personnaliser: async () => {
         if (!apercu || !apercu.id) return;

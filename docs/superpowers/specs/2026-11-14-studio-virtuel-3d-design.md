@@ -74,6 +74,7 @@ Couleurs : un rôle du kit de l'espace (`principale`, `accent`, `texte`, `fond`)
 | SVH | **Habillage — le décorateur d'intérieur** (14/11, § 6) : vraies textures (pack d'intérieur de 42 matières + les 30 de la Forge + les matières de l'utilisateur), mur du fond, finitions, 16 ambiances lumineuses, 14 styles complets, 127 objets en 20 catégories (67 neufs : rubans LED, panneaux hexagonaux, néons à mot, lettres rétroéclairées, caisson, bibelots par thème), reflets, panneau « Décorer » de l'aperçu, cuisson d'une matière depuis Blender, les 11 décors livrés rhabillés | **fait** |
 | SVO | **Objets importés — le socle** (14/11, § 7) : bibliothèque de modèles GLB de l'utilisateur (fichier téléchargé, export d'un objet depuis Blender), lecture du GLB avant de le garder, provenance et licence par objet, droits tirés de la licence (vidéo, export, partage, crédit), licences NC / ND / SA refusées, crédits du décor prêts à coller, objet `modele` de la recette, affichage des modèles par le moteur | **fait** |
 | SVA | **Atelier du décor** (14/11, § 8) : trois vues du même décor — par ses caméras, en PLAN (placer meubles, lumières, caméras, présentateur à la souris), en 3D LIBRE (tourner autour de la pièce, choisir d'un clic un pan de mur, un meuble, une lumière, une caméra) ; une matière par pan de mur et par objet ; onglets Caméras (hauteur, focale, visée, mouvement) et Mes objets | **fait** |
+| SVB | **Depuis la Bibliothèque de l'application** (15/11, § 9) : les assets que l'utilisateur a générés — illustrations, logos, modèles 3D — entrent dans le studio : tableau, logo mural, kakémono, image sur l'écran du décor, enseigne, modèle 3D posé | **fait** |
 | SV2 | Skill `studio-volumetrique` + fabrique Blender sans fenêtre : GLB biseauté, textures, lightmap, vignette ; les 11 décors passent au niveau « fabriqué » | skill et script livrés avec SV1, cuisson à faire |
 | SV3 | Présentateur détouré sans fond vert (MediaPipe embarqué), ombre au sol, teinte par la lumière du décor ; option fond vert | à faire |
 | SV4 | Éditeur : déplacer objets, lumières, enseigne, caméras (poignées), réglages par section, annuler/rétablir | à faire |
@@ -169,3 +170,21 @@ La géométrie du plan (échelle, emprises, cône d'une caméra, collage au mur,
 `dz-studiov-logique.js`, jouée sous node par le banc ; `dz-studiov-plan.js` ne fait que dessiner et écouter la souris.
 Reste : poignées de déplacement DANS la vue 3D (aujourd'hui on déplace sur le plan ou par curseurs), annuler / rétablir,
 redimensionner la pièce à la souris.
+
+## 9. Lot SVB — depuis la Bibliothèque de l'application (15/11)
+
+Demande : poser dans le studio ce qu'on a généré dans l'application — modèles 3D, illustrations, logos.
+
+- **Onglet « Bibliothèque »** du panneau Décorer : les images de la Bibliothèque (celles de l'espace, cherchées par
+  nom ou mot-clé, filtrées par fonction d'origine) et les modèles 3D générés (Game Assets 3D, Établi).
+- **Copie à la première utilisation** (doctrine du catalogue de matières de la Forge) : le décor reste entier si
+  l'élément quitte ensuite la Bibliothèque. Une image est désignée par son NOM de fichier seul, ramenée à 2 048 px,
+  sa transparence gardée (`services/studiov_images.py`, référence `img:<id>`) ; un modèle 3D entre dans les objets du
+  studio (`studiov_objets.depuis_bibliotheque` : la version allégée de l'Établi d'abord, sinon la dernière ; il passe
+  la même lecture que tout GLB, plafond de triangles compris). La même source, inchangée, n'est copiée qu'une fois.
+- **Où va une image** : trois objets neufs — `tableau` (encadré), `logo_mural` (détouré, rétroéclairé si on lui donne
+  une couleur), `kakemono` (sur pied, l'image couvre la toile) — ; un écran du décor (`ecrans[].image`, source
+  `image`) ; l'enseigne (`enseigne.source = "image"`), qui garde ses styles néon, rétroéclairé, caisson.
+- **Droits** : ce que l'utilisateur a généré est à lui (tous droits, rien à citer). Une image importée dans la
+  Bibliothèque garde la licence que la Bibliothèque lui connaît : CC BY = créditée dans les crédits du décor, licence
+  inconnue = signalée « à vérifier ».

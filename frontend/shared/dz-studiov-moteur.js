@@ -20,6 +20,8 @@
 //   m.choisir(cible | null)        entoure ce qui est choisi ; m.empreintes() -> l'emprise au sol de chaque objet
 // Objets importés (lot SVO) : `objets` = {ref: fiche} (l'index de la bibliothèque) et `chargeur` = {classe: GLTFLoader} ;
 // un objet de type « modele » y trouve son fichier — jamais une adresse écrite dans la recette.
+// Images de la Bibliothèque (lot SVB) : `images` = {ref: {url, l, h, alpha}} ; un tableau, un logo mural, un kakémono,
+// un écran du décor ou l'enseigne y trouvent leur image.
 // `textures` = {ref: {cartes: {basecolor, normal, roughness}, taille_m, moyenne}} : l'index servi par
 // le catalogue d'habillage du serveur. Le moteur ne fabrique JAMAIS une adresse depuis la recette : une référence absente de
 // l'index retombe sur le motif dessiné.
@@ -82,7 +84,7 @@ export function creerMoteur(THREE, o) {
   const O = o || {}, doc = O.doc || document;
   const L = Math.max(2, Math.round(O.largeur || 1280)), H = Math.max(2, Math.round(O.hauteur || 720));
   const qualite = O.qualite === "haute" ? "haute" : "legere";
-  const INDEX = O.textures || {}, OBJETS = O.objets || {};
+  const INDEX = O.textures || {}, OBJETS = O.objets || {}, IMAGES = O.images || {};
   const canvas = O.canvas || doc.createElement("canvas");
   const rendu = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
   rendu.setPixelRatio(1);
@@ -162,6 +164,31 @@ export function creerMoteur(THREE, o) {
     pose(C.normal, "normalMap", false, () => {});
     pose(C.roughness, "roughnessMap", false, () => { mat.roughness = Math.min(1, m.rugosite * 1.25); });
   }
+  // une image de la Bibliothèque posée sur une matière : `cadre` = [l, h] du support (l'image le COUVRE, centrée, sans se
+  // déformer) ; `eclaire` = elle garde un peu de sa propre lumière (une affiche reste lisible dans un décor sombre)
+  const imgPretes = new Map();
+  function poserImage(mat, ref, eclaire, cadre) {
+    const I = IMAGES[ref]; if (!I) return;
+    const g0 = generation;
+    image(I.url).then((im) => {
+      if (!im || g0 !== generation || detruit) return;
+      const id = ["img", I.url, cadre ? cadre.join("x") : ""].join("|");
+      let t = gpu.get(id);
+      if (!t) {
+        t = new THREE.Texture(im); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = anisotropie;
+        if (cadre) {
+          const ri = (im.naturalWidth || im.width) / (im.naturalHeight || im.height), rc = cadre[0] / cadre[1];
+          if (ri > rc) { t.repeat.set(rc / ri, 1); t.offset.set((1 - rc / ri) / 2, 0); } else { t.repeat.set(1, ri / rc); t.offset.set(0, (1 - ri / rc) / 2); }
+        }
+        t.needsUpdate = true; gpu.set(id, t);
+      }
+      t.userData.vue = generation; mat.map = t; mat.color.set(0xffffff);
+      if (eclaire) { mat.emissive = new THREE.Color(0xffffff); mat.emissiveMap = t; mat.emissiveIntensity = 0.22; }
+      mat.needsUpdate = true;
+    });
+  }
+  // les dimensions d'une image posée au mur : son plus grand côté fait 1 m (la taille de l'objet fait le reste)
+  const formatImage = (ref) => { const I = IMAGES[ref], r = I && I.h ? I.l / I.h : 1.4; return r >= 1 ? [1, 1 / r] : [r, 1]; };
   // la matière d'une clé de la recette ; `coul` (la couleur propre d'un objet) repeint la matière. Ses UV sont en
   // MÈTRES (userData.metres) : la même matière sert un sol de 40 m² et un plateau de bureau, au même grain.
   function matiere(cle, coul) {
@@ -456,6 +483,9 @@ export function creerMoteur(THREE, o) {
         marquer(); if (O.surChange) O.surChange();
       });
     },
+    tableau(g, m) { const [l, h] = formatImage(m.image), mat = garder(new THREE.MeshStandardMaterial({ color: 0x8a94a0, roughness: 0.85 })); bx(g, m.s || uni("#1b1d21", 0.5), l + 0.06, h + 0.06, 0.03, 0, -(h + 0.06) / 2, 0.015); plan(g, mat, l, h, 0, 0, 0.0315); poserImage(mat, m.image, true); },
+    logo_mural(g, m) { const [l, h] = formatImage(m.image), mat = garder(new THREE.MeshBasicMaterial({ color: 0x8a94a0, transparent: true, alphaTest: 0.02, toneMapped: false })); if (m.c) halo(g, m.c, l * 1.8, h * 1.8, 0, 0, 0.004, 0.45); const p = plan(g, mat, l, h, 0, 0, 0.03); p.renderOrder = 4; poserImage(mat, m.image, false); },
+    kakemono(g, m) { const n = m.s || uni(ACIER, 0.35, 0.8), mat = garder(new THREE.MeshStandardMaterial({ color: 0x8a94a0, roughness: 0.8, side: THREE.DoubleSide })); bx(g, n, 0.86, 0.03, 0.3, 0, 0, 0); cy(g, n, 0.012, 2.06, 0, 0.03, -0.03, null, 8); bx(g, n, 0.84, 0.03, 0.03, 0, 2.06, 0); plan(g, mat, 0.8, 2.0, 0, 1.05, 0); poserImage(mat, m.image, true, [0.8, 2.0]); },
     trophee(g, m) { const o = uni(m.c || "#f0c040", 0.25, 1.0); bx(g, uni(NOIR, 0.4), 0.14, 0.05, 0.14, 0, 0); cy(g, o, 0.02, 0.1, 0, 0.05); cy(g, o, 0.035, 0.14, 0, 0.15, 0, 0.085); tore(g, o, 0.05, 0.008, -0.1, 0.23, 0); tore(g, o, 0.05, 0.008, 0.1, 0.23, 0); },
     coupe(g, m) { const o = uni(m.c || "#e9c04a", 0.32, 0.9); bx(g, uni("#2a1a12", 0.5), 0.2, 0.07, 0.2, 0, 0); bx(g, uni(LAITON, 0.35, 1), 0.12, 0.03, 0.003, 0, 0.02, 0.1); cy(g, o, 0.06, 0.03, 0, 0.07, 0, 0.03, 24); cy(g, o, 0.022, 0.12, 0, 0.1, 0, null, 16); sp(g, o, 0.03, 0, 0.16, 0); cy(g, o, 0.035, 0.22, 0, 0.22, 0, 0.14, 28); cy(g, o, 0.145, 0.015, 0, 0.44, 0, null, 28); for (const s of [-1, 1]) { const t = tore(g, o, 0.075, 0.01, s * 0.14, 0.34, 0, Math.PI); t.rotation.z = s > 0 ? -Math.PI / 2 : Math.PI / 2; } },
     medaille(g, m) { const c = uni(m.c || pal.principale, 0.9); for (const s of [-1, 1]) { const b = bx(g, c, 0.035, 0.26, 0.004, s * 0.045, -0.13, 0.004); b.rotation.z = s * 0.34; } dq(g, uni("#e9c04a", 0.22, 1.0), 0.055, 0.008, 0, -0.17, 0.008, 32); dq(g, uni("#b8923a", 0.3, 1.0), 0.038, 0.01, 0, -0.17, 0.009, 32); },
@@ -500,6 +530,7 @@ export function creerMoteur(THREE, o) {
   // l'enseigne : `couche` = "face" (ce qu'on lit) ou "halo" (la lueur seule, pour le rétroéclairage)
   function peindreEnseigne(x, l, h, e, couche) {
     const large = e.source === "texte" && e.texte, c = couleur(e.couleur, pal), halo2 = couche === "halo";
+    const LG = e.source === "image" ? imgPretes.get((IMAGES[e.image] || {}).url) : O.logo;       // l'image choisie, sinon le logo de l'espace
     x.clearRect(0, 0, l, h); x.shadowBlur = 0;
     if (!halo2 && (e.style === "panneau" || e.style === "ecran" || e.style === "caisson")) {
       x.fillStyle = e.style === "ecran" ? "#05070b" : e.style === "caisson" ? melange(c, "#ffffff", 0.82) : "#f4f1ea"; x.fillRect(0, 0, l, h);
@@ -514,9 +545,9 @@ export function creerMoteur(THREE, o) {
       for (const b of lueurs) { x.shadowBlur = b; x.fillText(e.texte, l / 2, h / 2); }
       x.shadowBlur = 0;
       if (!halo2) { x.fillStyle = neon ? melange(c, "#ffffff", 0.78) : e.style === "retro" ? "#f2f3f5" : e.style === "caisson" ? "#15171c" : c; x.fillText(e.texte, l / 2, h / 2); }
-    } else if (O.logo && (O.logo.naturalWidth || O.logo.width)) {
-      const w = O.logo.naturalWidth || O.logo.width, hh = O.logo.naturalHeight || O.logo.height, k = Math.min((l - 2 * marge) / w, (h - 2 * marge) / hh);
-      const poser = () => x.drawImage(O.logo, (l - w * k) / 2, (h - hh * k) / 2, w * k, hh * k);
+    } else if (LG && (LG.naturalWidth || LG.width)) {
+      const w = LG.naturalWidth || LG.width, hh = LG.naturalHeight || LG.height, k = Math.min((l - 2 * marge) / w, (h - 2 * marge) / hh);
+      const poser = () => x.drawImage(LG, (l - w * k) / 2, (h - hh * k) / 2, w * k, hh * k);
       x.shadowColor = c; for (const b of lueurs) { x.shadowBlur = b; poser(); }
       x.shadowBlur = 0; if (!halo2) poser();
     } else {                                     // ni texte ni logo : un anneau à la couleur de l'espace
@@ -617,7 +648,7 @@ export function creerMoteur(THREE, o) {
       groupes[i] = g; g.userData.cible = { genre: "objet", index: i };
       if (!f) return;
       f(g, { p: ob.matiere ? matiere(ob.matiere, c) : uni(c || "#3a3f47", 0.6), s: ob.matiere2 ? matiere(ob.matiere2) : null, c,
-        t: (ob.texte || "").trim(), f: ob.police || "Inter", ref: ob.ref, forcer: !!ob.matiere });
+        t: (ob.texte || "").trim(), f: ob.police || "Inter", ref: ob.ref, forcer: !!ob.matiere, image: ob.image });
       g.userData.boite = boiteLocale(g);                     // l'emprise de l'objet, avant sa place et sa taille
       g.position.set(ob.x, ob.y, ob.z); g.rotation.y = (ob.ry * Math.PI) / 180; g.scale.setScalar(ob.e);
       racine.add(g);
@@ -671,6 +702,7 @@ export function creerMoteur(THREE, o) {
       plan(g, mat, e.l, e.h, 0, 0, 0.052);
       if (e.source !== "eteint") halo(g, pal.principale, e.l * 1.5, e.h * 1.7, 0, 0, 0.003, 0.14);
       if (e.source === "ecran") texEcrans.push({ mat, attente: tex, vive: null });
+      if (e.source === "image") poserImage(mat, e.image, false, [e.l, e.h]);       // une image de la Bibliothèque, qui couvre la dalle
       g.position.set(e.x, e.y, e.z); g.rotation.y = (e.ry * Math.PI) / 180; racine.add(g);
     });
     // l'enseigne : néon (tube clair et lueur), panneau, écran, rétroéclairée (lueur sur le mur, face détachée),
@@ -679,7 +711,9 @@ export function creerMoteur(THREE, o) {
     if (E.actif) {
       const g = repere("enseigne", 0, new THREE.Group()), large = E.source === "texte" && E.texte, h = large ? E.l / 4 : E.l, hexE = couleur(E.couleur, pal);
       const tl = large ? 1024 : 512, th = large ? 256 : 512;
-      const couche = (nom) => { const c = toile(tl, th, () => {}), x = c.getContext("2d"), peindre = () => peindreEnseigne(x, tl, th, E, nom); peindre(); const tex = texture(c); aRepeindre.push({ police: E.police, peindre, tex }); return tex; };
+      const urlE = E.source === "image" && IMAGES[E.image] ? IMAGES[E.image].url : null;
+      const couche = (nom) => { const c = toile(tl, th, () => {}), x = c.getContext("2d"), peindre = () => peindreEnseigne(x, tl, th, E, nom); peindre(); const tex = texture(c); aRepeindre.push({ police: E.police, peindre, tex, image: urlE }); return tex; };
+      if (urlE && !imgPretes.has(urlE)) { const g0 = generation; image(urlE).then((im) => { if (!im || detruit) return; imgPretes.set(urlE, im); if (g0 === generation) for (const r of aRepeindre) if (r.image === urlE) { r.peindre(); r.tex.needsUpdate = true; } }); }
       if (large) police(E.police);
       const plein = E.style === "panneau" || E.style === "ecran" || E.style === "caisson";
       if (E.style === "retro") { const hl = plan(g, garder(new THREE.MeshBasicMaterial({ map: couche("halo"), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })), E.l * 1.12, h * 1.12, 0, 0, 0.004); hl.renderOrder = 3; halo(g, hexE, E.l * 1.9, h * 1.9, 0, 0, 0.003, 0.22); }

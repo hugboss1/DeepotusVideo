@@ -43,7 +43,7 @@ MAX_MATIERES, MAX_LUMIERES, MAX_OBJETS, MAX_ECRANS, MAX_CAMERAS = 48, 16, 120, 4
 MOTIFS = ("uni", "bois", "parquet", "brique", "beton", "tissu", "pelouse", "grille", "carreaux", "metal", "lattes")
 TYPES_LUMIERE = ("cle", "appoint", "contre", "ambiance", "neon", "fenetre")
 SOURCES_ECRAN = ("ecran", "image", "eteint")
-SOURCES_ENSEIGNE = ("espace", "texte")
+SOURCES_ENSEIGNE = ("espace", "texte", "image")
 STYLES_ENSEIGNE = ("neon", "panneau", "ecran", "retro", "caisson")
 # SVH (habillage) : une matière peut porter une VRAIE texture — pack du studio (stu:), catalogue de la Forge (cat:)
 # ou matière de l'utilisateur dans la Forge (mat:). Ce n'est qu'une RÉFÉRENCE : jamais un chemin, jamais une URL ;
@@ -51,6 +51,9 @@ STYLES_ENSEIGNE = ("neon", "panneau", "ecran", "retro", "caisson")
 REF_TEXTURE = re.compile(r"^(?:(?:stu|cat):[a-z0-9_]{2,40}|mat:[0-9a-f]{8})$")
 # SVO : un objet de type `modele` désigne un modèle importé par sa RÉFÉRENCE (services/studiov_objets.py)
 REF_OBJET = re.compile(r"^obj:[a-f0-9]{16}$")
+# SVB : une image recopiée de la Bibliothèque de l'application (services/studiov_images.py)
+REF_IMAGE = re.compile(r"^img:[a-f0-9]{16}$")
+TYPES_IMAGE = ("tableau", "logo_mural", "kakemono")
 USAGES = ("autre", "sol", "mur", "plafond", "bois", "tissu", "cuir", "metal", "pierre", "plastique")
 # les polices embarquées (frontend/dist/fonts) proposées aux enseignes et aux objets à texte
 POLICES = ("Inter", "BebasNeue", "Anton", "ArchivoBlack", "Monoton", "Pacifico", "Righteous", "Bungee", "Cinzel",
@@ -89,6 +92,7 @@ CATALOGUE = {
     "autres_sports": ("raquette", "balle_tennis", "haltere", "gant_boxe", "skateboard"),
     "recompenses": ("trophee", "coupe", "medaille", "plaque_createur"),
     "importes": ("modele",),          # SVO : un modèle 3D de la bibliothèque de l'utilisateur (champ `ref`)
+    "images": ("tableau", "logo_mural", "kakemono"),   # SVB : une image de la Bibliothèque de l'application (champ `image`)
 }
 TYPES_OBJET = tuple(t for f in CATALOGUE.values() for t in f)
 # les objets qui PORTENT UN MOT (champs `texte` et `police`) et ceux dont la couleur est une LUMIÈRE (les ambiances
@@ -147,6 +151,10 @@ def _place(d, defaut=(0.0, 0.0, 0.0)):
             "z": _n(d.get("z"), defaut[2], -12, 12)}
 
 
+def _ref_image(v) -> str:
+    return v if isinstance(v, str) and REF_IMAGE.match(v) else ""
+
+
 def _ref_texture(v) -> str:
     return v if isinstance(v, str) and REF_TEXTURE.match(v) else ""
 
@@ -198,11 +206,15 @@ def normaliser(doc) -> dict:
             continue                                   # hors catalogue : retiré (jamais un chemin, jamais une URL)
         if x["type"] == "modele" and not (isinstance(x.get("ref"), str) and REF_OBJET.match(x["ref"])):
             continue                                   # un modèle importé sans référence valide n'est rien
+        if x["type"] in TYPES_IMAGE and not _ref_image(x.get("image")):
+            continue                                   # un tableau sans image n'est rien non plus
         o = {"type": x["type"], "ry": _n(x.get("ry"), 0.0, -360, 360), "e": _n(x.get("e"), 1.0, 0.1, 6.0),
              "matiere": cle_mat(x.get("matiere"), None), "couleur": K._couleur(x.get("couleur"), None, nul=True),
              "matiere2": cle_mat(x.get("matiere2"), None)}
         if o["type"] == "modele":
             o["ref"] = x["ref"]
+        if o["type"] in TYPES_IMAGE:
+            o["image"] = x["image"]
         if o["type"] in TYPES_TEXTE:
             o["texte"] = K._texte(x.get("texte"), "", MAX_MOT)
             o["police"] = K._choix(x.get("police"), POLICES, "Inter")
@@ -211,15 +223,19 @@ def normaliser(doc) -> dict:
     ecrans = []
     for x in _liste(d.get("ecrans"), MAX_ECRANS):
         e = {"ry": _n(x.get("ry"), 0.0, -360, 360), "l": _n(x.get("l"), 1.6, 0.3, 8.0), "h": _n(x.get("h"), 0.9, 0.2, 5.0),
-             "source": K._choix(x.get("source"), SOURCES_ECRAN, "ecran"), "bord": K._couleur(x.get("bord"), "#0c0d10")}
+             "source": K._choix(x.get("source"), SOURCES_ECRAN, "ecran"), "bord": K._couleur(x.get("bord"), "#0c0d10"),
+             "image": _ref_image(x.get("image"))}
         e.update(_place(x, (0.0, 1.5, -2.3)))
         ecrans.append(e)
     s, S = (d.get("enseigne") if isinstance(d.get("enseigne"), dict) else {}), DEFAUT["enseigne"]
     enseigne = {"actif": s.get("actif", True) is not False, "source": K._choix(s.get("source"), SOURCES_ENSEIGNE, "espace"),
                 "texte": K._texte(s.get("texte"), "", MAX_TEXTE), "style": K._choix(s.get("style"), STYLES_ENSEIGNE, "neon"),
                 "couleur": K._couleur(s.get("couleur"), "principale"),
-                "police": K._choix(s.get("police"), POLICES, "Inter"), "ry": _n(s.get("ry"), 0.0, -360, 360),
+                "police": K._choix(s.get("police"), POLICES, "Inter"), "image": _ref_image(s.get("image")),
+                "ry": _n(s.get("ry"), 0.0, -360, 360),
                 "l": _n(s.get("l"), S["l"], 0.2, 6.0)}
+    if enseigne["source"] == "image" and not enseigne["image"]:
+        enseigne["source"] = "espace"                  # « image » sans image : on revient au logo de l'espace
     enseigne.update(_place(s, (S["x"], S["y"], S["z"])))
     r, R = (d.get("presentateur") if isinstance(d.get("presentateur"), dict) else {}), DEFAUT["presentateur"]
     presentateur = {"x": _n(r.get("x"), 0.0, -8, 8), "z": _n(r.get("z"), 0.0, -8, 8), "h": _n(r.get("h"), R["h"], 0.6, 2.4),
@@ -288,7 +304,7 @@ def catalogue() -> dict:
     return {"familles": {f: list(t) for f, t in CATALOGUE.items()}, "motifs": list(MOTIFS),
             "lumieres": list(TYPES_LUMIERE), "mouvements": list(MOUVEMENTS), "usages": list(USAGES),
             "polices": list(POLICES), "styles_enseigne": list(STYLES_ENSEIGNE), "types_texte": list(TYPES_TEXTE),
-            "types_lumineux": list(TYPES_LUMINEUX)}
+            "types_lumineux": list(TYPES_LUMINEUX), "types_image": list(TYPES_IMAGE)}
 
 
 # ── stockage ──

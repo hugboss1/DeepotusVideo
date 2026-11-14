@@ -170,7 +170,7 @@ if "_erreur" not in Hn:
     check("H8 objet neuf : au sol devant le présentateur, au mur du fond à hauteur d'yeux (les tasseaux à 1,2 m), la suspension au plafond — toujours DANS la pièce",
           n7[0]["y"] == 0 and n7[0]["z"] == 0.9 and n7[1]["y"] == 1.6 and abs(n7[1]["z"] + 2.48) < 1e-9 and n7[2]["y"] == 1.2 and n7[3]["y"] == 2.8
           and all(abs(o["x"]) <= 3 and -2.5 <= o["z"] <= 2.5 and o["e"] == 1 for o in n7), n7)
-    check("H9 128 types ; chaque type mural est au catalogue", Hn["types"] == 128 and Hn["muraux"], Hn["types"])
+    check("H9 131 types ; chaque type mural est au catalogue", Hn["types"] == 131 and Hn["muraux"], Hn["types"])
 
 print("[A] atelier")
 An = node(r"""
@@ -203,7 +203,8 @@ console.log(JSON.stringify({
   murs: [G.collerAuMur({x: -2.7, z: 0.3, ry: 0}, d.piece), G.collerAuMur({x: 2.9, z: 9, ry: 0}, d.piece), G.collerAuMur({x: 0.4, z: -2.2, ry: 45}, d.piece), G.collerAuMur({x: -2.9, z: 0.3, ry: 0}, ouvert)],
   touche: [G.toucherPlan(d, [emp], 0, 3, 0.15), G.toucherPlan(d, [emp], -1.8, 2.4, 0.15), G.toucherPlan(d, [emp], 0.05, 0.02, 0.15), G.toucherPlan(d, [emp], 0, 0.9, 0.15),
            G.toucherPlan(d, [emp], 0.5, -2.44, 0.15), G.toucherPlan(d, [emp], 2, -2.44, 0.15), G.toucherPlan(d, [emp], -2.5, -2, 0.15), G.toucherPlan(d, [emp], 0, 2.6, 0.15)],
-  camera: G.cameraNeuve(d), neon: G.lumiereNeuve(d, "neon"), contre: G.lumiereNeuve(d, "contre"), modele: G.objetNeuf(d, "modele", "obj:0123456789abcdef"), pans: G.PANS}));
+  camera: G.cameraNeuve(d), neon: G.lumiereNeuve(d, "neon"), contre: G.lumiereNeuve(d, "contre"), modele: G.objetNeuf(d, "modele", "obj:0123456789abcdef"), pans: G.PANS,
+  images: ["tableau", "logo_mural", "kakemono"].map((t) => G.objetNeuf(d, t, "img:0123456789abcdef")), typesImage: G.TYPES_IMAGE}));
 """ % URL("dz-studiov-logique.js"))
 check("A0 le module se joue sous node", "_erreur" not in An, An.get("_erreur"))
 if "_erreur" not in An:
@@ -234,6 +235,10 @@ if "_erreur" not in An:
           An["camera"]["nom"] == "Caméra 2" and An["camera"]["x"] == 1.2 and An["camera"]["mouvement"] == "fixe" and An["neon"]["type"] == "neon" and An["neon"]["z"] == -2.44
           and An["contre"]["type"] == "contre" and An["contre"]["z"] < 0 and An["modele"]["ref"] == "obj:0123456789abcdef" and An["modele"]["type"] == "modele"
           and An["pans"] == ["sol", "fond", "gauche", "droite", "plafond"], (An["camera"], An["neon"]))
+    im9 = An["images"]
+    check("A12 image de la Bibliothèque : le tableau et le logo se posent au mur du fond à hauteur d'yeux, le kakémono au sol devant ce mur — avec leur référence, dans la pièce",
+          all(o["image"] == "img:0123456789abcdef" and abs(o["x"]) <= 3 and -2.5 <= o["z"] <= 2.5 for o in im9) and im9[0]["y"] == 1.6 and abs(im9[0]["z"] + 2.48) < 1e-9
+          and im9[2]["y"] == 0 and im9[2]["z"] > -2.5 and An["typesImage"] == ["tableau", "logo_mural", "kakemono"], im9)
 
 print("[D] écran déporté (scène t315)")
 D = node(r"""
@@ -326,7 +331,7 @@ composees = ([f"studiov.objet.{t}" for t in SV.TYPES_OBJET] + [f"studiov.famille
              + [f"studiov.lumiere.{t}" for t in SV.TYPES_LUMIERE] + [f"studiov.enseigne.{s}" for s in SV.STYLES_ENSEIGNE]
              + [f"studiov.style.{s['id']}" for s in HV.STYLES] + [f"studiov.ambiance.{a['id']}" for a in HV.AMBIANCES]
              + [f"studiov.finition.{f['id']}" for f in HV.FINITIONS] + [f"studiov.surface.{s}" for s in ("sol", "fond", "gauche", "droite", "plafond")]
-             + [f"studiov.deco.onglet.{o}" for o in ("style", "matieres", "objets", "biblio", "lumieres", "cameras", "enseigne")]
+             + [f"studiov.deco.onglet.{o}" for o in ("style", "matieres", "objets", "bibli", "biblio", "lumieres", "cameras", "enseigne")]
              + ["studiov.deco.role.principale", "studiov.deco.role.accent"] + [f"studiov.vue.{v}" for v in ("cameras", "plan", "libre")]
              + [f"studiov.mouvement.{m}" for m in SV.MOUVEMENTS] + [f"studiov.source.{s}" for s in OV.SOURCES]
              + [f"studiov.licence.{l.lower().replace('-', '_')}" for l in list(OV.LICENCES) + ["CC-BY-NC", "CC-BY-ND", "CC-BY-SA"]])
@@ -340,6 +345,9 @@ check("P14 le moteur ne fabrique aucune adresse depuis la recette : les textures
 check("P15 le décorateur enregistre par le serveur (PUT) et ne retouche jamais un décor livré", 'api("PUT", "/api/studiov/" + encodeURIComponent(id), d.decor)' in sources["dz-studiov.js"]
       and "if (!apercu || apercu.livre || !apercu.habit) return;" in sources["dz-studiov.js"])
 plan_src, ecran_src = sources["dz-studiov-plan.js"], sources["dz-studiov.js"]
+check("P19 images de la Bibliothèque : le moteur lit leur adresse dans l'index servi ; l'écran les fait entrer par le serveur (copie), jamais par leur fichier d'origine",
+      "IMAGES[ref]" in moteur_src and "images: hab ? hab.indexImages : {}" in ecran_src and 'api("POST", "/api/studiov/bibliotheque/image", { filename: imgChoisie })' in ecran_src
+      and 'api("POST", "/api/studiov/bibliotheque/modele", { job: j.id })' in ecran_src and "/api/images/" not in moteur_src)
 check("P16 objets importés : le moteur lit leur fichier dans l'index servi (jamais une adresse de la recette) ; le chargeur GLB vient de l'application",
       "OBJETS[m.ref]" in moteur_src and "F.modele" in moteur_src and 'import("/api/studiov/three/GLTFLoader.js")' in ecran_src and "objets: hab ? hab.indexObjets : {}" in ecran_src)
 check("P17 atelier : le pointeur ignore les halos et le présentateur ; les repères des lumières et des caméras ne se montrent qu'en vue libre",

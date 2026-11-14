@@ -39,7 +39,7 @@ MAX_BIBLIOTHEQUE = 300
 MAX_NOM, MAX_AUTEUR, MAX_URL = 60, 80, 300
 
 SOURCES = ("fichier", "polypizza", "sketchfab", "blenderkit", "polyhaven", "ambientcg", "kenney", "quaternius",
-           "blender", "creation")
+           "blender", "creation", "bibliotheque")
 # ce que chaque licence ACCEPTÉE permet (None = à vérifier par l'utilisateur : l'application ne l'affirme pas)
 LICENCES = {
     "CC0": {"video": True, "export": True, "partage": True, "credit": False},
@@ -135,7 +135,7 @@ def licence_propre(licence, source) -> str:
         raise RefusObjet("Licence refusée : elle interdit de sortir le fichier du service d'origine.", 409)
     if source == "blenderkit" and brute != "CC0":
         return "BLENDERKIT-RF"                                         # tout ce qui n'est pas CC0 chez eux est « Royalty Free »
-    if source == "creation":
+    if source in ("creation", "bibliotheque"):       # ce que l'utilisateur a fait ou généré dans l'application est à lui
         return "CREATION"
     return brute if brute in LICENCES else "A-VERIFIER"
 
@@ -226,12 +226,48 @@ def importer(octets: bytes, meta: dict | None = None) -> dict:
             (d / "modele.glb").write_bytes(bytes(octets))
             fiche = {"nom": S.K._texte(m.get("nom"), "", MAX_NOM) or "Objet importé", "source": source,
                      "auteur": S.K._texte(m.get("auteur"), "", MAX_AUTEUR), "licence": licence, "url": _url(m.get("url")),
-                     "octets": len(octets), "cree": S.K._maintenant(), **mesure}
+                     "octets": len(octets), "cree": S.K._maintenant(), "origine": S.K._texte(m.get("origine"), "", 200), **mesure}
             S.K._ecrire_json(d / "fiche.json", fiche)
         except OSError:
             shutil.rmtree(d, ignore_errors=True)
             raise RefusObjet("L'objet n'a pas pu être enregistré.", 500) from None
     return lire(oid)
+
+
+MODELE_BIB = re.compile(r"^model(\.v[0-9]{1,3}|\.opt)?\.glb$")
+
+
+def depuis_bibliotheque(job, fichier=None) -> dict:
+    """Recopie un modèle 3D GÉNÉRÉ dans l'application (Game Assets 3D, Établi : outputs/assets3d/<job>) dans la
+    bibliothèque d'objets du studio. Sans `fichier` : la version décimée si elle existe (elle est faite pour le temps
+    réel), sinon la dernière version. Le même fichier, inchangé, n'est copié qu'une fois."""
+    from app.config import settings
+    nom_job = job if isinstance(job, str) and job and Path(job).name == job else ""      # un NOM de dossier, jamais un chemin
+    d = settings.outputs_path / "assets3d" / nom_job
+    if not nom_job or nom_job.startswith(("_", ".")) or not d.is_dir():
+        raise RefusObjet("Modèle 3D introuvable dans la Bibliothèque.", 404)
+    if fichier is not None:
+        if not isinstance(fichier, str) or not MODELE_BIB.match(fichier) or not (d / fichier).is_file():
+            raise RefusObjet("Modèle 3D introuvable dans la Bibliothèque.", 404)
+        f = d / fichier
+    else:
+        versions = sorted((x for x in d.glob("model*.glb") if MODELE_BIB.match(x.name) and x.name != "model.opt.glb"),
+                          key=lambda x: int(re.sub(r"[^0-9]", "", x.name) or 1))
+        f = d / "model.opt.glb" if (d / "model.opt.glb").is_file() else (versions[-1] if versions else None)
+        if f is None:
+            raise RefusObjet("Modèle 3D introuvable dans la Bibliothèque.", 404)
+    st = f.stat()
+    cle = f"assets3d:{nom_job}:{f.name}:{st.st_size}:{st.st_mtime_ns}"
+    for v in lister():
+        if _fiche(v["id"]).get("origine") == cle:
+            return v
+    nom = nom_job
+    try:
+        manifeste = json.loads((d / "asset.json").read_text("utf-8"))
+        nom = (manifeste.get("name") if isinstance(manifeste, dict) else None) or nom_job
+    except (OSError, ValueError):
+        pass
+    return importer(f.read_bytes(), {"nom": nom, "source": "bibliotheque", "licence": "CREATION", "origine": cle})
 
 
 def decors_qui_emploient(oid: str) -> list:
@@ -254,7 +290,7 @@ def supprimer(oid: str) -> None:
 
 NOMS_SOURCE = {"polypizza": "Poly Pizza", "sketchfab": "Sketchfab", "blenderkit": "BlenderKit", "polyhaven": "Poly Haven",
                "ambientcg": "ambientCG", "kenney": "Kenney", "quaternius": "Quaternius", "blender": "Blender",
-               "creation": "", "fichier": ""}
+               "creation": "", "fichier": "", "bibliotheque": ""}
 NOMS_LICENCE = {"CC0": "CC0", "CC-BY": "CC BY", "BLENDERKIT-RF": "BlenderKit Royalty Free", "CREATION": "", "A-VERIFIER": ""}
 
 
@@ -275,6 +311,21 @@ def credits(decor: dict) -> dict:
         lignes.append({"ref": ref, "nom": v["nom"], "auteur": v["auteur"], "licence": v["licence"], "source": v["source"],
                        "url": v["url"], "obligatoire": bool(v["droits"]["credit"]), "a_verifier": v["droits"]["video"] is None,
                        "export": bool(v["droits"]["export"]), "partage": bool(v["droits"]["partage"])})
+    # les images venues de la Bibliothèque : celles dont la licence demande un crédit, ou reste à vérifier
+    from app.services import studiov_images as SI
+    for ref in sorted(SI.emplois(decor)):
+        try:
+            im = SI.lire(ref[4:])
+        except SI.RefusImage:
+            absents += 1
+            continue
+        lic = im["licence"].strip()
+        norme = lic.upper().replace(" ", "-")
+        if not lic or lic.lower() in ("propriétaire", "proprietaire") or norme.startswith("CC0"):
+            continue                                   # à l'utilisateur, ou libre : rien à citer
+        du = norme.startswith("CC-BY") and not any(x in norme for x in ("-NC", "-ND", "-SA"))
+        lignes.append({"ref": ref, "nom": im["nom"], "auteur": im["auteur"], "licence": "CC-BY" if du else "A-VERIFIER", "source": "bibliotheque",
+                       "url": "", "obligatoire": du, "a_verifier": not du, "export": True, "partage": True})
     lignes.sort(key=lambda x: (not x["obligatoire"], x["nom"].lower()))
 
     def phrase(x, en):
@@ -285,7 +336,7 @@ def credits(decor: dict) -> dict:
                f"\"{x['nom']}\"{par}{lic}{via}{' — ' + x['url'] if x['url'] else ''}"
     dus = [x for x in lignes if x["obligatoire"]]
     return {"lignes": lignes, "absents": absents,
-            "texte_fr": ("Modèles 3D du décor :\n" + "\n".join("- " + phrase(x, False) for x in dus)) if dus else "",
-            "texte_en": ("3D models in the set:\n" + "\n".join("- " + phrase(x, True) for x in dus)) if dus else "",
+            "texte_fr": ("Crédits du décor :\n" + "\n".join("- " + phrase(x, False) for x in dus)) if dus else "",
+            "texte_en": ("Set credits:\n" + "\n".join("- " + phrase(x, True) for x in dus)) if dus else "",
             "export": all(x["export"] for x in lignes), "partage": all(x["partage"] for x in lignes),
             "a_verifier": [x["nom"] for x in lignes if x["a_verifier"]]}

@@ -29,7 +29,7 @@ export const TYPES = ["bureau", "table", "table_ronde", "pupitre", "etabli", "bu
   "nuage", "arbre_cartoon", "champignon", "etoile", "but_foot", "ballon_foot", "gradin", "tableau_tactique",
   "fanion", "maillot", "echarpe", "crampons", "plot", "panier_basket", "ballon_basket", "ballon_ovale", "batte",
   "casque_foot_us", "raquette", "balle_tennis", "haltere", "gant_boxe", "skateboard", "trophee", "coupe", "medaille",
-  "plaque_createur", "modele"];
+  "plaque_createur", "modele", "tableau", "logo_mural", "kakemono"];
 
 // ── couleurs : un rôle (principale, accent, texte, fond) ou un #rrggbb ──
 export function palette(contexte) {
@@ -192,12 +192,16 @@ export function appliquerStyle(decor, style, ambiances, lumineux) {
 export const MURAUX = ["cadre", "horloge", "fenetre", "affiche", "miroir", "vinyle_mural", "mur_lattes", "panneau_perfore",
   "panneau_acoustique", "neon_barre", "neon_anneau", "guirlande", "ruban_led", "panneau_hexa", "applique", "lampe_coucher",
   "neon_texte", "lettres_retro", "caisson_lumineux", "panneau_direct", "etagere_murale", "guitare", "echarpe", "medaille",
-  "plaque_createur", "maillot", "raquette", "skateboard", "hublot", "nuage", "etoile"];
+  "plaque_createur", "maillot", "raquette", "skateboard", "hublot", "nuage", "etoile", "tableau", "logo_mural"];
+// SVB : les objets qui montrent une image de la Bibliothèque de l'application (champ `image`)
+export const TYPES_IMAGE = ["tableau", "logo_mural", "kakemono"];
 export function objetNeuf(decor, type, ref) {
   const P = (decor && decor.piece) || { l: 6, p: 5, h: 2.8 }, n = ((decor && decor.objets) || []).length;
   const dx = ((n % 5) - 2) * 0.45;
   if (type === "suspension") return { type, x: dx, y: P.h, z: -0.6, ry: 0, e: 1 };
   if (type === "modele") return { type, x: dx, y: 0, z: 0.9, ry: 0, e: 1, ref };
+  if (type === "kakemono") return { type, x: borne(dx * 3 + 1.8, -P.l / 2 + 0.5, P.l / 2 - 0.5), y: 0, z: -P.p / 2 + 0.7, ry: 0, e: 1, image: ref };
+  if (TYPES_IMAGE.indexOf(type) >= 0) return { type, x: borne(dx * 2, -P.l / 2 + 0.6, P.l / 2 - 0.6), y: 1.6, z: -P.p / 2 + 0.02, ry: 0, e: 1, image: ref };
   if (MURAUX.indexOf(type) >= 0) return { type, x: borne(dx * 2, -P.l / 2 + 0.6, P.l / 2 - 0.6), y: type === "mur_lattes" ? 1.2 : 1.6, z: -P.p / 2 + 0.02, ry: 0, e: 1 };
   return { type, x: dx, y: 0, z: 0.9, ry: 0, e: 1 };
 }

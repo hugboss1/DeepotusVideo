@@ -21,6 +21,10 @@ Boucle locale SEULEMENT (`routes._require_localhost`). L'espace est celui de la 
 - `GET    /objets/{id}/modele.glb` ; `DELETE /objets/{id}` (409 s'il est posé dans un décor)
 - `POST   /blender/objets`   {blend} -> {objets} ; `POST /blender/exporter` {blend, objet, …} -> la fiche (GLB sorti de Blender)
 - `GET    /{id}/credits`     les crédits du décor et ce que ses licences permettent (export, partage)
+- `GET    /bibliotheque/vignette?f=<fichier>`  la vignette d'une image de la Bibliothèque de l'application (lot SVB)
+- `POST   /bibliotheque/image`  {filename} -> la fiche de l'image recopiée dans le studio (référence `img:`)
+- `POST   /bibliotheque/modele` {job, fichier?} -> la fiche du modèle 3D généré, recopié dans les objets du studio
+- `GET    /images/{id}/fichier` ; `DELETE /images/{id}` (409 si un décor l'emploie)
 - `GET    /three/{module}.js` un chargeur three.js embarqué, ses imports réécrits pour la coque (GLTFLoader et ses deux aides)
 Aucun réseau, aucune dépense. Journaux : identifiants seulement."""
 from __future__ import annotations
@@ -34,6 +38,7 @@ from loguru import logger
 
 from app.services import studiov as S
 from app.services import studiov_habillage as H
+from app.services import studiov_images as SI
 from app.services import studiov_objets as OB
 
 router = APIRouter()
@@ -141,6 +146,58 @@ async def _objet(f, *args):
         raise HTTPException(e.statut, str(e)) from None
     except H.RefusHabillage as e:
         raise HTTPException(e.statut, str(e)) from None
+
+
+async def _image(f, *args):
+    try:
+        return await asyncio.to_thread(f, *args)
+    except SI.RefusImage as e:
+        raise HTTPException(e.statut, str(e)) from None
+
+
+@router.get("/bibliotheque/vignette")
+async def bibliotheque_vignette(request: Request, f: str = ""):
+    _local(request)
+    octets = await _image(SI.vignette_bibliotheque, f)
+    return Response(content=octets, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
+
+
+@router.post("/bibliotheque/image")
+async def bibliotheque_image(request: Request):
+    _local(request)
+    d = await _json(request, 8 * 1024)
+    connu = {}
+    try:                                                    # la licence et l'auteur que la Bibliothèque connaît
+        from app.services import library_index as LI
+        connu = (await LI.carte()).get(d.get("filename")) or {}
+    except Exception:                                       # noqa: BLE001 — index indisponible : l'image entre sans provenance
+        connu = {}
+    v = await _image(SI.depuis_bibliotheque, d.get("filename"), connu)
+    logger.info("studiov: image de la Bibliothèque recopiée {}", v["id"])
+    return v
+
+
+@router.post("/bibliotheque/modele")
+async def bibliotheque_modele(request: Request):
+    _local(request)
+    d = await _json(request, 8 * 1024)
+    v = await _objet(OB.depuis_bibliotheque, d.get("job"), d.get("fichier"))
+    logger.info("studiov: modèle 3D de la Bibliothèque recopié {}", v["id"])
+    return v
+
+
+@router.get("/images/{iid}/fichier")
+async def image_fichier(iid: str, request: Request):
+    _local(request)
+    f = await _image(SI.chemin, iid)
+    return FileResponse(f, media_type="image/png" if f.suffix == ".png" else "image/jpeg", headers={"Cache-Control": "no-cache"})
+
+
+@router.delete("/images/{iid}")
+async def image_supprimer(iid: str, request: Request):
+    _local(request)
+    await _image(SI.supprimer, iid)
+    return {"supprime": iid}
 
 
 @router.get("/objets")
