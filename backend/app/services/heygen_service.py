@@ -536,13 +536,14 @@ class HeyGenClient:
         title: Optional[str] = None,
     ) -> dict:
         """/v3/videos body, type=image: animate ANY still (photo→talking video).
-        No background field — the image itself is the frame."""
+        No background field — the image itself is the frame. No « engine » either:
+        HeyGen v3 refuses it on type=image (400 « Extra inputs are not permitted ») ;
+        ``engine`` only decides whether ``expressiveness`` (Avatar IV) is sent."""
         body: dict = {
             "type": "image",
             "image": HeyGenClient._b64_image(image_path),
             "script": text[:4900],
             "voice_id": voice_id,
-            "engine": {"type": engine},
             "aspect_ratio": aspect_ratio,
             "resolution": "1080p",
             "voice_settings": {"speed": max(0.5, min(1.5, speed))},
@@ -561,7 +562,7 @@ class HeyGenClient:
         poll_video_status_v3)."""
         body = self.build_v3_image_body(image_path, text, voice_id, **kw)
         logger.info(f"Submitting HeyGen v3 IMAGE video: {image_path.name}, "
-                    f"engine={body['engine']['type']}")
+                    f"engine={kw.get('engine', 'avatar_iv')}")
         result = await self._post("/v3/videos", body)
         payload = result.get("data") if isinstance(result.get("data"), dict) else result
         video_id = payload.get("video_id") or payload.get("id")
