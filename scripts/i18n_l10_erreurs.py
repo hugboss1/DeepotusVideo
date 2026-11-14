@@ -41,6 +41,7 @@ ERREURS = {"RefusInspiration", "InspirationInconnue", "InspirationEnCours",   # 
            "ScanIndisponible", "ScanErreur", "CoutChange",   # t312 : refus du pont Windows.Media.Ocr (scan_ocr)
            "RefusCapture",   # t315 : refus des sessions de capture (400/404/409/413/415)
            "RefusSkin", "RefusMontage", "RefusTutoriel",   # t317 : refus du montage des captures ; t316 : refus des skins de capture (400/404/409/413/415)
+           "RefusStudio",   # SV1 : refus du studio virtuel 3D (400/404/409)
            "RefusLive",   # t318 : refus du direct multi-destinations (400/404/409)
            "RefusPages", "AppelEchoue", "VisionEnCours",
            "RefusAccord",   # t314 : devis du détourage d'un schéma non accepté (409 {message, usd})   # revue finale t312 : AppelEchoue = premier appel Claude en échec réseau   # t312 tâche 4 : dépôt refusé par scan_pages.charger (400/413/415/422)

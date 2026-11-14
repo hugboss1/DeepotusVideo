@@ -1,0 +1,4415 @@
+{
+ "livre-tech": {
+  "nom": "Bureau créateur tech",
+  "famille": "createur",
+  "piece": {
+   "l": 6.0,
+   "p": 5.0,
+   "h": 2.8,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": false
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#2b2622",
+    "rugosite": 0.55,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "parquet",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#1d2128",
+    "rugosite": 0.9,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#14171c",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "bois": {
+    "couleur": "#7a5a3c",
+    "rugosite": 0.6,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "bois",
+    "echelle": 1.0
+   },
+   "noir": {
+    "couleur": "#15171b",
+    "rugosite": 0.45,
+    "metal": 0.2,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "lattes": {
+    "couleur": "#3b2f26",
+    "rugosite": 0.7,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "lattes",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "cle",
+    "couleur": "#fff1dc",
+    "intensite": 3.2,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -1.8,
+    "y": 2.3,
+    "z": 2.4
+   },
+   {
+    "type": "appoint",
+    "couleur": "#cfe0ff",
+    "intensite": 1.1,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.2,
+    "y": 1.8,
+    "z": 2.2
+   },
+   {
+    "type": "contre",
+    "couleur": "accent",
+    "intensite": 2.4,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 1.4,
+    "y": 2.5,
+    "z": -1.6
+   },
+   {
+    "type": "neon",
+    "couleur": "principale",
+    "intensite": 3.5,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.8,
+    "h": 0.05,
+    "ry": 90.0,
+    "x": -2.0,
+    "y": 1.2,
+    "z": -2.42
+   },
+   {
+    "type": "neon",
+    "couleur": "accent",
+    "intensite": 3.5,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.8,
+    "h": 0.05,
+    "ry": 90.0,
+    "x": 2.0,
+    "y": 1.2,
+    "z": -2.42
+   },
+   {
+    "type": "ambiance",
+    "couleur": "#8fa3c8",
+    "intensite": 0.5,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 2.6,
+    "z": 0.0
+   }
+  ],
+  "objets": [
+   {
+    "type": "bureau",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.55
+   },
+   {
+    "type": "ecran_bureau",
+    "ry": 20.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -0.55,
+    "y": 0.75,
+    "z": 0.45
+   },
+   {
+    "type": "micro_bras",
+    "ry": -30.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.6,
+    "y": 0.75,
+    "z": 0.5
+   },
+   {
+    "type": "etagere",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "noir",
+    "couleur": null,
+    "x": -1.9,
+    "y": 0.0,
+    "z": -2.25
+   },
+   {
+    "type": "etagere",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "noir",
+    "couleur": null,
+    "x": 1.9,
+    "y": 0.0,
+    "z": -2.25
+   },
+   {
+    "type": "plante",
+    "ry": 0.0,
+    "e": 1.2,
+    "matiere": null,
+    "couleur": null,
+    "x": -2.6,
+    "y": 0.0,
+    "z": -1.6
+   },
+   {
+    "type": "lampe",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "accent",
+    "x": 0.75,
+    "y": 0.75,
+    "z": 0.35
+   },
+   {
+    "type": "panneau_acoustique",
+    "ry": 90.0,
+    "e": 1.0,
+    "matiere": "lattes",
+    "couleur": null,
+    "x": -2.95,
+    "y": 1.5,
+    "z": -0.4
+   },
+   {
+    "type": "panneau_acoustique",
+    "ry": 90.0,
+    "e": 1.0,
+    "matiere": "lattes",
+    "couleur": null,
+    "x": -2.95,
+    "y": 1.5,
+    "z": 0.9
+   },
+   {
+    "type": "cadre",
+    "ry": -90.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 2.95,
+    "y": 1.6,
+    "z": -0.6
+   },
+   {
+    "type": "tapis",
+    "ry": 0.0,
+    "e": 1.4,
+    "matiere": null,
+    "couleur": "#23262d",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.3
+   },
+   {
+    "type": "fauteuil",
+    "ry": 180.0,
+    "e": 1.0,
+    "matiere": "noir",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": -0.1
+   },
+   {
+    "type": "camera_pied",
+    "ry": -140.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 2.3,
+    "y": 0.0,
+    "z": 1.4
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 0.0,
+    "l": 1.9,
+    "h": 1.07,
+    "source": "ecran",
+    "bord": "#0c0d10",
+    "x": 0.0,
+    "y": 1.55,
+    "z": -2.44
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "neon",
+   "couleur": "principale",
+   "ry": 0.0,
+   "l": 1.1,
+   "x": 0.0,
+   "y": 2.35,
+   "z": -2.44
+  },
+  "presentateur": {
+   "x": 0.0,
+   "z": 0.0,
+   "h": 1.3,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.25,
+   "assis": true
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.05,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.25,
+    "z": 3.1
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.15,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.15,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.1,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.2,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     0.0,
+     1.55,
+     -2.44
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": 0.0,
+    "y": 1.55,
+    "z": 0.03
+   }
+  ],
+  "ambiance": {
+   "fond": "#090b0f",
+   "brouillard": 0.0,
+   "exposition": 1.05,
+   "flou_fond": 0.35,
+   "grain": 0.0,
+   "vignette": 0.3
+  },
+  "mode": "plateau"
+ },
+ "livre-podcast": {
+  "nom": "Podcast à deux",
+  "famille": "createur",
+  "piece": {
+   "l": 6.5,
+   "p": 5.0,
+   "h": 2.8,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": false
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#1f1b19",
+    "rugosite": 0.7,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "parquet",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#2a1f1c",
+    "rugosite": 0.95,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#120f0e",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "bois": {
+    "couleur": "#5d4330",
+    "rugosite": 0.55,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "bois",
+    "echelle": 1.0
+   },
+   "mousse": {
+    "couleur": "#3a2a25",
+    "rugosite": 1.0,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "grille",
+    "echelle": 1.0
+   },
+   "cuir": {
+    "couleur": "#3b2418",
+    "rugosite": 0.5,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "cle",
+    "couleur": "#ffd9a8",
+    "intensite": 3.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -1.6,
+    "y": 2.3,
+    "z": 2.2
+   },
+   {
+    "type": "appoint",
+    "couleur": "#ffe8cf",
+    "intensite": 1.3,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.0,
+    "y": 1.9,
+    "z": 2.2
+   },
+   {
+    "type": "contre",
+    "couleur": "principale",
+    "intensite": 2.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 2.5,
+    "z": -1.8
+   },
+   {
+    "type": "neon",
+    "couleur": "accent",
+    "intensite": 2.2,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 2.4,
+    "h": 0.05,
+    "ry": 90.0,
+    "x": 0.0,
+    "y": 2.05,
+    "z": -2.42
+   },
+   {
+    "type": "ambiance",
+    "couleur": "#ffb070",
+    "intensite": 0.35,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 2.6,
+    "z": 0.0
+   }
+  ],
+  "objets": [
+   {
+    "type": "table_ronde",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.5
+   },
+   {
+    "type": "fauteuil",
+    "ry": 110.0,
+    "e": 1.0,
+    "matiere": "cuir",
+    "couleur": null,
+    "x": -0.95,
+    "y": 0.0,
+    "z": 0.2
+   },
+   {
+    "type": "fauteuil",
+    "ry": -110.0,
+    "e": 1.0,
+    "matiere": "cuir",
+    "couleur": null,
+    "x": 0.95,
+    "y": 0.0,
+    "z": 0.2
+   },
+   {
+    "type": "micro_bras",
+    "ry": 60.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -0.45,
+    "y": 0.74,
+    "z": 0.5
+   },
+   {
+    "type": "micro_bras",
+    "ry": -60.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.45,
+    "y": 0.74,
+    "z": 0.5
+   },
+   {
+    "type": "casque",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.74,
+    "z": 0.7
+   },
+   {
+    "type": "panneau_acoustique",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "mousse",
+    "couleur": null,
+    "x": -1.8,
+    "y": 1.5,
+    "z": -2.44
+   },
+   {
+    "type": "panneau_acoustique",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "mousse",
+    "couleur": null,
+    "x": 1.8,
+    "y": 1.5,
+    "z": -2.44
+   },
+   {
+    "type": "panneau_acoustique",
+    "ry": 90.0,
+    "e": 1.0,
+    "matiere": "mousse",
+    "couleur": null,
+    "x": -3.2,
+    "y": 1.5,
+    "z": -0.5
+   },
+   {
+    "type": "panneau_acoustique",
+    "ry": -90.0,
+    "e": 1.0,
+    "matiere": "mousse",
+    "couleur": null,
+    "x": 3.2,
+    "y": 1.5,
+    "z": -0.5
+   },
+   {
+    "type": "lampadaire",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ffb46b",
+    "x": -2.6,
+    "y": 0.0,
+    "z": -1.9
+   },
+   {
+    "type": "plante",
+    "ry": 0.0,
+    "e": 1.3,
+    "matiere": null,
+    "couleur": null,
+    "x": 2.7,
+    "y": 0.0,
+    "z": -1.9
+   },
+   {
+    "type": "tapis",
+    "ry": 0.0,
+    "e": 1.7,
+    "matiere": null,
+    "couleur": "#4a2b22",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.4
+   },
+   {
+    "type": "softbox",
+    "ry": 40.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -2.4,
+    "y": 0.0,
+    "z": 1.9
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 0.0,
+    "l": 1.5,
+    "h": 0.85,
+    "source": "ecran",
+    "bord": "#0c0d10",
+    "x": 0.0,
+    "y": 1.35,
+    "z": -2.44
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "neon",
+   "couleur": "accent",
+   "ry": 0.0,
+   "l": 1.6,
+   "x": 0.0,
+   "y": 2.3,
+   "z": -2.44
+  },
+  "presentateur": {
+   "x": -0.95,
+   "z": 0.2,
+   "h": 1.3,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.25,
+   "assis": true
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.05,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.25,
+    "z": 3.3
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.15,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.15,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.1,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.2,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     0.0,
+     1.35,
+     -2.44
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": 0.0,
+    "y": 1.35,
+    "z": -0.49
+   }
+  ],
+  "ambiance": {
+   "fond": "#0a0706",
+   "brouillard": 0.0,
+   "exposition": 1.0,
+   "flou_fond": 0.4,
+   "grain": 0.05,
+   "vignette": 0.4
+  },
+  "mode": "plateau"
+ },
+ "livre-loft": {
+  "nom": "Loft chaleureux",
+  "famille": "createur",
+  "piece": {
+   "l": 7.0,
+   "p": 5.5,
+   "h": 3.2,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": false
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#8a6a4a",
+    "rugosite": 0.5,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "parquet",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#a2553d",
+    "rugosite": 0.95,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "brique",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#e8e2d8",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "bois": {
+    "couleur": "#a47a50",
+    "rugosite": 0.6,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "bois",
+    "echelle": 1.0
+   },
+   "tissu": {
+    "couleur": "#c9b79c",
+    "rugosite": 1.0,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "tissu",
+    "echelle": 1.0
+   },
+   "blanc": {
+    "couleur": "#efe9df",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "fenetre",
+    "couleur": "#fff4dc",
+    "intensite": 5.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.6,
+    "h": 1.8,
+    "ry": 90.0,
+    "x": -3.45,
+    "y": 1.7,
+    "z": -0.6
+   },
+   {
+    "type": "cle",
+    "couleur": "#fff0d6",
+    "intensite": 2.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -2.2,
+    "y": 2.2,
+    "z": 1.8
+   },
+   {
+    "type": "appoint",
+    "couleur": "#ffe2c0",
+    "intensite": 1.2,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.2,
+    "y": 1.8,
+    "z": 2.2
+   },
+   {
+    "type": "contre",
+    "couleur": "#ffc890",
+    "intensite": 1.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 1.6,
+    "y": 2.6,
+    "z": -1.8
+   },
+   {
+    "type": "ambiance",
+    "couleur": "#ffe9cf",
+    "intensite": 0.9,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 3.0,
+    "z": 0.0
+   }
+  ],
+  "objets": [
+   {
+    "type": "canape",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "tissu",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": -1.3
+   },
+   {
+    "type": "bibliotheque",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "x": 2.3,
+    "y": 0.0,
+    "z": -2.5
+   },
+   {
+    "type": "plante",
+    "ry": 0.0,
+    "e": 1.6,
+    "matiere": null,
+    "couleur": null,
+    "x": -2.6,
+    "y": 0.0,
+    "z": -2.1
+   },
+   {
+    "type": "plante",
+    "ry": 0.0,
+    "e": 1.1,
+    "matiere": null,
+    "couleur": null,
+    "x": 3.0,
+    "y": 0.0,
+    "z": -0.9
+   },
+   {
+    "type": "lampadaire",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ffca8a",
+    "x": -1.7,
+    "y": 0.0,
+    "z": -1.9
+   },
+   {
+    "type": "table",
+    "ry": 0.0,
+    "e": 0.7,
+    "matiere": "bois",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.6
+   },
+   {
+    "type": "tapis",
+    "ry": 0.0,
+    "e": 2.0,
+    "matiere": null,
+    "couleur": "#d6c3a3",
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.0
+   },
+   {
+    "type": "cadre",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -1.0,
+    "y": 1.9,
+    "z": -2.72
+   },
+   {
+    "type": "cadre",
+    "ry": 0.0,
+    "e": 0.7,
+    "matiere": null,
+    "couleur": null,
+    "x": -0.2,
+    "y": 2.0,
+    "z": -2.72
+   },
+   {
+    "type": "fenetre",
+    "ry": 90.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -3.48,
+    "y": 1.7,
+    "z": -0.6
+   },
+   {
+    "type": "guirlande",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.0,
+    "y": 2.75,
+    "z": -2.6
+   },
+   {
+    "type": "horloge",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 1.0,
+    "y": 2.2,
+    "z": -2.72
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 60.0,
+    "l": 1.4,
+    "h": 0.8,
+    "source": "ecran",
+    "bord": "#efe9df",
+    "x": -3.1,
+    "y": 1.5,
+    "z": 1.2
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "panneau",
+   "couleur": "principale",
+   "ry": 0.0,
+   "l": 0.8,
+   "x": 1.0,
+   "y": 1.55,
+   "z": -2.72
+  },
+  "presentateur": {
+   "x": 0.0,
+   "z": -0.2,
+   "h": 1.7,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.25,
+   "assis": false
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.32,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.52,
+    "z": 3.1
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.42,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.42,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.37,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.47,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     -3.1,
+     1.5,
+     1.2
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": -1.524,
+    "y": 1.5,
+    "z": 2.11
+   }
+  ],
+  "ambiance": {
+   "fond": "#d9cdbc",
+   "brouillard": 0.0,
+   "exposition": 1.15,
+   "flou_fond": 0.3,
+   "grain": 0.0,
+   "vignette": 0.15
+  },
+  "mode": "plateau"
+ },
+ "livre-actualite": {
+  "nom": "Plateau d'actualité",
+  "famille": "plateau",
+  "piece": {
+   "l": 9.0,
+   "p": 6.0,
+   "h": 3.4,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": false
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#0d1220",
+    "rugosite": 0.12,
+    "metal": 0.3,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#101a30",
+    "rugosite": 0.6,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#070b14",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "laque": {
+    "couleur": "#eef2f8",
+    "rugosite": 0.2,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "verre": {
+    "couleur": "#16284a",
+    "rugosite": 0.08,
+    "metal": 0.6,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "alu": {
+    "couleur": "#9aa6b8",
+    "rugosite": 0.3,
+    "metal": 0.9,
+    "emission": 0.0,
+    "motif": "metal",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "cle",
+    "couleur": "#ffffff",
+    "intensite": 3.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -2.0,
+    "y": 2.8,
+    "z": 2.8
+   },
+   {
+    "type": "appoint",
+    "couleur": "#dbe8ff",
+    "intensite": 1.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.4,
+    "y": 2.4,
+    "z": 2.6
+   },
+   {
+    "type": "contre",
+    "couleur": "accent",
+    "intensite": 2.8,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 3.1,
+    "z": -1.6
+   },
+   {
+    "type": "neon",
+    "couleur": "principale",
+    "intensite": 4.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 2.6,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -3.2,
+    "y": 0.05,
+    "z": -2.9
+   },
+   {
+    "type": "neon",
+    "couleur": "principale",
+    "intensite": 4.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 2.6,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 3.2,
+    "y": 0.05,
+    "z": -2.9
+   },
+   {
+    "type": "neon",
+    "couleur": "accent",
+    "intensite": 3.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 7.5,
+    "h": 0.05,
+    "ry": 90.0,
+    "x": 0.0,
+    "y": 3.2,
+    "z": -2.9
+   },
+   {
+    "type": "ambiance",
+    "couleur": "#3050a0",
+    "intensite": 0.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 3.2,
+    "z": 0.0
+   }
+  ],
+  "objets": [
+   {
+    "type": "bureau",
+    "ry": 0.0,
+    "e": 1.25,
+    "matiere": "laque",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.75
+   },
+   {
+    "type": "colonne",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "alu",
+    "couleur": null,
+    "x": -3.4,
+    "y": 0.0,
+    "z": -2.6
+   },
+   {
+    "type": "colonne",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "alu",
+    "couleur": null,
+    "x": 3.4,
+    "y": 0.0,
+    "z": -2.6
+   },
+   {
+    "type": "projecteur",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -2.4,
+    "y": 3.3,
+    "z": 1.2
+   },
+   {
+    "type": "projecteur",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 2.4,
+    "y": 3.3,
+    "z": 1.2
+   },
+   {
+    "type": "projecteur",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.0,
+    "y": 3.3,
+    "z": 1.6
+   },
+   {
+    "type": "tube_lumineux",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "x": -4.3,
+    "y": 0.0,
+    "z": -1.2
+   },
+   {
+    "type": "tube_lumineux",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "x": 4.3,
+    "y": 0.0,
+    "z": -1.2
+   },
+   {
+    "type": "camera_pied",
+    "ry": -140.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 3.4,
+    "y": 0.0,
+    "z": 2.2
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 0.0,
+    "l": 4.2,
+    "h": 2.36,
+    "source": "ecran",
+    "bord": "#0a1020",
+    "x": 0.0,
+    "y": 1.75,
+    "z": -2.94
+   },
+   {
+    "ry": 50.0,
+    "l": 1.6,
+    "h": 0.9,
+    "source": "image",
+    "bord": "#0c0d10",
+    "x": -3.9,
+    "y": 1.6,
+    "z": -1.6
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "ecran",
+   "couleur": "principale",
+   "ry": -50.0,
+   "l": 1.3,
+   "x": 3.9,
+   "y": 1.6,
+   "z": -1.6
+  },
+  "presentateur": {
+   "x": 0.0,
+   "z": 0.0,
+   "h": 1.7,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.25,
+   "assis": false
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.32,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.52,
+    "z": 3.8
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.42,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.42,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.37,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.47,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     0.0,
+     1.75,
+     -2.94
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": 0.0,
+    "y": 1.75,
+    "z": 2.52
+   }
+  ],
+  "ambiance": {
+   "fond": "#050810",
+   "brouillard": 0.0,
+   "exposition": 1.1,
+   "flou_fond": 0.0,
+   "grain": 0.0,
+   "vignette": 0.2
+  },
+  "mode": "plateau"
+ },
+ "livre-gaming": {
+  "nom": "Gaming néon",
+  "famille": "createur",
+  "piece": {
+   "l": 5.5,
+   "p": 4.6,
+   "h": 2.7,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": false
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#0c0a14",
+    "rugosite": 0.25,
+    "metal": 0.2,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#120d1f",
+    "rugosite": 0.9,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#08060e",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "noir": {
+    "couleur": "#0e0e12",
+    "rugosite": 0.4,
+    "metal": 0.3,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "hex": {
+    "couleur": "#1a1330",
+    "rugosite": 0.9,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "grille",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "cle",
+    "couleur": "#c9a8ff",
+    "intensite": 2.2,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -1.4,
+    "y": 2.1,
+    "z": 2.0
+   },
+   {
+    "type": "appoint",
+    "couleur": "#7ae7ff",
+    "intensite": 1.2,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 1.8,
+    "y": 1.6,
+    "z": 2.0
+   },
+   {
+    "type": "contre",
+    "couleur": "#ff2bd6",
+    "intensite": 3.2,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -1.6,
+    "y": 2.3,
+    "z": -1.5
+   },
+   {
+    "type": "contre",
+    "couleur": "#00e5ff",
+    "intensite": 3.2,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 1.6,
+    "y": 2.3,
+    "z": -1.5
+   },
+   {
+    "type": "neon",
+    "couleur": "#ff2bd6",
+    "intensite": 4.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 2.2,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -2.7,
+    "y": 1.4,
+    "z": -1.0
+   },
+   {
+    "type": "neon",
+    "couleur": "#00e5ff",
+    "intensite": 4.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 2.2,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.7,
+    "y": 1.4,
+    "z": -1.0
+   },
+   {
+    "type": "neon",
+    "couleur": "#8a4bff",
+    "intensite": 4.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 5.0,
+    "h": 0.05,
+    "ry": 90.0,
+    "x": 0.0,
+    "y": 0.05,
+    "z": -2.24
+   }
+  ],
+  "objets": [
+   {
+    "type": "bureau",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "noir",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.5
+   },
+   {
+    "type": "ecran_bureau",
+    "ry": 18.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -0.55,
+    "y": 0.75,
+    "z": 0.4
+   },
+   {
+    "type": "ecran_bureau",
+    "ry": -18.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.55,
+    "y": 0.75,
+    "z": 0.4
+   },
+   {
+    "type": "fauteuil",
+    "ry": 180.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ff2bd6",
+    "x": 0.0,
+    "y": 0.0,
+    "z": -0.15
+   },
+   {
+    "type": "neon_anneau",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ff2bd6",
+    "x": -1.6,
+    "y": 1.7,
+    "z": -2.24
+   },
+   {
+    "type": "neon_anneau",
+    "ry": 0.0,
+    "e": 0.7,
+    "matiere": null,
+    "couleur": "#00e5ff",
+    "x": 1.6,
+    "y": 1.7,
+    "z": -2.24
+   },
+   {
+    "type": "etagere",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "noir",
+    "couleur": null,
+    "x": -2.2,
+    "y": 0.0,
+    "z": -2.05
+   },
+   {
+    "type": "figurine",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -2.2,
+    "y": 1.27,
+    "z": -2.05
+   },
+   {
+    "type": "figurine",
+    "ry": 0.0,
+    "e": 0.8,
+    "matiere": null,
+    "couleur": null,
+    "x": -1.95,
+    "y": 0.87,
+    "z": -2.05
+   },
+   {
+    "type": "casque",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.7,
+    "y": 0.75,
+    "z": 0.6
+   },
+   {
+    "type": "panneau_acoustique",
+    "ry": -90.0,
+    "e": 1.0,
+    "matiere": "hex",
+    "couleur": null,
+    "x": 2.72,
+    "y": 1.5,
+    "z": 0.3
+   },
+   {
+    "type": "panneau_acoustique",
+    "ry": 90.0,
+    "e": 1.0,
+    "matiere": "hex",
+    "couleur": null,
+    "x": -2.72,
+    "y": 1.5,
+    "z": 0.3
+   },
+   {
+    "type": "micro_bras",
+    "ry": -35.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.65,
+    "y": 0.75,
+    "z": 0.45
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 0.0,
+    "l": 1.7,
+    "h": 0.96,
+    "source": "ecran",
+    "bord": "#8a4bff",
+    "x": 0.0,
+    "y": 1.6,
+    "z": -2.26
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "neon",
+   "couleur": "accent",
+   "ry": 0.0,
+   "l": 1.0,
+   "x": 0.0,
+   "y": 2.3,
+   "z": -2.26
+  },
+  "presentateur": {
+   "x": 0.0,
+   "z": 0.0,
+   "h": 1.3,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.4,
+   "assis": true
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.05,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.25,
+    "z": 2.9
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.15,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.15,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.1,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.2,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     0.0,
+     1.6,
+     -2.26
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": 0.0,
+    "y": 1.6,
+    "z": -0.05
+   }
+  ],
+  "ambiance": {
+   "fond": "#05030a",
+   "brouillard": 0.04,
+   "exposition": 1.0,
+   "flou_fond": 0.3,
+   "grain": 0.0,
+   "vignette": 0.45
+  },
+  "mode": "plateau"
+ },
+ "livre-atelier3d": {
+  "nom": "Atelier d'impression 3D",
+  "famille": "metier",
+  "piece": {
+   "l": 6.5,
+   "p": 5.0,
+   "h": 2.9,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": false
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#5a5d60",
+    "rugosite": 0.85,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "beton",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#dfe3e6",
+    "rugosite": 0.9,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#f2f4f5",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "bois": {
+    "couleur": "#c49a62",
+    "rugosite": 0.65,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "bois",
+    "echelle": 1.0
+   },
+   "perfo": {
+    "couleur": "#2f3a44",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "grille",
+    "echelle": 1.0
+   },
+   "acier": {
+    "couleur": "#8c949c",
+    "rugosite": 0.35,
+    "metal": 0.85,
+    "emission": 0.0,
+    "motif": "metal",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "cle",
+    "couleur": "#f3f8ff",
+    "intensite": 3.2,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -1.8,
+    "y": 2.5,
+    "z": 2.4
+   },
+   {
+    "type": "appoint",
+    "couleur": "#ffffff",
+    "intensite": 1.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.2,
+    "y": 2.0,
+    "z": 2.2
+   },
+   {
+    "type": "contre",
+    "couleur": "accent",
+    "intensite": 1.8,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 1.2,
+    "y": 2.6,
+    "z": -1.7
+   },
+   {
+    "type": "neon",
+    "couleur": "#ffffff",
+    "intensite": 4.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 3.0,
+    "h": 0.05,
+    "ry": 90.0,
+    "x": 0.0,
+    "y": 2.85,
+    "z": -0.6
+   },
+   {
+    "type": "ambiance",
+    "couleur": "#dfe9f5",
+    "intensite": 1.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 2.7,
+    "z": 0.0
+   }
+  ],
+  "objets": [
+   {
+    "type": "etabli",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": -2.0
+   },
+   {
+    "type": "imprimante3d",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -1.1,
+    "y": 0.9,
+    "z": -2.0
+   },
+   {
+    "type": "imprimante3d",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "x": 0.0,
+    "y": 0.9,
+    "z": -2.0
+   },
+   {
+    "type": "imprimante3d",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 1.1,
+    "y": 0.9,
+    "z": -2.0
+   },
+   {
+    "type": "panneau_acoustique",
+    "ry": 0.0,
+    "e": 1.3,
+    "matiere": "perfo",
+    "couleur": null,
+    "x": -2.0,
+    "y": 1.75,
+    "z": -2.44
+   },
+   {
+    "type": "panneau_acoustique",
+    "ry": 0.0,
+    "e": 1.3,
+    "matiere": "perfo",
+    "couleur": null,
+    "x": 2.0,
+    "y": 1.75,
+    "z": -2.44
+   },
+   {
+    "type": "etagere",
+    "ry": -90.0,
+    "e": 1.0,
+    "matiere": "acier",
+    "couleur": null,
+    "x": 2.8,
+    "y": 0.0,
+    "z": -1.2
+   },
+   {
+    "type": "bobine",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "x": 2.8,
+    "y": 1.27,
+    "z": -1.4
+   },
+   {
+    "type": "bobine",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "accent",
+    "x": 2.8,
+    "y": 1.27,
+    "z": -1.0
+   },
+   {
+    "type": "bobine",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#e5484d",
+    "x": 2.8,
+    "y": 0.87,
+    "z": -1.4
+   },
+   {
+    "type": "bobine",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#f0b429",
+    "x": 2.8,
+    "y": 0.87,
+    "z": -1.0
+   },
+   {
+    "type": "bobine",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#3fb950",
+    "x": 2.8,
+    "y": 0.47,
+    "z": -1.2
+   },
+   {
+    "type": "figurine",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -0.55,
+    "y": 0.9,
+    "z": -1.75
+   },
+   {
+    "type": "figurine",
+    "ry": 0.0,
+    "e": 0.7,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.55,
+    "y": 0.9,
+    "z": -1.75
+   },
+   {
+    "type": "table",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.7
+   },
+   {
+    "type": "figurine",
+    "ry": 0.0,
+    "e": 1.2,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.4,
+    "y": 0.74,
+    "z": 0.7
+   },
+   {
+    "type": "caisse",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -2.7,
+    "y": 0.0,
+    "z": -1.6
+   },
+   {
+    "type": "lampe",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "accent",
+    "x": -0.6,
+    "y": 0.74,
+    "z": 0.6
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 90.0,
+    "l": 1.6,
+    "h": 0.9,
+    "source": "ecran",
+    "bord": "#0c0d10",
+    "x": -3.2,
+    "y": 1.6,
+    "z": -0.4
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "panneau",
+   "couleur": "principale",
+   "ry": 0.0,
+   "l": 1.2,
+   "x": 0.0,
+   "y": 2.4,
+   "z": -2.44
+  },
+  "presentateur": {
+   "x": 0.0,
+   "z": 0.0,
+   "h": 1.7,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.25,
+   "assis": false
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.32,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.52,
+    "z": 3.1
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.42,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.42,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.37,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.47,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     -3.2,
+     1.6,
+     -0.4
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": -1.12,
+    "y": 1.6,
+    "z": -0.4
+   }
+  ],
+  "ambiance": {
+   "fond": "#cfd6dc",
+   "brouillard": 0.0,
+   "exposition": 1.1,
+   "flou_fond": 0.2,
+   "grain": 0.0,
+   "vignette": 0.12
+  },
+  "mode": "plateau"
+ },
+ "livre-jeux": {
+  "nom": "Vitrine de jeux de plateau",
+  "famille": "metier",
+  "piece": {
+   "l": 6.5,
+   "p": 5.0,
+   "h": 2.8,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": false
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#3a2a1e",
+    "rugosite": 0.6,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "parquet",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#22382f",
+    "rugosite": 0.95,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#141d19",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "bois": {
+    "couleur": "#6e4a2c",
+    "rugosite": 0.55,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "bois",
+    "echelle": 1.0
+   },
+   "feutre": {
+    "couleur": "#1f5a3c",
+    "rugosite": 1.0,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "tissu",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "cle",
+    "couleur": "#ffe6bf",
+    "intensite": 3.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -1.8,
+    "y": 2.3,
+    "z": 2.3
+   },
+   {
+    "type": "appoint",
+    "couleur": "#fff3e0",
+    "intensite": 1.2,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.1,
+    "y": 1.9,
+    "z": 2.2
+   },
+   {
+    "type": "contre",
+    "couleur": "#ffc46b",
+    "intensite": 2.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 1.4,
+    "y": 2.5,
+    "z": -1.6
+   },
+   {
+    "type": "neon",
+    "couleur": "#ffd9a0",
+    "intensite": 2.5,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.6,
+    "h": 0.05,
+    "ry": 90.0,
+    "x": -1.9,
+    "y": 2.3,
+    "z": -2.3
+   },
+   {
+    "type": "neon",
+    "couleur": "#ffd9a0",
+    "intensite": 2.5,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.6,
+    "h": 0.05,
+    "ry": 90.0,
+    "x": 1.9,
+    "y": 2.3,
+    "z": -2.3
+   },
+   {
+    "type": "ambiance",
+    "couleur": "#ffd7a0",
+    "intensite": 0.5,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 2.6,
+    "z": 0.0
+   }
+  ],
+  "objets": [
+   {
+    "type": "vitrine",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "x": -1.9,
+    "y": 0.0,
+    "z": -2.2
+   },
+   {
+    "type": "vitrine",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "x": 1.9,
+    "y": 0.0,
+    "z": -2.2
+   },
+   {
+    "type": "boite_jeu",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "x": -2.15,
+    "y": 0.47,
+    "z": -2.2
+   },
+   {
+    "type": "boite_jeu",
+    "ry": 10.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#e5484d",
+    "x": -1.65,
+    "y": 0.47,
+    "z": -2.2
+   },
+   {
+    "type": "boite_jeu",
+    "ry": -8.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#f0b429",
+    "x": -2.1,
+    "y": 0.87,
+    "z": -2.2
+   },
+   {
+    "type": "boite_jeu",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "accent",
+    "x": -1.7,
+    "y": 0.87,
+    "z": -2.2
+   },
+   {
+    "type": "boite_jeu",
+    "ry": 5.0,
+    "e": 1.2,
+    "matiere": null,
+    "couleur": "#3fb950",
+    "x": -1.9,
+    "y": 1.27,
+    "z": -2.2
+   },
+   {
+    "type": "boite_jeu",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#8a4bff",
+    "x": 1.65,
+    "y": 0.47,
+    "z": -2.2
+   },
+   {
+    "type": "boite_jeu",
+    "ry": 12.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "x": 2.15,
+    "y": 0.47,
+    "z": -2.2
+   },
+   {
+    "type": "boite_jeu",
+    "ry": 0.0,
+    "e": 1.2,
+    "matiere": null,
+    "couleur": "#e5484d",
+    "x": 1.9,
+    "y": 0.87,
+    "z": -2.2
+   },
+   {
+    "type": "boite_jeu",
+    "ry": -6.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "accent",
+    "x": 1.7,
+    "y": 1.27,
+    "z": -2.2
+   },
+   {
+    "type": "boite_jeu",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#f0b429",
+    "x": 2.15,
+    "y": 1.27,
+    "z": -2.2
+   },
+   {
+    "type": "table",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "feutre",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.75
+   },
+   {
+    "type": "plateau_jeu",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.75,
+    "z": 0.75
+   },
+   {
+    "type": "pion",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#e5484d",
+    "x": -0.2,
+    "y": 0.77,
+    "z": 0.8
+   },
+   {
+    "type": "pion",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "x": 0.15,
+    "y": 0.77,
+    "z": 0.65
+   },
+   {
+    "type": "pion",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#f0b429",
+    "x": 0.3,
+    "y": 0.77,
+    "z": 0.9
+   },
+   {
+    "type": "de",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -0.4,
+    "y": 0.77,
+    "z": 0.6
+   },
+   {
+    "type": "de",
+    "ry": 30.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -0.47,
+    "y": 0.77,
+    "z": 0.72
+   },
+   {
+    "type": "lampadaire",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ffc46b",
+    "x": -2.9,
+    "y": 0.0,
+    "z": -1.2
+   },
+   {
+    "type": "plante",
+    "ry": 0.0,
+    "e": 1.2,
+    "matiere": null,
+    "couleur": null,
+    "x": 2.9,
+    "y": 0.0,
+    "z": -1.2
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 0.0,
+    "l": 1.7,
+    "h": 0.96,
+    "source": "ecran",
+    "bord": "#6e4a2c",
+    "x": 0.0,
+    "y": 1.6,
+    "z": -2.44
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "panneau",
+   "couleur": "accent",
+   "ry": 0.0,
+   "l": 1.3,
+   "x": 0.0,
+   "y": 2.4,
+   "z": -2.44
+  },
+  "presentateur": {
+   "x": 0.0,
+   "z": 0.0,
+   "h": 1.7,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.25,
+   "assis": false
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.32,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.52,
+    "z": 3.1
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.42,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.42,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.37,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.47,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     0.0,
+     1.6,
+     -2.44
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": 0.0,
+    "y": 1.6,
+    "z": -0.23
+   },
+   {
+    "nom": "Table",
+    "vers": [
+     0.0,
+     0.75,
+     0.75
+    ],
+    "focale": 50.0,
+    "mouvement": "orbite",
+    "amplitude": 0.25,
+    "periode_s": 24.0,
+    "x": 0.0,
+    "y": 1.9,
+    "z": 1.9
+   }
+  ],
+  "ambiance": {
+   "fond": "#0f1713",
+   "brouillard": 0.0,
+   "exposition": 1.0,
+   "flou_fond": 0.3,
+   "grain": 0.0,
+   "vignette": 0.35
+  },
+  "mode": "plateau"
+ },
+ "livre-scifi": {
+  "nom": "Univers science-fiction",
+  "famille": "univers",
+  "piece": {
+   "l": 7.0,
+   "p": 5.5,
+   "h": 3.0,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": false
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#141a22",
+    "rugosite": 0.2,
+    "metal": 0.7,
+    "emission": 0.0,
+    "motif": "grille",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#1a222c",
+    "rugosite": 0.4,
+    "metal": 0.6,
+    "emission": 0.0,
+    "motif": "metal",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#0c1016",
+    "rugosite": 0.4,
+    "metal": 0.6,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "coque": {
+    "couleur": "#2b3542",
+    "rugosite": 0.35,
+    "metal": 0.8,
+    "emission": 0.0,
+    "motif": "metal",
+    "echelle": 1.0
+   },
+   "lueur": {
+    "couleur": "#18e0ff",
+    "rugosite": 0.4,
+    "metal": 0.0,
+    "emission": 3.0,
+    "motif": "uni",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "cle",
+    "couleur": "#cfe9ff",
+    "intensite": 2.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -1.8,
+    "y": 2.4,
+    "z": 2.3
+   },
+   {
+    "type": "appoint",
+    "couleur": "#7fd4ff",
+    "intensite": 1.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.1,
+    "y": 1.7,
+    "z": 2.2
+   },
+   {
+    "type": "contre",
+    "couleur": "#18e0ff",
+    "intensite": 3.4,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 2.7,
+    "z": -1.9
+   },
+   {
+    "type": "neon",
+    "couleur": "#18e0ff",
+    "intensite": 4.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 5.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -3.45,
+    "y": 0.1,
+    "z": 0.0
+   },
+   {
+    "type": "neon",
+    "couleur": "#18e0ff",
+    "intensite": 4.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 5.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 3.45,
+    "y": 0.1,
+    "z": 0.0
+   },
+   {
+    "type": "neon",
+    "couleur": "#ff7a18",
+    "intensite": 2.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 4.5,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 2.95,
+    "z": 0.0
+   },
+   {
+    "type": "ambiance",
+    "couleur": "#2a6cff",
+    "intensite": 0.5,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 2.8,
+    "z": 0.0
+   }
+  ],
+  "objets": [
+   {
+    "type": "console_scifi",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "coque",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": 0.7
+   },
+   {
+    "type": "hublot",
+    "ry": 0.0,
+    "e": 1.3,
+    "matiere": null,
+    "couleur": null,
+    "x": -2.2,
+    "y": 1.6,
+    "z": -2.72
+   },
+   {
+    "type": "hublot",
+    "ry": 0.0,
+    "e": 1.3,
+    "matiere": null,
+    "couleur": null,
+    "x": 2.2,
+    "y": 1.6,
+    "z": -2.72
+   },
+   {
+    "type": "tube_lumineux",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#18e0ff",
+    "x": -3.2,
+    "y": 0.0,
+    "z": -2.3
+   },
+   {
+    "type": "tube_lumineux",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#18e0ff",
+    "x": 3.2,
+    "y": 0.0,
+    "z": -2.3
+   },
+   {
+    "type": "hologramme",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#18e0ff",
+    "x": 1.9,
+    "y": 0.0,
+    "z": -0.9
+   },
+   {
+    "type": "colonne",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "coque",
+    "couleur": null,
+    "x": -3.2,
+    "y": 0.0,
+    "z": 0.4
+   },
+   {
+    "type": "colonne",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "coque",
+    "couleur": null,
+    "x": 3.2,
+    "y": 0.0,
+    "z": 0.4
+   },
+   {
+    "type": "caisse",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "coque",
+    "couleur": null,
+    "x": -2.5,
+    "y": 0.0,
+    "z": -1.9
+   },
+   {
+    "type": "caisse",
+    "ry": 20.0,
+    "e": 0.7,
+    "matiere": "coque",
+    "couleur": null,
+    "x": -2.5,
+    "y": 0.6,
+    "z": -1.9
+   },
+   {
+    "type": "arche",
+    "ry": 0.0,
+    "e": 1.5,
+    "matiere": "coque",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": -2.5
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 0.0,
+    "l": 2.4,
+    "h": 1.35,
+    "source": "ecran",
+    "bord": "#18e0ff",
+    "x": 0.0,
+    "y": 1.6,
+    "z": -2.7
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "ecran",
+   "couleur": "#18e0ff",
+   "ry": 60.0,
+   "l": 0.9,
+   "x": -2.6,
+   "y": 1.0,
+   "z": -0.8
+  },
+  "presentateur": {
+   "x": 0.0,
+   "z": 0.0,
+   "h": 1.7,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.4,
+   "assis": false
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.32,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.52,
+    "z": 3.4
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.42,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.42,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.37,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.47,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     0.0,
+     1.6,
+     -2.7
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": 0.0,
+    "y": 1.6,
+    "z": 0.42
+   }
+  ],
+  "ambiance": {
+   "fond": "#03060b",
+   "brouillard": 0.05,
+   "exposition": 1.0,
+   "flou_fond": 0.2,
+   "grain": 0.0,
+   "vignette": 0.4
+  },
+  "mode": "plateau"
+ },
+ "livre-cartoon": {
+  "nom": "Univers cartoon",
+  "famille": "univers",
+  "piece": {
+   "l": 7.0,
+   "p": 5.5,
+   "h": 3.2,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": true
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#6fcf5a",
+    "rugosite": 1.0,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "pelouse",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#7fd0ff",
+    "rugosite": 1.0,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#7fd0ff",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "rouge": {
+    "couleur": "#ff5a5f",
+    "rugosite": 0.9,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "jaune": {
+    "couleur": "#ffd23f",
+    "rugosite": 0.9,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "violet": {
+    "couleur": "#9b6bff",
+    "rugosite": 0.9,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "cle",
+    "couleur": "#fff6d8",
+    "intensite": 3.4,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -2.2,
+    "y": 3.0,
+    "z": 2.6
+   },
+   {
+    "type": "appoint",
+    "couleur": "#d8f0ff",
+    "intensite": 1.8,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.4,
+    "y": 2.0,
+    "z": 2.4
+   },
+   {
+    "type": "contre",
+    "couleur": "#ffe27a",
+    "intensite": 1.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 1.5,
+    "y": 2.8,
+    "z": -1.8
+   },
+   {
+    "type": "ambiance",
+    "couleur": "#cfeaff",
+    "intensite": 1.4,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 3.0,
+    "z": 0.0
+   }
+  ],
+  "objets": [
+   {
+    "type": "arbre_cartoon",
+    "ry": 0.0,
+    "e": 1.4,
+    "matiere": null,
+    "couleur": null,
+    "x": -2.5,
+    "y": 0.0,
+    "z": -1.9
+   },
+   {
+    "type": "arbre_cartoon",
+    "ry": 0.0,
+    "e": 1.1,
+    "matiere": null,
+    "couleur": "#3fb950",
+    "x": 2.7,
+    "y": 0.0,
+    "z": -2.1
+   },
+   {
+    "type": "champignon",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ff5a5f",
+    "x": -1.5,
+    "y": 0.0,
+    "z": -1.3
+   },
+   {
+    "type": "champignon",
+    "ry": 0.0,
+    "e": 0.7,
+    "matiere": null,
+    "couleur": "#9b6bff",
+    "x": 1.9,
+    "y": 0.0,
+    "z": -0.9
+   },
+   {
+    "type": "nuage",
+    "ry": 0.0,
+    "e": 1.3,
+    "matiere": null,
+    "couleur": null,
+    "x": -1.8,
+    "y": 2.5,
+    "z": -2.6
+   },
+   {
+    "type": "nuage",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 1.4,
+    "y": 2.8,
+    "z": -2.65
+   },
+   {
+    "type": "nuage",
+    "ry": 0.0,
+    "e": 0.8,
+    "matiere": null,
+    "couleur": null,
+    "x": 3.0,
+    "y": 2.3,
+    "z": -2.6
+   },
+   {
+    "type": "etoile",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#ffd23f",
+    "x": -3.0,
+    "y": 2.2,
+    "z": -2.6
+   },
+   {
+    "type": "etoile",
+    "ry": 0.0,
+    "e": 0.7,
+    "matiere": null,
+    "couleur": "#ffd23f",
+    "x": 0.2,
+    "y": 2.9,
+    "z": -2.65
+   },
+   {
+    "type": "arche",
+    "ry": 0.0,
+    "e": 1.3,
+    "matiere": "jaune",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": -2.3
+   },
+   {
+    "type": "banc",
+    "ry": 20.0,
+    "e": 1.0,
+    "matiere": "rouge",
+    "couleur": null,
+    "x": -1.2,
+    "y": 0.0,
+    "z": 0.6
+   },
+   {
+    "type": "caisse",
+    "ry": 15.0,
+    "e": 1.0,
+    "matiere": "violet",
+    "couleur": null,
+    "x": 2.4,
+    "y": 0.0,
+    "z": 0.3
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 0.0,
+    "l": 1.9,
+    "h": 1.07,
+    "source": "ecran",
+    "bord": "#ffd23f",
+    "x": 0.0,
+    "y": 1.45,
+    "z": -2.35
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "panneau",
+   "couleur": "principale",
+   "ry": 40.0,
+   "l": 0.9,
+   "x": -2.4,
+   "y": 1.2,
+   "z": -0.6
+  },
+  "presentateur": {
+   "x": 0.0,
+   "z": 0.0,
+   "h": 1.7,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.1,
+   "assis": false
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.32,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.52,
+    "z": 3.1
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.42,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.42,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.37,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.47,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     0.0,
+     1.45,
+     -2.35
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": 0.0,
+    "y": 1.45,
+    "z": 0.12
+   }
+  ],
+  "ambiance": {
+   "fond": "#7fd0ff",
+   "brouillard": 0.0,
+   "exposition": 1.2,
+   "flou_fond": 0.0,
+   "grain": 0.0,
+   "vignette": 0.05
+  },
+  "mode": "plateau"
+ },
+ "livre-foot": {
+  "nom": "Football européen",
+  "famille": "sport",
+  "piece": {
+   "l": 9.0,
+   "p": 6.0,
+   "h": 3.4,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": true
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#2f8a3a",
+    "rugosite": 1.0,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "pelouse",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#0e1a2e",
+    "rugosite": 0.9,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#0a1220",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "blanc": {
+    "couleur": "#f4f6f8",
+    "rugosite": 0.6,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "banc": {
+    "couleur": "#1c2c4a",
+    "rugosite": 0.6,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "cle",
+    "couleur": "#ffffff",
+    "intensite": 3.8,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -2.6,
+    "y": 3.2,
+    "z": 3.0
+   },
+   {
+    "type": "appoint",
+    "couleur": "#eaf2ff",
+    "intensite": 2.0,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.8,
+    "y": 2.6,
+    "z": 2.8
+   },
+   {
+    "type": "contre",
+    "couleur": "#ffffff",
+    "intensite": 2.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -2.0,
+    "y": 3.2,
+    "z": -2.2
+   },
+   {
+    "type": "contre",
+    "couleur": "principale",
+    "intensite": 2.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.0,
+    "y": 3.2,
+    "z": -2.2
+   },
+   {
+    "type": "ambiance",
+    "couleur": "#9fc0ff",
+    "intensite": 0.8,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 3.2,
+    "z": 0.0
+   }
+  ],
+  "objets": [
+   {
+    "type": "gradin",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "banc",
+    "couleur": null,
+    "x": 0.0,
+    "y": 0.0,
+    "z": -2.05
+   },
+   {
+    "type": "but_foot",
+    "ry": -35.0,
+    "e": 1.0,
+    "matiere": "blanc",
+    "couleur": null,
+    "x": 3.0,
+    "y": 0.0,
+    "z": -1.3
+   },
+   {
+    "type": "ballon_foot",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 0.9,
+    "y": 0.11,
+    "z": 1.0
+   },
+   {
+    "type": "ballon_foot",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 2.4,
+    "y": 0.11,
+    "z": -0.4
+   },
+   {
+    "type": "tableau_tactique",
+    "ry": 35.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -2.9,
+    "y": 0.0,
+    "z": -0.9
+   },
+   {
+    "type": "trophee",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#f0c040",
+    "x": -1.5,
+    "y": 1.0,
+    "z": 0.2
+   },
+   {
+    "type": "pupitre",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "blanc",
+    "couleur": null,
+    "x": -1.5,
+    "y": 0.0,
+    "z": 0.2
+   },
+   {
+    "type": "fanion",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "x": -4.2,
+    "y": 0.0,
+    "z": -2.2
+   },
+   {
+    "type": "fanion",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "accent",
+    "x": 4.2,
+    "y": 0.0,
+    "z": -2.2
+   },
+   {
+    "type": "maillot",
+    "ry": 20.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "principale",
+    "x": -3.7,
+    "y": 1.7,
+    "z": -2.4
+   },
+   {
+    "type": "projecteur",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -3.5,
+    "y": 3.3,
+    "z": -2.6
+   },
+   {
+    "type": "projecteur",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 3.5,
+    "y": 3.3,
+    "z": -2.6
+   },
+   {
+    "type": "banc",
+    "ry": -70.0,
+    "e": 1.0,
+    "matiere": "banc",
+    "couleur": null,
+    "x": 2.6,
+    "y": 0.0,
+    "z": 1.1
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 0.0,
+    "l": 3.0,
+    "h": 1.69,
+    "source": "ecran",
+    "bord": "#0a1220",
+    "x": 0.0,
+    "y": 2.45,
+    "z": -2.9
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "panneau",
+   "couleur": "principale",
+   "ry": 0.0,
+   "l": 0.9,
+   "x": 3.6,
+   "y": 2.5,
+   "z": -2.9
+  },
+  "presentateur": {
+   "x": 0.0,
+   "z": 0.0,
+   "h": 1.7,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.25,
+   "assis": false
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.32,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.52,
+    "z": 3.7
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.42,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.42,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.37,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.47,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     0.0,
+     2.45,
+     -2.9
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": 0.0,
+    "y": 2.45,
+    "z": 1.0
+   }
+  ],
+  "ambiance": {
+   "fond": "#070d18",
+   "brouillard": 0.02,
+   "exposition": 1.1,
+   "flou_fond": 0.0,
+   "grain": 0.0,
+   "vignette": 0.25
+  },
+  "mode": "plateau"
+ },
+ "livre-usa": {
+  "nom": "Sports américains",
+  "famille": "sport",
+  "piece": {
+   "l": 9.0,
+   "p": 6.0,
+   "h": 3.4,
+   "sol": "sol",
+   "mur": "mur",
+   "plafond": "plafond",
+   "plinthe": true,
+   "ouvert": false
+  },
+  "matieres": {
+   "sol": {
+    "couleur": "#b9814a",
+    "rugosite": 0.3,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "parquet",
+    "echelle": 1.0
+   },
+   "mur": {
+    "couleur": "#16203a",
+    "rugosite": 0.9,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "brique",
+    "echelle": 1.0
+   },
+   "plafond": {
+    "couleur": "#0b1020",
+    "rugosite": 0.8,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   },
+   "casier": {
+    "couleur": "#b5232c",
+    "rugosite": 0.45,
+    "metal": 0.5,
+    "emission": 0.0,
+    "motif": "metal",
+    "echelle": 1.0
+   },
+   "bois": {
+    "couleur": "#7a5230",
+    "rugosite": 0.55,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "bois",
+    "echelle": 1.0
+   },
+   "blanc": {
+    "couleur": "#f2f2f2",
+    "rugosite": 0.6,
+    "metal": 0.0,
+    "emission": 0.0,
+    "motif": "uni",
+    "echelle": 1.0
+   }
+  },
+  "lumieres": [
+   {
+    "type": "cle",
+    "couleur": "#fff6e6",
+    "intensite": 3.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -2.4,
+    "y": 3.0,
+    "z": 2.8
+   },
+   {
+    "type": "appoint",
+    "couleur": "#e6efff",
+    "intensite": 1.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 2.6,
+    "y": 2.4,
+    "z": 2.6
+   },
+   {
+    "type": "contre",
+    "couleur": "#ff4b4b",
+    "intensite": 2.4,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 1.8,
+    "y": 3.1,
+    "z": -2.0
+   },
+   {
+    "type": "contre",
+    "couleur": "#3b7bff",
+    "intensite": 2.4,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": -1.8,
+    "y": 3.1,
+    "z": -2.0
+   },
+   {
+    "type": "neon",
+    "couleur": "#ffffff",
+    "intensite": 2.5,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 7.0,
+    "h": 0.05,
+    "ry": 90.0,
+    "x": 0.0,
+    "y": 3.25,
+    "z": -2.9
+   },
+   {
+    "type": "ambiance",
+    "couleur": "#ffd9b0",
+    "intensite": 0.6,
+    "vers": [
+     0.0,
+     1.2,
+     0.0
+    ],
+    "l": 1.0,
+    "h": 0.05,
+    "ry": 0.0,
+    "x": 0.0,
+    "y": 3.2,
+    "z": 0.0
+   }
+  ],
+  "objets": [
+   {
+    "type": "casier",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "casier",
+    "couleur": null,
+    "x": -3.4,
+    "y": 0.0,
+    "z": -2.7
+   },
+   {
+    "type": "casier",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "casier",
+    "couleur": null,
+    "x": -2.7,
+    "y": 0.0,
+    "z": -2.7
+   },
+   {
+    "type": "casier",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "casier",
+    "couleur": null,
+    "x": 2.7,
+    "y": 0.0,
+    "z": -2.7
+   },
+   {
+    "type": "casier",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "casier",
+    "couleur": null,
+    "x": 3.4,
+    "y": 0.0,
+    "z": -2.7
+   },
+   {
+    "type": "panier_basket",
+    "ry": -90.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 3.6,
+    "y": 0.0,
+    "z": -0.6
+   },
+   {
+    "type": "ballon_basket",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": 2.6,
+    "y": 0.12,
+    "z": 0.6
+   },
+   {
+    "type": "ballon_ovale",
+    "ry": 30.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -1.35,
+    "y": 1.0,
+    "z": 0.25
+   },
+   {
+    "type": "pupitre",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "x": -1.4,
+    "y": 0.0,
+    "z": 0.2
+   },
+   {
+    "type": "batte",
+    "ry": 10.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -3.9,
+    "y": 0.0,
+    "z": -1.4
+   },
+   {
+    "type": "trophee",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#f0c040",
+    "x": 1.5,
+    "y": 1.0,
+    "z": 0.2
+   },
+   {
+    "type": "pupitre",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "x": 1.5,
+    "y": 0.0,
+    "z": 0.2
+   },
+   {
+    "type": "maillot",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#b5232c",
+    "x": -3.05,
+    "y": 2.2,
+    "z": -2.9
+   },
+   {
+    "type": "maillot",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "#1f4fd0",
+    "x": 3.05,
+    "y": 2.2,
+    "z": -2.9
+   },
+   {
+    "type": "banc",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": "bois",
+    "couleur": null,
+    "x": -2.9,
+    "y": 0.0,
+    "z": -1.6
+   },
+   {
+    "type": "tableau_tactique",
+    "ry": 60.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": null,
+    "x": -4.0,
+    "y": 0.0,
+    "z": 0.4
+   },
+   {
+    "type": "fanion",
+    "ry": 0.0,
+    "e": 1.0,
+    "matiere": null,
+    "couleur": "accent",
+    "x": 4.2,
+    "y": 0.0,
+    "z": 1.4
+   }
+  ],
+  "ecrans": [
+   {
+    "ry": 0.0,
+    "l": 3.2,
+    "h": 1.8,
+    "source": "ecran",
+    "bord": "#0b1020",
+    "x": 0.0,
+    "y": 1.8,
+    "z": -2.94
+   }
+  ],
+  "enseigne": {
+   "actif": true,
+   "source": "espace",
+   "texte": "",
+   "style": "neon",
+   "couleur": "principale",
+   "ry": 0.0,
+   "l": 1.6,
+   "x": 0.0,
+   "y": 3.0,
+   "z": -2.94
+  },
+  "presentateur": {
+   "x": 0.0,
+   "z": 0.0,
+   "h": 1.7,
+   "mode": "detoure",
+   "ombre": true,
+   "teinte": 0.25,
+   "assis": false
+  },
+  "cameras": [
+   {
+    "nom": "Large",
+    "vers": [
+     0.0,
+     1.32,
+     0.0
+    ],
+    "focale": 28.0,
+    "mouvement": "respiration",
+    "amplitude": 0.03,
+    "periode_s": 11.0,
+    "x": 0.0,
+    "y": 1.52,
+    "z": 3.7
+   },
+   {
+    "nom": "Poitrine",
+    "vers": [
+     0.0,
+     1.42,
+     0.0
+    ],
+    "focale": 50.0,
+    "mouvement": "poussee",
+    "amplitude": 0.12,
+    "periode_s": 18.0,
+    "x": 0.15,
+    "y": 1.42,
+    "z": 1.7
+   },
+   {
+    "nom": "Côté",
+    "vers": [
+     0.1,
+     1.37,
+     -0.2
+    ],
+    "focale": 40.0,
+    "mouvement": "travelling",
+    "amplitude": 0.35,
+    "periode_s": 16.0,
+    "x": -2.1,
+    "y": 1.47,
+    "z": 1.9
+   },
+   {
+    "nom": "Écran",
+    "vers": [
+     0.0,
+     1.8,
+     -2.94
+    ],
+    "focale": 45.0,
+    "mouvement": "fixe",
+    "amplitude": 0.0,
+    "periode_s": 10.0,
+    "x": 0.0,
+    "y": 1.8,
+    "z": 1.22
+   }
+  ],
+  "ambiance": {
+   "fond": "#070a14",
+   "brouillard": 0.0,
+   "exposition": 1.0,
+   "flou_fond": 0.2,
+   "grain": 0.0,
+   "vignette": 0.3
+  },
+  "mode": "plateau"
+ }
+}

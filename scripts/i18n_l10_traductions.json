@@ -14718,5 +14718,41 @@
  "logiciel inconnu": {
   "fr": "logiciel inconnu",
   "en": "unknown software"
+ },
+ "Identifiant de décor invalide.": {
+  "fr": "Identifiant de décor invalide.",
+  "en": "Invalid set identifier."
+ },
+ "Décor introuvable.": {
+  "fr": "Décor introuvable.",
+  "en": "Set not found."
+ },
+ "Décor illisible.": {
+  "fr": "Décor illisible.",
+  "en": "Unreadable set."
+ },
+ "Trop de décors : supprimez-en un d'abord.": {
+  "fr": "Trop de décors : supprimez-en un d'abord.",
+  "en": "Too many sets: delete one first."
+ },
+ "Ce décor appartient à un autre espace.": {
+  "fr": "Ce décor appartient à un autre espace.",
+  "en": "This set belongs to another space."
+ },
+ "Un décor livré ne se modifie pas : dupliquez-le d'abord.": {
+  "fr": "Un décor livré ne se modifie pas : dupliquez-le d'abord.",
+  "en": "A built-in set cannot be edited: duplicate it first."
+ },
+ "Décor illisible : un objet JSON est attendu.": {
+  "fr": "Décor illisible : un objet JSON est attendu.",
+  "en": "Unreadable set: a JSON object is expected."
+ },
+ "Un décor livré ne se supprime pas.": {
+  "fr": "Un décor livré ne se supprime pas.",
+  "en": "A built-in set cannot be deleted."
+ },
+ "Décor non fabriqué.": {
+  "fr": "Décor non fabriqué.",
+  "en": "This set has not been built."
  }
 }
