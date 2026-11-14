@@ -21,6 +21,9 @@
 // `vue` = {k, ox, oy} : le zoom en direct ; les calques écran, clics et caviardage l'appliquent, l'encart et le skin non.
 // t316 : `etat.cadre` {marge} (posé par un skin) réduit l'écran ; `vue` = cadre ∘ zoom, `s.cadre` = le rectangle de
 // l'écran (px de scène) : l'écran et les clics y sont rognés, le CAVIARDAGE suit la même `vue` et n'est jamais rogné.
+// SV1 (14/11/2026, studio virtuel) : `scene.ecranDeporte(true)` -> canvas. L'écran n'est plus peint dans l'image (ni
+// les clics, ni le caviardage de l'image) : la scène le peint, DÉJÀ CAVIARDÉ, dans un canevas à part que le studio 3D
+// pose sur un écran du décor. Mesure inconnue ou panne -> canevas noir. Seul ce canevas doit entrer dans WebGL.
 import { vueZoom, composerCadre, rectCadre } from "./dz-capture-logique.js";
 
 export const Z_ECRAN = 100, Z_CLICS = 500, Z_ENCART = 600, Z_CAVIARDAGE = 900;
@@ -45,6 +48,7 @@ export function creerScene({ largeur, hauteur, fps = 30, doc, horloge = horlogeP
   const mesure = typeof secrets === "function" ? secrets : () => [];
   let minuterie = null, flux = null;
   const etat = { encart: null, forme: "cercle", zoom: null, clics: [], secrets: [], textes: {}, debut: 0, cadre: null };
+  let deporte = null;                              // SV1 : le canevas de l'écran déporté (caviardé), ou null
 
   function trier() { calques.sort((a, b) => a.z - b.z || (a.ordre - b.ordre)); }
   let ordre = 0;
@@ -79,6 +83,8 @@ export function creerScene({ largeur, hauteur, fps = 30, doc, horloge = horlogeP
       // la mesure passe APRÈS les crochets : un skin ne peut ni la remplacer ni figer etat.secrets
       try { const m = mesure(s); etat.secrets = Array.isArray(m) ? m : null; }
       catch (e) { etat.secrets = null; }          // mesure en panne : le caviardage noircit toute l'image
+      s.deporte = !!deporte;
+      if (deporte) peindreDeporte(deporte, s);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = "#000";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -104,13 +110,37 @@ export function creerScene({ largeur, hauteur, fps = 30, doc, horloge = horlogeP
       return scene;
     },
     actif: () => minuterie != null,
+    // SV1 : l'écran déporté (voir l'en-tête) ; false le remet dans l'image
+    ecranDeporte(actif) {
+      if (!actif) { deporte = null; return null; }
+      if (!deporte) { deporte = d.createElement("canvas"); deporte.width = canvas.width; deporte.height = canvas.height; }
+      return deporte;
+    },
     flux(f) {
       if (!flux) flux = canvas.captureStream(f || fps);
       return flux;
     },
   };
-  scene.ajouterCalque(calqueCaviardage());
+  scene.ajouterCalque(calqueCaviardage(() => !!deporte));    // SV1 : la scène seule dit si l'écran est déporté
   return scene;
+}
+
+// SV1 : l'écran déporté = la source « ecran » plein cadre (sans zoom ni cadre) + le caviardage, dans SON canevas ;
+// la moindre panne le laisse noir (jamais un secret à nu)
+function peindreDeporte(c, s) {
+  const x = c.getContext("2d");
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.fillStyle = "#000";
+  x.fillRect(0, 0, c.width, c.height);
+  if (!Array.isArray(s.etat.secrets)) return;
+  const v = s.sources.ecran;
+  if (!v || !(v.readyState >= 2)) return;
+  try {
+    x.drawImage(v, 0, 0, c.width, c.height);
+    x.save();
+    calqueCaviardage().dessiner(x, Object.assign({}, s, { vue: { k: 1, ox: 0, oy: 0 } }));
+    x.restore();
+  } catch (e) { x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = "#000"; x.fillRect(0, 0, c.width, c.height); }
 }
 
 // ── calques de départ ──
@@ -132,7 +162,7 @@ export function calqueEcran() {
     id: "ecran", z: Z_ECRAN,
     dessiner(ctx, s) {
       const v = s.sources.ecran;
-      if (!v || !(v.readyState >= 2)) return;
+      if (s.deporte || !v || !(v.readyState >= 2)) return;
       rogner(ctx, s);
       ctx.setTransform(s.vue.k, 0, 0, s.vue.k, s.vue.ox, s.vue.oy);
       ctx.drawImage(v, 0, 0, s.largeur, s.hauteur);
@@ -146,6 +176,7 @@ export function calqueClics(couleur = "rgba(240,180,41,") {
     id: "clics", z: Z_CLICS,
     dessiner(ctx, s) {
       s.etat.clics = s.etat.clics.filter((c) => s.t - c.debut <= DUREE_HALO);
+      if (s.deporte) return;
       rogner(ctx, s);
       ctx.setTransform(s.vue.k, 0, 0, s.vue.k, s.vue.ox, s.vue.oy);
       const base = Math.max(14, s.largeur / 70);
@@ -189,10 +220,13 @@ export function calqueEncart(bord = "#f0b429") {
 // le CAVIARDAGE : un cache opaque sur chaque rectangle secret (etat.secrets : [{x, y, l, h, ecran}] en px de scène),
 // au-dessus de tout ; un écran entier porte le texte etat.textes.masque. Défense en profondeur : la page floute déjà
 // ces éléments (CSS_MASQUE), la piste brute n'a que ce flou.
-export function calqueCaviardage() {
+export function calqueCaviardage(horsImage) {
   return {
     id: "caviardage", z: Z_CAVIARDAGE,
     dessiner(ctx, s) {
+      // SV1 : écran déporté (dit par la SCÈNE, pas par `s` qu'un calque pourrait réécrire) : il n'est pas dans l'image,
+      // son canevas est caviardé à part
+      if (typeof horsImage === "function" && horsImage()) return;
       if (!Array.isArray(s.etat.secrets)) throw new Error("secrets inconnus");     // -> image noire (creerScene)
       ctx.setTransform(s.vue.k, 0, 0, s.vue.k, s.vue.ox, s.vue.oy);
       for (const r of s.etat.secrets) {

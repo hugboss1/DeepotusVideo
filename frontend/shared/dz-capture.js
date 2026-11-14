@@ -154,6 +154,9 @@ if (!window.__dzCapture) {
     // t316 : le groupe « Habillage » (dz-skins.js) : le skin de l'espace pour cette capture ; il propose sa forme d'encart
     const habillage = window.__dzSkins && typeof window.__dzSkins.groupeCapture === "function"
       ? window.__dzSkins.groupeCapture({ forme: (f) => { forme.value = formeLue(f); } }) : null;
+    // SV1 : le groupe « Studio virtuel » (dz-studiov.js) : le décor 3D de l'espace pour cette capture, en plus du skin
+    const studio = window.__dzStudiov && typeof window.__dzStudiov.groupeCapture === "function"
+      ? window.__dzStudiov.groupeCapture() : null;
     const clics = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "clics", "aria-label": T("capture.clics.piste") }),
       memo.clics !== false);
     const halo = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "halo", "aria-label": T("capture.clics.halo") }),
@@ -170,6 +173,7 @@ if (!window.__dzCapture) {
       voix: voix.c.checked, son_onglet: son.c.checked, camera: cam.c.checked, forme: forme.value,
       clics: clics.c.checked, halo: halo.c.checked, zoom: zoom.c.checked,
       skin: habillage ? habillage.valeur() : undefined,
+      decor: studio ? studio.valeur() : undefined,
     });
     btnDemarrer.addEventListener("click", async () => {
       const o = lireOptions();
@@ -190,6 +194,7 @@ if (!window.__dzCapture) {
           el("div", { style: S.groupe }, [el("div", { style: S.titreG, texte: T("capture.camera.titre") }), cam.ligne,
             el("label", { style: S.ligne }, [el("span", { texte: T("capture.camera.forme") }), forme])]),
           habillage ? habillage.noeud : null,
+          studio ? studio.noeud : null,
           el("div", { style: S.groupe }, [el("div", { style: S.titreG, texte: T("capture.clics.titre") }), clics.ligne,
             halo.ligne, zoom.ligne]),
           el("div", { style: S.note, texte: T("capture.boite.securite") }),
@@ -594,6 +599,14 @@ if (!window.__dzCapture) {
       catch (e) { habit = null; }
       if (!habit) scene.etat.sansSkin = true;               // un habillage arrivé trop tard ne se pose plus
       scene.etat.forme = o.forme;
+    }
+    // SV1 : le studio virtuel 3D se pose SOUS le skin, avant la première image (4 s au plus ; en panne ou en retard :
+    // sans studio). En mode plateau, l'écran va sur l'écran du décor par le canevas caviardé de la scène.
+    let studio3d = null;
+    if (window.__dzStudiov && typeof window.__dzStudiov.habiller === "function") {
+      try { studio3d = await Promise.race([window.__dzStudiov.habiller(scene, { decor: o.decor }), attendreMs(4000).then(() => null)]); }
+      catch (e) { studio3d = null; }
+      if (!studio3d) scene.etat.sansStudio = true;          // un studio arrivé trop tard ne se pose plus
     }
     // 6. le son : voix (+ son de l'app) mêlés dans la scène ; jauge
     let analyseur = null;
