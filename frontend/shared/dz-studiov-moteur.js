@@ -18,6 +18,11 @@
 //   m.viser(nx, ny)                ce qu'il y a sous le pointeur (coordonnées -1..1) : {genre: "objet" | "surface" |
 //                                  "lumiere" | "camera" | "ecran" | "enseigne", index | pan} ou null
 //   m.choisir(cible | null)        entoure ce qui est choisi ; m.empreintes() -> l'emprise au sol de chaque objet
+// Catalogue de produits réels (lot SVC) : `chargeur.meshopt` = le décodeur Meshopt embarqué (ces modèles sont compressés) ;
+// la fiche d'un objet dit sa POSE (`sol` : la base à y = 0 ; `mur` : centré sur son point, le dos au mur ; `plafond` : pendu
+// sous son point) ; en qualité légère, les textures d'un modèle sont ramenées à 1 024 px avant d'aller à la carte graphique.
+// Un luminaire du catalogue (`lumineux` dans sa fiche) ÉCLAIRE : une lueur à son foyer (là où est son abat-jour), de la
+// couleur de l'objet, et une vraie lumière pour les premiers du décor (2 en qualité légère, 4 en haute).
 // Objets importés (lot SVO) : `objets` = {ref: fiche} (l'index de la bibliothèque) et `chargeur` = {classe: GLTFLoader} ;
 // un objet de type « modele » y trouve son fichier — jamais une adresse écrite dans la recette.
 // Images de la Bibliothèque (lot SVB) : `images` = {ref: {url, l, h, alpha}} ; un tableau, un logo mural, un kakémono,
@@ -474,12 +479,13 @@ export function creerMoteur(THREE, o) {
     modele(g, m) {
       const F = OBJETS[m.ref], attente = bx(g, garder(new THREE.MeshBasicMaterial({ color: 0x8a94a0, wireframe: true })), 0.5, 0.5, 0.5, 0, 0, 0);
       if (!F || !(O.chargeur && O.chargeur.classe)) return;
-      const g0 = generation;
+      const g0 = generation, rang = F.lumineux ? lampes++ : -1;       // son rang est pris à la construction : le même à chaque fois
       modeleDe(F).then((src) => {
         if (!src || g0 !== generation || detruit) return;
         const c = src.clone(true);
         c.traverse((x) => { if (x.isMesh) { ombres(x); if (m.forcer) x.material = m.p; } });
         g.remove(attente); g.add(c); g.userData.boite = boiteLocale(g);
+        if (rang >= 0) allumer(g, foyerDe(src, F.pose), m.c || CHAUD, rang);
         marquer(); if (O.surChange) O.surChange();
       });
     },
@@ -492,14 +498,64 @@ export function creerMoteur(THREE, o) {
     plaque_createur(g, m) { const o = uni(m.c || "#cfd4da", 0.18, 1.0); bx(g, uni("#17181c", 0.5), 0.32, 0.42, 0.03, 0, -0.21, 0.015); bx(g, uni("#0c0c0e", 0.8), 0.27, 0.37, 0.004, 0, -0.185, 0.031); bx(g, o, 0.2, 0.14, 0.014, 0, -0.03, 0.04); const f = new THREE.Shape(); f.moveTo(-0.022, -0.03); f.lineTo(0.034, 0); f.lineTo(-0.022, 0.03); f.closePath(); const t = new THREE.Mesh(garder(new THREE.ExtrudeGeometry(f, { depth: 0.006, bevelEnabled: false })), uni("#17181c", 0.4, 0.4)); t.position.set(0, 0.04, 0.054); g.add(t); bx(g, o, 0.16, 0.012, 0.004, 0, -0.1, 0.034); bx(g, o, 0.1, 0.008, 0.004, 0, -0.125, 0.034); },
   };
 
-  // ── les modèles importés : chargés une fois, posés au sol (centrés, la base à y = 0), clonés à chaque emploi ──
+  // ── les modèles importés : chargés une fois, posés selon leur fiche (au sol, au mur, au plafond), clonés à chaque emploi ──
   const modeles = new Map();
+  let lampes = 0;                                   // les luminaires importés déjà rencontrés dans le décor en construction
+  // un produit du catalogue porte trois cartes de 2 048 px, soit 64 Mo de mémoire graphique : en qualité légère, chaque
+  // carte est ramenée à 1 024 px AVANT son premier envoi à la carte graphique (un quart de la mémoire)
+  const COTE_LEGER = 1024, CARTES = ["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "emissiveMap"];
+  function alleger(sc) {
+    if (qualite === "haute" || typeof document === "undefined") return;
+    const vues = new Set();
+    sc.traverse((x) => {
+      for (const mat of x.isMesh ? [].concat(x.material) : []) for (const k of CARTES) {
+        const t = mat && mat[k], im = t && t.image; if (!im || vues.has(t) || t.isCompressedTexture) continue;
+        vues.add(t);
+        const l = im.width || 0, h = im.height || 0; if (Math.max(l, h) <= COTE_LEGER) continue;
+        const r = COTE_LEGER / Math.max(l, h), c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(l * r)); c.height = Math.max(1, Math.round(h * r));
+        try { c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); } catch (e) { continue; }
+        if (typeof im.close === "function") im.close();
+        t.image = c; t.needsUpdate = true;
+      }
+    });
+  }
+  // le FOYER d'un luminaire importé : le centre de sa partie qui porte l'ampoule — le haut d'une lampe posée, le bas
+  // d'une suspension, le milieu d'une applique — et sa largeur (elle donne la taille de la lueur)
+  const LAMPES_REELLES = qualite === "haute" ? 4 : 2;
+  function foyerDe(src, pose) {
+    if (src.userData.foyer) return src.userData.foyer;
+    src.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(src), h = b.max.y - b.min.y, v = new THREE.Vector3();
+    const bas = pose === "plafond" || pose === "mur" ? b.min.y : b.min.y + 0.72 * h, haut = pose === "plafond" ? b.min.y + 0.45 * h : b.max.y;
+    let n = 0, sx = 0, sy = 0, sz = 0, x0 = Infinity, x1 = -Infinity;
+    src.traverse((x) => {
+      const a = x.isMesh && x.geometry && x.geometry.attributes.position; if (!a) return;
+      for (let i = 0, pas = Math.max(1, Math.floor(a.count / 4000)); i < a.count; i += pas) {
+        v.fromBufferAttribute(a, i).applyMatrix4(x.matrixWorld); if (v.y < bas || v.y > haut) continue;
+        n++; sx += v.x; sy += v.y; sz += v.z; x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x);
+      }
+    });
+    src.userData.foyer = n ? { x: sx / n, y: sy / n, z: sz / n + (pose === "mur" ? 0.06 : 0), taille: borne((x1 - x0) * 2.6, 0.5, 1.8) }
+      : { x: 0, y: (bas + haut) / 2, z: 0, taille: 0.8 };
+    return src.userData.foyer;
+  }
+  function allumer(g, f, hex, rang) {
+    eclat(g, hex, f.taille, f.x, f.y, f.z, 0.3);
+    if (rang < LAMPES_REELLES) { const l = new THREE.PointLight(entier(hex), 4, 5, 2); l.position.set(f.x, f.y, f.z); g.add(l); }
+  }
   function modeleDe(F) {
     if (!modeles.has(F.ref)) modeles.set(F.ref, new Promise((res) => {
       try {
-        new O.chargeur.classe().load(F.modele, (gltf) => {
-          const sc = gltf.scene, b = new THREE.Box3().setFromObject(sc), c = b.getCenter(new THREE.Vector3()), pose = new THREE.Group();
-          sc.position.set(-c.x, -b.min.y, -c.z); pose.add(sc); res(pose);
+        const ch = new O.chargeur.classe();
+        if (O.chargeur.meshopt && typeof ch.setMeshoptDecoder === "function") ch.setMeshoptDecoder(O.chargeur.meshopt);
+        ch.load(F.modele, (gltf) => {
+          const sc = gltf.scene; alleger(sc);
+          const b = new THREE.Box3().setFromObject(sc), c = b.getCenter(new THREE.Vector3()), pose = new THREE.Group();
+          if (F.pose === "mur") sc.position.set(-c.x, -c.y, -b.min.z);
+          else if (F.pose === "plafond") sc.position.set(-c.x, -b.max.y, -c.z);
+          else sc.position.set(-c.x, -b.min.y, -c.z);
+          pose.add(sc); res(pose);
         }, undefined, () => res(null));
       } catch (e) { res(null); }
     }));
@@ -614,7 +670,7 @@ export function creerMoteur(THREE, o) {
 
   // ── construction ──
   function vider() {
-    generation++;
+    generation++; lampes = 0;
     if (racine) scene.remove(racine);
     for (const x of jetables.splice(0)) { try { x.dispose(); } catch (e) { /* déjà libéré */ } }
     cache = new Map(); texEcrans = []; perso = null; texVideo = null; videoVue = null; racine = null; aRepeindre = [];

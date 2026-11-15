@@ -31,7 +31,15 @@ Sections :
      désignée par son nom de fichier seul, ramenée à 2 048 px, sa transparence gardée, copiée une seule fois ; la
      recette la porte par référence (tableau, logo mural, kakémono, écran du décor, enseigne) ; un modèle 3D généré
      entre dans les objets du studio (version allégée d'abord) ; suppression refusée tant qu'un décor l'emploie ;
-     crédits : une image sous licence à citer ou à vérifier est signalée.
+     crédits : une image sous licence à citer ou à vérifier est signalée ;
+ 11. catalogue de produits réels (lot SVC, Amazon Berkeley Objects) : rien sans le geste « Charger » (409) ; la liste
+     reçue devient un index (lignes hostiles, trop lourdes ou en double écartées ; trop peu de produits = refus) ;
+     famille d'après le type, sinon d'après le nom ; pose d'après l'origine du fichier (sol, mur, plafond) ; recherche
+     en français ou en anglais, par famille, paginée ; vignette téléchargée une fois ; « poser » ne télécharge QUE
+     objects/<id>/<id>.glb de la révision figée, vérifie sa taille, range l'objet avec sa licence CC BY, son auteur,
+     sa pose et son titre, une seule fois ; un luminaire est rangé « lumineux », un bougeoir ou un siège non ; Meshopt accepté, dimensions mesurées avec les nœuds ; crédits groupés ;
+     la source `abo` n'est pas déclarable à l'import d'un fichier ; le réseau du studio tient en UNE fonction.
+     Le réseau est remplacé par une couture : ce banc ne sort jamais.
 Données jetables (DEEPOTUS_DATA_DIR temporaire), aucun réseau.
 Run (depuis backend/) : & $PY tests/test_studiov_service.py"""
 import json, os, pathlib, re, subprocess, sys, tempfile
@@ -520,6 +528,150 @@ check("10.15 routes : copie d'un modèle 3D généré ; job absent 404 ; suppres
       and local.delete(f"/api/studiov/images/{i1['id']}").status_code in (200, 409)
       and {x["ref"] for x in local.get("/api/studiov/habillage").json()["objets"]} >= {m1["ref"], m2["ref"]}
       and i2["ref"] in {x["ref"] for x in local.get("/api/studiov/habillage").json()["images"]})
+
+print("11. catalogue de produits réels")
+from app.services import studiov_catalogue as CA                     # noqa: E402
+
+
+def _refus_c(f, *a):
+    try:
+        f(*a)
+    except CA.RefusCatalogue as e:
+        return e.statut
+    return None
+
+
+def _ligne(pid, nom, typ, tri=1200, octets=None, mini=(-0.5, 0, -0.4), dims=(1.0, 0.9, 0.8), **k):
+    return dict({"id": pid, "file": f"objects/{pid}/{pid}.glb", "name": nom, "product_type": typ, "brand": "Rivet", "color": "Denim",
+                 "material": "Wood", "style": None, "size_metres": list(dims), "bounds_min": list(mini), "triangles": tri,
+                 "pack_bytes": octets if octets is not None else 1000}, **k)
+
+
+# un produit comme ceux du catalogue : compressé en Meshopt, quantifié (ses mètres ne viennent que de son nœud)
+PRODUIT = {"asset": {"version": "2.0"}, "extensionsUsed": ["EXT_meshopt_compression", "EXT_texture_webp", "KHR_mesh_quantization"],
+           "extensionsRequired": ["EXT_meshopt_compression", "EXT_texture_webp", "KHR_mesh_quantization"],
+           "buffers": [{"byteLength": 8}, {"byteLength": 8, "extensions": {"EXT_meshopt_compression": {"fallback": True}}}],
+           "accessors": [{"count": 36}, {"count": 24, "min": [0, 0, 0], "max": [1000, 2000, 500]}],
+           "meshes": [{"primitives": [{"attributes": {"POSITION": 1}, "indices": 0}]}],
+           "nodes": [{"children": [1], "translation": [0, 0.1, 0]}, {"mesh": 0, "scale": [0.001, 0.001, 0.001], "translation": [-0.5, 0, -0.25]}],
+           "scenes": [{"nodes": [0]}], "scene": 0}
+GLB_PRODUIT = _glb(PRODUIT)
+WEBP = b"RIFF" + struct.pack("<I", 20) + b"WEBPVP8 " + b"\0" * 12
+lignes = [_ligne("B000000001", "Amazon Brand – Rivet North End Wood Accent Living Room Arm Chair with Tufted Back and Brass Legs, 38\"W, Denim", "chair", octets=len(GLB_PRODUIT)),
+          _ligne("B000000002", "Stone & Beam Westport Modern Nailhead Upholstered Sofa", "home furniture and decor"),
+          _ligne("B000000003", "Watercolor Green Leaf Print Wall Art", "wall art", mini=(-0.15, -0.15, 0), dims=(0.3, 0.3, 0.04), octets=len(GLB_PRODUIT)),
+          _ligne("B000000004", "Glass Globe Pendant", "light fixture", mini=(-0.2, -1.7, -0.2), dims=(0.4, 1.7, 0.4)),
+          _ligne("B000000005", "Velvet Throw Pillow", "pillow", mini=(-0.2, -0.2, 0), dims=(0.4, 0.4, 0.15)),
+          _ligne("B000000006", "Widget 3000", "biss"), _ligne("B000000013", "Brass Candle Holder", "candle holder"),
+          _ligne("B000000007", "Trop de triangles", "chair", tri=OB.MAX_TRIANGLES + 1), _ligne("B000000008", "Trop lourd", "chair", octets=OB.MAX_OCTETS + 1),
+          _ligne("B000000009", "Fichier ailleurs", "chair", file="objects/../x.glb"), _ligne("../../x", "Identifiant hostile", "chair"),
+          _ligne("B000000001", "Doublon", "sofa"), _ligne("B000000010", "", "chair"), _ligne("B000000011", "Sans taille", "chair", size_metres="grand"),
+          _ligne("B000000012", "Triangles en texte", "chair", tri="12")]
+lignes += [_ligne(f"B1{i:08d}", f"Dining Chair {i:03d}", "chair") for i in range(60)] + [_ligne(f"B2{i:08d}", f"Table Lamp {i:03d}", "lamp") for i in range(50)]
+LISTE = b"\n".join(json.dumps(x).encode("utf-8") for x in lignes) + b"\n{pas du json\n\n[1, 2]\n"
+reseau, sorties = {"metadata.jsonl": LISTE, "thumbs/B000000001.webp": WEBP, "thumbs/B000000002.webp": b"<html>pas une image</html>",
+                   "objects/B000000001/B000000001.glb": GLB_PRODUIT, "objects/B000000003/B000000003.glb": GLB_PRODUIT,
+                   "objects/B000000002/B000000002.glb": GLB_PRODUIT, "objects/B200000000/B200000000.glb": b"x" * 1000,
+                   "objects/B000000013/B000000013.glb": b"x" * 1000}, []
+def _faux_reseau(chemin, maximum):
+    sorties.append(chemin)
+    if chemin not in reseau:
+        raise CA.RefusCatalogue("Ce fichier n'est plus dans le catalogue en ligne.", 404)
+    return reseau[chemin]
+vrai_reseau, CA._telecharger = CA._telecharger, _faux_reseau
+check("11.1 rien sans le geste « Charger » : état vide, recherche, vignette et pose refusées (409) ; identifiant hostile 400 ; aucune sortie",
+      CA.etat()["pret"] is False and CA.etat()["total"] == 0 and _refus_c(CA.chercher, "chaise") == 409 and _refus_c(CA.vignette, "B000000001") == 409
+      and _refus_c(CA.poser, "B000000001") == 409 and all(_refus_c(CA.poser, x) == 400 for x in ("../x", "b000000001", "B0000", None, 12, "B000000001/..")) and sorties == [])
+check("11.2 un modèle compressé en Meshopt est accepté, et mesuré en mètres avec les transformations de ses nœuds ; Draco et Basis restent refusés",
+      OB.analyser_glb(GLB_PRODUIT) == {"triangles": 12, "dims": [1.0, 2.0, 0.5], "maillages": 1, "images": 0}
+      and _refus_o(OB.analyser_glb, _glb(dict(CUBE, extensionsRequired=["KHR_texture_basisu"]))) == 415
+      and OB.analyser_glb(_glb(dict(CUBE, nodes=[{"mesh": 0, "matrix": [2, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 0, 0, 1]}], scenes=[{"nodes": [0]}])))["dims"] == [2.0, 2.0, 0.5]
+      and OB.analyser_glb(_glb(dict(CUBE, nodes=[{"mesh": 0, "children": [0], "scale": "x"}], scenes=[{"nodes": [0]}])))["dims"] == [1.0, 2.0, 0.5]
+      # des entiers « normalisés » (16 bits signés) : la valeur est l'entier / 32 767, puis l'échelle du nœud
+      and OB.analyser_glb(_glb(dict(CUBE, accessors=[{"count": 36}, {"count": 24, "componentType": 5122, "normalized": True, "min": [-32767, -32767, -16384], "max": [32767, 32767, 16383]}],
+                                    nodes=[{"mesh": 0, "scale": [0.8, 0.5, 0.4], "translation": [0, 0.5, 0]}], scenes=[{"nodes": [0]}])))["dims"] == [1.6, 1.0, 0.4])
+e11 = CA.charger()
+ind = json.loads((CA.racine() / "index.json").read_text("utf-8"))
+check("11.3 charger : la liste devient l'index (117 produits ; hostiles, trop lourds, en double, sans nom ni taille écartés), gardé avec sa révision",
+      e11["pret"] is True and e11["total"] == 117 and sorties == ["metadata.jsonl"] and ind["revision"] == CA.REVISION and len(ind["produits"]) == 117
+      and not {"B000000007", "B000000008", "B000000009", "B000000010", "B000000011", "B000000012"} & {p["id"] for p in ind["produits"]}
+      and [p["nom"] for p in ind["produits"] if p["id"] == "B000000001"][0].startswith("Amazon Brand"), e11)
+par = {p["id"]: p for p in ind["produits"]}
+check("11.4 famille : d'après le type d'Amazon ; un type vague est rangé d'après le nom du produit ; sinon « Autres » ; les familles servies ont leur nom FR et EN",
+      par["B000000001"]["famille"] == "sieges" and par["B000000002"]["famille"] == "canapes" and par["B000000006"]["famille"] == "divers"
+      and [(x["id"], x["n"]) for x in e11["familles"]] == [("sieges", 61), ("canapes", 1), ("luminaires", 52), ("mural", 1), ("textiles", 1), ("divers", 1)]
+      and all(x["nom"] and x["nom_en"] for x in e11["familles"]) and all(t[0] in CA.FAMILLES for t in CA.TYPES.values()), e11["familles"])
+check("11.5 pose d'après l'origine du fichier : base à y = 0 -> sol ; centré -> mur ; pendu -> plafond ; un coussin centré se pose au sol",
+      [par[k]["pose"] for k in ("B000000001", "B000000003", "B000000004", "B000000005")] == ["sol", "mur", "plafond", "sol"])
+r11 = CA.chercher("chaise", None, 1)
+check("11.6 recherche : en français (« chaise ») comme en anglais, tous les mots exigés, par famille, 24 par page, page bornée, famille hostile ignorée",
+      r11["total"] == 61 and r11["pages"] == 3 and len(r11["resultats"]) == 24 and CA.chercher("CHAIR dining 007")["total"] == 1
+      and CA.chercher("lampe", "sieges")["total"] == 0 and CA.chercher("", "luminaires")["total"] == 52 and CA.chercher("", "../x")["total"] == 117
+      and CA.chercher("", None, 99)["page"] == 5 and CA.chercher("", None, "x")["page"] == 1 and CA.chercher("zzz")["resultats"] == []
+      and r11["resultats"][0]["libelle"] == "Chaise" and r11["resultats"][0]["libelle_en"] == "Chair" and r11["resultats"][0]["deja"] is None
+      and r11["resultats"][0]["vignette"].startswith("/api/studiov/catalogue/vignette/"))
+sorties.clear()
+check("11.7 vignette : téléchargée une fois puis gardée ; une réponse qui n'est pas une image WebP est refusée (502) ; produit inconnu 404, absent en ligne 404",
+      CA.vignette("B000000001") == WEBP and CA.vignette("B000000001") == WEBP and sorties == ["thumbs/B000000001.webp"]
+      and _refus_c(CA.vignette, "B000000002") == 502 and not (CA.racine() / "vignettes" / "B000000002.webp").exists()
+      and _refus_c(CA.vignette, "B999999999") == 404 and _refus_c(CA.vignette, "B000000004") == 404)
+sorties.clear()
+avant11 = len(OB.lister())
+p1 = CA.poser("B000000001")
+check("11.8 poser : UN fichier demandé (objects/<id>/<id>.glb), rangé dans les objets avec sa licence CC BY, son auteur, sa pose, son titre entier et un nom court",
+      sorties == ["objects/B000000001/B000000001.glb"] and p1["source"] == "abo" and p1["licence"] == "CC-BY" and p1["droits"] == {"video": True, "export": True, "partage": True, "credit": True}
+      and p1["auteur"] == "Amazon.com" and p1["pose"] == "sol" and p1["titre"].startswith("Amazon Brand – Rivet North End") and p1["titre"].endswith("Denim")
+      and len(p1["nom"]) <= OB.MAX_NOM and p1["nom"].startswith("Rivet North End") and p1["nom"].endswith("…") and p1["url"] == CA.PAGE
+      and S.REF_OBJET.match(p1["ref"]) and OB.chemin(p1["id"]).read_bytes() == GLB_PRODUIT and p1["dims"] == [1.0, 2.0, 0.5], p1)
+p3 = CA.poser("B000000003")
+check("11.9 le même produit n'entre qu'une fois (aucun second téléchargement) ; un produit de mur garde sa pose ; la recherche dit ce qui est déjà là",
+      CA.poser("B000000001")["id"] == p1["id"] and sorties.count("objects/B000000001/B000000001.glb") == 1 and len(OB.lister()) == avant11 + 2
+      and p3["pose"] == "mur" and CA.chercher("B000000001")["resultats"][0]["deja"] == p1["ref"] and OB.par_origine("abo:") == {"abo:B000000001": p1["ref"], "abo:B000000003": p3["ref"]})
+check("11.10 un fichier d'une autre taille que celle de l'index n'est pas gardé (502) ; un produit absent en ligne : 404 ; rien n'est écrit",
+      _refus_c(CA.poser, "B000000002") == 502 and _refus_c(CA.poser, "B000000004") == 404 and len(OB.lister()) == avant11 + 2)
+check("11.10b un luminaire du catalogue est lumineux (la recherche et la fiche le disent) ; un bougeoir, un siège, un fichier importé à la main ne le sont pas",
+      [x["lumineux"] for x in CA.chercher("table lamp 007")["resultats"]] == [True] and CA.chercher("candle")["resultats"][0]["lumineux"] is False
+      and CA._lumineux({"famille": "luminaires", "type": "candle holder", "nom": "Raffia Ceiling Hanging Pendant"}) is True
+      and CA._lumineux({"famille": "tables", "type": "table", "nom": "Lamp Table"}) is False
+      and p1["lumineux"] is False and o1["lumineux"] is False and OB.importer(_glb(CUBE), {"source": "abo", "lumineux": True, "origine": "abo:BLAMPE0001"})["lumineux"] is True
+      and OB.importer(_glb(CUBE), {"lumineux": "oui"})["lumineux"] is False)
+dc11 = S.creer(None, "Décor du catalogue", "esp-c")
+dc11 = S.enregistrer(dc11["id"], dict(dc11, objets=[{"type": "modele", "ref": p1["ref"]}, {"type": "modele", "ref": p3["ref"]}, {"type": "modele", "ref": o1["ref"]}]))
+cr11 = OB.credits(dc11)
+check("11.11 crédits : les produits du catalogue tiennent en UNE ligne (titres, Amazon.com, CC BY 4.0 et son adresse, fichiers modifiés, adresse du dépôt), en FR et en EN",
+      cr11["texte_fr"].count("\n") == 2 and "- « Lampe de studio » par Jeanne Martin (CC BY) via Poly Pizza" in cr11["texte_fr"]
+      and cr11["texte_fr"].splitlines()[-1].startswith("- Modèles 3D « ") and "Watercolor Green Leaf Print Wall Art" in cr11["texte_fr"]
+      and "par Amazon.com (Amazon Berkeley Objects, CC BY 4.0 — https://creativecommons.org/licenses/by/4.0/), fichiers recompressés par CodePawl — https://huggingface.co/datasets/codepawl/abo-glb" in cr11["texte_fr"]
+      and cr11["texte_en"].splitlines()[-1].startswith('- 3D models "') and "files recompressed by CodePawl" in cr11["texte_en"]
+      and cr11["export"] is True and cr11["partage"] is True and len(cr11["lignes"]) == 3 and all(x["obligatoire"] for x in cr11["lignes"]), cr11)
+check("11.12 nom court : la mention « Amazon Brand » ôtée, coupé à un mot entier ; un nom court reste entier",
+      CA._nom_court("Amazon Brand - Rivet Lamp") == "Rivet Lamp" and CA._nom_court("Vase") == "Vase" and len(CA._nom_court("mot " * 40)) <= OB.MAX_NOM
+      and not CA._nom_court("Amazon Brand – " + "Stone Beam Sofa " * 8).endswith(" …"))
+(CA.racine() / "index.json").write_text(json.dumps(dict(ind, revision="0" * 40)), "utf-8"); CA._memoire.clear()
+check("11.13 un index d'une autre révision n'est pas employé : le catalogue redevient « à charger »", CA.etat()["pret"] is False and _refus_c(CA.chercher, "") == 409)
+reseau["metadata.jsonl"] = b"\n".join(json.dumps(x).encode("utf-8") for x in lignes[:20])
+check("11.14 une liste trop courte n'est pas le catalogue (502) : l'index n'est pas remplacé", _refus_c(CA.charger) == 502 and CA.etat()["pret"] is False)
+reseau["metadata.jsonl"] = LISTE
+r = local.get("/api/studiov/catalogue")
+check("11.15 routes : état (à charger), chargement, recherche, vignette (image/webp), pose ; produit inconnu 404, identifiant hostile 400 ; hors boucle locale refusé",
+      r.status_code == 200 and r.json()["pret"] is False and r.json()["source"]["licence"] == "CC BY 4.0" and local.get("/api/studiov/catalogue/recherche").status_code == 409
+      and local.post("/api/studiov/catalogue/index").json()["total"] == 117
+      and local.get("/api/studiov/catalogue/recherche", params={"q": "wall art", "famille": "mural"}).json()["resultats"][0]["deja"] == p3["ref"]
+      and local.get("/api/studiov/catalogue/vignette/B000000001.webp").headers["content-type"] == "image/webp"
+      and local.post("/api/studiov/catalogue/poser", json={"id": "B000000001"}).json()["id"] == p1["id"]
+      and local.post("/api/studiov/catalogue/poser", json={"id": "B999999999"}).status_code == 404
+      and local.post("/api/studiov/catalogue/poser", json={"id": "../x"}).status_code == 400
+      and local.get("/api/studiov/catalogue/vignette/..%2f..%2fx.webp").status_code in (400, 404)
+      and all(x.status_code in (401, 403) for x in (loin.get("/api/studiov/catalogue"), loin.post("/api/studiov/catalogue/index"), loin.post("/api/studiov/catalogue/poser", json={"id": "B000000001"}))), r.text[:200])
+r = local.post("/api/studiov/objets", files={"fichier": ("x.glb", _glb(CUBE))}, data={"source": "abo", "licence": ""})
+check("11.16 la source du catalogue n'est pas déclarable à l'import d'un fichier : elle ne donne pas sa licence à un fichier quelconque",
+      r.status_code == 200 and r.json()["source"] == "fichier" and r.json()["licence"] == "A-VERIFIER", r.text[:200])
+CA._telecharger = vrai_reseau
+src11 = pathlib.Path(CA.__file__).read_text("utf-8")
+autres11 = "".join(pathlib.Path(m.__file__).read_text("utf-8") for m in (S, H, OB, SI))
+check("11.17 le réseau du studio tient en UNE fonction, vers une révision FIGÉE en https ; les autres modules du studio n'ouvrent aucun réseau",
+      src11.count("import httpx") == 1 and src11.count("BASE + chemin") == 1 and re.match(r"^[0-9a-f]{40}$", CA.REVISION) and CA.BASE.startswith("https://huggingface.co/datasets/codepawl/abo-glb/resolve/" + CA.REVISION + "/")
+      and not re.search(r"httpx|urllib|requests|socket", autres11) and "follow_redirects=True" in src11 and 'r.url.scheme != "https"' in src11)
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

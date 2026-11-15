@@ -117,6 +117,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Filmer l'app, l'habiller, la monter** (t315-t319) : barre du haut, « Filmer l'app » (gratuit, secrets masqués) ;
   « Monter une capture… » (zooms, chapitres, sous-titres payants sur devis) ; « Tutoriel… » et « Parcours… » ;
   « Direct » (Twitch, YouTube, Kick, RTMP). → [GUIDE:capture-live]
+- **Meubler un décor du studio virtuel** (SVC) : capture › « Voir les décors » › « Personnaliser ce décor » › onglet
+  Catalogue : « Charger le catalogue », choisir, « Télécharger et poser ». Vrais produits, gratuit, crédit à Amazon.com
+  ajouté aux crédits du décor. → [GUIDE:capture-live]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]

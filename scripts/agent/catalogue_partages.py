@@ -52,6 +52,11 @@ PARTAGES = {
     "frontend/shared/dz-capture.js": ("capture.",),
     # t316 (28/10/2026) : les skins de la capture (groupe « Habillage » de la boîte de départ, éditeur de skins)
     "frontend/shared/dz-skins.js": ("skins.",),
+    # SVC (15/11/2026) : le studio virtuel — son entrée dans la boîte de la capture (« Voir les décors »), « Personnaliser
+    # ce décor » et l'onglet « Catalogue » du panneau Décorer (produits réels). Les autres onglets du décorateur entrent
+    # avec le lot SV10.
+    "frontend/shared/dz-studiov.js": ("studiov.cat.", "studiov.deco.onglet.catalogue", "studiov.capture.apercu",
+                                      "studiov.deco.personnaliser"),
     # t317 (28/10/2026) : le montage après coup des captures (entrées des boîtes de la capture, liste, éditeur)
     "frontend/shared/dz-montage-capture.js": ("montagecap.",),
     # t318 (28/10/2026) : le direct (bouton de la barre, boîte « Passer en direct », panneau du direct)

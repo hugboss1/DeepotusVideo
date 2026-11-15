@@ -17,6 +17,8 @@ Conception docs/superpowers/specs/2026-11-14-studio-virtuel-3d-design.md.
     partageait sa matière ; matières inemployées ôtées ; le plan (cadre, échelle aller-retour, aimant, emprise tournée
     d'un meuble, point dans un polygone, cône d'une caméra, collage au mur le plus proche, ce qu'on touche : repères
     avant meubles) ; caméra et lumière neuves ; objet importé posé par sa référence ;
+[C] catalogue de produits réels (lot SVC), sous node : un modèle neuf se pose selon sa fiche (sol, mur du fond,
+    plafond), DANS la pièce ;
 [P] livraison : copies shared == dist, balise avant dz-capture.js, three.js chargé depuis /assets (aucun CDN), la
     source « ecran » n'entre jamais dans le moteur (seul le canevas déporté), ni alert/confirm/prompt ni emoji ni
     innerHTML, angles vifs, clés studiov.* FR/EN employées et assemblées, un nom traduit par décor livré.
@@ -240,6 +242,19 @@ if "_erreur" not in An:
           all(o["image"] == "img:0123456789abcdef" and abs(o["x"]) <= 3 and -2.5 <= o["z"] <= 2.5 for o in im9) and im9[0]["y"] == 1.6 and abs(im9[0]["z"] + 2.48) < 1e-9
           and im9[2]["y"] == 0 and im9[2]["z"] > -2.5 and An["typesImage"] == ["tableau", "logo_mural", "kakemono"], im9)
 
+print("[C] catalogue de produits réels")
+Cn = node(r"""
+import * as G from "%s";
+const d = {piece: {l: 6, p: 5, h: 2.8}, objets: [{}, {}, {}]};
+console.log(JSON.stringify({poses: ["sol", "mur", "plafond", undefined, "ailleurs"].map((p) => G.objetNeuf(d, "modele", "obj:0123456789abcdef", p))}));
+""" % URL("dz-studiov-logique.js"))
+check("C0 le module se joue sous node", "_erreur" not in Cn, Cn.get("_erreur"))
+if "_erreur" not in Cn:
+    sol, mur, plafond, sans, autre = Cn["poses"]
+    check("C1 un modèle neuf se pose selon sa fiche : au sol devant, contre le mur du fond à hauteur d'yeux, pendu au plafond ; sans pose connue : au sol",
+          (sol["y"], sol["z"]) == (0, 0.9) and (mur["y"], mur["z"]) == (1.6, -2.48) and plafond["y"] == 2.8 and sans == sol and autre == sol
+          and all(o["type"] == "modele" and o["ref"] == "obj:0123456789abcdef" and abs(o["x"]) <= 3 for o in Cn["poses"]), Cn["poses"])
+
 print("[D] écran déporté (scène t315)")
 D = node(r"""
 import { creerScene, calqueEcran, calqueClics } from "%s";
@@ -331,7 +346,8 @@ composees = ([f"studiov.objet.{t}" for t in SV.TYPES_OBJET] + [f"studiov.famille
              + [f"studiov.lumiere.{t}" for t in SV.TYPES_LUMIERE] + [f"studiov.enseigne.{s}" for s in SV.STYLES_ENSEIGNE]
              + [f"studiov.style.{s['id']}" for s in HV.STYLES] + [f"studiov.ambiance.{a['id']}" for a in HV.AMBIANCES]
              + [f"studiov.finition.{f['id']}" for f in HV.FINITIONS] + [f"studiov.surface.{s}" for s in ("sol", "fond", "gauche", "droite", "plafond")]
-             + [f"studiov.deco.onglet.{o}" for o in ("style", "matieres", "objets", "bibli", "biblio", "lumieres", "cameras", "enseigne")]
+             + [f"studiov.deco.onglet.{o}" for o in ("style", "matieres", "objets", "catalogue", "bibli", "biblio", "lumieres", "cameras", "enseigne")]
+             + [f"studiov.cat.pose.{p}" for p in OV.POSES]
              + ["studiov.deco.role.principale", "studiov.deco.role.accent"] + [f"studiov.vue.{v}" for v in ("cameras", "plan", "libre")]
              + [f"studiov.mouvement.{m}" for m in SV.MOUVEMENTS] + [f"studiov.source.{s}" for s in OV.SOURCES]
              + [f"studiov.licence.{l.lower().replace('-', '_')}" for l in list(OV.LICENCES) + ["CC-BY-NC", "CC-BY-ND", "CC-BY-SA"]])
@@ -354,6 +370,20 @@ check("P17 atelier : le pointeur ignore les halos et le présentateur ; les rep�
       "x.userData.halo || x.isSprite" in moteur_src and "perso.userData.ignorer = true" in moteur_src and "outils.visible = !!libre" in moteur_src)
 check("P18 plan : la géométrie vient de la logique (jouée sous node) ; un décor livré ne se déplace pas ; le plan et la vue 3D partagent le même « choisi »",
       'from "./dz-studiov-logique.js"' in plan_src and "!o.livre()" in plan_src and "choisir: choisirCible" in ecran_src and "selection: () => (apercu ? apercu.sel : null)" in ecran_src)
+check("P20 catalogue : l'écran ne parle qu'au serveur (aucune adresse en ligne dans l'écran) ; rien n'est demandé avant le geste « Charger » ; le crédit est annoncé",
+      'api("POST", "/api/studiov/catalogue/poser", { id: p.id })' in ecran_src and 'api("POST", "/api/studiov/catalogue/index")' in ecran_src
+      and "huggingface" not in tout and "amazon" not in tout.lower().replace("amazon berkeley objects", "").replace("amazon.com", "")
+      and "if (cat.pret) await chercherCat(); else" in ecran_src and 0 < ecran_src.find("if (!cat.pret) {") < ecran_src.find('"data-dz-studiov-cat-filtre"')
+      and 'T("studiov.cat.credit")' in ecran_src and '["catalogue", panneauCatalogue]' in ecran_src)
+check("P21 modèles compressés : le décodeur Meshopt est celui de l'application (embarqué), remis au chargeur par le moteur ; la pose vient de la fiche ; les textures sont allégées en qualité légère",
+      'import("/assets/three/addons/libs/meshopt_decoder.module.js")' in ecran_src and (REPO / "frontend" / "dist" / "assets" / "three" / "addons" / "libs" / "meshopt_decoder.module.js").is_file()
+      and "ch.setMeshoptDecoder(O.chargeur.meshopt)" in moteur_src and 'F.pose === "mur"' in moteur_src and 'F.pose === "plafond"' in moteur_src
+      and 'if (qualite === "haute"' in moteur_src and "COTE_LEGER = 1024" in moteur_src and "alleger(sc)" in moteur_src
+      and "estMural(ob)" in plan_src and 'hab.indexObjets[ob.ref].pose === "mur"' in ecran_src and 'objetNeuf(nd, "modele", v.ref, v.pose)' in ecran_src)
+check("P22 luminaires du catalogue : la lueur se pose au foyer du modèle, de la couleur de l'objet ; une vraie lumière pour les premiers seulement (2 en légère, 4 en haute), leur rang pris à la construction",
+      "const g0 = generation, rang = F.lumineux ? lampes++ : -1;" in moteur_src and "if (rang >= 0) allumer(g, foyerDe(src, F.pose), m.c || CHAUD, rang);" in moteur_src
+      and 'LAMPES_REELLES = qualite === "haute" ? 4 : 2' in moteur_src and "if (rang < LAMPES_REELLES)" in moteur_src and "generation++; lampes = 0;" in moteur_src
+      and 'T("studiov.cat.lumineux")' in ecran_src)
 capture = (SH / "dz-capture.js").read_text("utf-8")
 check("P11 la capture pose le studio APRÈS le skin et AVANT la première image ; l'option « decor » part de la boîte",
       0 < capture.find("__dzSkins.habiller(scene") < capture.find("__dzStudiov.habiller(scene") < capture.find("scene.dessiner();")
