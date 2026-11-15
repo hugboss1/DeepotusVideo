@@ -43,6 +43,18 @@ APPEL_TRONQUE = ("appel tronqué : la réponse a été coupée à la limite de s
                  "pas été exécuté ; recommence avec un appel plus court")
 _VERROUS: dict[str, asyncio.Lock] = {}  # un seul `tour` à la fois par conversation (double envoi)
 TEXTE_CONTINUER = {"fr": "Continue là où tu t'es arrêté.", "en": "Continue where you left off."}
+# 15/11/2026 : SORTIE_MAX reste ce que l'agent ÉCRIT par tour ; un modèle qui réfléchit d'office (Sonnet 5.5, Opus 5.5…)
+# reçoit en plus la réserve de réflexion de ce niveau (`sortie_tour`). Sans elle, la réflexion mangeait toute la sortie
+# et le tour revenait payé et vide. « medium » : le départ conseillé par Anthropic pour un agent à outils.
+EFFORT = "medium"
+COUPE = {"fr": "Ma réponse a été coupée à la limite de sortie avant d'être finie. Rien n'est perdu : la carte "
+               "ci-dessous me fait reprendre là où je me suis arrêté.",
+         "en": "My answer was cut at the output limit before it was finished. Nothing is lost: the card below makes "
+               "me pick up where I stopped."}
+REFUS = {"fr": "Le modèle a refusé de répondre à ce tour (filtre de sécurité d'Anthropic). Reformule la demande ou "
+               "change le modèle de l'agent dans Réglages › Modèles par défaut.",
+         "en": "The model declined to answer this turn (Anthropic safety filter). Rephrase the request or change the "
+               "agent's model in Settings › Default models."}
 
 ROLES = {
     "orienteur": "Rôle : **Orienteur**. L'utilisateur demande « que faire de ceci ? ». Propose deux ou trois suites "
@@ -223,12 +235,18 @@ def cle_presente() -> bool:
     return MT.configure("anthropic")
 
 
+def sortie_tour(modele: str | None = None) -> int:
+    """Le `max_tokens` d'un tour : SORTIE_MAX, plus la réserve de réflexion si le modèle de l'agent réfléchit d'office.
+    Le devis, les plafonds, l'appel et le paquet du téléphone lisent TOUS cette valeur."""
+    return MT.sortie_tour(modele or MT.modele_agent(), SORTIE_MAX, EFFORT)
+
+
 def devis_message(conv: dict, texte: str, lang: str = "fr") -> dict:
-    """Le plafond en dollars de TOUTE la réponse : MAX_TOURS × (contexte + SORTIE_MAX) au tarif du modèle de l'agent.
-    Rendu même sans clé (l'écran l'affiche ; c'est l'envoi qui est refusé)."""
+    """Le plafond en dollars de TOUTE la réponse : MAX_TOURS × (contexte + sortie du tour) au tarif du modèle de
+    l'agent. Rendu même sans clé (l'écran l'affiche ; c'est l'envoi qui est refusé)."""
     modele = MT.modele_agent()
     ctx = _jetons(systeme(conv, lang), _historique(conv.get("messages") or [], str(texte or "")), agent_boites.definitions_pour("campagnes"))
-    in_tok, out_tok = MAX_TOURS * ctx, MAX_TOURS * SORTIE_MAX
+    in_tok, out_tok = MAX_TOURS * ctx, MAX_TOURS * sortie_tour(modele)
     return {"plafond_usd": _usd(MT.op_tour(modele, in_tok, out_tok)), "in_tok": in_tok, "out_tok": out_tok,
             "modele": modele}
 
@@ -289,9 +307,10 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str, origine: st
     msgs = _historique(conv["messages"], texte)
     message_ecrit = False
     depense = 0.0
+    sortie = sortie_tour(modele)                          # réflexion comprise : la valeur chiffrée EST celle demandée
 
     for _n in range(MAX_TOURS):
-        op = MT.op_tour(modele, _jetons(sys_, msgs, outils), SORTIE_MAX)
+        op = MT.op_tour(modele, _jetons(sys_, msgs, outils), sortie)
         if depense + _usd(op) > plafond + 1e-12:          # arrêt net : aucun appel au-delà du devis
             if message_ecrit:
                 d = devis_message(await _conv(cid), TEXTE_CONTINUER[lang], lang)
@@ -318,8 +337,8 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str, origine: st
         file_delta: asyncio.Queue = asyncio.Queue()
         boucle = asyncio.get_running_loop()
         appel = asyncio.ensure_future(asyncio.to_thread(
-            MT.converser, modele, sys_, msgs, outils, SORTIE_MAX,
-            sur_delta=lambda s: boucle.call_soon_threadsafe(file_delta.put_nowait, s)))
+            MT.converser, modele, sys_, msgs, outils, sortie,
+            sur_delta=lambda s: boucle.call_soon_threadsafe(file_delta.put_nowait, s), effort=EFFORT))
         try:
             while True:
                 prochain = asyncio.ensure_future(file_delta.get())
@@ -388,6 +407,15 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str, origine: st
                 blocs.append(res["carte"])
                 evts.append({"type": "carte", "carte": res["carte"]})
                 carte_vue = True
+        # 15/11/2026 : un tour coupé à la limite de sortie SANS appel d'outil (texte amputé, ou rien du tout quand la
+        # réflexion a tout pris), ou un refus sans texte, ne finit plus en réponse vide : l'utilisateur lit ce qui s'est
+        # passé, et la coupure rend une carte « Continuer ».
+        coupe = tronque and not appels
+        refus = r.get("arret") == "refusal" and not blocs
+        if coupe or refus:
+            avis = (COUPE if coupe else REFUS)[lang]
+            blocs.append({"type": "texte", "texte": avis})
+            evts.append({"type": "texte", "texte": avis})
         if not blocs:
             blocs.append({"type": "texte", "texte": ""})
         m = fmt.nouveau_message("agent", blocs)
@@ -397,6 +425,13 @@ async def _tour(cid: str, texte: str, plafond_usd: float, lang: str, origine: st
             yield e
         if carte_vue:
             yield {"type": "fin", "motif": "carte", "cout_usd": depense}
+            return
+        if coupe:
+            d = devis_message(await _conv(cid), TEXTE_CONTINUER[lang], lang)
+            carte = _carte_continuer(d, "sortie", depense, lang)
+            await agent_store.ajouter(cid, [fmt.nouveau_message("agent", [carte])])
+            yield {"type": "carte", "carte": carte}
+            yield {"type": "fin", "motif": "sortie", "cout_usd": depense}
             return
         if not appels:
             yield {"type": "fin", "motif": "reponse", "cout_usd": depense}

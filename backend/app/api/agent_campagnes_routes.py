@@ -363,7 +363,8 @@ def _paquet_telephone(espace_id: str | None, langue: str) -> dict:
         systeme={r: AC.systeme_pour(r, espace_id, langue) for r in ROLES_TELEPHONE},
         outils=[ref[n] for n in OUTILS_TELEPHONE],
         modele=moteurs_texte.modele_agent(),
-        constantes={"MAX_TOURS": AC.MAX_TOURS, "SORTIE_MAX": AC.SORTIE_MAX, "CARS_PAR_JETON": AC.CARS_PAR_JETON,
+        # 15/11/2026 : la sortie du tour, réserve de réflexion du modèle comprise (le téléphone chiffre et appelle avec)
+        constantes={"MAX_TOURS": AC.MAX_TOURS, "SORTIE_MAX": AC.sortie_tour(), "CARS_PAR_JETON": AC.CARS_PAR_JETON,
                     "SURCOUT_OUTILS": AC.SURCOUT_OUTILS})
     p["espace_id"] = espace_id or None
     p.pop("version")

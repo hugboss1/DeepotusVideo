@@ -37,6 +37,11 @@ from app.services import registre_taches as RT
 
 MAX_TOURS = 6
 SORTIE_MAX = 1800
+# 15/11/2026 : ce que l'agent ÉCRIT par tour ; un modèle qui réfléchit d'office reçoit en plus la réserve de
+# réflexion de ce niveau (`moteurs_texte.sortie_tour`), sinon la réflexion mange la sortie et la réponse revient vide.
+EFFORT = "medium"
+COUPE = {"fr": "(Réponse coupée à la limite de sortie avant d'être finie : écris « continue » pour la reprendre.)",
+         "en": "(Answer cut at the output limit before it was finished: write “continue” to resume it.)"}
 CARS_PAR_JETON = 3
 SURCOUT_OUTILS = 1000
 MAX_HISTORIQUE = 24
@@ -202,7 +207,8 @@ def devis_message(agent: str, cid: str, texte: str, langue: str = "fr") -> dict:
     sys_ = systeme(agent, langue)
     outils = agent_boites.definitions_pour(agent)
     base = _jetons(sys_, _messages_modele(conv, texte), outils)
-    total = sum(_usd(MT.op_tour(modele, base + n * (SORTIE_MAX + 1500), SORTIE_MAX)) for n in range(MAX_TOURS))
+    sortie = MT.sortie_tour(modele, SORTIE_MAX, EFFORT)
+    total = sum(_usd(MT.op_tour(modele, base + n * (SORTIE_MAX + 1500), sortie)) for n in range(MAX_TOURS))
     return {"usd": round(total, 4), "modele": modele, "max_tours": MAX_TOURS, "cle": MT.configure("anthropic")}
 
 
@@ -238,8 +244,9 @@ async def _boucle(agent: str, conv: dict, texte: str, accord: float, langue: str
     msgs = _messages_modele(conv, texte)
     ctx = ao.Ctx(cid=conv["id"], espace_id=conv.get("espace_id") or None, lang=lg, agent=agent)
     depense, morceaux, traces, cartes, arret = 0.0, [], [], [], "fin"
+    sortie = MT.sortie_tour(modele, SORTIE_MAX, EFFORT)
     for n in range(MAX_TOURS):
-        op = MT.op_tour(modele, _jetons(sys_, msgs, outils), SORTIE_MAX)
+        op = MT.op_tour(modele, _jetons(sys_, msgs, outils), sortie)
         estime = _usd(op)
         if depense + estime > accord + 1e-9:
             arret = "accord"
@@ -254,7 +261,7 @@ async def _boucle(agent: str, conv: dict, texte: str, accord: float, langue: str
         lignes = (garde or {}).get("lignes") or []
         etape = await RT.ouvrir(conv["id"], f"tour {n + 1}", estime, lignes, conv.get("espace_id") or None)
         try:
-            r = await asyncio.to_thread(MT.converser, modele, sys_, msgs, outils, SORTIE_MAX)
+            r = await asyncio.to_thread(MT.converser, modele, sys_, msgs, outils, sortie, effort=EFFORT)
         except Exception as e:  # noqa: BLE001 — jamais une trace : le motif seulement
             if not isinstance(e, MT.FluxCoupe):
                 await plafonds.noter_reel_lignes(lignes, 0.0)
@@ -271,6 +278,8 @@ async def _boucle(agent: str, conv: dict, texte: str, accord: float, langue: str
         morceaux += [b.get("text", "") for b in blocs if b.get("type") == "text" and b.get("text")]
         appels = [b for b in blocs if b.get("type") == "tool_use"]
         if not appels:
+            if r.get("arret") == "max_tokens":            # coupé avant la fin : dit, jamais une réponse vide
+                morceaux.append(COUPE[lg])                  # `arret` reste « fin » : l'écran n'a pas d'autre libellé
             break
         msgs.append({"role": "assistant", "content": blocs})
         resultats = []

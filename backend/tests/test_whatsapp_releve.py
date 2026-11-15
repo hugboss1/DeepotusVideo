@@ -164,7 +164,7 @@ class Script:
     def __init__(self, reponses):
         self.reponses, self.appels = list(reponses), []
 
-    def __call__(self, modele, systeme, messages, outils, max_tokens, timeout=120.0, sur_delta=None):
+    def __call__(self, modele, systeme, messages, outils, max_tokens, timeout=120.0, sur_delta=None, effort=None):
         self.appels.append(1)
         if not self.reponses:
             raise AssertionError("appel du modèle en trop")

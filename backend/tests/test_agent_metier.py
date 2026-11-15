@@ -179,7 +179,7 @@ def main():
     APPELS = []
     SCRIPT = []
 
-    def _converser(modele, systeme_, messages, outils, max_tokens, timeout=120.0, sur_delta=None):
+    def _converser(modele, systeme_, messages, outils, max_tokens, timeout=120.0, sur_delta=None, effort=None):
         APPELS.append({"systeme": systeme_, "messages": json.loads(json.dumps(messages, default=str)),
                        "outils": [o["name"] for o in outils]})
         return SCRIPT.pop(0)
