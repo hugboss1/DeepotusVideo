@@ -20,6 +20,7 @@ import hashlib
 import html
 import importlib.util
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -77,13 +78,18 @@ class _Plafond(Exception):
 
 class EchecYoutube(RuntimeError):
     """28/10/2026 : yt-dlp a échoué sur une vidéo ; le message est SA raison (sa ligne ERROR), jamais la commande.
-    `bloque` : YouTube refuse ce poste pour l'instant (vérification « bot », 429) — inutile d'essayer les autres vidéos."""
-    def __init__(self, message: str, bloque: bool = False):
+    `bloque` : YouTube refuse ce poste pour l'instant (vérification « bot », 429) — inutile d'essayer les autres vidéos.
+    `certificat` (15/11/2026) : la connexion chiffrée est refusée sur ce poste (un antivirus ou un proxy présente son
+    propre certificat) — aucune vidéo ne passera, et retenter n'y change rien."""
+    def __init__(self, message: str, bloque: bool = False, certificat: bool = False):
         super().__init__(message)
         self.bloque = bloque
+        self.certificat = certificat
 
 
 _BLOCAGE = re.compile(r"confirm you.?re not a bot|HTTP Error 429|Too Many Requests|rate.?limit", re.I)
+_CERTIFICAT = re.compile(r"curl: \(60\)|CERTIFICATE_VERIFY_FAILED|certificate verify failed|"
+                         r"unable to get local issuer certificate|self.signed certificate", re.I)
 PAUSE_YOUTUBE = 20.0                   # secondes avant de retenter une vidéo en échec
 
 
@@ -164,6 +170,14 @@ def _ytdlp_commande_defaut() -> list[str] | None:
     return [exe] if exe else None
 
 
+def _env_ytdlp() -> dict:
+    """L'environnement de yt-dlp : celui de l'app SANS `SSLKEYLOGFILE`. Un antivirus (Avast) y pose un canal propre au
+    moment où l'app démarre ; quand ce canal n'existe plus, il présente son propre certificat à la place et le moteur
+    réseau de yt-dlp, qui ne lit pas le magasin de Windows, refuse toutes les vidéos (« curl: (60) », 15/11/2026).
+    Sans la variable, yt-dlp passe : constaté sur le poste, même vidéo, même commande."""
+    return {k: v for k, v in os.environ.items() if k.upper() != "SSLKEYLOGFILE"}
+
+
 async def _ytdlp_defaut(video: str, maxi: int) -> dict:
     cmd = _ytdlp_commande()
     if not cmd:
@@ -177,13 +191,14 @@ async def _ytdlp_defaut(video: str, maxi: int) -> dict:
         try:
             # stdin fermé : le backend tourne sans console (lanceur silencieux) ; un exécutable figé qui lit stdin y échoue
             await asyncio.to_thread(_RUN, args, check=True, capture_output=True, timeout=DELAI_YTDLP,
-                                    creationflags=drapeaux, stdin=subprocess.DEVNULL)
+                                    creationflags=drapeaux, stdin=subprocess.DEVNULL, env=_env_ytdlp())
         except subprocess.CalledProcessError as e:
             err = (e.stderr or b"").decode("utf-8", "replace") if isinstance(e.stderr, bytes) else str(e.stderr or "")
             lignes = [l.strip() for l in err.splitlines() if l.strip()]
             raison = next((l for l in reversed(lignes) if l.startswith("ERROR")), lignes[-1] if lignes else "")
             raison = re.sub(r"^ERROR:\s*", "", raison)[:200] or f"yt-dlp a rendu le code {e.returncode}"
-            raise EchecYoutube(raison, bloque=bool(_BLOCAGE.search(err))) from None
+            raise EchecYoutube(raison, bloque=bool(_BLOCAGE.search(err)),
+                               certificat=bool(_CERTIFICAT.search(err))) from None
         except subprocess.TimeoutExpired:
             raise EchecYoutube(f"yt-dlp n'a pas répondu en {int(DELAI_YTDLP)} s") from None
         return json.loads(Path(modele + ".info.json").read_text(encoding="utf-8"))
@@ -334,7 +349,9 @@ async def collecter(perimetre: dict, brut: Path, echeance: float, journal: Calla
                 try:
                     try:
                         noter("youtube", cid, await _youtube(cid, v))
-                    except EchecYoutube:                   # une panne passagère : une seule nouvelle tentative
+                    except EchecYoutube as e:              # une panne passagère : une seule nouvelle tentative
+                        if e.certificat:                   # sauf un certificat refusé : la pause n'y change rien
+                            raise
                         await _DORMIR(PAUSE_YOUTUBE)
                         garde()
                         noter("youtube", cid, await _youtube(cid, v))
@@ -342,7 +359,12 @@ async def collecter(perimetre: dict, brut: Path, echeance: float, journal: Calla
                     youtube_ok = False
                     limites.append("youtube : yt-dlp introuvable, source indisponible")
                 except EchecYoutube as e:
-                    if e.bloque:
+                    if e.certificat:
+                        youtube_ok = False
+                        limites.append("youtube : connexion chiffrée refusée sur ce poste (un antivirus ou un proxy "
+                                       "présente son propre certificat, que yt-dlp ne reconnaît pas) : source "
+                                       "suspendue pour cette collecte ; relancez l'application puis la collecte")
+                    elif e.bloque:
                         youtube_ok = False
                         limites.append(f"youtube : bloqué par YouTube pour l'instant ({str(e)[:160]}) : source "
                                        "suspendue pour cette collecte, réessayez plus tard")
