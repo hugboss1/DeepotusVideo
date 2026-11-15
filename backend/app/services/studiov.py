@@ -39,6 +39,11 @@ FABRIQUES = LIVRES_FICHIER.parent / "fabriques"
 MAX_DECORS = 80
 MAX_NOM, MAX_TEXTE, MAX_MOT = 60, 40, 24
 MAX_MATIERES, MAX_LUMIERES, MAX_OBJETS, MAX_ECRANS, MAX_CAMERAS = 48, 16, 120, 4, 6
+# SVR (15/11/2026) — la RÉGIE de l'écran : la suite des médias que les écrans « ecran » du décor montrent tour à tour
+# pendant une prise. `partage` = l'écran partagé (ce que l'écran montrait seul jusque-là), `eteint`, une image
+# (`img:`) ou une vidéo (`vid:`) de la Bibliothèque. Sans média, rien ne change : l'écran montre l'écran partagé.
+MAX_MEDIAS = 12
+TYPES_MEDIA = ("partage", "eteint", "image", "video")
 
 MOTIFS = ("uni", "bois", "parquet", "brique", "beton", "tissu", "pelouse", "grille", "carreaux", "metal", "lattes")
 TYPES_LUMIERE = ("cle", "appoint", "contre", "ambiance", "neon", "fenetre")
@@ -53,6 +58,7 @@ REF_TEXTURE = re.compile(r"^(?:(?:stu|cat):[a-z0-9_]{2,40}|mat:[0-9a-f]{8})$")
 REF_OBJET = re.compile(r"^obj:[a-f0-9]{16}$")
 # SVB : une image recopiée de la Bibliothèque de l'application (services/studiov_images.py)
 REF_IMAGE = re.compile(r"^img:[a-f0-9]{16}$")
+REF_VIDEO = re.compile(r"^vid:[a-f0-9]{16}$")
 TYPES_IMAGE = ("tableau", "logo_mural", "kakemono")
 USAGES = ("autre", "sol", "mur", "plafond", "bois", "tissu", "cuir", "metal", "pierre", "plastique")
 # les polices embarquées (frontend/dist/fonts) proposées aux enseignes et aux objets à texte
@@ -153,6 +159,21 @@ def _place(d, defaut=(0.0, 0.0, 0.0)):
 
 def _ref_image(v) -> str:
     return v if isinstance(v, str) and REF_IMAGE.match(v) else ""
+
+
+def _medias(v) -> list:
+    """Les médias de la régie : un type fermé, et pour une image ou une vidéo une RÉFÉRENCE valide (sinon le média
+    n'est rien : jamais un chemin, jamais une adresse)."""
+    out = []
+    for x in _liste(v, MAX_MEDIAS):
+        t = x.get("type")
+        if t in ("partage", "eteint"):
+            out.append({"type": t, "ref": ""})
+        elif t == "image" and _ref_image(x.get("ref")):
+            out.append({"type": t, "ref": x["ref"]})
+        elif t == "video" and isinstance(x.get("ref"), str) and REF_VIDEO.match(x["ref"]):
+            out.append({"type": t, "ref": x["ref"]})
+    return out
 
 
 def _ref_texture(v) -> str:
@@ -258,9 +279,10 @@ def normaliser(doc) -> dict:
     ambiance = {"fond": K._couleur(a.get("fond"), A["fond"]), "brouillard": _n(a.get("brouillard"), 0.0, 0.0, 0.3),
                 "exposition": _n(a.get("exposition"), 1.0, 0.2, 3.0), "flou_fond": _n(a.get("flou_fond"), 0.0, 0.0, 1.0),
                 "grain": _n(a.get("grain"), 0.0, 0.0, 0.5), "vignette": _n(a.get("vignette"), A["vignette"], 0.0, 1.0)}
+    r = d.get("regie") if isinstance(d.get("regie"), dict) else {}
     return {"piece": piece, "matieres": mat, "lumieres": lumieres, "objets": objets, "ecrans": ecrans,
             "enseigne": enseigne, "presentateur": presentateur, "cameras": cameras, "ambiance": ambiance,
-            "mode": K._choix(d.get("mode"), MODES, "plateau")}
+            "mode": K._choix(d.get("mode"), MODES, "plateau"), "regie": {"medias": _medias(r.get("medias"))}}
 
 
 def _livres_bruts() -> dict:
@@ -304,7 +326,7 @@ def catalogue() -> dict:
     return {"familles": {f: list(t) for f, t in CATALOGUE.items()}, "motifs": list(MOTIFS),
             "lumieres": list(TYPES_LUMIERE), "mouvements": list(MOUVEMENTS), "usages": list(USAGES),
             "polices": list(POLICES), "styles_enseigne": list(STYLES_ENSEIGNE), "types_texte": list(TYPES_TEXTE),
-            "types_lumineux": list(TYPES_LUMINEUX), "types_image": list(TYPES_IMAGE)}
+            "types_lumineux": list(TYPES_LUMINEUX), "types_image": list(TYPES_IMAGE), "types_media": list(TYPES_MEDIA)}
 
 
 # ── stockage ──

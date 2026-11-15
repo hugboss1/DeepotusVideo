@@ -18,6 +18,10 @@
 //   m.viser(nx, ny)                ce qu'il y a sous le pointeur (coordonnées -1..1) : {genre: "objet" | "surface" |
 //                                  "lumiere" | "camera" | "ecran" | "enseigne", index | pan} ou null
 //   m.choisir(cible | null)        entoure ce qui est choisi ; m.empreintes() -> l'emprise au sol de chaque objet
+// Régie de l'écran (lot SVR) : les écrans « ecran » du décor montrent le média COURANT de `decor.regie.medias` — l'écran
+// partagé (comme sans régie), rien, une image ou une vidéo de la Bibliothèque, lues dans les index servis (`images`,
+// `videos` = {ref: {url}}). `m.regie` = {aller(i), suivant(), precedent(), lecture(v?), etat()} ; `son` = la vidéo
+// projetée se fait entendre (sinon muette) ; `surRegie` est appelé quand l'état de la régie change.
 // Catalogue de produits réels (lot SVC) : `chargeur.meshopt` = le décodeur Meshopt embarqué (ces modèles sont compressés) ;
 // la fiche d'un objet dit sa POSE (`sol` : la base à y = 0 ; `mur` : centré sur son point, le dos au mur ; `plafond` : pendu
 // sous son point) ; en qualité légère, les textures d'un modèle sont ramenées à 1 024 px avant d'aller à la carte graphique.
@@ -89,7 +93,7 @@ export function creerMoteur(THREE, o) {
   const O = o || {}, doc = O.doc || document;
   const L = Math.max(2, Math.round(O.largeur || 1280)), H = Math.max(2, Math.round(O.hauteur || 720));
   const qualite = O.qualite === "haute" ? "haute" : "legere";
-  const INDEX = O.textures || {}, OBJETS = O.objets || {}, IMAGES = O.images || {};
+  const INDEX = O.textures || {}, OBJETS = O.objets || {}, IMAGES = O.images || {}, VIDEOS = O.videos || {};
   const canvas = O.canvas || doc.createElement("canvas");
   const rendu = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
   rendu.setPixelRatio(1);
@@ -876,6 +880,81 @@ export function creerMoteur(THREE, o) {
   }
 
   const cible = new THREE.Vector3();
+  // ── la RÉGIE de l'écran (lot SVR). Une image ou une vidéo est peinte ENTIÈRE dans une toile aux proportions de l'écran
+  // (bandes noires), jamais déformée ; l'écran partagé garde le canevas caviardé de la scène. L'état de la régie (média
+  // courant, lecture) survit aux reconstructions du décor. ──
+  const rg = { i: 0, lecture: false, video: null, ref: "", toile: null, tex: null, sale: true };   // (« regie » est déjà la régie des caméras)
+  const imgRegie = new Map();
+  const dire = () => { if (typeof O.surRegie === "function") O.surRegie(); };
+  const mediasRegie = () => (decor && decor.regie && Array.isArray(decor.regie.medias) ? decor.regie.medias : []);
+  const mediaCourant = () => { const L = mediasRegie(); return L.length ? L[Math.min(rg.i, L.length - 1)] : null; };
+  function lacherVideo() {
+    if (rg.video) { try { rg.video.pause(); rg.video.removeAttribute("src"); rg.video.load(); } catch (e) { /* déjà partie */ } }
+    rg.video = null; rg.ref = ""; rg.lecture = false;
+  }
+  function videoRegie(M) {
+    if (rg.video && rg.ref === M.ref) return rg.video;
+    lacherVideo();
+    const F = VIDEOS[M.ref]; if (!F) return null;
+    const v = doc.createElement("video");
+    v.muted = !!O.apercu || !O.son; v.playsInline = true; v.preload = "auto"; v.src = F.url;
+    v.addEventListener("ended", () => { rg.lecture = false; dire(); });
+    rg.video = v; rg.ref = M.ref;
+    return v;
+  }
+  function etatRegie() {
+    const L = mediasRegie(), M = mediaCourant(), v = M && M.type === "video" ? rg.video : null;
+    return { i: L.length ? Math.min(rg.i, L.length - 1) : -1, n: L.length, type: M ? M.type : "", ref: M ? M.ref : "", lecture: !!v && rg.lecture,
+      t: v ? v.currentTime || 0 : 0, duree: v && isFinite(v.duration) ? v.duration : 0, ecrans: texEcrans.length };
+  }
+  // passe au média d'indice i ; une vidéo repart de son début et se lance (sauf `lancer === false`)
+  function allerRegie(i, lancer) {
+    const L = mediasRegie(); if (!L.length) return etatRegie();
+    rg.i = Math.max(0, Math.min(L.length - 1, Math.round(Number(i) || 0))); rg.sale = true;
+    const M = L[rg.i];
+    if (M.type === "video") {
+      const v = videoRegie(M);
+      if (v) { try { v.currentTime = 0; } catch (e) { /* pas encore chargée */ } rg.lecture = lancer !== false; if (rg.lecture) v.play().catch(() => { rg.lecture = false; dire(); }); else v.pause(); }
+    } else lacherVideo();
+    dire();
+    return etatRegie();
+  }
+  function lectureRegie(v) {
+    const M = mediaCourant(); if (!M || M.type !== "video" || !rg.video) return etatRegie();
+    rg.lecture = v == null ? !rg.lecture : !!v;
+    if (rg.lecture) { if (rg.video.ended) { try { rg.video.currentTime = 0; } catch (e) { /* pas prête */ } } rg.video.play().catch(() => { rg.lecture = false; dire(); }); }
+    else rg.video.pause();
+    dire();
+    return etatRegie();
+  }
+  // peint le média courant dans la toile de la régie ; false = l'écran montre l'écran partagé (ou son image d'attente)
+  function peindreRegie() {
+    const M = mediaCourant();
+    if ((!M || M.type !== "video") && rg.video) lacherVideo();
+    if (!M || M.type === "partage" || !texEcrans.length) return false;
+    const E0 = decor.ecrans.find((e) => e.source === "ecran") || { l: 16, h: 9 }, l = 1280, h = Math.max(2, Math.round((l * E0.h) / E0.l));
+    if (!rg.toile || rg.toile.width !== l || rg.toile.height !== h) {
+      rg.toile = toile(l, h, () => {});
+      rg.tex = new THREE.CanvasTexture(rg.toile); rg.tex.colorSpace = THREE.SRGBColorSpace; rg.tex.anisotropy = 4; durables.push(rg.tex); rg.sale = true;
+    }
+    let src = null;
+    if (M.type === "image") {
+      const I = IMAGES[M.ref];
+      if (I && !imgRegie.has(I.url)) { imgRegie.set(I.url, null); image(I.url).then((im) => { imgRegie.set(I.url, im || null); rg.sale = true; }); }
+      src = I ? imgRegie.get(I.url) : null;
+    } else if (M.type === "video") {
+      const v = videoRegie(M);
+      if (v && v.readyState >= 2) { src = v; rg.sale = true; }
+    }
+    if (rg.sale) {
+      const x = rg.toile.getContext("2d"); x.fillStyle = "#050608"; x.fillRect(0, 0, l, h);
+      const sl = src ? src.videoWidth || src.naturalWidth || src.width || 0 : 0, sh = src ? src.videoHeight || src.naturalHeight || src.height || 0 : 0;
+      if (sl > 0 && sh > 0) { const k = Math.min(l / sl, h / sh); try { x.drawImage(src, (l - sl * k) / 2, (h - sh * k) / 2, sl * k, sh * k); } catch (e) { /* image pas prête */ } }
+      rg.tex.needsUpdate = true; rg.sale = false;
+    }
+    return true;
+  }
+
   function rendre(t, src) {
     if (!decor) return;
     const S = src || {};
@@ -884,6 +963,8 @@ export function creerMoteur(THREE, o) {
       for (const e of texEcrans) { e.vive = texture(S.ecran); e.mat.map = e.vive; e.mat.needsUpdate = true; }
     }
     if (canvasEcran && S.ecran) for (const e of texEcrans) if (e.vive) e.vive.needsUpdate = true;
+    const enRegie = peindreRegie();
+    for (const e of texEcrans) { const carte = enRegie ? rg.tex : (e.vive || e.attente); if (e.mat.map !== carte) { e.mat.map = carte; e.mat.needsUpdate = true; } }
     poserVideo(S.camera || null);
     let p = reg.pose(decor.cameras, t);
     if (libre) { const o2 = oeilLibre(); p = { x: o2.x, y: o2.y, z: o2.z, champ: libre.champ, vers: [libre.cible.x, libre.cible.y, libre.cible.z] }; }
@@ -897,7 +978,8 @@ export function creerMoteur(THREE, o) {
   construire(O.decor);
   return {
     canvas, rendre,
-    maj(d) { construire(d); canvasEcran = null; },
+    maj(d) { construire(d); canvasEcran = null; rg.sale = true; },
+    regie: { aller: allerRegie, suivant: () => allerRegie(rg.i + 1), precedent: () => allerRegie(rg.i - 1), lecture: lectureRegie, etat: etatRegie },
     camera(i, t) { return reg.basculer(i, t == null ? performance.now() : t); },
     cameras: () => decor.cameras.map((c) => c.nom),
     courante: () => reg.courante,
@@ -907,7 +989,7 @@ export function creerMoteur(THREE, o) {
     libre: () => !!libre,
     choisir(c) { selection = c || null; marquer(); },
     detruire() {
-      detruit = true; vider();
+      detruit = true; lacherVideo(); vider();
       for (const x of durables.splice(0)) { try { x.dispose(); } catch (e) { /* déjà libéré */ } }
       for (const t of gpu.values()) { try { t.dispose(); } catch (e) { /* déjà libéré */ } }
       gpu.clear();

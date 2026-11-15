@@ -46,6 +46,7 @@ ERREURS = {"RefusInspiration", "InspirationInconnue", "InspirationEnCours",   # 
            "RefusObjet",   # SVO : refus de la bibliothèque d'objets importés du studio virtuel
            "RefusImage",   # SVB : refus des images de la Bibliothèque posées dans le studio virtuel
            "RefusCatalogue",   # SVC : refus du catalogue de produits réels du studio virtuel (400/404/409/502/503)
+           "RefusVideo",   # SVR : refus des vidéos de la Bibliothèque liées à la régie du studio virtuel
            "RefusLive",   # t318 : refus du direct multi-destinations (400/404/409)
            "RefusPages", "AppelEchoue", "VisionEnCours",
            "RefusAccord",   # t314 : devis du détourage d'un schéma non accepté (409 {message, usd})   # revue finale t312 : AppelEchoue = premier appel Claude en échec réseau   # t312 tâche 4 : dépôt refusé par scan_pages.charger (400/413/415/422)

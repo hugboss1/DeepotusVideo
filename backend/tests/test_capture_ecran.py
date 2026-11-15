@@ -407,5 +407,32 @@ dico_js = (SH / "dz-i18n-dico.js").read_text("utf-8")
 check("P11 dictionnaire assemblé (shared == dist) avec les clés capture.*",
       all(json.dumps(k) in dico_js for k in DICO) and (DI / "dz-i18n-dico.js").read_bytes() == (SH / "dz-i18n-dico.js").read_bytes())
 
+print("[T] texte de la prise et prompteur (lot SVR)")
+PRO = (SH / "dz-prompteur.js").read_text("utf-8")
+DICO_P = json.loads((SH / "i18n" / "prompteur.json").read_text("utf-8"))
+check("T1 dz-prompteur.js : copie dist identique ; chargé une fois, en module, AVANT dz-capture.js",
+      (DI / "dz-prompteur.js").read_bytes() == (SH / "dz-prompteur.js").read_bytes() and (index := (REPO / "frontend" / "dist" / "index.html").read_text("utf-8")).count('src="/shared/dz-prompteur.js"') == 1
+      and 0 < index.find('<script type="module" src="/shared/dz-prompteur.js">') < index.find('src="/shared/dz-capture.js"'))
+check("T2 la boîte de départ porte le groupe du prompteur ; son texte n'est jamais gardé dans les options mémorisées ; la session dit si ce qui est hors de l'app échappe à l'image",
+      "window.__dzPrompteur.groupeCapture()" in TXT and "texte: prompteur ? prompteur.valeur() : undefined," in TXT and "prompteur ? prompteur.noeud : null," in TXT
+      and "Object.assign({}, o, { camera: false, texte: undefined })" in TXT and "horsImage: !!(session.elementCapture || session.preuve)" in TXT)
+check("T3 le prompteur est posé sur le corps de la page (hors de l'app), marqué comme interface de la capture ; il n'est PAS affiché quand l'image prend tout l'onglet, et la pastille le dit",
+      '"data-dz-capture-ui": true, "data-dz-prompteur": true' in PRO and "document.body.appendChild(noeud); peindre(); requestAnimationFrame(pas);" in PRO
+      and "if (s.horsImage) prise.ui = poserPrompteur(String(o.prompteur.texte));" in PRO and 'T("prompteur.barre.coupe")' in PRO and "if (p.ui) p.ui.retirer();" in PRO)
+check("T4 le texte de la voix : reconnaissance du navigateur seulement si la case est cochée (jamais d'office), reprise après un silence, arrêtée à la fin, rangée avec la prise",
+      "garder.checked = memo.transcrire === true && !!ctorSR();" in PRO and "if (o.transcrire) ecouterVoix(prise);" in PRO and "r.onend = () => { if (p.actif) setTimeout(lancer, 150); };" in PRO
+      and "p.actif = false;\n    try { if (p.sr) p.sr.stop(); }" in PRO.replace("\r\n", "\n") and 'api("PUT", "/api/capture/sessions/" + p.id + "/texte", { source: "navigateur"' in PRO)
+envoi_dictee = PRO.find('fetch("/api/dictation", { method: "POST"')
+check("T5 la transcription payante ne part qu'au clic d'accord, APRÈS le devis affiché, plafonnée au montant du devis",
+      0 < PRO.find('fetch("/api/dictation/estimate"') < PRO.find('T("prompteur.textes.devis"') < PRO.find('T("prompteur.textes.transcrire.oui")') < envoi_dictee
+      and PRO.count('"/api/dictation"') == 1 and 'f.append("max_usd", String(d.j.usd));' in PRO and '"data-dz-prompteur-accord": true' in PRO)
+check("T6 ni alert/confirm/prompt natifs, ni innerHTML, ni emoji, ni arrondi",
+      not re.search(r"(?<![\w.$])(?:window\.)?(?:confirm|alert|prompt)\(", sans_comm(PRO)) and "innerHTML" not in PRO
+      and not re.search("[\U0001F300-\U0001FAFF☀-➿]", PRO) and not re.search(r"border-radius:(?!0[;\"])", PRO))
+cles_p = set(re.findall(r'"(prompteur\.[a-z_]+\.[a-z_.]+)"', PRO)) | {"prompteur.source." + x for x in ("navigateur", "transcription", "saisi")}
+check("T7 les clés prompteur.* : toutes employées, toutes présentes, FR/EN non vides aux mêmes variables, assemblées",
+      cles_p == set(DICO_P) and all(v["fr"].strip() and v["en"].strip() and var(v["fr"]) == var(v["en"]) for v in DICO_P.values())
+      and all(json.dumps(k) in dico_js for k in DICO_P), (cles_p ^ set(DICO_P)))
+
 print(f"\n{ok} ok, {fail} fail")
 sys.exit(1 if fail else 0)

@@ -641,7 +641,10 @@
    "grain": 0.0,
    "vignette": 0.3
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  },
  "livre-podcast": {
   "nom": "Podcast à deux",
@@ -1205,7 +1208,10 @@
    "grain": 0.05,
    "vignette": 0.4
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  },
  "livre-loft": {
   "nom": "Loft chaleureux",
@@ -1701,7 +1707,10 @@
    "grain": 0.0,
    "vignette": 0.15
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  },
  "livre-actualite": {
   "nom": "Plateau d'actualité",
@@ -2176,7 +2185,10 @@
    "grain": 0.0,
    "vignette": 0.2
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  },
  "livre-gaming": {
   "nom": "Gaming néon",
@@ -2717,7 +2729,10 @@
    "grain": 0.0,
    "vignette": 0.45
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  },
  "livre-atelier3d": {
   "nom": "Atelier d'impression 3D",
@@ -3246,7 +3261,10 @@
    "grain": 0.0,
    "vignette": 0.12
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  },
  "livre-jeux": {
   "nom": "Vitrine de jeux de plateau",
@@ -3841,7 +3859,10 @@
    "grain": 0.0,
    "vignette": 0.35
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  },
  "livre-scifi": {
   "nom": "Univers science-fiction",
@@ -4294,7 +4315,10 @@
    "grain": 0.0,
    "vignette": 0.4
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  },
  "livre-cartoon": {
   "nom": "Univers cartoon",
@@ -4708,7 +4732,10 @@
    "grain": 0.0,
    "vignette": 0.05
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  },
  "livre-foot": {
   "nom": "Football européen",
@@ -5184,7 +5211,10 @@
    "grain": 0.0,
    "vignette": 0.25
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  },
  "livre-usa": {
   "nom": "Sports américains",
@@ -5709,6 +5739,9 @@
    "grain": 0.0,
    "vignette": 0.3
   },
-  "mode": "plateau"
+  "mode": "plateau",
+  "regie": {
+   "medias": []
+  }
  }
 }

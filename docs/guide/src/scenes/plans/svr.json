@@ -1,0 +1,306 @@
+{
+ "base": "http://127.0.0.1:8827",
+ "scenes": [
+  {
+   "scene": "studio-virtuel/catalogue",
+   "taille": [
+    1208,
+    800
+   ],
+   "titre": {
+    "fr": "Meubler un décor du studio virtuel",
+    "en": "Furnish a virtual studio set"
+   },
+   "legende": {
+    "fr": "Voir les décors, personnaliser une copie, puis l'onglet Catalogue : un vrai produit se télécharge et se pose à sa taille.",
+    "en": "Browse sets, customise a copy, then the Catalogue tab: a real product downloads and lands at its true size."
+   },
+   "avant": [
+    {
+     "js": "try{localStorage.setItem('dz_studiov_qualite','haute')}catch(e){}; fetch('/api/studiov').then(function(r){return r.json()}).then(function(j){return Promise.all((j.decors||[]).map(function(x){return fetch('/api/studiov/'+x.id,{method:'DELETE'})}))}).then(function(){return fetch('/api/studiov/choix',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({decor_id:''})})}).then(function(){return 0})"
+    },
+    {
+     "attente": 800
+    }
+   ],
+   "captures": [
+    {
+     "nom": "decors",
+     "etapes": [
+      {
+       "js": "window.__dzStudiov.ouvrirApercu({decor:'livre-loft'}); 0"
+      },
+      {
+       "attente": 6000
+      }
+     ]
+    },
+    {
+     "nom": "catalogue",
+     "etapes": [
+      {
+       "clic": "css:[data-dz-studiov-personnaliser]",
+       "apres": 5000
+      },
+      {
+       "clic": "css:[data-dz-studiov-onglet=catalogue]",
+       "apres": 2500
+      },
+      {
+       "js": "var b=document.querySelector('[data-dz-studiov-cat-charger]'); if(b) b.click(); 0"
+      },
+      {
+       "attente": 8000
+      },
+      {
+       "js": "var c=document.querySelector('[data-dz-studiov-cat-filtre]'); c.value='floor lamp'; c.dispatchEvent(new Event('change')); 0"
+      },
+      {
+       "attente": 6000
+      },
+      {
+       "js": "document.querySelectorAll('[data-dz-studiov-cat-produit]')[(typeof window.dzLang==='function'&&window.dzLang()==='en')?3:2].click(); 0"
+      },
+      {
+       "attente": 1500
+      }
+     ]
+    },
+    {
+     "nom": "pose",
+     "etapes": [
+      {
+       "js": "document.querySelector('[data-dz-studiov-cat-poser]').click(); 0"
+      },
+      {
+       "attente": 12000
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 2.8,
+     "surligne": "css:[data-dz-studiov-personnaliser]",
+     "bulle": {
+      "fr": "Un décor livré se personnalise en copie",
+      "en": "A built-in set is customised as a copy"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "curseur": "css:[data-dz-studiov-cat-poser]",
+     "clic": true,
+     "bulle": {
+      "fr": "Catalogue : de vrais produits, à leur taille",
+      "en": "Catalogue: real products, at their true size"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 3.0,
+     "surligne": "css:[data-dz-studiov-remplacer]",
+     "bulle": {
+      "fr": "Le produit est posé ; Remplacer… change un meuble en place",
+      "en": "The product is placed; Replace… swaps a piece in place"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio-virtuel/regie",
+   "taille": [
+    1208,
+    800
+   ],
+   "titre": {
+    "fr": "Préparer la régie de l'écran",
+    "en": "Prepare the screen's control room"
+   },
+   "legende": {
+    "fr": "Onglet Écran : la suite des médias que l'écran du décor montrera pendant la prise ; Voir en montre un dans l'aperçu.",
+    "en": "Screen tab: the sequence of media the set's screen will show during the take; Preview shows one in the preview."
+   },
+   "avant": [
+    {
+     "js": "try{localStorage.setItem('dz_studiov_qualite','haute');localStorage.setItem('dz_capture_preuve','1')}catch(e){}; window.__dzCapture.demarrer({mode:'app',voix:true,camera:false,decor:''}).then(function(){return 0})"
+    },
+    {
+     "attente": 4500
+    },
+    {
+     "js": "window.__dzCapture.arreter().then(function(r){window.__svrJob=r&&r.job_id; var b=document.querySelector('[data-dz-capture-fin]'); if(b) b.remove(); return 0})"
+    },
+    {
+     "attente": 2500
+    },
+    {
+     "js": "var J=function(m,u,b){return fetch(u,{method:m,headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json()})}; J('GET','/api/studiov').then(function(l){return Promise.all((l.decors||[]).map(function(x){return fetch('/api/studiov/'+x.id,{method:'DELETE'})}))}).then(function(){return Promise.all([J('POST','/api/studiov',{base:'livre-tech',nom:(typeof window.dzLang==='function'&&window.dzLang()==='en')?'My studio':'Mon studio'}),J('POST','/api/studiov/bibliotheque/image',{filename:'demo-affiche.png'}),J('POST','/api/studiov/bibliotheque/video',{job:window.__svrJob})])}).then(function(x){var d=x[0]; window.__svrDecor=d.id; d.regie={medias:[{type:'partage'},{type:'image',ref:x[1].ref},{type:'video',ref:x[2].ref}]}; return J('PUT','/api/studiov/'+d.id,d)}).then(function(){return 0})"
+    },
+    {
+     "attente": 2500
+    }
+   ],
+   "captures": [
+    {
+     "nom": "suite",
+     "etapes": [
+      {
+       "js": "window.__dzStudiov.ouvrirApercu({decor:window.__svrDecor}); 0"
+      },
+      {
+       "attente": 6000
+      },
+      {
+       "clic": "css:[data-dz-studiov-onglet=ecran]",
+       "apres": 2500
+      }
+     ]
+    },
+    {
+     "nom": "voir",
+     "etapes": [
+      {
+       "js": "var b=[].slice.call(document.querySelectorAll('[data-dz-studiov-apercu-boite] button')).filter(function(x){return /^4 /.test(x.textContent)})[0]; if(b) b.click(); 0"
+      },
+      {
+       "attente": 1500
+      },
+      {
+       "js": "document.querySelector('[data-dz-studiov-onglet=ecran]').click(); 0"
+      },
+      {
+       "attente": 800
+      },
+      {
+       "js": "document.querySelectorAll('[data-dz-studiov-media] button')[4].click(); 0"
+      },
+      {
+       "attente": 3500
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:[data-dz-studiov-media='2']",
+     "bulle": {
+      "fr": "La suite : écran partagé, puis vos images et vos vidéos",
+      "en": "The sequence: shared screen, then your images and videos"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.0,
+     "bulle": {
+      "fr": "Voir : le média s'affiche sur l'écran du décor",
+      "en": "Preview: the media shows on the set's screen"
+     }
+    }
+   ]
+  },
+  {
+   "scene": "studio-virtuel/prise",
+   "taille": [
+    1208,
+    800
+   ],
+   "titre": {
+    "fr": "Monter en direct pendant la prise",
+    "en": "Edit live during the take"
+   },
+   "legende": {
+    "fr": "Pendant l'enregistrement : le prompteur sous la pastille, la barre de régie et son retour en bas, hors de l'image.",
+    "en": "While recording: the prompter under the pill, the control bar and its monitor at the bottom, outside the picture."
+   },
+   "avant": [
+    {
+     "js": "window.__dzStudiov.fermerApercu(); try{localStorage.setItem('dz_capture_preuve','1')}catch(e){}; fetch('/api/studiov').then(function(r){return r.json()}).then(function(l){var x=(l.decors||[]).filter(function(d){return d.regie&&d.regie.medias&&d.regie.medias.length})[0]||(l.decors||[])[0]; window.__svrDecor=x?x.id:''; return 0})"
+    },
+    {
+     "attente": 1200
+    }
+   ],
+   "captures": [
+    {
+     "nom": "large",
+     "etapes": [
+      {
+       "js": "var en=(typeof window.dzLang==='function'&&window.dzLang()==='en'); window.__dzCapture.demarrer({mode:'app',voix:true,camera:false,decor:window.__svrDecor,texte:{transcrire:false,prompteur:{texte:en?'Hello and welcome to this new episode.\\nToday I show you how to furnish a virtual studio with real products.\\nWe start on the wide shot, then we move to the screen.\\nStay until the end for the full demonstration.':'Bonjour et bienvenue dans ce nouvel épisode.\\nAujourd\\u2019hui, je vous montre comment meubler un studio virtuel avec de vrais produits.\\nOn commence par la vue large, puis on passe à l\\u2019écran.\\nRestez jusqu\\u2019à la fin pour la démonstration complète.'}}}).then(function(){return 0})"
+      },
+      {
+       "attente": 6000
+      }
+     ]
+    },
+    {
+     "nom": "ecran",
+     "etapes": [
+      {
+       "js": "window.dispatchEvent(new KeyboardEvent('keydown',{code:'Digit4',ctrlKey:true,altKey:true,bubbles:true,cancelable:true})); 0"
+      },
+      {
+       "attente": 1500
+      },
+      {
+       "js": "window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowRight',ctrlKey:true,altKey:true,bubbles:true,cancelable:true})); 0"
+      },
+      {
+       "attente": 800
+      },
+      {
+       "js": "window.dispatchEvent(new KeyboardEvent('keydown',{code:'ArrowRight',ctrlKey:true,altKey:true,bubbles:true,cancelable:true})); 0"
+      },
+      {
+       "attente": 3500
+      }
+     ]
+    },
+    {
+     "nom": "fin",
+     "etapes": [
+      {
+       "js": "window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyP',ctrlKey:true,altKey:true,bubbles:true,cancelable:true})); 0"
+      },
+      {
+       "attente": 600
+      }
+     ]
+    }
+   ],
+   "temps": [
+    {
+     "capture": 0,
+     "duree": 3.0,
+     "surligne": "css:[data-dz-prompteur]",
+     "bulle": {
+      "fr": "Le prompteur défile, hors de l'image",
+      "en": "The prompter scrolls, outside the picture"
+     }
+    },
+    {
+     "capture": 1,
+     "duree": 3.2,
+     "surligne": "css:[data-dz-studiov-regie]",
+     "bulle": {
+      "fr": "Ctrl+Alt+4 : caméra Écran ; Ctrl+Alt+Droite : la vidéo se lance",
+      "en": "Ctrl+Alt+4: Screen camera; Ctrl+Alt+Right: the video starts"
+     }
+    },
+    {
+     "capture": 2,
+     "duree": 2.6,
+     "surligne": "css:[data-dz-studiov-regie-retour]",
+     "bulle": {
+      "fr": "Le retour montre ce qui est enregistré",
+      "en": "The monitor shows what is being recorded"
+     }
+    }
+   ]
+  }
+ ]
+}

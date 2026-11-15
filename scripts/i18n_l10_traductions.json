@@ -14934,5 +14934,49 @@
  "Le modèle reçu n'est pas celui du catalogue : téléchargement abandonné.": {
   "fr": "Le modèle reçu n'est pas celui du catalogue : téléchargement abandonné.",
   "en": "The model received is not the one in the catalogue: download abandoned."
+ },
+ "Vidéo introuvable dans la Bibliothèque.": {
+  "fr": "Vidéo introuvable dans la Bibliothèque.",
+  "en": "Video not found in the Library."
+ },
+ "Le texte de la prise est vide.": {
+  "fr": "Le texte de la prise est vide.",
+  "en": "The take script is empty."
+ },
+ "Cette prise n'a pas de texte.": {
+  "fr": "Cette prise n'a pas de texte.",
+  "en": "This take has no script."
+ },
+ "Cette capture a été abandonnée.": {
+  "fr": "Cette capture a été abandonnée.",
+  "en": "This recording was abandoned."
+ },
+ "Aperçu de la vidéo indisponible.": {
+  "fr": "Aperçu de la vidéo indisponible.",
+  "en": "Video preview unavailable."
+ },
+ "Identifiant de vidéo invalide.": {
+  "fr": "Identifiant de vidéo invalide.",
+  "en": "Invalid video identifier."
+ },
+ "Cette vidéo n'est plus dans la Bibliothèque.": {
+  "fr": "Cette vidéo n'est plus dans la Bibliothèque.",
+  "en": "This video is no longer in the Library."
+ },
+ "Vidéo introuvable.": {
+  "fr": "Vidéo introuvable.",
+  "en": "Video not found."
+ },
+ "Trop de vidéos gardées pour la régie : retirez-en une d'abord.": {
+  "fr": "Trop de vidéos gardées pour la régie : retirez-en une d'abord.",
+  "en": "Too many videos kept for the control room: remove one first."
+ },
+ "Cette vidéo est dans la régie de {emploi} décor(s) : retirez-la d'abord de « {v} ».": {
+  "fr": "Cette vidéo est dans la régie de {emploi} décor(s) : retirez-la d'abord de « {v} ».",
+  "en": "This video is in the control room of {emploi} set(s): remove it from \"{v}\" first."
+ },
+ "La vidéo n'a pas pu être gardée.": {
+  "fr": "La vidéo n'a pas pu être gardée.",
+  "en": "The video could not be kept."
  }
 }

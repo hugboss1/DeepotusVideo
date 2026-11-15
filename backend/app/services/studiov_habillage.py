@@ -490,5 +490,7 @@ def habillage() -> dict:
     dictionnaire de l'écran (studiov.style.<id>, studiov.ambiance.<id>…) ; ceux des matières viennent avec elles."""
     from app.services import studiov_images as SI
     from app.services import studiov_objets as OB
+    from app.services import studiov_videos as SV
     return {"textures": textures(), "familles_texture": FAMILLES_TEXTURE, "finitions": FINITIONS,
-            "ambiances": AMBIANCES, "styles": STYLES, "catalogue": S.catalogue(), "objets": OB.lister(), "images": SI.lister()}
+            "ambiances": AMBIANCES, "styles": STYLES, "catalogue": S.catalogue(), "objets": OB.lister(), "images": SI.lister(),
+            "videos": SV.lister()}

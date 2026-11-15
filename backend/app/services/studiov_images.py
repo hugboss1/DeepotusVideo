@@ -181,8 +181,9 @@ def depuis_bibliotheque(filename, connu: dict | None = None) -> dict:
 
 
 def emplois(decor: dict) -> set:
-    """Les références d'image qu'un décor emploie : objets, écrans, enseigne."""
+    """Les références d'image qu'un décor emploie : objets, écrans, enseigne, médias de la régie."""
     refs = {o.get("image") for o in decor.get("objets", [])} | {e.get("image") for e in decor.get("ecrans", [])}
+    refs |= {m.get("ref") for m in ((decor.get("regie") or {}).get("medias") or []) if isinstance(m, dict) and m.get("type") == "image"}
     if (decor.get("enseigne") or {}).get("source") == "image":
         refs.add(decor["enseigne"].get("image"))
     return {r for r in refs if isinstance(r, str) and r}

@@ -300,6 +300,91 @@ def lire(cid: str) -> dict:
     return {"session": s, "clics": json.loads(f.read_text("utf-8")) if f.is_file() else None}
 
 
+# ── SVR (15/11/2026) : le TEXTE d'une prise — ce qui a été dit, gardé à côté de la session (`texte.json`) pour le relire au
+# PROMPTEUR lors d'une autre prise. Il vient de la reconnaissance vocale du navigateur (pendant la prise), d'une
+# transcription payante (après, sur devis : route de la dictée), ou d'une saisie. Rien ici ne transcrit ni ne dépense. ──
+
+MAX_TEXTE = 60_000
+MAX_SEGMENTS = 4000
+SOURCES_TEXTE = ("navigateur", "transcription", "saisi")
+
+
+def _texte_long(v, n: int = MAX_TEXTE) -> str:
+    """Un texte de plusieurs lignes : sans contrôle (hors saut de ligne), lignes et espaces réduits, borné."""
+    if not isinstance(v, str):
+        return ""
+    v = v.replace("\t", " ")                                    # une tabulation sépare deux mots
+    v = "".join(c for c in v.replace("\r\n", "\n").replace("\r", "\n") if c == "\n" or not unicodedata.category(c).startswith("C"))
+    lignes = [" ".join(x.split()) for x in v.split("\n")]
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(lignes)).strip()[:n]
+
+
+def ecrire_texte(cid: str, doc) -> dict:
+    """Garde le texte d'une prise : {source, langue, texte, segments: [{t (ms depuis le début), texte}]}. Refusé pour
+    une session abandonnée, et pour un texte vide."""
+    d = doc if isinstance(doc, dict) else {}
+    texte = _texte_long(d.get("texte"))
+    if not texte:
+        raise RefusCapture("Le texte de la prise est vide.", 400)
+    segments = []
+    for x in (d.get("segments") if isinstance(d.get("segments"), list) else [])[:MAX_SEGMENTS]:
+        t, mots = (_nombre(x.get("t"), 0, 24 * 3600 * 1000), _texte_long(x.get("texte"), 500)) if isinstance(x, dict) else (None, "")
+        if t is not None and mots:
+            segments.append({"t": int(t), "texte": mots})
+    with _VERROU:
+        s = _lire_session(cid)
+        if s["etat"] == "abandonnee":
+            raise RefusCapture("Cette capture a été abandonnée.", 409)
+        out = {"version": 1, "id": cid, "source": d.get("source") if d.get("source") in SOURCES_TEXTE else "saisi",
+               "langue": _texte(d.get("langue"), 12), "texte": texte, "segments": segments,
+               "maj_utc": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        tmp = _dossier(cid) / "texte.json.tmp"
+        tmp.write_text(json.dumps(out, ensure_ascii=False, indent=1), "utf-8")
+        tmp.replace(_dossier(cid) / "texte.json")
+    return out
+
+
+def lire_texte(cid: str) -> dict:
+    """Le texte gardé d'une prise ; 404 s'il n'y en a pas."""
+    _lire_session(cid)
+    f = _dossier(cid) / "texte.json"
+    try:
+        d = json.loads(f.read_text("utf-8"))
+    except (OSError, ValueError):
+        raise RefusCapture("Cette prise n'a pas de texte.", 404) from None
+    if not isinstance(d, dict) or not isinstance(d.get("texte"), str):
+        raise RefusCapture("Cette prise n'a pas de texte.", 404)
+    return d
+
+
+def lister_textes(n: int = 30) -> list:
+    """Les prises terminées, les plus récentes d'abord : {id, cree_utc, duree_ms, voix (une piste de voix existe),
+    texte: None | {source, mots, extrait, maj_utc}}."""
+    out = []
+    if racine().is_dir():
+        for d in racine().iterdir():
+            if not (d.is_dir() and ID.match(d.name)):
+                continue
+            try:
+                s = json.loads((d / "session.json").read_text("utf-8"))
+            except (OSError, ValueError):
+                continue
+            if not isinstance(s, dict) or s.get("etat") != "terminee":
+                continue
+            texte = None
+            try:
+                t = json.loads((d / "texte.json").read_text("utf-8"))
+                if isinstance(t, dict) and isinstance(t.get("texte"), str) and t["texte"]:
+                    texte = {"source": t.get("source") if t.get("source") in SOURCES_TEXTE else "saisi", "mots": len(t["texte"].split()),
+                             "extrait": " ".join(t["texte"].split())[:120], "maj_utc": t.get("maj_utc") or ""}
+            except (OSError, ValueError):
+                texte = None
+            out.append({"id": d.name, "cree_utc": s.get("cree_utc") or "", "duree_ms": int(s.get("duree_ms") or 0),
+                        "voix": "voix" in (s.get("pistes") or {}), "texte": texte})
+    out.sort(key=lambda x: x["cree_utc"], reverse=True)
+    return out[:max(1, min(100, int(n) if isinstance(n, int) and not isinstance(n, bool) else 30))]
+
+
 def copier_scene(cid: str, dest_dossier: Path) -> Path:
     """Copie la piste « scene » vers la Bibliothèque : `capture_<AAAAMMJJ-HHMMSS>_<id>.<ext>` ; refus si vide."""
     src = chemin_piste(cid, "scene")

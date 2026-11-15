@@ -1,0 +1,120 @@
+{
+  "titre": {
+    "fr": "Monter en direct pendant la prise",
+    "en": "Edit live during the take"
+  },
+  "legende": {
+    "fr": "Pendant l'enregistrement : le prompteur sous la pastille, la barre de régie et son retour en bas, hors de l'image.",
+    "en": "While recording: the prompter under the pill, the control bar and its monitor at the bottom, outside the picture."
+  },
+  "captures": [
+    {
+      "fr": "large.fr.webp",
+      "en": "large.en.webp"
+    },
+    {
+      "fr": "ecran.fr.webp",
+      "en": "ecran.en.webp"
+    },
+    {
+      "fr": "fin.fr.webp",
+      "en": "fin.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    800
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        163,
+        40,
+        882,
+        235
+      ],
+      "bulle": {
+        "fr": "Le prompteur défile, hors de l'image",
+        "en": "The prompter scrolls, outside the picture"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        159,
+        655,
+        889,
+        141
+      ],
+      "bulle": {
+        "fr": "Ctrl+Alt+4 : caméra Écran ; Ctrl+Alt+Droite : la vidéo se lance",
+        "en": "Ctrl+Alt+4: Screen camera; Ctrl+Alt+Right: the video starts"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 2.6,
+      "surligne": [
+        170,
+        661,
+        188,
+        129
+      ],
+      "bulle": {
+        "fr": "Le retour montre ce qui est enregistré",
+        "en": "The monitor shows what is being recorded"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        163,
+        40,
+        882,
+        235
+      ],
+      "bulle": {
+        "fr": "Le prompteur défile, hors de l'image",
+        "en": "The prompter scrolls, outside the picture"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "surligne": [
+        157,
+        655,
+        895,
+        141
+      ],
+      "bulle": {
+        "fr": "Ctrl+Alt+4 : caméra Écran ; Ctrl+Alt+Droite : la vidéo se lance",
+        "en": "Ctrl+Alt+4: Screen camera; Ctrl+Alt+Right: the video starts"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 2.6,
+      "surligne": [
+        168,
+        661,
+        188,
+        129
+      ],
+      "bulle": {
+        "fr": "Le retour montre ce qui est enregistré",
+        "en": "The monitor shows what is being recorded"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    800
+  ]
+}

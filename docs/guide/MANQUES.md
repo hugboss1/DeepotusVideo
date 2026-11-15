@@ -4,7 +4,7 @@ Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
 - 1148 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 58 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 54 chapitres dans le sommaire v3, en 6 familles.
+- 55 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -511,6 +511,9 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Vraies poignées de plan** : Un fondu entre deux plans est centré sur la jonction avec les images réelles de la source : il ne décale plus l'image par rapport au son, et la première image après un trou ne fond plus dans le noir. (P1 #7 · PR #44 · commit c172f054)
 
 ### Filmer l'app et passer en direct (`capture-live`, lot t320, reprend : nouveau) — 0 manques
+
+
+### Tourner dans un studio virtuel (`studio-virtuel`, lot svr, reprend : nouveau) — 0 manques
 
 
 ## Publier
@@ -1570,6 +1573,7 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | Lot | Fonctions | Écrites |
 |---|---|---|
 | A7 | 4 | 4 |
+| svr | 0 | 0 |
 | t168 | 0 | 0 |
 | t170 | 46 | 46 |
 | t171 | 82 | 82 |
