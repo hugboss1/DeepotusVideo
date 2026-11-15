@@ -19,6 +19,8 @@ Conception docs/superpowers/specs/2026-11-14-studio-virtuel-3d-design.md.
     avant meubles) ; caméra et lumière neuves ; objet importé posé par sa référence ;
 [C] catalogue de produits réels (lot SVC), sous node : un modèle neuf se pose selon sa fiche (sol, mur du fond,
     plafond), DANS la pièce ;
+[R] régie et remplacement (lot SVR), sous node : comment un type se pose ; l'objet neuf prend la place, l'orientation et
+    (au sol) la hauteur de l'ancien, se colle au mur le plus proche s'il s'accroche, pend au plafond ;
 [P] livraison : copies shared == dist, balise avant dz-capture.js, three.js chargé depuis /assets (aucun CDN), la
     source « ecran » n'entre jamais dans le moteur (seul le canevas déporté), ni alert/confirm/prompt ni emoji ni
     innerHTML, angles vifs, clés studiov.* FR/EN employées et assemblées, un nom traduit par décor livré.
@@ -255,6 +257,36 @@ if "_erreur" not in Cn:
           (sol["y"], sol["z"]) == (0, 0.9) and (mur["y"], mur["z"]) == (1.6, -2.48) and plafond["y"] == 2.8 and sans == sol and autre == sol
           and all(o["type"] == "modele" and o["ref"] == "obj:0123456789abcdef" and abs(o["x"]) <= 3 for o in Cn["poses"]), Cn["poses"])
 
+print("[R] régie et remplacement")
+Rn = node(r"""
+import * as G from "%s";
+const d = {piece: {l: 6, p: 5, h: 2.8, ouvert: false}, objets: [
+  {type: "lampe", x: 1.2, y: 0.75, z: -1, ry: 30, e: 2}, {type: "cadre", x: -2.98, y: 1.4, z: 0.5, ry: 90, e: 1},
+  {type: "canape", x: -1, y: 0, z: -1.5, ry: 15, e: 1.5}, {type: "suspension", x: 0.5, y: 2.8, z: -0.6, ry: 0, e: 1}]};
+const neuf = (extra) => ({type: "modele", ref: "obj:0123456789abcdef", x: 9, y: 0, z: 9, ry: 0, e: 3, ...extra});
+console.log(JSON.stringify({
+  poses: ["bureau", "cadre", "suspension", "tableau", "logo_mural", "kakemono", "modele"].map(G.poseType),
+  solSurMeuble: G.remplacerObjet(d, 0, neuf(), "sol", "sol"), solAuSol: G.remplacerObjet(d, 2, neuf(), "sol", "sol"),
+  solDepuisMur: G.remplacerObjet(d, 1, neuf(), "sol", "mur"), solDepuisPlafond: G.remplacerObjet(d, 3, neuf(), "sol", "plafond"),
+  murDepuisMur: G.remplacerObjet(d, 1, neuf({y: 1.6}), "mur", "mur"), murDepuisSol: G.remplacerObjet(d, 2, neuf({y: 1.6}), "mur", "sol"),
+  plafond: G.remplacerObjet(d, 2, neuf(), "plafond", "sol"), absent: G.remplacerObjet(d, 9, neuf(), "sol", "sol"), intact: d.objets[0]}));
+""" % URL("dz-studiov-logique.js"))
+check("R0 le module se joue sous node", "_erreur" not in Rn, Rn.get("_erreur"))
+if "_erreur" not in Rn:
+    check("R1 comment un type se pose : au mur (cadre, tableau, logo mural), au plafond (suspension), sinon au sol",
+          Rn["poses"] == ["sol", "mur", "plafond", "mur", "mur", "sol", "sol"], Rn["poses"])
+    a, b = Rn["solSurMeuble"], Rn["solAuSol"]
+    check("R2 au sol : même endroit, même orientation, taille réelle ; un objet posé sur un meuble y reste ; l'ancien n'est pas modifié",
+          (a["x"], a["y"], a["z"], a["ry"], a["e"]) == (1.2, 0.75, -1, 30, 1) and (b["x"], b["y"], b["z"], b["ry"], b["e"]) == (-1, 0, -1.5, 15, 1)
+          and a["type"] == "modele" and a["ref"] == "obj:0123456789abcdef" and Rn["intact"]["type"] == "lampe" and Rn["intact"]["e"] == 2, (a, b))
+    check("R3 un objet de sol qui remplace un objet de mur ou de plafond descend au sol", Rn["solDepuisMur"]["y"] == 0 and Rn["solDepuisPlafond"]["y"] == 0
+          and Rn["solDepuisPlafond"]["x"] == 0.5)
+    m1, m2 = Rn["murDepuisMur"], Rn["murDepuisSol"]
+    check("R4 au mur : collé au mur le plus proche de l'ancien, dos au mur ; à sa hauteur si l'ancien était accroché, sinon à hauteur d'yeux",
+          (m1["x"], m1["ry"], m1["y"]) == (-2.98, 90, 1.4) and m2["z"] == -2.48 and m2["ry"] == 0 and m2["y"] == 1.6 and m2["x"] == -1, (m1, m2))
+    check("R5 au plafond : pendu au-dessus de la place de l'ancien ; un indice absent rend l'objet neuf à sa taille réelle",
+          (Rn["plafond"]["x"], Rn["plafond"]["y"], Rn["plafond"]["z"]) == (-1, 2.8, -1.5) and Rn["absent"]["e"] == 1 and Rn["absent"]["x"] == 9)
+
 print("[D] écran déporté (scène t315)")
 D = node(r"""
 import { creerScene, calqueEcran, calqueClics } from "%s";
@@ -346,7 +378,7 @@ composees = ([f"studiov.objet.{t}" for t in SV.TYPES_OBJET] + [f"studiov.famille
              + [f"studiov.lumiere.{t}" for t in SV.TYPES_LUMIERE] + [f"studiov.enseigne.{s}" for s in SV.STYLES_ENSEIGNE]
              + [f"studiov.style.{s['id']}" for s in HV.STYLES] + [f"studiov.ambiance.{a['id']}" for a in HV.AMBIANCES]
              + [f"studiov.finition.{f['id']}" for f in HV.FINITIONS] + [f"studiov.surface.{s}" for s in ("sol", "fond", "gauche", "droite", "plafond")]
-             + [f"studiov.deco.onglet.{o}" for o in ("style", "matieres", "objets", "catalogue", "bibli", "biblio", "lumieres", "cameras", "enseigne")]
+             + [f"studiov.deco.onglet.{o}" for o in ("style", "matieres", "objets", "catalogue", "bibli", "biblio", "ecran", "lumieres", "cameras", "enseigne")]
              + [f"studiov.cat.pose.{p}" for p in OV.POSES]
              + ["studiov.deco.role.principale", "studiov.deco.role.accent"] + [f"studiov.vue.{v}" for v in ("cameras", "plan", "libre")]
              + [f"studiov.mouvement.{m}" for m in SV.MOUVEMENTS] + [f"studiov.source.{s}" for s in OV.SOURCES]
@@ -384,6 +416,21 @@ check("P22 luminaires du catalogue : la lueur se pose au foyer du modèle, de la
       "const g0 = generation, rang = F.lumineux ? lampes++ : -1;" in moteur_src and "if (rang >= 0) allumer(g, foyerDe(src, F.pose), m.c || CHAUD, rang);" in moteur_src
       and 'LAMPES_REELLES = qualite === "haute" ? 4 : 2' in moteur_src and "if (rang < LAMPES_REELLES)" in moteur_src and "generation++; lampes = 0;" in moteur_src
       and 'T("studiov.cat.lumineux")' in ecran_src)
+check("P23 régie : le moteur lit l'adresse d'une vidéo dans l'index servi (jamais dans la recette), la peint ENTIÈRE dans la toile de l'écran, et la coupe du son hors d'une capture qui enregistre le son de l'app",
+      "VIDEOS[M.ref]" in moteur_src and "v.src = F.url" in moteur_src and "v.muted = !!O.apercu || !O.son" in moteur_src and "Math.min(l / sl, h / sh)" in moteur_src
+      and "decor.regie.medias" in moteur_src and "regie: { aller: allerRegie" in moteur_src and "detruit = true; lacherVideo(); vider();" in moteur_src
+      and "videos: hab ? hab.indexVideos : {}, son: !!E.son" in ecran_src)
+check("P24 régie pendant la prise : Ctrl+Alt+flèches (ou Page suivante / précédente) et Ctrl+Alt+Espace ; la barre n'existe que hors de l'image filmée, ses clics ne sont pas des clics de la piste, elle part avec le studio",
+      'e.code === "ArrowRight" || e.code === "PageDown"' in ecran_src and 'e.code === "ArrowLeft" || e.code === "PageUp"' in ecran_src and 'e.code === "Space"' in ecran_src
+      and "if (!E.apercu && E.horsImage) barre = barreRegie(m, () => decor, scene);" in ecran_src and '"data-dz-capture-ui": true, "data-dz-studiov-regie": true' in ecran_src
+      and "if (barre) { barre.retirer(); barre = null; }" in ecran_src and "drawImage(scene.canvas, 0, 0, rl, rh)" in ecran_src
+      and "habiller(scene, { decor: o.decor, son: !!flux.onglet, hors_image: !!(elementCapture || p) })" in (SH / "dz-capture.js").read_text("utf-8"))
+check("P25 onglet Écran : une image ou une vidéo n'entre dans la suite que par le serveur (référence), la suite commence par l'écran partagé, 12 médias au plus",
+      'api("POST", "/api/studiov/bibliotheque/video", { job: j.job_id })' in ecran_src and 'ajouter({ type: "video", ref: v.ref }, v.nom)' in ecran_src
+      and 'if (!m.length && M.type !== "partage") m.push({ type: "partage", ref: "" }); if (m.length < 12) m.push(M);' in ecran_src and '["ecran", panneauEcran]' in ecran_src)
+check("P26 remplacer : tout élément posé (Objets, Catalogue, Bibliothèque, Imports) passe par la même aide, qui met l'élément à la place de celui qu'on remplace",
+      "nd.objets.push(objetNeuf(" not in ecran_src and ecran_src.count("placer(nd, objetNeuf(") == 5 and "remplacerObjet(nd, i, neuf, pose || \"sol\", poseObjet(nd.objets[i]))" in ecran_src
+      and '"data-dz-studiov-remplacer": true' in ecran_src and "aRemplacer = -1; ctx.modifier(nettoyerMatieres(nd), true)" in ecran_src)
 capture = (SH / "dz-capture.js").read_text("utf-8")
 check("P11 la capture pose le studio APRÈS le skin et AVANT la première image ; l'option « decor » part de la boîte",
       0 < capture.find("__dzSkins.habiller(scene") < capture.find("__dzStudiov.habiller(scene") < capture.find("scene.dessiner();")

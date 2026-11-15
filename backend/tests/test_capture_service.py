@@ -10,10 +10,13 @@ Sections :
      de 20 000 ;
   4. identité : un libellé du catalogue de « Demander » donne sa fiche (écran du clic), un inconnu donne None ;
   5. clôture : <id>.dzclics.json écrit, générations fusionnées dans l'ordre, état terminee, seconde clôture 409 ;
-     abandon : pistes effacées ; copie de la scène (409 sans image).
+     abandon : pistes effacées ; copie de la scène (409 sans image) ;
+  7. texte d'une prise (lot SVR) : gardé à côté de la session (source fermée, lignes gardées, contrôles ôtés,
+     segments horodatés nettoyés, texte vide refusé, session abandonnée refusée), relu, listé (prises terminées, les
+     plus récentes d'abord, avec leur piste de voix) ; routes (boucle locale, identifiant hostile, prise sans texte).
 Données jetables (DEEPOTUS_DATA_DIR temporaire), aucun réseau.
 Run (depuis backend/) : & $PY tests/test_capture_service.py"""
-import json, os, pathlib, sys, tempfile
+import json, os, pathlib, re, sys, tempfile
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 _tmp = pathlib.Path(tempfile.mkdtemp(prefix="dzcap_"))
 os.environ["DEEPOTUS_DATA_DIR"] = str(_tmp)
@@ -173,6 +176,45 @@ C.reserver(s3["id"])
 check("6.5 clore une session réservée", C.clore(s3["id"], {}, 10)["session"]["etat"] == "terminee")
 C.liberer(s3["id"])
 check("6.6 libérer une session close ne la rouvre pas", C.lire(s3["id"])["session"]["etat"] == "terminee")
+
+print("7. texte d'une prise")
+s7, s8, s9 = C.creer({}), C.creer({}), C.creer({})
+C.ajouter_morceau(s7["id"], "voix", 0, b"x" * 10, "audio/webm")
+C.clore(s7["id"], None, 61000)
+C.clore(s8["id"], None, 5000)
+C.abandonner(s9["id"])
+t7 = C.ecrire_texte(s7["id"], {"source": "navigateur", "langue": "fr-FR", "texte": "Bonjour   à tous.\r\n\r\n\r\n\r\nDeuxième\x00 ligne\tici.",
+                               "segments": [{"t": 1200.7, "texte": "Bonjour à tous."}, {"t": "x", "texte": "non"}, {"t": 5, "texte": ""}, "pirate", {"t": -3, "texte": "avant"}]})
+check("7.1 le texte est gardé à côté de la session : lignes gardées, espaces réduits, contrôles ôtés, segments horodatés nettoyés",
+      t7["texte"] == "Bonjour à tous.\n\nDeuxième ligne ici." and t7["segments"] == [{"t": 1200, "texte": "Bonjour à tous."}, {"t": 0, "texte": "avant"}] and t7["source"] == "navigateur"
+      and t7["langue"] == "fr-FR" and (C._dossier(s7["id"]) / "texte.json").is_file() and C.lire_texte(s7["id"])["texte"] == t7["texte"], t7)
+check("7.2 source fermée (inconnue = saisi) ; texte vide ou absent refusé (400) ; session abandonnée refusée (409) ; identifiant hostile 400, inconnu 404 ; texte borné",
+      C.ecrire_texte(s8["id"], {"source": "pirate", "texte": "Une phrase."})["source"] == "saisi"
+      and all(refus(lambda x=x: C.ecrire_texte(s7["id"], x), 400) for x in ({"texte": "  \n "}, {}, None, {"texte": 12}))
+      and refus(lambda: C.ecrire_texte(s9["id"], {"texte": "x"}), 409) and refus(lambda: C.ecrire_texte("../x", {"texte": "x"}), 400)
+      and refus(lambda: C.ecrire_texte("0" * 16, {"texte": "x"}), 404) and len(C.ecrire_texte(s8["id"], {"texte": "mot " * 30000})["texte"]) <= C.MAX_TEXTE)
+C.ecrire_texte(s8["id"], {"texte": "Une phrase."})
+l7 = C.lister_textes()
+check("7.3 liste : les prises TERMINÉES seulement, avec leur piste de voix et l'extrait de leur texte ; une prise sans texte est dite ; lire une prise sans texte : 404",
+      {x["id"] for x in l7} >= {s7["id"], s8["id"]} and s9["id"] not in {x["id"] for x in l7}
+      and [x for x in l7 if x["id"] == s7["id"]][0]["voix"] is True and [x for x in l7 if x["id"] == s8["id"]][0]["voix"] is False
+      and [x for x in l7 if x["id"] == s7["id"]][0]["texte"] == {"source": "navigateur", "mots": 6, "extrait": "Bonjour à tous. Deuxième ligne ici.", "maj_utc": t7["maj_utc"]}
+      and [x for x in l7 if x["id"] == s8["id"]][0]["duree_ms"] == 5000 and refus(lambda: C.lire_texte(s2["id"]), 404), l7[:3])
+from fastapi import FastAPI                                          # noqa: E402
+from fastapi.testclient import TestClient                            # noqa: E402
+from app.api.capture_routes import router as _routeur7               # noqa: E402
+_app7 = FastAPI(); _app7.include_router(_routeur7, prefix="/api/capture")
+_local7, _loin7 = TestClient(_app7, client=("127.0.0.1", 50000)), TestClient(_app7, client=("192.168.1.50", 50000))
+r7 = _local7.put(f"/api/capture/sessions/{s8['id']}/texte", json={"source": "transcription", "texte": "Texte transcrit."})
+check("7.4 routes : écrire, relire, lister ; texte vide 400, prise sans texte 404, identifiant hostile 400 ; hors boucle locale refusé",
+      r7.status_code == 200 and r7.json()["source"] == "transcription" and _local7.get(f"/api/capture/sessions/{s8['id']}/texte").json()["texte"] == "Texte transcrit."
+      and any(x["id"] == s8["id"] and x["texte"]["source"] == "transcription" for x in _local7.get("/api/capture/textes").json()["prises"])
+      and _local7.put(f"/api/capture/sessions/{s8['id']}/texte", json={"texte": ""}).status_code == 400
+      and _local7.get(f"/api/capture/sessions/{s2['id']}/texte").status_code == 404 and _local7.get("/api/capture/sessions/ZZZ/texte").status_code == 400
+      and all(x.status_code in (401, 403) for x in (_loin7.get("/api/capture/textes"), _loin7.get(f"/api/capture/sessions/{s8['id']}/texte"),
+                                                    _loin7.put(f"/api/capture/sessions/{s8['id']}/texte", json={"texte": "x"}))), r7.text[:200])
+src7 = pathlib.Path(C.__file__).read_text("utf-8")
+check("7.5 le service du texte ne transcrit rien et n'ouvre aucun réseau", not re.search(r"httpx|urllib|requests|socket|openai|elevenlabs", src7))
 
 print(f"\n{ok} ok, {fail} fail")
 sys.exit(1 if fail else 0)

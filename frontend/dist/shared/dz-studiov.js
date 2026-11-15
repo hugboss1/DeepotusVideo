@@ -17,11 +17,15 @@
 //   actuel() -> habit | null ; oublier() ; ouvrirApercu({apres, decor}) ;
 //   habillage() -> le catalogue du décorateur (GET /api/studiov/habillage) }
 // Un habit : {decor(), cameras(), camera(i), courante(), retirer()}. Pendant une capture, Ctrl+Alt+1…6 change de caméra.
+// Lot SVR (15/11/2026) — la RÉGIE : l'onglet « Écran » du décorateur prépare la suite des médias de l'écran du décor ;
+// pendant une capture, Ctrl+Alt+Flèche droite / gauche (ou Page suivante / précédente) passe au média suivant ou
+// précédent, Ctrl+Alt+Espace lance ou met en pause une vidéo, et une barre de régie [data-dz-studiov-regie], posée hors
+// de l'image filmée, fait la même chose à la souris. « Remplacer… » : l'objet choisi cède sa place au prochain posé.
 // Mode « plateau » : l'écran partagé quitte l'image et va sur l'écran du décor, par le canevas CAVIARDÉ de la scène
 // (scene.ecranDeporte) — la source brute n'entre jamais dans WebGL. Mode « incruste » : l'écran reste plein cadre, le
 // studio n'est que le fond autour d'un écran réduit par le skin.
 import { Z_STUDIO, Z_VIGNETTE, nomDecor, palette, couleur, usageDe, poserMatiere, appliquerAmbiance, appliquerStyle,
-  objetNeuf, PANS, clePan, cleObjet, nettoyerMatieres, cameraNeuve, lumiereNeuve } from "./dz-studiov-logique.js";
+  objetNeuf, PANS, clePan, cleObjet, nettoyerMatieres, cameraNeuve, lumiereNeuve, poseType, remplacerObjet } from "./dz-studiov-logique.js";
 import { creerPlan } from "./dz-studiov-plan.js";
 import { creerMoteur } from "./dz-studiov-moteur.js";
 
@@ -58,6 +62,7 @@ if (!window.__dzStudiov) {
     item: "text-align:left;font:inherit;font-size:12.5px;padding:6px 8px;border-radius:0;cursor:pointer;background:transparent;color:inherit;border:1px solid transparent;display:flex;flex-direction:column;gap:2px",
     badge: "font:9px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--txt-mid,var(--ink-muted,#9aa4ae))",
     apercu: "position:relative;width:100%;aspect-ratio:16/9;background:#000;border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138))",
+    regie: "position:fixed;bottom:10px;left:0;right:0;margin:0 auto;width:fit-content;z-index:2147483003;display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:96vw;box-sizing:border-box;padding:5px 10px;border-radius:0;background:rgba(17,20,25,.94);color:#e6e9ee;border:1px solid var(--brd-hard,var(--stroke-strong,#2a3138));font:12px/1.3 system-ui,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.45)",
   };
   const delai = (p, ms) => Promise.race([p, new Promise((r) => setTimeout(() => r(null), ms))]);
   async function api(methode, url, corps) {
@@ -96,6 +101,9 @@ if (!window.__dzStudiov) {
       h.indexImages = hab ? hab.indexImages : {};
       for (const k of Object.keys(h.indexImages)) delete h.indexImages[k];
       for (const v of h.images || []) h.indexImages[v.ref] = v;
+      h.indexVideos = hab ? hab.indexVideos : {};
+      for (const k of Object.keys(h.indexVideos)) delete h.indexVideos[k];
+      for (const v of h.videos || []) h.indexVideos[v.ref] = v;
       hab = h;
     }
     return hab;
@@ -117,6 +125,17 @@ if (!window.__dzStudiov) {
     const pal = () => palette(ctx.contexte());
     const titre = (cle) => el("div", { style: S.titreG + ";margin-top:6px", texte: T(cle) });
     const bouton = (texte, clic, plus) => el("button", { type: "button", style: S.bouton + ";padding:3px 8px;font-size:12px" + (plus || ""), texte, on: { click: clic } });
+    // ── Remplacer (lot SVR) : l'élément désigné cède sa place au prochain élément posé, d'où qu'il vienne (Objets,
+    // Catalogue, Bibliothèque, Imports). `placer` rend l'indice de l'élément posé, ou -1 si le décor est plein. ──
+    let aRemplacer = -1;
+    const poseObjet = (o) => (o.type === "modele" ? ((hab && hab.indexObjets[o.ref]) || {}).pose || "sol" : poseType(o.type));
+    const nomObjet = (o) => (o.type === "modele" && hab && hab.indexObjets[o.ref] ? hab.indexObjets[o.ref].nom : T("studiov.objet." + o.type));
+    function placer(nd, neuf, pose) {
+      const i = aRemplacer; aRemplacer = -1;
+      if (i >= 0 && nd.objets[i]) { nd.objets[i] = remplacerObjet(nd, i, neuf, pose || "sol", poseObjet(nd.objets[i])); nd.matieres = nettoyerMatieres(nd).matieres; return i; }
+      if (nd.objets.length >= 120) return -1;
+      nd.objets.push(neuf); return nd.objets.length - 1;
+    }
     function curseur(cle, valeur, min, max, pas, change) {
       const sortie = el("span", { style: S.note + ";width:38px;text-align:right", texte: String(Math.round(valeur * 100) / 100) });
       const c = el("input", { type: "range", min, max, step: pas, value: valeur, style: "flex:1;min-width:0", "aria-label": T(cle),
@@ -257,15 +276,14 @@ if (!window.__dzStudiov) {
       const grille = el("div", { style: "display:grid;grid-template-columns:1fr 1fr;gap:4px", "data-dz-studiov-objets": true });
       for (const type of C.familles[familleObjets] || []) {
         grille.appendChild(bouton(T("studiov.objet." + type), () => {
-          const nd = copie(ctx.decor());
-          if (nd.objets.length >= 120) return;
-          nd.objets.push(objetNeuf(nd, type)); ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 });
+          const nd = copie(ctx.decor()), i = placer(nd, objetNeuf(nd, type), poseType(type));
+          if (i < 0) return;
+          ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: i });
         }, ";text-align:left"));
       }
       noeud.appendChild(grille);
       noeud.appendChild(titre("studiov.deco.places"));
       if (choisi >= d.objets.length) choisi = d.objets.length - 1;
-      const nomObjet = (o) => (o.type === "modele" && hab.indexObjets[o.ref] ? hab.indexObjets[o.ref].nom : T("studiov.objet." + o.type));
       const options = [["-1", T("studiov.deco.choisir.objet", { n: d.objets.length })]].concat(d.objets.map((o, i) => [String(i), `${i + 1} · ${nomObjet(o)}`]));
       noeud.appendChild(liste(String(choisi), options, (v) => ctx.choisir(Number(v) >= 0 ? { genre: "objet", index: Number(v) } : null), T("studiov.deco.places")));
       const o = d.objets[choisi];
@@ -291,7 +309,9 @@ if (!window.__dzStudiov) {
       }
       noeud.appendChild(el("div", { style: S.ligne }, [
         bouton(T("studiov.deco.dupliquer"), () => { const nd = copie(ctx.decor()); if (nd.objets.length >= 120) return; const c = copie(nd.objets[choisi]); c.x = Math.min(P.l / 2, c.x + 0.3); nd.objets.push(c); ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 }); }),
-        bouton(T("studiov.deco.retirer"), () => { const nd = copie(ctx.decor()); nd.objets.splice(choisi, 1); ctx.modifier(nettoyerMatieres(nd), true); ctx.choisir(null); }),
+        bouton(T("studiov.deco.retirer"), () => { const nd = copie(ctx.decor()); nd.objets.splice(choisi, 1); aRemplacer = -1; ctx.modifier(nettoyerMatieres(nd), true); ctx.choisir(null); }),
+        el("button", { type: "button", style: S.bouton + ";padding:3px 8px;font-size:12px", "data-dz-studiov-remplacer": true, texte: T("studiov.deco.remplacer"),
+          on: { click: () => { aRemplacer = choisi; peindre(); } } }),
       ]));
       return noeud;
     }
@@ -413,8 +433,8 @@ if (!window.__dzStudiov) {
         noeud.appendChild(el("div", { style: S.ligne + ";flex-wrap:nowrap;gap:6px;border-bottom:1px solid var(--brd-soft,#222830);padding-bottom:4px", "data-dz-studiov-objet": v.ref }, [
           el("div", { style: "flex:1;min-width:0;display:flex;flex-direction:column" }, [el("span", { texte: v.nom, style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }),
             el("span", { style: S.badge, texte: [T("studiov.licence." + cleLic(v.licence)), v.auteur].concat(droits).filter(Boolean).join(" · ") })]),
-          bouton(T("studiov.biblio.poser"), () => faire(async () => { await chargeurGLB(); const nd = copie(ctx.decor()); if (nd.objets.length >= 120) return;
-            nd.objets.push(objetNeuf(nd, "modele", v.ref, v.pose)); etatImport = ""; ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 }); })),
+          bouton(T("studiov.biblio.poser"), () => faire(async () => { await chargeurGLB(); const nd = copie(ctx.decor()), i = placer(nd, objetNeuf(nd, "modele", v.ref, v.pose), v.pose); if (i < 0) return;
+            etatImport = ""; ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: i }); })),
           bouton("×", () => faire(async () => { await api("DELETE", "/api/studiov/objets/" + v.id); await habillage(true); etatImport = ""; }), ";padding:1px 7px")]));
       }
       if (!(hab.objets || []).length) noeud.appendChild(el("div", { style: S.note, texte: T("studiov.biblio.vide") }));
@@ -477,7 +497,7 @@ if (!window.__dzStudiov) {
         bib = { images: (im.images || []).slice().sort((a, b) => (b.mtime || 0) - (a.mtime || 0)), sources: im.sources || {},
           jobs: (tr.jobs || []).filter((j) => !String(j.id).startsWith("_")).sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))) };
       } catch (e) { bib = { images: [], sources: {}, jobs: [] }; etatBib = (e && e.message) || "—"; }
-      if (onglet === "bibli") peindre();
+      if (onglet === "bibli" || onglet === "ecran") peindre();
     }
     function panneauBibli(d) {
       const noeud = el("div", { style: S.groupe }), etat = el("div", { style: S.note, role: "status", texte: etatBib });
@@ -505,8 +525,8 @@ if (!window.__dzStudiov) {
         noeud.appendChild(el("div", { style: S.note + ";overflow:hidden;text-overflow:ellipsis;white-space:nowrap", texte: imgChoisie }));
         // l'image choisie entre dans le studio (une copie), puis se pose : au mur, sur pied, sur l'écran du décor, en enseigne
         const entrer = async () => { const v = await api("POST", "/api/studiov/bibliotheque/image", { filename: imgChoisie }); await habillage(true); return v; };
-        const objet = (type) => () => faire(async () => { const v = await entrer(), nd = copie(ctx.decor()); if (nd.objets.length >= 120) return;
-          nd.objets.push(objetNeuf(nd, type, v.ref)); etatBib = T("studiov.bibli.pose", { nom: v.nom }); ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 }); });
+        const objet = (type) => () => faire(async () => { const v = await entrer(), nd = copie(ctx.decor()), i = placer(nd, objetNeuf(nd, type, v.ref), poseType(type)); if (i < 0) return;
+          etatBib = T("studiov.bibli.pose", { nom: v.nom }); ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: i }); });
         noeud.appendChild(el("div", { style: S.ligne }, [bouton(T("studiov.objet.tableau"), objet("tableau")), bouton(T("studiov.objet.logo_mural"), objet("logo_mural")), bouton(T("studiov.objet.kakemono"), objet("kakemono")),
           bouton(T("studiov.bibli.ecran"), () => faire(async () => { const nd0 = ctx.decor(); if (!nd0.ecrans.length) { etatBib = T("studiov.bibli.sansecran"); return; }
             const v = await entrer(), nd = copie(ctx.decor()); nd.ecrans[0].source = "image"; nd.ecrans[0].image = v.ref; etatBib = T("studiov.bibli.pose", { nom: v.nom }); ctx.modifier(nd); })),
@@ -523,12 +543,91 @@ if (!window.__dzStudiov) {
           el("div", { style: "flex:1;min-width:0;display:flex;flex-direction:column" }, [el("span", { texte: j.nom || j.id, style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }),
             el("span", { style: S.badge, texte: [j.moteur, der.libelle, der.triangles ? T("studiov.bibli.triangles", { n: der.triangles }) : null].filter(Boolean).join(" · ") })]),
           bouton(T("studiov.biblio.poser"), () => faire(async () => { const v = await api("POST", "/api/studiov/bibliotheque/modele", { job: j.id }); await habillage(true); await chargeurGLB();
-            const nd = copie(ctx.decor()); if (nd.objets.length >= 120) return; nd.objets.push(objetNeuf(nd, "modele", v.ref, v.pose)); etatBib = T("studiov.bibli.pose", { nom: v.nom });
-            ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 }); }))]));
+            const nd = copie(ctx.decor()), i = placer(nd, objetNeuf(nd, "modele", v.ref, v.pose), v.pose); if (i < 0) return; etatBib = T("studiov.bibli.pose", { nom: v.nom });
+            ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: i }); }))]));
       }
       if (!bib.jobs.length) noeud.appendChild(el("div", { style: S.note, texte: T("studiov.bibli.modeles.vide") }));
       noeud.appendChild(etat);
       noeud.appendChild(el("div", { style: S.ligne }, [bouton(T("studiov.bibli.actualiser"), () => { bib = null; etatBib = ""; peindre(); })]));
+      return noeud;
+    }
+
+    // ── Écran (lot SVR) : la RÉGIE — la suite des médias que l'écran du décor montre tour à tour pendant la prise ──
+    let regieGenre = "images", regieQ = "", regieVideos = null, etatReg = "", occupeReg = false;
+    const nomMedia = (M) => (M.type === "partage" ? T("studiov.regie.partage") : M.type === "eteint" ? T("studiov.regie.eteint")
+      : ((M.type === "image" ? hab.indexImages : hab.indexVideos)[M.ref] || {}).nom || T("studiov.regie.absent"));
+    async function chargerVideos() {
+      try {
+        const r = await api("GET", "/api/jobs?video=1&limit=60&espace=" + encodeURIComponent(ctx.espace() || "*") + (regieQ ? "&q=" + encodeURIComponent(regieQ) : ""));
+        regieVideos = Array.isArray(r) ? r : [];
+      } catch (e) { regieVideos = []; etatReg = (e && e.message) || "—"; }
+      if (onglet === "ecran") peindre();
+    }
+    function panneauEcran(d) {
+      const noeud = el("div", { style: S.groupe, "data-dz-studiov-ecran": true }), etat = el("div", { style: S.note, role: "status", texte: etatReg });
+      const L = (d.regie && d.regie.medias) || [];
+      noeud.appendChild(el("div", { style: S.note, texte: T("studiov.regie.note") }));
+      if (!d.ecrans.length) noeud.appendChild(el("div", { style: S.erreur, texte: T("studiov.regie.sansecran") }));
+      else if (!d.ecrans.some((e) => e.source === "ecran")) {
+        noeud.appendChild(el("div", { style: S.erreur, texte: T("studiov.regie.ecranfixe") }));
+        noeud.appendChild(el("div", { style: S.ligne }, [bouton(T("studiov.regie.suivre"), () => { const nd = copie(ctx.decor()); nd.ecrans[0].source = "ecran"; nd.ecrans[0].image = ""; ctx.modifier(nd); peindre(); })]));
+      }
+      const faire = async (action) => { if (occupeReg) return; occupeReg = true; etatReg = T("studiov.biblio.patience"); etat.textContent = etatReg;
+        try { await action(); } catch (e) { etatReg = (e && e.message) || "—"; } occupeReg = false; peindre(); };
+      const changer = (f) => { const nd = copie(ctx.decor()); if (!nd.regie || !Array.isArray(nd.regie.medias)) nd.regie = { medias: [] }; f(nd.regie.medias); ctx.modifier(nd); };
+      // un média neuf : la suite commence toujours par l'écran partagé (l'écran ne change qu'au premier « suivant »)
+      const ajouter = (M, nom) => { if (L.length >= 12) { etatReg = T("studiov.regie.pleine"); return; }
+        changer((m) => { if (!m.length && M.type !== "partage") m.push({ type: "partage", ref: "" }); if (m.length < 12) m.push(M); }); etatReg = T("studiov.regie.ajoute", { nom }); };
+      noeud.appendChild(titre("studiov.regie.suite"));
+      L.forEach((M, i) => {
+        const fiche = M.type === "image" ? hab.indexImages[M.ref] : M.type === "video" ? hab.indexVideos[M.ref] : null;
+        const vignette = fiche ? el("img", { src: M.type === "image" ? fiche.url : fiche.vignette, alt: "", loading: "lazy", width: 44, height: 26, style: "width:44px;height:26px;object-fit:cover;flex:none;background:#000" })
+          : el("span", { style: `width:44px;height:26px;flex:none;background:${M.type === "partage" ? "var(--brand,#f0b429)" : "#050608"};border:1px solid var(--brd-hard,#2a3138);box-sizing:border-box` });
+        const petit = (texte, nom, clic, actif) => el("button", { type: "button", style: S.bouton + ";padding:1px 6px;font-size:12px" + (actif ? "" : ";opacity:.35"), title: T(nom), "aria-label": T(nom), texte, on: { click: clic } });
+        noeud.appendChild(el("div", { style: S.ligne + ";flex-wrap:nowrap;gap:5px;border-bottom:1px solid var(--brd-soft,#222830);padding-bottom:4px", "data-dz-studiov-media": String(i) }, [
+          el("span", { style: S.badge + ";width:14px;flex:none", texte: String(i + 1) }), vignette,
+          el("span", { style: "flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px", texte: nomMedia(M), title: nomMedia(M) }),
+          petit(T("studiov.regie.voir"), "studiov.regie.voir", () => { const m = ctx.moteur(); if (m) m.regie.aller(i); }, true),
+          petit("↑", "studiov.regie.monter", () => { if (i > 0) { changer((m) => { m.splice(i - 1, 0, m.splice(i, 1)[0]); }); peindre(); } }, i > 0),
+          petit("↓", "studiov.regie.descendre", () => { if (i < L.length - 1) { changer((m) => { m.splice(i + 1, 0, m.splice(i, 1)[0]); }); peindre(); } }, i < L.length - 1),
+          petit("×", "studiov.regie.retirer", () => { changer((m) => { m.splice(i, 1); }); etatReg = ""; peindre(); }, true)]));
+      });
+      if (!L.length) noeud.appendChild(el("div", { style: S.note, texte: T("studiov.regie.vide") }));
+      noeud.appendChild(el("div", { style: S.ligne }, [
+        bouton("+ " + T("studiov.regie.partage"), () => { ajouter({ type: "partage", ref: "" }, T("studiov.regie.partage")); peindre(); }),
+        bouton("+ " + T("studiov.regie.eteint"), () => { ajouter({ type: "eteint", ref: "" }, T("studiov.regie.eteint")); peindre(); })]));
+      // ajouter une image ou une vidéo de la Bibliothèque de l'application
+      noeud.appendChild(titre("studiov.regie.ajouter"));
+      const champ = el("input", { type: "search", value: regieQ, style: S.champ, placeholder: T("studiov.regie.chercher"), "aria-label": T("studiov.regie.chercher"), "data-dz-studiov-regie-filtre": true });
+      champ.addEventListener("change", () => { regieQ = champ.value; regieVideos = null; peindre(); });
+      noeud.appendChild(el("div", { style: S.ligne + ";flex-wrap:nowrap" }, [
+        liste(regieGenre, [["images", T("studiov.regie.images")], ["videos", T("studiov.regie.videos")]], (v) => { regieGenre = v; etatReg = ""; peindre(); }, T("studiov.regie.genre")), champ]));
+      if (regieGenre === "images") {
+        if (!bib) { noeud.appendChild(el("div", { style: S.note, texte: T("studiov.biblio.patience") })); chargerBib(); }
+        else {
+          const mots = regieQ.toLowerCase().split(/\s+/).filter(Boolean);
+          const vues = bib.images.filter((i) => mots.every((m) => (i.filename + " " + (i.tags || []).join(" ")).toLowerCase().indexOf(m) >= 0)).slice(0, 48);
+          const grille = el("div", { style: "display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-height:200px;overflow-y:auto", "data-dz-studiov-regie-images": true });
+          for (const i of vues) grille.appendChild(el("button", { type: "button", title: i.filename, "aria-label": i.filename, "data-dz-studiov-regie-image": i.filename,
+            style: "padding:0;border-radius:0;cursor:pointer;background:#1b2028;border:2px solid transparent",
+            on: { click: () => faire(async () => { const v = await api("POST", "/api/studiov/bibliotheque/image", { filename: i.filename }); await habillage(true); ajouter({ type: "image", ref: v.ref }, v.nom); }) } },
+            [el("img", { src: "/api/studiov/bibliotheque/vignette?f=" + encodeURIComponent(i.filename), alt: i.filename, loading: "lazy", width: 70, height: 70, style: "display:block;width:100%;aspect-ratio:1;object-fit:contain" })]));
+          if (!vues.length) grille.appendChild(el("div", { style: S.note + ";grid-column:1/-1", texte: T("studiov.bibli.vide") }));
+          noeud.appendChild(grille);
+        }
+      } else if (!regieVideos) { noeud.appendChild(el("div", { style: S.note, texte: T("studiov.biblio.patience") })); chargerVideos(); }
+      else {
+        const boite = el("div", { style: "display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto", "data-dz-studiov-regie-videos": true });
+        for (const j of regieVideos) boite.appendChild(el("div", { style: S.ligne + ";flex-wrap:nowrap;gap:6px;border-bottom:1px solid var(--brd-soft,#222830);padding-bottom:4px", "data-dz-studiov-regie-video": j.job_id }, [
+          el("div", { style: "flex:1;min-width:0;display:flex;flex-direction:column" }, [el("span", { texte: j.title || j.job_id, style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px" }),
+            el("span", { style: S.badge, texte: [j.provider, j.duration_s ? T("studiov.regie.duree", { n: j.duration_s }) : null, String(j.created_at || "").slice(0, 10)].filter(Boolean).join(" · ") })]),
+          bouton(T("studiov.regie.ajouter.bouton"), () => faire(async () => { const v = await api("POST", "/api/studiov/bibliotheque/video", { job: j.job_id }); await habillage(true); ajouter({ type: "video", ref: v.ref }, v.nom); }))]));
+        if (!regieVideos.length) boite.appendChild(el("div", { style: S.note, texte: T("studiov.regie.videos.vide") }));
+        noeud.appendChild(boite);
+      }
+      noeud.appendChild(etat);
+      noeud.appendChild(el("div", { style: S.note, texte: T("studiov.regie.raccourcis") }));
+      noeud.appendChild(el("div", { style: S.note, texte: T("studiov.regie.son") }));
       return noeud;
     }
 
@@ -596,9 +695,9 @@ if (!window.__dzStudiov) {
         noeud.appendChild(el("div", { style: S.ligne }, [el("button", { type: "button", style: S.principal, "data-dz-studiov-cat-poser": p.id, texte: T(p.deja ? "studiov.biblio.poser" : "studiov.cat.poser"),
           on: { click: () => faire(async () => {
             const v = await api("POST", "/api/studiov/catalogue/poser", { id: p.id }); await habillage(true); await chargeurGLB();
-            const nd = copie(ctx.decor()); if (nd.objets.length >= 120) { etatCat = T("studiov.cat.plein"); return; }
-            nd.objets.push(objetNeuf(nd, "modele", v.ref, v.pose)); p.deja = v.ref; etatCat = T("studiov.bibli.pose", { nom: v.nom });
-            ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 });
+            const nd = copie(ctx.decor()), i = placer(nd, objetNeuf(nd, "modele", v.ref, v.pose), v.pose); if (i < 0) { etatCat = T("studiov.cat.plein"); return; }
+            p.deja = v.ref; etatCat = T("studiov.bibli.pose", { nom: v.nom });
+            ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: i });
           }) } })]));
       }
       noeud.appendChild(etat);
@@ -606,7 +705,7 @@ if (!window.__dzStudiov) {
       return noeud;
     }
 
-    const ONGLETS = [["style", panneauStyle], ["matieres", panneauMatieres], ["objets", panneauObjets], ["catalogue", panneauCatalogue], ["bibli", panneauBibli], ["biblio", panneauBiblio], ["lumieres", panneauLumieres],
+    const ONGLETS = [["style", panneauStyle], ["matieres", panneauMatieres], ["objets", panneauObjets], ["catalogue", panneauCatalogue], ["bibli", panneauBibli], ["biblio", panneauBiblio], ["ecran", panneauEcran], ["lumieres", panneauLumieres],
       ["cameras", panneauCameras], ["enseigne", panneauEnseigne]];
     // ce qu'on vient de choisir sur le plan ou dans la vue 3D : le panneau ouvre l'onglet qui le règle
     function viser(c) {
@@ -633,6 +732,10 @@ if (!window.__dzStudiov) {
         return;
       }
       if (!hab) { hote.appendChild(el("div", { style: S.note, texte: T("studiov.deco.chargement") })); return; }
+      if (aRemplacer >= d.objets.length) aRemplacer = -1;
+      if (aRemplacer >= 0) hote.appendChild(el("div", { style: "border:1px solid var(--brand,#f0b429);padding:6px 8px;display:flex;flex-direction:column;gap:5px", role: "status", "data-dz-studiov-remplacement": true }, [
+        el("div", { style: "font-size:12px", texte: T("studiov.deco.remplacement", { nom: nomObjet(d.objets[aRemplacer]) }) }),
+        el("div", { style: S.ligne }, [bouton(T("studiov.deco.remplacer.annuler"), () => { aRemplacer = -1; peindre(); })])]));
       hote.appendChild(el("div", { style: "display:flex;gap:0;flex-wrap:wrap", role: "tablist" }, ONGLETS.map(([id]) => el("button", { type: "button", role: "tab", "aria-selected": String(onglet === id),
         "data-dz-studiov-onglet": id, texte: T("studiov.deco.onglet." + id),
         style: S.bouton + `;padding:4px 8px;font-size:12px;border-right-width:0;${onglet === id ? "background:var(--brand,#f0b429);color:#111;border-color:var(--brand,#f0b429);font-weight:600" : ""}`,
@@ -657,11 +760,53 @@ if (!window.__dzStudiov) {
 
   // ── pour l'enregistreur (dz-capture.js) ──
   let habit = null;
+  // ── la barre de RÉGIE (lot SVR) : caméras et médias de l'écran, à la souris, pendant la prise. Posée sur le corps de
+  // la page : en mode « L'app seule », elle n'est pas dans l'image. Ses boutons sont bâtis une fois, puis mis à jour. ──
+  function barreRegie(m, decorDe, scene) {
+    const d = decorDe(), L = (d.regie && d.regie.medias) || [];
+    const nom = (M) => (!M ? "" : M.type === "partage" ? T("studiov.regie.partage") : M.type === "eteint" ? T("studiov.regie.eteint")
+      : ((hab && (M.type === "image" ? hab.indexImages : hab.indexVideos)[M.ref]) || {}).nom || T("studiov.regie.absent"));
+    const temps = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, "0")}`;
+    const petit = (texte, attrs, clic) => el("button", Object.assign({ type: "button", style: S.bouton + ";padding:3px 8px;font-size:12px", texte, on: { click: clic } }, attrs || {}));
+    const cams = d.cameras.map((c, i) => petit(`${i + 1} · ${c.nom}`, { "data-dz-studiov-regie-camera": String(i) }, () => { m.camera(i); maj(); }));
+    const media = el("span", { style: "font-size:12px;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap", "data-dz-studiov-regie-media": true });
+    const lecture = petit("", { "data-dz-studiov-regie-lecture": true }, () => { m.regie.lecture(); maj(); });
+    const duree = el("span", { style: S.note + ";font-variant-numeric:tabular-nums" });
+    // le RETOUR : l'image enregistrée, en petit (le présentateur ne voit que l'app : c'est son seul moniteur). C'est
+    // l'image de la scène, donc déjà caviardée ; elle reste hors de l'image filmée, comme la barre.
+    const rl = scene && scene.largeur >= scene.hauteur ? 176 : Math.round((110 * (scene ? scene.largeur : 16)) / (scene ? scene.hauteur : 9));
+    const rh = scene && scene.largeur >= scene.hauteur ? Math.round((176 * scene.hauteur) / scene.largeur) : 110;
+    const retour = el("canvas", { width: rl, height: rh, style: `width:${rl}px;height:${rh}px;flex:none;background:#000;border:1px solid var(--brd-hard,#2a3138)`,
+      title: T("studiov.regie.retour"), "aria-label": T("studiov.regie.retour"), "data-dz-studiov-regie-retour": true });
+    const peindreRetour = () => { if (!scene || !scene.canvas) return; try { retour.getContext("2d").drawImage(scene.canvas, 0, 0, rl, rh); } catch (e) { /* image pas prête */ } };
+    const noeud = el("div", { style: S.regie, "data-dz-capture-ui": true, "data-dz-studiov-regie": true, role: "toolbar", "aria-label": T("studiov.regie.titre") },
+      [retour, el("span", { style: S.badge, texte: T("studiov.regie.cameras") })].concat(cams, L.length ? [
+        el("span", { style: S.badge + ";margin-left:8px", texte: T("studiov.regie.ecran") }),
+        petit("‹", { title: T("studiov.regie.precedent"), "aria-label": T("studiov.regie.precedent"), "data-dz-studiov-regie-precedent": true }, () => { m.regie.precedent(); maj(); }),
+        media,
+        petit("›", { title: T("studiov.regie.suivant"), "aria-label": T("studiov.regie.suivant"), "data-dz-studiov-regie-suivant": true }, () => { m.regie.suivant(); maj(); }),
+        lecture, duree] : []));
+    function maj() {
+      const e = m.regie.etat(), courante = m.courante();
+      cams.forEach((b, i) => { b.style.borderColor = i === courante ? "var(--brand,#f0b429)" : ""; b.style.color = i === courante ? "var(--brand,#f0b429)" : ""; });
+      if (!L.length) return;
+      media.textContent = `${e.i + 1}/${e.n} · ${nom(L[e.i])}`; media.title = nom(L[e.i]);
+      lecture.style.display = e.type === "video" ? "" : "none"; duree.style.display = e.type === "video" ? "" : "none";
+      lecture.textContent = T(e.lecture ? "studiov.regie.pause" : "studiov.regie.lecture");
+      duree.textContent = `${temps(e.t)} / ${temps(e.duree)}`;
+    }
+    document.body.appendChild(noeud); maj(); peindreRetour();
+    const horloge = setInterval(maj, 400), image = setInterval(peindreRetour, 160);
+    return { maj, retirer() { clearInterval(horloge); clearInterval(image); noeud.remove(); } };
+  }
+
   function poser(scene, d, env) {
     const E = env || {};
     const m = creerMoteur(THREE, { largeur: scene.largeur, hauteur: scene.hauteur, decor: d.decor, contexte: d.contexte,
       logo: d.logo, qualite: qualite(), apercu: !!E.apercu, textures: hab ? hab.index : {}, objets: hab ? hab.indexObjets : {}, images: hab ? hab.indexImages : {}, chargeur: porteGLB,
+      videos: hab ? hab.indexVideos : {}, son: !!E.son, surRegie: () => { if (barre) barre.maj(); },
       surChange: E.surChange });
+    let barre = null;
     const plateau = d.decor.mode === "plateau" && !E.apercu;
     const ecran = plateau && typeof scene.ecranDeporte === "function" ? scene.ecranDeporte(true) : null;
     const avaitClics = plateau && scene.calques().some((c) => c.id === "clics");
@@ -680,18 +825,28 @@ if (!window.__dzStudiov) {
       g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, `rgba(0,0,0,${(v * 0.85).toFixed(3)})`);
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = g; ctx.fillRect(0, 0, s.largeur, s.hauteur);
     } });
+    // Ctrl+Alt+1…6 : caméra ; Ctrl+Alt+Flèche droite / gauche (ou Page suivante / précédente) : média suivant / précédent
+    // de la régie ; Ctrl+Alt+Espace : lancer ou mettre en pause la vidéo projetée
     const touche = (e) => {
-      if (!(e.ctrlKey && e.altKey) || !/^Digit[1-6]$/.test(e.code)) return;
-      const i = Number(e.code.slice(5)) - 1;
-      if (i < decor.cameras.length) { e.preventDefault(); m.camera(i); }
+      if (!(e.ctrlKey && e.altKey)) return;
+      if (/^Digit[1-6]$/.test(e.code)) { const i = Number(e.code.slice(5)) - 1; if (i < decor.cameras.length) { e.preventDefault(); m.camera(i); } }
+      else if (e.code === "ArrowRight" || e.code === "PageDown") { e.preventDefault(); m.regie.suivant(); }
+      else if (e.code === "ArrowLeft" || e.code === "PageUp") { e.preventDefault(); m.regie.precedent(); }
+      else if (e.code === "Space") { e.preventDefault(); m.regie.lecture(); }
+      else return;
+      if (barre) barre.maj();
     };
     if (!E.apercu) window.addEventListener("keydown", touche, true);
+    // la barre de régie : seulement quand elle reste HORS de l'image filmée (mode « L'app seule »)
+    if (!E.apercu && E.horsImage) barre = barreRegie(m, () => decor, scene);
     return {
       decor: () => decor, cameras: () => m.cameras(), courante: () => m.courante(), camera: (i) => m.camera(i),
       moteur: () => m,
       maj(nd) { decor = nd.decor; m.maj(nd.decor); },
+      regie: () => m.regie,
       retirer() {
         window.removeEventListener("keydown", touche, true);
+        if (barre) { barre.retirer(); barre = null; }
         scene.retirerCalque("studiov"); scene.retirerCalque("studiov-vignette");
         if (ecran) scene.ecranDeporte(false);
         m.detruire();
@@ -705,7 +860,7 @@ if (!window.__dzStudiov) {
       if (!id) return null;
       const [d] = await Promise.all([details.get(id) || delai(preparer(id), 2500), delai(moteur3d(), 3000)]);
       if (!d || !THREE || (scene.etat && scene.etat.sansStudio)) return null;      // arrivé trop tard : sans studio
-      habit = poser(scene, d);
+      habit = poser(scene, d, { son: !!(o && o.son), horsImage: !!(o && o.hors_image) });
       return habit;
     } catch (e) { return null; }                 // un studio en panne (WebGL absent…) ne bloque jamais la capture
   }

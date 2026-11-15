@@ -345,6 +345,17 @@
       "etat": "v3"
     },
     {
+      "id": "studio-virtuel",
+      "famille": "video",
+      "lot": "svr",
+      "icone": "dz-cat-decor",
+      "fr": "Tourner dans un studio virtuel",
+      "en": "Shoot in a virtual studio",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
       "id": "planificateur",
       "famille": "publier",
       "lot": "t175",

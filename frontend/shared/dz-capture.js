@@ -157,6 +157,9 @@ if (!window.__dzCapture) {
     // SV1 : le groupe « Studio virtuel » (dz-studiov.js) : le décor 3D de l'espace pour cette capture, en plus du skin
     const studio = window.__dzStudiov && typeof window.__dzStudiov.groupeCapture === "function"
       ? window.__dzStudiov.groupeCapture() : null;
+    // SVR : le groupe « Texte et prompteur » (dz-prompteur.js) : garder le texte de la voix, faire défiler un texte
+    const prompteur = window.__dzPrompteur && typeof window.__dzPrompteur.groupeCapture === "function"
+      ? window.__dzPrompteur.groupeCapture() : null;
     const clics = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "clics", "aria-label": T("capture.clics.piste") }),
       memo.clics !== false);
     const halo = caseA(el("input", { type: "checkbox", "data-dz-capture-option": "halo", "aria-label": T("capture.clics.halo") }),
@@ -174,10 +177,11 @@ if (!window.__dzCapture) {
       clics: clics.c.checked, halo: halo.c.checked, zoom: zoom.c.checked,
       skin: habillage ? habillage.valeur() : undefined,
       decor: studio ? studio.valeur() : undefined,
+      texte: prompteur ? prompteur.valeur() : undefined,
     });
     btnDemarrer.addEventListener("click", async () => {
       const o = lireOptions();
-      ecrire("dz_capture_options", JSON.stringify(Object.assign({}, o, { camera: false })));
+      ecrire("dz_capture_options", JSON.stringify(Object.assign({}, o, { camera: false, texte: undefined })));   // le texte du prompteur n'y est pas gardé
       btnDemarrer.disabled = true; btnAnnuler.disabled = true; erreur.textContent = "";
       const r = await demarrer(o);
       if (r.ok) fermerBoite();
@@ -195,6 +199,7 @@ if (!window.__dzCapture) {
             el("label", { style: S.ligne }, [el("span", { texte: T("capture.camera.forme") }), forme])]),
           habillage ? habillage.noeud : null,
           studio ? studio.noeud : null,
+          prompteur ? prompteur.noeud : null,
           el("div", { style: S.groupe }, [el("div", { style: S.titreG, texte: T("capture.clics.titre") }), clics.ligne,
             halo.ligne, zoom.ligne]),
           el("div", { style: S.note, texte: T("capture.boite.securite") }),
@@ -604,7 +609,7 @@ if (!window.__dzCapture) {
     // sans studio). En mode plateau, l'écran va sur l'écran du décor par le canevas caviardé de la scène.
     let studio3d = null;
     if (window.__dzStudiov && typeof window.__dzStudiov.habiller === "function") {
-      try { studio3d = await Promise.race([window.__dzStudiov.habiller(scene, { decor: o.decor }), attendreMs(4000).then(() => null)]); }
+      try { studio3d = await Promise.race([window.__dzStudiov.habiller(scene, { decor: o.decor, son: !!flux.onglet, hors_image: !!(elementCapture || p) }), attendreMs(4000).then(() => null)]); }
       catch (e) { studio3d = null; }
       if (!studio3d) scene.etat.sansStudio = true;          // un studio arrivé trop tard ne se pose plus
     }
@@ -750,6 +755,7 @@ if (!window.__dzCapture) {
   window.__dzCapture = {
     ouvrir, demarrer, arreter, disponible,
     session: () => (session ? { id: session.id, scene: session.scene, debut: session.debut, options: session.options,
-      audio: session.audio, clics: session.clics, pistes: session.enregistreurs.map((x) => x.nom) } : null),
+      audio: session.audio, clics: session.clics, pistes: session.enregistreurs.map((x) => x.nom),
+      horsImage: !!(session.elementCapture || session.preuve) } : null),      // SVR : ce qui est posé hors de #root n'est pas filmé
   };
 }

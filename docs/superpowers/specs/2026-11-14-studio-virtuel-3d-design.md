@@ -76,6 +76,7 @@ Couleurs : un rôle du kit de l'espace (`principale`, `accent`, `texte`, `fond`)
 | SVA | **Atelier du décor** (14/11, § 8) : trois vues du même décor — par ses caméras, en PLAN (placer meubles, lumières, caméras, présentateur à la souris), en 3D LIBRE (tourner autour de la pièce, choisir d'un clic un pan de mur, un meuble, une lumière, une caméra) ; une matière par pan de mur et par objet ; onglets Caméras (hauteur, focale, visée, mouvement) et Mes objets | **fait** |
 | SVB | **Depuis la Bibliothèque de l'application** (15/11, § 9) : les assets que l'utilisateur a générés — illustrations, logos, modèles 3D — entrent dans le studio : tableau, logo mural, kakémono, image sur l'écran du décor, enseigne, modèle 3D posé | **fait** |
 | SVC | **Catalogue de produits réels** (15/11, § 10) : les 7 775 modèles 3D d'Amazon Berkeley Objects qui tiennent dans un décor en direct (meubles, luminaires, tapis, art mural, à leur taille réelle), dans leur édition allégée `codepawl/abo-glb` — onglet « Catalogue » (recherche FR/EN, familles, vignettes), téléchargement à la demande d'une révision figée, licence CC BY 4.0 et crédit groupé automatiques, pose au sol / au mur / au plafond, compression Meshopt acceptée, textures ramenées à 1 024 px en qualité légère | **fait** (PR à relire) |
+| SVR | **Régie, prompteur, remplacement** (15/11, § 11) : onglet « Écran » (la suite des médias que l'écran du décor montre pendant la prise : écran partagé, images et vidéos de la Bibliothèque), raccourcis et barre de régie avec retour pendant la prise ; texte de la prise (reconnaissance du navigateur, ou transcription payante sur devis) et prompteur hors image ; « Remplacer… » un élément du décor par un élément du catalogue, de la Bibliothèque ou des imports | **fait** (PR à relire) |
 | SV2 | Skill `studio-volumetrique` + fabrique Blender sans fenêtre : GLB biseauté, textures, lightmap, vignette ; les 11 décors passent au niveau « fabriqué » | skill et script livrés avec SV1, cuisson à faire |
 | SV3 | Présentateur détouré sans fond vert (MediaPipe embarqué), ombre au sol, teinte par la lumière du décor ; option fond vert | à faire |
 | SV4 | Éditeur : déplacer objets, lumières, enseigne, caméras (poignées), réglages par section, annuler/rétablir | à faire |
@@ -235,3 +236,28 @@ documenter : lot SV10.
 Reste : les copies KTX2 et leurs niveaux de détail (il faudrait embarquer le transcodeur Basis ; la réduction des
 textures en qualité légère couvre le besoin de mémoire) ; garder plusieurs produits choisis avant de les poser ; le
 reste du décorateur dans le guide et l'assistant (SV10).
+
+## 11. Lot SVR — régie de l'écran, prompteur, remplacement (15/11)
+
+Demande de l'utilisateur : « je passe de la vue large, je parle, puis je passe à la vue écran et je lance le premier
+média sur l'écran tout en continuant de parler » ; garder le texte de la prise pour un effet prompteur à la prise
+suivante ; remplacer un élément d'un décor livré par un élément du catalogue, de la Bibliothèque ou d'un import.
+
+| # | Avant | Décision |
+|---|---|---|
+| R1 | l'écran du décor montrait l'écran partagé, une image fixe, ou rien | la recette porte `regie.medias` (12 au plus) : `partage`, `eteint`, `image` (`img:`), `video` (`vid:`). Les écrans de source `ecran` montrent le média COURANT ; sans média, rien ne change. La suite commence par l'écran partagé |
+| R2 | aucune vidéo de la Bibliothèque dans le studio | `services/studiov_videos.py` : une vidéo est LIÉE, jamais copiée (fiche `vid:<id>` = job + fichier sous le dossier des sorties, revérifié à chaque lecture) ; vignette tirée par ffmpeg ; si elle quitte la Bibliothèque, l'écran reste noir |
+| R3 | une image posée sur l'écran le COUVRAIT | un média de la régie est peint ENTIER dans une toile aux proportions de l'écran (bandes noires), image comme vidéo |
+| R4 | Ctrl+Alt+1 à 6 changeait de caméra, rien d'autre | Ctrl+Alt+Droite / Gauche (ou Page suivante / précédente : les flèches sont parfois prises par le pilote graphique) change de média ; une vidéo se lance à son arrivée ; Ctrl+Alt+Espace la met en pause |
+| R5 | le présentateur ne voyait que l'application | une barre de régie, posée hors de l'app (donc hors de l'image en mode « L'app seule ») : caméras, média courant, lecture, et un RETOUR de l'image enregistrée. Elle n'existe pas quand l'image prend tout l'onglet |
+| R6 | le son d'une vidéo projetée | elle est muette sauf si la capture enregistre le son de l'app : ce qu'on entend est ce qui est enregistré |
+| R7 | aucun texte de la prise | `capture.ecrire_texte` range `texte.json` à côté de la session. Deux sources : la reconnaissance vocale du NAVIGATEUR pendant la prise (gratuite, case à cocher : la voix passe par son service) ; après la prise, la transcription PAYANTE de la piste de voix par les routes existantes de la dictée (devis affiché, accord, plafond `dictee`, 10 minutes au plus) |
+| R8 | aucun prompteur | `dz-prompteur.js` : le texte d'une prise précédente, ou un texte collé, défile sous la pastille, hors de l'image (mots par minute, pause Ctrl+Alt+P, taille). Il n'est PAS affiché quand l'image prend tout l'onglet, et la pastille le dit |
+| R9 | on retirait un objet puis on en posait un autre ailleurs | « Remplacer… » : l'objet désigné cède sa place au prochain élément posé (Objets, Catalogue, Bibliothèque, Imports) — même endroit, même orientation, taille réelle ; au sol il garde la hauteur de l'ancien s'il était posé sur un meuble, au mur il se colle au mur le plus proche |
+
+Guide : chapitre neuf « Tourner dans un studio virtuel » (`studio-virtuel`, trois scènes capturées) ; la section du
+catalogue y a déménagé. Assistant : 13 fiches neuves et le parcours du studio dans AGENT.md.
+
+Reste : un enchaînement préparé (une touche = caméra + média) ; les mots horodatés de la transcription payante (la
+route de la dictée ne rend que le texte) pour un prompteur calé sur la voix ; la régie pendant un Direct (le panneau
+du direct n'a pas la barre) ; le texte du prompteur suivi automatiquement par la reconnaissance vocale.

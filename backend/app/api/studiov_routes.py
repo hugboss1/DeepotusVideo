@@ -26,6 +26,8 @@ Boucle locale SEULEMENT (`routes._require_localhost`). L'espace est celui de la 
 - `POST   /bibliotheque/modele` {job, fichier?} -> la fiche du modèle 3D généré, recopié dans les objets du studio
 - `GET    /images/{id}/fichier` ; `DELETE /images/{id}` (409 si un décor l'emploie)
 - `GET    /three/{module}.js` un chargeur three.js embarqué, ses imports réécrits pour la coque (GLTFLoader et ses deux aides)
+- `POST   /bibliotheque/video`  {job} -> la fiche de la vidéo de la Bibliothèque, LIÉE (jamais copiée) pour la régie (lot SVR)
+- `GET    /videos` ; `GET /videos/{id}/fichier` (lecture par morceaux) ; `GET /videos/{id}/vignette.jpg` ; `DELETE /videos/{id}`
 - `GET    /catalogue`            {pret, total, familles, source} : le catalogue de produits réels (lot SVC)
 - `POST   /catalogue/index`      télécharge la liste des produits et en fait l'index -> le même état
 - `GET    /catalogue/recherche?q=&famille=&page=` -> {total, page, pages, resultats}
@@ -46,6 +48,7 @@ from app.services import studiov_catalogue as CA
 from app.services import studiov_habillage as H
 from app.services import studiov_images as SI
 from app.services import studiov_objets as OB
+from app.services import studiov_videos as SV
 
 router = APIRouter()
 
@@ -190,6 +193,59 @@ async def bibliotheque_modele(request: Request):
     v = await _objet(OB.depuis_bibliotheque, d.get("job"), d.get("fichier"))
     logger.info("studiov: modèle 3D de la Bibliothèque recopié {}", v["id"])
     return v
+
+
+# ── SVR : les vidéos de la Bibliothèque que la régie projette sur l'écran du décor (liées, jamais copiées) ──
+
+async def _video(f, *args):
+    try:
+        return await asyncio.to_thread(f, *args)
+    except SV.RefusVideo as e:
+        raise HTTPException(e.statut, str(e)) from None
+
+
+@router.post("/bibliotheque/video")
+async def bibliotheque_video(request: Request):
+    _local(request)
+    d = await _json(request, 8 * 1024)
+    job = d.get("job")
+    if not isinstance(job, str) or not SV.ID_JOB.match(job):
+        raise HTTPException(404, "Vidéo introuvable dans la Bibliothèque.")
+    from app.services.pipeline import Pipeline
+    j = await Pipeline.get_job(job)                         # le chemin vient de la Bibliothèque, jamais de l'écran
+    fichier = (getattr(j, "final_video_path", None) or getattr(j, "video_path", None)) if j else None
+    if not fichier:
+        raise HTTPException(404, "Vidéo introuvable dans la Bibliothèque.")
+    v = await _video(SV.lier, job, fichier, getattr(j, "title", None), getattr(j, "duration_s", None))
+    logger.info("studiov: vidéo de la Bibliothèque liée {}", v["id"])
+    return v
+
+
+@router.get("/videos")
+async def videos(request: Request):
+    _local(request)
+    return {"videos": await _video(SV.lister)}
+
+
+@router.get("/videos/{vid}/fichier")
+async def video_fichier(vid: str, request: Request):
+    _local(request)
+    f = await _video(SV.chemin, vid)
+    return FileResponse(f, media_type=SV.mime(f), headers={"Cache-Control": "no-cache"})
+
+
+@router.get("/videos/{vid}/vignette.jpg")
+async def video_vignette(vid: str, request: Request):
+    _local(request)
+    octets = await _video(SV.vignette, vid)
+    return Response(content=octets, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+
+@router.delete("/videos/{vid}")
+async def video_supprimer(vid: str, request: Request):
+    _local(request)
+    await _video(SV.supprimer, vid)
+    return {"supprime": vid}
 
 
 @router.get("/images/{iid}/fichier")

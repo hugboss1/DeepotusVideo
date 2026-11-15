@@ -40,6 +40,11 @@ Sections :
      sa pose et son titre, une seule fois ; un luminaire est rangé « lumineux », un bougeoir ou un siège non ; Meshopt accepté, dimensions mesurées avec les nœuds ; crédits groupés ;
      la source `abo` n'est pas déclarable à l'import d'un fichier ; le réseau du studio tient en UNE fonction.
      Le réseau est remplacé par une couture : ce banc ne sort jamais.
+ 12. régie de l'écran (lot SVR) : la recette garde la suite des médias de l'écran — type fermé, image ou vidéo par
+     RÉFÉRENCE seulement, 12 au plus ; une vidéo de la Bibliothèque est LIÉE (jamais copiée) : seulement un fichier
+     vidéo rangé sous le dossier des sorties, revérifié à chaque lecture, une fois par job ; vignette tirée par
+     ffmpeg (remplacé par une couture) ; suppression refusée tant qu'une régie l'emploie ; routes (lecture par
+     morceaux, identifiant hostile, hors boucle locale).
 Données jetables (DEEPOTUS_DATA_DIR temporaire), aucun réseau.
 Run (depuis backend/) : & $PY tests/test_studiov_service.py"""
 import json, os, pathlib, re, subprocess, sys, tempfile
@@ -165,7 +170,7 @@ check("5.1 types du serveur = types de la logique JS (même ordre)", list(S.TYPE
 check("5.2 chaque type a son constructeur dans le moteur, et rien de plus", sorted(types_moteur) == sorted(S.TYPES_OBJET), set(S.TYPES_OBJET) ^ set(types_moteur))
 check("5.3 aucun type en double", len(set(S.TYPES_OBJET)) == len(S.TYPES_OBJET))
 check("5.4 le catalogue servi : familles, motifs, lumières, mouvements, usages, polices, styles d'enseigne, types à mot, lumineux et à image",
-      set(S.catalogue()) == {"familles", "motifs", "lumieres", "mouvements", "usages", "polices", "styles_enseigne", "types_texte", "types_lumineux", "types_image"})
+      set(S.catalogue()) == {"familles", "motifs", "lumieres", "mouvements", "usages", "polices", "styles_enseigne", "types_texte", "types_lumineux", "types_image", "types_media"})
 check("5.5 les types à mot et les types lumineux sont au catalogue ; chaque police proposée est embarquée (frontend/dist/fonts)",
       set(S.TYPES_TEXTE) <= set(S.TYPES_OBJET) and set(S.TYPES_LUMINEUX) <= set(S.TYPES_OBJET)
       and all((REPO / "frontend" / "dist" / "fonts" / f"{p}.ttf").is_file() for p in S.POLICES))
@@ -248,7 +253,7 @@ check("7.16 vignette de la Forge : catalogue rendu en JPEG ; inconnue, source ho
       and all(_refus_h(H.vignette, *a) == 404 for a in [("cat", "absente"), ("cat", "../x"), ("mat", "zzzzzzzz"), ("mat", "00000000"), ("disque", "brick_wall_001")]))
 r = local.get("/api/studiov/habillage")
 check("7.17 route du catalogue : textures, familles, finitions, ambiances, styles, catalogue ; hors boucle locale refusée", r.status_code == 200
-      and set(r.json()) == {"textures", "familles_texture", "finitions", "ambiances", "styles", "catalogue", "objets", "images"} and len(r.json()["textures"]) >= 72
+      and set(r.json()) == {"textures", "familles_texture", "finitions", "ambiances", "styles", "catalogue", "objets", "images", "videos"} and len(r.json()["textures"]) >= 72
       and loin.get("/api/studiov/habillage").status_code in (401, 403))
 check("7.18 route d'une carte : JPEG du pack ; carte inconnue 404 ; vignette de la Forge ; carte de la Forge par cette route 404 ; hors boucle refusé",
       local.get("/api/studiov/textures/stu/oak_veneer_01/normal.jpg").headers.get("content-type") == "image/jpeg"
@@ -672,6 +677,73 @@ autres11 = "".join(pathlib.Path(m.__file__).read_text("utf-8") for m in (S, H, O
 check("11.17 le réseau du studio tient en UNE fonction, vers une révision FIGÉE en https ; les autres modules du studio n'ouvrent aucun réseau",
       src11.count("import httpx") == 1 and src11.count("BASE + chemin") == 1 and re.match(r"^[0-9a-f]{40}$", CA.REVISION) and CA.BASE.startswith("https://huggingface.co/datasets/codepawl/abo-glb/resolve/" + CA.REVISION + "/")
       and not re.search(r"httpx|urllib|requests|socket", autres11) and "follow_redirects=True" in src11 and 'r.url.scheme != "https"' in src11)
+
+print("12. régie de l'écran")
+from app.services import studiov_videos as SV                        # noqa: E402
+
+
+def _refus_v(f, *a):
+    try:
+        f(*a)
+    except SV.RefusVideo as e:
+        return e.statut
+    return None
+
+
+SORTIES = _reglages.outputs_path
+(SORTIES / "captures").mkdir(parents=True, exist_ok=True)
+(SORTIES / "captures" / "prise.mp4").write_bytes(b"\0" * 4096)
+(SORTIES / "captures" / "note.txt").write_text("x", "utf-8")
+(_tmp / "ailleurs.mp4").write_bytes(b"\0" * 64)
+r12 = S.normaliser({"regie": {"medias": [{"type": "partage", "ref": "C:/x"}, {"type": "image", "ref": i1["ref"]}, {"type": "image", "ref": "vid:" + "0" * 16},
+                                         {"type": "video", "ref": "vid:" + "a" * 16}, {"type": "video", "ref": "../x.mp4"}, {"type": "video"},
+                                         {"type": "eteint"}, {"type": "youtube", "ref": "https://x"}, "pirate"] + [{"type": "eteint"}] * 20}})
+check("12.1 recette : la régie garde un type fermé et, pour une image ou une vidéo, une RÉFÉRENCE valide ; 12 médias au plus ; sans régie : liste vide ; idempotent",
+      [(m["type"], m["ref"]) for m in r12["regie"]["medias"][:4]] == [("partage", ""), ("image", i1["ref"]), ("video", "vid:" + "a" * 16), ("eteint", "")]
+      and len(r12["regie"]["medias"]) == 8 and len(S.normaliser({"regie": {"medias": [{"type": "eteint"}] * 30}})["regie"]["medias"]) == S.MAX_MEDIAS == 12
+      and S.normaliser({})["regie"] == {"medias": []} and S.normaliser({"regie": "x"})["regie"] == {"medias": []}
+      and S.normaliser(r12) == r12 and all(v["regie"] == {"medias": []} for v in S.livres()) and S.catalogue()["types_media"] == ["partage", "eteint", "image", "video"])
+v1 = SV.lier("job-1", str(SORTIES / "captures" / "prise.mp4"), "Ma  prise\x00 du jour", 24)
+check("12.2 lier une vidéo de la Bibliothèque : une fiche (référence vid:), jamais une copie ; le même job n'est lié qu'une fois",
+      S.REF_VIDEO.match(v1["ref"]) and v1["nom"] == "Ma prise du jour" and v1["duree"] == 24.0 and v1["present"] is True and v1["job"] == "job-1"
+      and SV.lier("job-1", str(SORTIES / "captures" / "prise.mp4"))["id"] == v1["id"] and len(SV.lister()) == 1
+      and sorted(x.name for x in (SV.racine() / v1["id"]).iterdir()) == ["fiche.json"] and SV.chemin(v1["id"]) == (SORTIES / "captures" / "prise.mp4").resolve(), v1)
+check("12.3 refusés (404) : fichier hors du dossier des sorties, remontée de dossier, autre extension, fichier absent, job hostile ; rien n'est écrit",
+      [_refus_v(SV.lier, *x) for x in (("job-2", str(_tmp / "ailleurs.mp4")), ("job-2", str(SORTIES / "captures" / ".." / ".." / "ailleurs.mp4")),
+                                       ("job-2", str(SORTIES / "captures" / "note.txt")), ("job-2", str(SORTIES / "captures" / "absente.mp4")),
+                                       ("../job", str(SORTIES / "captures" / "prise.mp4")), (None, str(SORTIES / "captures" / "prise.mp4")), ("job-2", None))] == [404] * 7
+      and len(SV.lister()) == 1)
+appels12 = []
+def _faux_ffmpeg(argv, **k):
+    appels12.append(list(argv))
+    pathlib.Path(argv[-1]).write_bytes(b"\xff\xd8\xff\xe0vignette")
+vrai_run12, SV.subprocess.run = SV.subprocess.run, _faux_ffmpeg
+check("12.4 vignette : tirée une fois par ffmpeg (sans fenêtre de saisie : une liste d'arguments), puis gardée avec la fiche ; identifiant hostile 400, inconnu 404",
+      SV.vignette(v1["id"])[:2] == b"\xff\xd8" and SV.vignette(v1["id"])[:2] == b"\xff\xd8" and len(appels12) == 1 and str(SORTIES / "captures" / "prise.mp4") in " ".join(appels12[0])
+      and all(_refus_v(SV.lire, x) == 400 for x in ("../x", "ABC", "", None)) and _refus_v(SV.vignette, "0" * 16) == 404)
+SV.subprocess.run = vrai_run12
+dc12 = S.creer(None, "Décor en régie", "esp-r")
+dc12 = S.enregistrer(dc12["id"], dict(dc12, regie={"medias": [{"type": "partage"}, {"type": "image", "ref": i2["ref"]}, {"type": "video", "ref": v1["ref"]}]}))
+check("12.5 une vidéo et une image de la régie sont EMPLOYÉES : suppression refusée (409) tant que le décor les garde",
+      SV.emplois(dc12) == {v1["ref"]} and i2["ref"] in SI.emplois(dc12) and _refus_v(SV.supprimer, v1["id"]) == 409 and _refus_i(SI.supprimer, i2["id"]) == 409)
+r = local.get(f"/api/studiov/videos/{v1['id']}/fichier", headers={"Range": "bytes=0-99"})
+check("12.6 routes : liste, fichier servi par morceaux (206), vignette, identifiant hostile 400, job hostile ou inconnu 404, hors boucle locale refusée ; le catalogue du décorateur liste les vidéos",
+      local.get("/api/studiov/videos").json()["videos"][0]["id"] == v1["id"] and r.status_code == 206 and len(r.content) == 100 and r.headers["content-type"] == "video/mp4"
+      and local.get(f"/api/studiov/videos/{v1['id']}/vignette.jpg").headers["content-type"] == "image/jpeg"
+      and local.get("/api/studiov/videos/ZZZ/fichier").status_code == 400 and local.post("/api/studiov/bibliotheque/video", json={"job": "../x"}).status_code == 404
+      and local.post("/api/studiov/bibliotheque/video", json={}).status_code == 404 and local.delete(f"/api/studiov/videos/{v1['id']}").status_code == 409
+      and loin.get("/api/studiov/videos").status_code in (401, 403) and loin.post("/api/studiov/bibliotheque/video", json={"job": "job-1"}).status_code in (401, 403)
+      and local.get("/api/studiov/habillage").json()["videos"][0]["ref"] == v1["ref"], r.status_code)
+(SORTIES / "captures" / "prise.mp4").unlink()
+check("12.7 la vidéo a quitté la Bibliothèque : la fiche le dit, le fichier n'est plus servi (404), la recette garde sa référence",
+      SV.lire(v1["id"])["present"] is False and _refus_v(SV.chemin, v1["id"]) == 404 and local.get(f"/api/studiov/videos/{v1['id']}/fichier").status_code == 404
+      and S.lire(dc12["id"])["regie"]["medias"][2]["ref"] == v1["ref"])
+S.enregistrer(dc12["id"], dict(dc12, regie={"medias": []}))
+SV.supprimer(v1["id"])
+check("12.8 … retirée de la régie, la fiche s'oublie ; inconnue 404", SV.lister() == [] and _refus_v(SV.supprimer, v1["id"]) == 404)
+src12 = pathlib.Path(SV.__file__).read_text("utf-8")
+check("12.9 le module ne copie jamais la vidéo, n'ouvre aucun réseau et ne passe ffmpeg que par une liste d'arguments",
+      "copyfile" not in src12 and "shutil.copy" not in src12 and not re.search(r"httpx|urllib|requests|socket", src12) and "shell=True" not in src12)
 
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)

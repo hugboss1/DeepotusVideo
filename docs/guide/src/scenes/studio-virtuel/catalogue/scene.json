@@ -45,7 +45,7 @@
       "duree": 3.2,
       "curseur": [
         940,
-        708
+        691
       ],
       "clic": true,
       "bulle": {
@@ -56,9 +56,15 @@
     {
       "capture": 2,
       "duree": 3,
+      "surligne": [
+        1003,
+        590,
+        94,
+        37
+      ],
       "bulle": {
-        "fr": "Le produit est posé ; un luminaire éclaire",
-        "en": "The product is placed; a lamp gives light"
+        "fr": "Le produit est posé ; Remplacer… change un meuble en place",
+        "en": "The product is placed; Replace… swaps a piece in place"
       }
     }
   ],
@@ -93,9 +99,15 @@
     {
       "capture": 2,
       "duree": 3,
+      "surligne": [
+        1008,
+        590,
+        80,
+        37
+      ],
       "bulle": {
-        "fr": "Le produit est posé ; un luminaire éclaire",
-        "en": "The product is placed; a lamp gives light"
+        "fr": "Le produit est posé ; Remplacer… change un meuble en place",
+        "en": "The product is placed; Replace… swaps a piece in place"
       }
     }
   ],

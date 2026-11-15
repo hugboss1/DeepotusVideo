@@ -301,6 +301,19 @@ export function coneCamera(cam, portee) {
   return [[cam.x, cam.z], [cam.x + Math.sin(a - demi) * r / Math.cos(demi), cam.z + Math.cos(a - demi) * r / Math.cos(demi)],
     [cam.x + Math.sin(a + demi) * r / Math.cos(demi), cam.z + Math.cos(a + demi) * r / Math.cos(demi)]];
 }
+// (lot SVR) comment un type du catalogue se pose : au mur, au plafond, sinon au sol
+export const poseType = (type) => (type === "suspension" ? "plafond" : (MURAUX.indexOf(type) >= 0 || type === "tableau" || type === "logo_mural") ? "mur" : "sol");
+// (lot SVR) l'objet `neuf` prend la place de l'objet d'indice `index` : même endroit, même orientation, sa taille réelle.
+// Au sol, il garde la hauteur de l'ancien si l'ancien était lui aussi un objet posé (une lampe sur un bureau y reste) ;
+// au mur, il se colle au mur le plus proche de l'ancien, à sa hauteur si l'ancien était déjà accroché ; au plafond, il
+// pend au-dessus de la place de l'ancien. `pose` et `poseAncien` : "sol" | "mur" | "plafond".
+export function remplacerObjet(decor, index, neuf, pose, poseAncien) {
+  const P = (decor && decor.piece) || { l: 6, p: 5, h: 2.8 }, a = decor && decor.objets ? decor.objets[index] : null, n = { ...neuf, e: 1 };
+  if (!a) return n;
+  if (pose === "plafond") return { ...n, x: a.x, z: a.z, y: P.h, ry: a.ry };
+  if (pose === "mur") { const c = collerAuMur({ x: a.x, z: a.z, ry: a.ry }, P); return { ...n, x: c.x, z: c.z, ry: c.ry, y: poseAncien === "mur" ? a.y : n.y }; }
+  return { ...n, x: a.x, z: a.z, ry: a.ry, y: poseAncien === "sol" || poseAncien == null ? a.y : 0 };
+}
 // un objet mural suit le mur le plus proche : il s'y colle (2 cm) et lui tourne le dos
 export function collerAuMur(o, piece) {
   const P = piece, d = [["fond", Math.abs(o.z + P.p / 2)], ["gauche", Math.abs(o.x + P.l / 2)], ["droite", Math.abs(o.x - P.l / 2)]];

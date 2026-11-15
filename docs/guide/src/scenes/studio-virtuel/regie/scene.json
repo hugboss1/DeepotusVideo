@@ -1,0 +1,48 @@
+{
+  "titre": {
+    "fr": "Préparer la régie de l'écran",
+    "en": "Prepare the screen's control room"
+  },
+  "legende": {
+    "fr": "Onglet Écran : la suite des médias que l'écran du décor montrera pendant la prise ; Voir en montre un dans l'aperçu.",
+    "en": "Screen tab: the sequence of media the set's screen will show during the take; Preview shows one in the preview."
+  },
+  "captures": [
+    {
+      "fr": "suite.fr.webp",
+      "en": "suite.en.webp"
+    },
+    {
+      "fr": "voir.fr.webp",
+      "en": "voir.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    800
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 3,
+      "surligne": [
+        864,
+        276,
+        327,
+        43
+      ],
+      "bulle": {
+        "fr": "La suite : écran partagé, puis vos images et vos vidéos",
+        "en": "The sequence: shared screen, then your images and videos"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3,
+      "bulle": {
+        "fr": "Voir : le média s'affiche sur l'écran du décor",
+        "en": "Preview: the media shows on the set's screen"
+      }
+    }
+  ]
+}
