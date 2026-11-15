@@ -184,6 +184,32 @@ async def main():
           f.corps[0]["max_tokens"] == 2000 and "output_config" not in f.corps[0] and d5["out_tok"] == 16000,
           f.corps[0].get("max_tokens"))
 
+    print("\n== 6. l'espace choisi : une carte Continuer suit (l'écran ne relance rien de lui-même) ==")
+    from app.api import agent_campagnes_routes as ACR
+    from app.services import agent_format as fmt
+    conv6 = await st.creer("campagnes", None, "Sans espace"); c6 = conv6["id"]
+    await st.ajouter(c6, [fmt.nouveau_message("utilisateur", [{"type": "texte", "texte": "Fais la campagne."}]),
+                          fmt.nouveau_message("agent", [{
+                              "type": "carte", "genre": "espace", "libelle": "Choisir l'espace de marque de la campagne",
+                              "etat": "proposee", "action": "choisir_espace",
+                              "arguments": {"espaces": [{"id": E, "nom": "Reflexion"}]}}])])
+    await st.regler_espace(c6, E)
+    await ACR._proposer_suite(c6, "en")
+    l6 = await st.lire(c6)
+    dern = l6["messages"][-1]
+    carte6 = dern["blocs"][0] if dern["blocs"] else {}
+    check("6a une carte Continuer « espace » proposée, chiffrée, au texte de reprise",
+          dern["role"] == "agent" and carte6.get("genre") == "continuer" and carte6.get("etat") == "proposee"
+          and carte6["arguments"]["motif"] == "espace" and carte6["arguments"]["texte"] == AC.TEXTE_CONTINUER["en"]
+          and carte6["devis"] > 0 and carte6["arguments"]["depense_usd"] == 0, carte6)
+    d6 = AC.devis_message(l6, AC.TEXTE_CONTINUER["en"], "en")
+    check("6b son devis est celui de l'espace choisi", abs(carte6["devis"] - d6["plafond_usd"]) < 0.05, (carte6.get("devis"), d6["plafond_usd"]))
+    source = pathlib.Path(ACR.__file__).read_text(encoding="utf-8")
+    apres = source.split("if not await ST.regler_espace(cid, extra[\"espace_id\"]):", 1)[1][:400]
+    check("6c la route /carte la propose juste après avoir réglé l'espace", "_proposer_suite(cid, _lang(request))" in apres)
+    await ACR._proposer_suite("conversation-inconnue", "fr")
+    check("6d une conversation illisible ne lève rien (le choix reste écrit)", True)
+
     print(f"\n{ok} PASS, {fail} FAIL")
     return fail
 
