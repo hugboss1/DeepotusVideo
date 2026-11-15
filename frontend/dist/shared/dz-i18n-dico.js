@@ -17797,6 +17797,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "studiov.cat.deja": {"fr": "déjà dans vos objets", "en": "already in your objects"},
   "studiov.cat.dims": {"fr": "{l} × {h} × {p} cm", "en": "{l} × {h} × {p} cm"},
   "studiov.cat.famille": {"fr": "Famille de produits", "en": "Product family"},
+  "studiov.cat.lumineux": {"fr": "éclaire le décor (sa couleur règle la lumière)", "en": "lights the set (its colour sets the light)"},
   "studiov.cat.note": {"fr": "De vrais produits en 3D, à leur taille réelle : meubles, luminaires, tapis, art mural (Amazon Berkeley Objects, licence CC BY 4.0). Rien n'est livré avec l'application : un modèle se télécharge quand vous le posez.", "en": "Real products in 3D, at their true size: furniture, lighting, rugs, wall art (Amazon Berkeley Objects, CC BY 4.0 licence). Nothing ships with the app: a model downloads when you place it."},
   "studiov.cat.page": {"fr": "{n} produits · page {page} sur {pages}", "en": "{n} products · page {page} of {pages}"},
   "studiov.cat.plein": {"fr": "Ce décor a déjà 120 objets : retirez-en un d'abord.", "en": "This set already has 120 objects: remove one first."},

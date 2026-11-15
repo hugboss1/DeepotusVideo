@@ -12,7 +12,8 @@ sur un geste de l'utilisateur :
   - « Charger le catalogue » télécharge la liste des produits (9 Mo) et en garde un index compact ;
   - une vignette n'est demandée que pour un produit affiché, puis gardée ;
   - « Poser » télécharge UN modèle (1,2 Mo en médiane) et le range dans la bibliothèque d'objets de l'utilisateur
-    (studiov_objets, source `abo`), avec sa licence, son auteur et sa façon de se poser (sol, mur, plafond).
+    (studiov_objets, source `abo`), avec sa licence, son auteur, sa façon de se poser (sol, mur, plafond) et, pour
+    un luminaire, le fait qu'il éclaire.
 Aucune adresse ne vient de l'écran ni de la recette : tout chemin est bâti ici, depuis un identifiant de produit
 vérifié, vers une RÉVISION FIGÉE du dépôt. Aucune dépense.
 
@@ -107,6 +108,15 @@ _MOTS = (
 # ceux qui, centrés sur leur point de pose, ne sont PAS des objets de mur (un coussin se pose)
 _JAMAIS_MUR = ("pillow", "home bed and bath", "chair", "blanket")
 _ORDRE = list(FAMILLES)
+_SANS_LUMIERE = ("candle holder",)         # de la famille des luminaires, mais sans ampoule…
+_MOTS_LUMIERE = ("lamp", "light", "pendant", "chandelier", "sconce", "lantern")     # … sauf si le nom dit le contraire
+
+
+def _lumineux(p: dict) -> bool:
+    """Un luminaire éclaire. Amazon range parfois une suspension parmi les bougeoirs : le nom du produit tranche."""
+    if p["famille"] != "luminaires":
+        return False
+    return p["type"] not in _SANS_LUMIERE or any(m in p["nom"].lower() for m in _MOTS_LUMIERE)
 
 
 def racine() -> Path:
@@ -269,7 +279,7 @@ def _vue(p: dict, deja: dict) -> dict:
     connu = TYPES.get(p["type"])
     fam = FAMILLES.get(p["famille"], FAMILLES["divers"])
     return {**p, "libelle": connu[1] if connu else fam[0], "libelle_en": connu[2] if connu else fam[1],
-            "lourd": p["triangles"] > OB.TRIANGLES_LEGER, "vignette": f"/api/studiov/catalogue/vignette/{p['id']}.webp",
+            "lourd": p["triangles"] > OB.TRIANGLES_LEGER, "lumineux": _lumineux(p), "vignette": f"/api/studiov/catalogue/vignette/{p['id']}.webp",
             "deja": deja.get(f"abo:{p['id']}")}
 
 
@@ -371,4 +381,5 @@ def poser(pid) -> dict:
         if ref:
             return OB.lire(ref[4:])
         return OB.importer(octets, {"nom": _nom_court(p["nom"]), "titre": p["nom"], "source": "abo", "auteur": "Amazon.com",
-                                    "licence": "CC-BY", "url": PAGE, "origine": origine, "pose": p["pose"]})
+                                    "licence": "CC-BY", "url": PAGE, "origine": origine, "pose": p["pose"],
+                                    "lumineux": _lumineux(p)})

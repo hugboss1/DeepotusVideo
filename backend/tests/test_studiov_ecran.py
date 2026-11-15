@@ -380,6 +380,10 @@ check("P21 modèles compressés : le décodeur Meshopt est celui de l'applicatio
       and "ch.setMeshoptDecoder(O.chargeur.meshopt)" in moteur_src and 'F.pose === "mur"' in moteur_src and 'F.pose === "plafond"' in moteur_src
       and 'if (qualite === "haute"' in moteur_src and "COTE_LEGER = 1024" in moteur_src and "alleger(sc)" in moteur_src
       and "estMural(ob)" in plan_src and 'hab.indexObjets[ob.ref].pose === "mur"' in ecran_src and 'objetNeuf(nd, "modele", v.ref, v.pose)' in ecran_src)
+check("P22 luminaires du catalogue : la lueur se pose au foyer du modèle, de la couleur de l'objet ; une vraie lumière pour les premiers seulement (2 en légère, 4 en haute), leur rang pris à la construction",
+      "const g0 = generation, rang = F.lumineux ? lampes++ : -1;" in moteur_src and "if (rang >= 0) allumer(g, foyerDe(src, F.pose), m.c || CHAUD, rang);" in moteur_src
+      and 'LAMPES_REELLES = qualite === "haute" ? 4 : 2' in moteur_src and "if (rang < LAMPES_REELLES)" in moteur_src and "generation++; lampes = 0;" in moteur_src
+      and 'T("studiov.cat.lumineux")' in ecran_src)
 capture = (SH / "dz-capture.js").read_text("utf-8")
 check("P11 la capture pose le studio APRÈS le skin et AVANT la première image ; l'option « decor » part de la boîte",
       0 < capture.find("__dzSkins.habiller(scene") < capture.find("__dzStudiov.habiller(scene") < capture.find("scene.dessiner();")

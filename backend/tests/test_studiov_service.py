@@ -37,7 +37,7 @@ Sections :
      famille d'après le type, sinon d'après le nom ; pose d'après l'origine du fichier (sol, mur, plafond) ; recherche
      en français ou en anglais, par famille, paginée ; vignette téléchargée une fois ; « poser » ne télécharge QUE
      objects/<id>/<id>.glb de la révision figée, vérifie sa taille, range l'objet avec sa licence CC BY, son auteur,
-     sa pose et son titre, une seule fois ; Meshopt accepté, dimensions mesurées avec les nœuds ; crédits groupés ;
+     sa pose et son titre, une seule fois ; un luminaire est rangé « lumineux », un bougeoir ou un siège non ; Meshopt accepté, dimensions mesurées avec les nœuds ; crédits groupés ;
      la source `abo` n'est pas déclarable à l'import d'un fichier ; le réseau du studio tient en UNE fonction.
      Le réseau est remplacé par une couture : ce banc ne sort jamais.
 Données jetables (DEEPOTUS_DATA_DIR temporaire), aucun réseau.
@@ -562,7 +562,7 @@ lignes = [_ligne("B000000001", "Amazon Brand – Rivet North End Wood Accent Liv
           _ligne("B000000003", "Watercolor Green Leaf Print Wall Art", "wall art", mini=(-0.15, -0.15, 0), dims=(0.3, 0.3, 0.04), octets=len(GLB_PRODUIT)),
           _ligne("B000000004", "Glass Globe Pendant", "light fixture", mini=(-0.2, -1.7, -0.2), dims=(0.4, 1.7, 0.4)),
           _ligne("B000000005", "Velvet Throw Pillow", "pillow", mini=(-0.2, -0.2, 0), dims=(0.4, 0.4, 0.15)),
-          _ligne("B000000006", "Widget 3000", "biss"),
+          _ligne("B000000006", "Widget 3000", "biss"), _ligne("B000000013", "Brass Candle Holder", "candle holder"),
           _ligne("B000000007", "Trop de triangles", "chair", tri=OB.MAX_TRIANGLES + 1), _ligne("B000000008", "Trop lourd", "chair", octets=OB.MAX_OCTETS + 1),
           _ligne("B000000009", "Fichier ailleurs", "chair", file="objects/../x.glb"), _ligne("../../x", "Identifiant hostile", "chair"),
           _ligne("B000000001", "Doublon", "sofa"), _ligne("B000000010", "", "chair"), _ligne("B000000011", "Sans taille", "chair", size_metres="grand"),
@@ -571,7 +571,8 @@ lignes += [_ligne(f"B1{i:08d}", f"Dining Chair {i:03d}", "chair") for i in range
 LISTE = b"\n".join(json.dumps(x).encode("utf-8") for x in lignes) + b"\n{pas du json\n\n[1, 2]\n"
 reseau, sorties = {"metadata.jsonl": LISTE, "thumbs/B000000001.webp": WEBP, "thumbs/B000000002.webp": b"<html>pas une image</html>",
                    "objects/B000000001/B000000001.glb": GLB_PRODUIT, "objects/B000000003/B000000003.glb": GLB_PRODUIT,
-                   "objects/B000000002/B000000002.glb": GLB_PRODUIT}, []
+                   "objects/B000000002/B000000002.glb": GLB_PRODUIT, "objects/B200000000/B200000000.glb": b"x" * 1000,
+                   "objects/B000000013/B000000013.glb": b"x" * 1000}, []
 def _faux_reseau(chemin, maximum):
     sorties.append(chemin)
     if chemin not in reseau:
@@ -591,21 +592,21 @@ check("11.2 un modèle compressé en Meshopt est accepté, et mesuré en mètres
                                     nodes=[{"mesh": 0, "scale": [0.8, 0.5, 0.4], "translation": [0, 0.5, 0]}], scenes=[{"nodes": [0]}])))["dims"] == [1.6, 1.0, 0.4])
 e11 = CA.charger()
 ind = json.loads((CA.racine() / "index.json").read_text("utf-8"))
-check("11.3 charger : la liste devient l'index (116 produits ; hostiles, trop lourds, en double, sans nom ni taille écartés), gardé avec sa révision",
-      e11["pret"] is True and e11["total"] == 116 and sorties == ["metadata.jsonl"] and ind["revision"] == CA.REVISION and len(ind["produits"]) == 116
+check("11.3 charger : la liste devient l'index (117 produits ; hostiles, trop lourds, en double, sans nom ni taille écartés), gardé avec sa révision",
+      e11["pret"] is True and e11["total"] == 117 and sorties == ["metadata.jsonl"] and ind["revision"] == CA.REVISION and len(ind["produits"]) == 117
       and not {"B000000007", "B000000008", "B000000009", "B000000010", "B000000011", "B000000012"} & {p["id"] for p in ind["produits"]}
       and [p["nom"] for p in ind["produits"] if p["id"] == "B000000001"][0].startswith("Amazon Brand"), e11)
 par = {p["id"]: p for p in ind["produits"]}
 check("11.4 famille : d'après le type d'Amazon ; un type vague est rangé d'après le nom du produit ; sinon « Autres » ; les familles servies ont leur nom FR et EN",
       par["B000000001"]["famille"] == "sieges" and par["B000000002"]["famille"] == "canapes" and par["B000000006"]["famille"] == "divers"
-      and [(x["id"], x["n"]) for x in e11["familles"]] == [("sieges", 61), ("canapes", 1), ("luminaires", 51), ("mural", 1), ("textiles", 1), ("divers", 1)]
+      and [(x["id"], x["n"]) for x in e11["familles"]] == [("sieges", 61), ("canapes", 1), ("luminaires", 52), ("mural", 1), ("textiles", 1), ("divers", 1)]
       and all(x["nom"] and x["nom_en"] for x in e11["familles"]) and all(t[0] in CA.FAMILLES for t in CA.TYPES.values()), e11["familles"])
 check("11.5 pose d'après l'origine du fichier : base à y = 0 -> sol ; centré -> mur ; pendu -> plafond ; un coussin centré se pose au sol",
       [par[k]["pose"] for k in ("B000000001", "B000000003", "B000000004", "B000000005")] == ["sol", "mur", "plafond", "sol"])
 r11 = CA.chercher("chaise", None, 1)
 check("11.6 recherche : en français (« chaise ») comme en anglais, tous les mots exigés, par famille, 24 par page, page bornée, famille hostile ignorée",
       r11["total"] == 61 and r11["pages"] == 3 and len(r11["resultats"]) == 24 and CA.chercher("CHAIR dining 007")["total"] == 1
-      and CA.chercher("lampe", "sieges")["total"] == 0 and CA.chercher("", "luminaires")["total"] == 51 and CA.chercher("", "../x")["total"] == 116
+      and CA.chercher("lampe", "sieges")["total"] == 0 and CA.chercher("", "luminaires")["total"] == 52 and CA.chercher("", "../x")["total"] == 117
       and CA.chercher("", None, 99)["page"] == 5 and CA.chercher("", None, "x")["page"] == 1 and CA.chercher("zzz")["resultats"] == []
       and r11["resultats"][0]["libelle"] == "Chaise" and r11["resultats"][0]["libelle_en"] == "Chair" and r11["resultats"][0]["deja"] is None
       and r11["resultats"][0]["vignette"].startswith("/api/studiov/catalogue/vignette/"))
@@ -628,6 +629,12 @@ check("11.9 le même produit n'entre qu'une fois (aucun second téléchargement)
       and p3["pose"] == "mur" and CA.chercher("B000000001")["resultats"][0]["deja"] == p1["ref"] and OB.par_origine("abo:") == {"abo:B000000001": p1["ref"], "abo:B000000003": p3["ref"]})
 check("11.10 un fichier d'une autre taille que celle de l'index n'est pas gardé (502) ; un produit absent en ligne : 404 ; rien n'est écrit",
       _refus_c(CA.poser, "B000000002") == 502 and _refus_c(CA.poser, "B000000004") == 404 and len(OB.lister()) == avant11 + 2)
+check("11.10b un luminaire du catalogue est lumineux (la recherche et la fiche le disent) ; un bougeoir, un siège, un fichier importé à la main ne le sont pas",
+      [x["lumineux"] for x in CA.chercher("table lamp 007")["resultats"]] == [True] and CA.chercher("candle")["resultats"][0]["lumineux"] is False
+      and CA._lumineux({"famille": "luminaires", "type": "candle holder", "nom": "Raffia Ceiling Hanging Pendant"}) is True
+      and CA._lumineux({"famille": "tables", "type": "table", "nom": "Lamp Table"}) is False
+      and p1["lumineux"] is False and o1["lumineux"] is False and OB.importer(_glb(CUBE), {"source": "abo", "lumineux": True, "origine": "abo:BLAMPE0001"})["lumineux"] is True
+      and OB.importer(_glb(CUBE), {"lumineux": "oui"})["lumineux"] is False)
 dc11 = S.creer(None, "Décor du catalogue", "esp-c")
 dc11 = S.enregistrer(dc11["id"], dict(dc11, objets=[{"type": "modele", "ref": p1["ref"]}, {"type": "modele", "ref": p3["ref"]}, {"type": "modele", "ref": o1["ref"]}]))
 cr11 = OB.credits(dc11)
@@ -648,7 +655,7 @@ reseau["metadata.jsonl"] = LISTE
 r = local.get("/api/studiov/catalogue")
 check("11.15 routes : état (à charger), chargement, recherche, vignette (image/webp), pose ; produit inconnu 404, identifiant hostile 400 ; hors boucle locale refusé",
       r.status_code == 200 and r.json()["pret"] is False and r.json()["source"]["licence"] == "CC BY 4.0" and local.get("/api/studiov/catalogue/recherche").status_code == 409
-      and local.post("/api/studiov/catalogue/index").json()["total"] == 116
+      and local.post("/api/studiov/catalogue/index").json()["total"] == 117
       and local.get("/api/studiov/catalogue/recherche", params={"q": "wall art", "famille": "mural"}).json()["resultats"][0]["deja"] == p3["ref"]
       and local.get("/api/studiov/catalogue/vignette/B000000001.webp").headers["content-type"] == "image/webp"
       and local.post("/api/studiov/catalogue/poser", json={"id": "B000000001"}).json()["id"] == p1["id"]

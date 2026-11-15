@@ -432,5 +432,6 @@
   "studiov.cat.plein": {"fr": "Ce décor a déjà 120 objets : retirez-en un d'abord.", "en": "This set already has 120 objects: remove one first."},
   "studiov.cat.credit": {"fr": "Le crédit à Amazon.com est obligatoire : il s'ajoute tout seul aux crédits du décor (onglet Imports).", "en": "Credit to Amazon.com is required: it is added automatically to the set credits (Imports tab)."},
   "studiov.source.abo": {"fr": "Catalogue de produits réels", "en": "Real products catalogue"},
-  "studiov.cat.deja": {"fr": "déjà dans vos objets", "en": "already in your objects"}
+  "studiov.cat.deja": {"fr": "déjà dans vos objets", "en": "already in your objects"},
+  "studiov.cat.lumineux": {"fr": "éclaire le décor (sa couleur règle la lumière)", "en": "lights the set (its colour sets the light)"}
 }

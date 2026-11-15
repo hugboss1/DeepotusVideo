@@ -1,0 +1,106 @@
+{
+  "titre": {
+    "fr": "Meubler un décor du studio virtuel",
+    "en": "Furnish a virtual studio set"
+  },
+  "legende": {
+    "fr": "Voir les décors, personnaliser une copie, puis l'onglet Catalogue : un vrai produit se télécharge et se pose à sa taille.",
+    "en": "Browse sets, customise a copy, then the Catalogue tab: a real product downloads and lands at its true size."
+  },
+  "captures": [
+    {
+      "fr": "decors.fr.webp",
+      "en": "decors.en.webp"
+    },
+    {
+      "fr": "catalogue.fr.webp",
+      "en": "catalogue.en.webp"
+    },
+    {
+      "fr": "pose.fr.webp",
+      "en": "pose.en.webp"
+    }
+  ],
+  "taille": [
+    1208,
+    800
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        864,
+        122,
+        327,
+        42
+      ],
+      "bulle": {
+        "fr": "Un décor livré se personnalise en copie",
+        "en": "A built-in set is customised as a copy"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "curseur": [
+        940,
+        708
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Catalogue : de vrais produits, à leur taille",
+        "en": "Catalogue: real products, at their true size"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "bulle": {
+        "fr": "Le produit est posé ; un luminaire éclaire",
+        "en": "The product is placed; a lamp gives light"
+      }
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.8,
+      "surligne": [
+        864,
+        105,
+        327,
+        42
+      ],
+      "bulle": {
+        "fr": "Un décor livré se personnalise en copie",
+        "en": "A built-in set is customised as a copy"
+      }
+    },
+    {
+      "capture": 1,
+      "duree": 3.2,
+      "curseur": [
+        941,
+        674
+      ],
+      "clic": true,
+      "bulle": {
+        "fr": "Catalogue : de vrais produits, à leur taille",
+        "en": "Catalogue: real products, at their true size"
+      }
+    },
+    {
+      "capture": 2,
+      "duree": 3,
+      "bulle": {
+        "fr": "Le produit est posé ; un luminaire éclaire",
+        "en": "The product is placed; a lamp gives light"
+      }
+    }
+  ],
+  "taille_en": [
+    1208,
+    800
+  ]
+}

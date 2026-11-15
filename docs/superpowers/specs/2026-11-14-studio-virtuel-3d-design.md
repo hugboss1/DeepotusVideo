@@ -220,6 +220,18 @@ Intégrité : la taille du modèle reçu doit égaler celle de l'index (révisio
 que tout GLB. Les dimensions d'un GLB sont désormais mesurées avec les transformations de ses nœuds et la
 normalisation de ses entiers (un modèle quantifié n'a ses mètres que par elles).
 
-Reste : faire émettre de la lumière aux lampes du catalogue (elles ne sont aujourd'hui que des objets) ; les copies
-KTX2 et leurs niveaux de détail (il faudrait embarquer le transcodeur Basis) ; garder plusieurs produits choisis avant
-de les poser ; guide et assistant « Demander » (SV10).
+**Luminaires.** Un luminaire du catalogue est rangé « lumineux » dans sa fiche (famille des luminaires ; un bougeoir
+ne l'est pas, sauf si le nom du produit dit pendant, lamp, light… : Amazon range des suspensions parmi les bougeoirs).
+Le moteur lui pose une lueur à son FOYER — le centre de sa partie haute pour une lampe posée, de sa partie basse pour
+une suspension, de son corps pour une applique, mesuré sur ses sommets — et une vraie lumière pour les premiers du
+décor seulement (2 en qualité légère, 4 en haute). La couleur de l'objet règle sa lumière.
+
+**Assistant et guide.** L'assistant « Demander » connaît l'entrée du studio (« Voir les décors »), « Personnaliser ce
+décor » et les éléments de l'onglet Catalogue (5 fiches, un parcours dans AGENT.md) ; le guide a sa section « Tourner
+dans un studio virtuel » (chapitre « Filmer l'app et passer en direct », scène capturée en FR et en EN). Les AUTRES
+onglets du décorateur (Style, Matières, Objets, Bibliothèque, Imports, Lumières, Caméras, Enseigne) restent à
+documenter : lot SV10.
+
+Reste : les copies KTX2 et leurs niveaux de détail (il faudrait embarquer le transcodeur Basis ; la réduction des
+textures en qualité légère couvre le besoin de mémoire) ; garder plusieurs produits choisis avant de les poser ; le
+reste du décorateur dans le guide et l'assistant (SV10).

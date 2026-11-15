@@ -22,7 +22,8 @@ le moteur ne sait pas ouvrir, poids en triangles. Aucun réseau, aucune dépense
 
 SVC (15/11/2026) : la compression Meshopt est ACCEPTÉE (son décodeur est embarqué avec three.js, et Blender la lit) ;
 Draco et Basis restent refusés. Un objet garde sa POSE (sol, mur, plafond) et, s'il vient du catalogue de produits
-réels (studiov_catalogue, source `abo`), son titre complet pour les crédits."""
+réels (studiov_catalogue, source `abo`), son titre complet pour les crédits ; un luminaire du catalogue est
+LUMINEUX : le moteur lui donne sa lueur et, pour les premiers du décor, une vraie lumière."""
 from __future__ import annotations
 
 import json
@@ -242,7 +243,8 @@ def _vue(oid: str, d: dict) -> dict:
             "triangles": tri, "lourd": tri > TRIANGLES_LEGER, "octets": int(d.get("octets") or 0),
             "dims": d.get("dims") if isinstance(d.get("dims"), list) and len(d["dims"]) == 3 else [0, 0, 0],
             "cree": d.get("cree") or "", "droits": droits(lic), "modele": f"/api/studiov/objets/{oid}/modele.glb",
-            "pose": d.get("pose") if d.get("pose") in POSES else "sol", "titre": S.K._texte(d.get("titre"), "", MAX_TITRE)}
+            "pose": d.get("pose") if d.get("pose") in POSES else "sol", "titre": S.K._texte(d.get("titre"), "", MAX_TITRE),
+            "lumineux": d.get("lumineux") is True}
 
 
 def _url(v) -> str:
@@ -310,7 +312,8 @@ def importer(octets: bytes, meta: dict | None = None) -> dict:
             fiche = {"nom": S.K._texte(m.get("nom"), "", MAX_NOM) or "Objet importé", "source": source,
                      "auteur": S.K._texte(m.get("auteur"), "", MAX_AUTEUR), "licence": licence, "url": _url(m.get("url")),
                      "octets": len(octets), "cree": S.K._maintenant(), "origine": S.K._texte(m.get("origine"), "", 200),
-                     "pose": m.get("pose") if m.get("pose") in POSES else "sol", "titre": S.K._texte(m.get("titre"), "", MAX_TITRE), **mesure}
+                     "pose": m.get("pose") if m.get("pose") in POSES else "sol", "titre": S.K._texte(m.get("titre"), "", MAX_TITRE),
+                     "lumineux": m.get("lumineux") is True, **mesure}
             S.K._ecrire_json(d / "fiche.json", fiche)
         except OSError:
             shutil.rmtree(d, ignore_errors=True)

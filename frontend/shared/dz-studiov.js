@@ -591,7 +591,7 @@ if (!window.__dzStudiov) {
         const p = catChoisi;
         noeud.appendChild(el("div", { style: "font-size:12px", texte: p.nom, "data-dz-studiov-cat-fiche": p.id }));
         noeud.appendChild(el("div", { style: S.badge, texte: [nomType(p), p.couleur, p.matiere, T("studiov.cat.dims", { l: cm(p.dims[0]), h: cm(p.dims[1]), p: cm(p.dims[2]) }),
-          T("studiov.bibli.triangles", { n: p.triangles }), T("studiov.cat.poids", { n: (p.octets / 1048576).toFixed(1) }), T("studiov.cat.pose." + p.pose),
+          T("studiov.bibli.triangles", { n: p.triangles }), T("studiov.cat.poids", { n: (p.octets / 1048576).toFixed(1) }), T("studiov.cat.pose." + p.pose), p.lumineux ? T("studiov.cat.lumineux") : null,
           p.lourd ? T("studiov.droit.lourd") : null].filter(Boolean).join(" · ") }));
         noeud.appendChild(el("div", { style: S.ligne }, [el("button", { type: "button", style: S.principal, "data-dz-studiov-cat-poser": p.id, texte: T(p.deja ? "studiov.biblio.poser" : "studiov.cat.poser"),
           on: { click: () => faire(async () => {
