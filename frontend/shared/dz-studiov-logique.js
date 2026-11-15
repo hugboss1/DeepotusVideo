@@ -195,10 +195,13 @@ export const MURAUX = ["cadre", "horloge", "fenetre", "affiche", "miroir", "viny
   "plaque_createur", "maillot", "raquette", "skateboard", "hublot", "nuage", "etoile", "tableau", "logo_mural"];
 // SVB : les objets qui montrent une image de la Bibliothèque de l'application (champ `image`)
 export const TYPES_IMAGE = ["tableau", "logo_mural", "kakemono"];
-export function objetNeuf(decor, type, ref) {
+// `pose` (lot SVC) : la pose de la fiche d'un modèle importé — "mur" : contre le mur du fond ; "plafond" : pendu
+export function objetNeuf(decor, type, ref, pose) {
   const P = (decor && decor.piece) || { l: 6, p: 5, h: 2.8 }, n = ((decor && decor.objets) || []).length;
   const dx = ((n % 5) - 2) * 0.45;
   if (type === "suspension") return { type, x: dx, y: P.h, z: -0.6, ry: 0, e: 1 };
+  if (type === "modele" && pose === "mur") return { type, x: borne(dx * 2, -P.l / 2 + 0.6, P.l / 2 - 0.6), y: 1.6, z: -P.p / 2 + 0.02, ry: 0, e: 1, ref };
+  if (type === "modele" && pose === "plafond") return { type, x: dx, y: P.h, z: -0.6, ry: 0, e: 1, ref };
   if (type === "modele") return { type, x: dx, y: 0, z: 0.9, ry: 0, e: 1, ref };
   if (type === "kakemono") return { type, x: borne(dx * 3 + 1.8, -P.l / 2 + 0.5, P.l / 2 - 0.5), y: 0, z: -P.p / 2 + 0.7, ry: 0, e: 1, image: ref };
   if (TYPES_IMAGE.indexOf(type) >= 0) return { type, x: borne(dx * 2, -P.l / 2 + 0.6, P.l / 2 - 0.6), y: 1.6, z: -P.p / 2 + 0.02, ry: 0, e: 1, image: ref };

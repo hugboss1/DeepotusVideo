@@ -18,6 +18,9 @@
 //   m.viser(nx, ny)                ce qu'il y a sous le pointeur (coordonnées -1..1) : {genre: "objet" | "surface" |
 //                                  "lumiere" | "camera" | "ecran" | "enseigne", index | pan} ou null
 //   m.choisir(cible | null)        entoure ce qui est choisi ; m.empreintes() -> l'emprise au sol de chaque objet
+// Catalogue de produits réels (lot SVC) : `chargeur.meshopt` = le décodeur Meshopt embarqué (ces modèles sont compressés) ;
+// la fiche d'un objet dit sa POSE (`sol` : la base à y = 0 ; `mur` : centré sur son point, le dos au mur ; `plafond` : pendu
+// sous son point) ; en qualité légère, les textures d'un modèle sont ramenées à 1 024 px avant d'aller à la carte graphique.
 // Objets importés (lot SVO) : `objets` = {ref: fiche} (l'index de la bibliothèque) et `chargeur` = {classe: GLTFLoader} ;
 // un objet de type « modele » y trouve son fichier — jamais une adresse écrite dans la recette.
 // Images de la Bibliothèque (lot SVB) : `images` = {ref: {url, l, h, alpha}} ; un tableau, un logo mural, un kakémono,
@@ -492,14 +495,39 @@ export function creerMoteur(THREE, o) {
     plaque_createur(g, m) { const o = uni(m.c || "#cfd4da", 0.18, 1.0); bx(g, uni("#17181c", 0.5), 0.32, 0.42, 0.03, 0, -0.21, 0.015); bx(g, uni("#0c0c0e", 0.8), 0.27, 0.37, 0.004, 0, -0.185, 0.031); bx(g, o, 0.2, 0.14, 0.014, 0, -0.03, 0.04); const f = new THREE.Shape(); f.moveTo(-0.022, -0.03); f.lineTo(0.034, 0); f.lineTo(-0.022, 0.03); f.closePath(); const t = new THREE.Mesh(garder(new THREE.ExtrudeGeometry(f, { depth: 0.006, bevelEnabled: false })), uni("#17181c", 0.4, 0.4)); t.position.set(0, 0.04, 0.054); g.add(t); bx(g, o, 0.16, 0.012, 0.004, 0, -0.1, 0.034); bx(g, o, 0.1, 0.008, 0.004, 0, -0.125, 0.034); },
   };
 
-  // ── les modèles importés : chargés une fois, posés au sol (centrés, la base à y = 0), clonés à chaque emploi ──
+  // ── les modèles importés : chargés une fois, posés selon leur fiche (au sol, au mur, au plafond), clonés à chaque emploi ──
   const modeles = new Map();
+  // un produit du catalogue porte trois cartes de 2 048 px, soit 64 Mo de mémoire graphique : en qualité légère, chaque
+  // carte est ramenée à 1 024 px AVANT son premier envoi à la carte graphique (un quart de la mémoire)
+  const COTE_LEGER = 1024, CARTES = ["map", "normalMap", "roughnessMap", "metalnessMap", "aoMap", "emissiveMap"];
+  function alleger(sc) {
+    if (qualite === "haute" || typeof document === "undefined") return;
+    const vues = new Set();
+    sc.traverse((x) => {
+      for (const mat of x.isMesh ? [].concat(x.material) : []) for (const k of CARTES) {
+        const t = mat && mat[k], im = t && t.image; if (!im || vues.has(t) || t.isCompressedTexture) continue;
+        vues.add(t);
+        const l = im.width || 0, h = im.height || 0; if (Math.max(l, h) <= COTE_LEGER) continue;
+        const r = COTE_LEGER / Math.max(l, h), c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(l * r)); c.height = Math.max(1, Math.round(h * r));
+        try { c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); } catch (e) { continue; }
+        if (typeof im.close === "function") im.close();
+        t.image = c; t.needsUpdate = true;
+      }
+    });
+  }
   function modeleDe(F) {
     if (!modeles.has(F.ref)) modeles.set(F.ref, new Promise((res) => {
       try {
-        new O.chargeur.classe().load(F.modele, (gltf) => {
-          const sc = gltf.scene, b = new THREE.Box3().setFromObject(sc), c = b.getCenter(new THREE.Vector3()), pose = new THREE.Group();
-          sc.position.set(-c.x, -b.min.y, -c.z); pose.add(sc); res(pose);
+        const ch = new O.chargeur.classe();
+        if (O.chargeur.meshopt && typeof ch.setMeshoptDecoder === "function") ch.setMeshoptDecoder(O.chargeur.meshopt);
+        ch.load(F.modele, (gltf) => {
+          const sc = gltf.scene; alleger(sc);
+          const b = new THREE.Box3().setFromObject(sc), c = b.getCenter(new THREE.Vector3()), pose = new THREE.Group();
+          if (F.pose === "mur") sc.position.set(-c.x, -c.y, -b.min.z);
+          else if (F.pose === "plafond") sc.position.set(-c.x, -b.max.y, -c.z);
+          else sc.position.set(-c.x, -b.min.y, -c.z);
+          pose.add(sc); res(pose);
         }, undefined, () => res(null));
       } catch (e) { res(null); }
     }));

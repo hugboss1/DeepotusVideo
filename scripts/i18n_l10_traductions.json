@@ -14811,9 +14811,9 @@
   "fr": "Modèle GLB illisible (version 2 attendue).",
   "en": "Unreadable GLB model (version 2 expected)."
  },
- "Ce modèle est compressé (Draco, Meshopt ou Basis) : exportez-le en GLB sans compression.": {
-  "fr": "Ce modèle est compressé (Draco, Meshopt ou Basis) : exportez-le en GLB sans compression.",
-  "en": "This model is compressed (Draco, Meshopt or Basis): export it as an uncompressed GLB."
+ "Ce modèle est compressé (Draco ou Basis) : exportez-le en GLB sans cette compression.": {
+  "fr": "Ce modèle est compressé (Draco ou Basis) : exportez-le en GLB sans cette compression.",
+  "en": "This model is compressed (Draco or Basis): export it as a GLB without that compression."
  },
  "Ce modèle ne contient aucune surface à afficher.": {
   "fr": "Ce modèle ne contient aucune surface à afficher.",
@@ -14894,5 +14894,45 @@
  "Modèle 3D introuvable dans la Bibliothèque.": {
   "fr": "Modèle 3D introuvable dans la Bibliothèque.",
   "en": "3D model not found in the Library."
+ },
+ "Le catalogue en ligne ne répond pas : réessayez plus tard.": {
+  "fr": "Le catalogue en ligne ne répond pas : réessayez plus tard.",
+  "en": "The online catalogue is not responding: try again later."
+ },
+ "Ce fichier n'est plus dans le catalogue en ligne.": {
+  "fr": "Ce fichier n'est plus dans le catalogue en ligne.",
+  "en": "This file is no longer in the online catalogue."
+ },
+ "Fichier du catalogue plus lourd qu'attendu : téléchargement arrêté.": {
+  "fr": "Fichier du catalogue plus lourd qu'attendu : téléchargement arrêté.",
+  "en": "Catalogue file heavier than expected: download stopped."
+ },
+ "Catalogue en ligne injoignable : vérifiez la connexion à Internet.": {
+  "fr": "Catalogue en ligne injoignable : vérifiez la connexion à Internet.",
+  "en": "Online catalogue unreachable: check the Internet connection."
+ },
+ "La liste reçue n'est pas le catalogue attendu : réessayez plus tard.": {
+  "fr": "La liste reçue n'est pas le catalogue attendu : réessayez plus tard.",
+  "en": "The list received is not the expected catalogue: try again later."
+ },
+ "Le catalogue n'a pas pu être enregistré.": {
+  "fr": "Le catalogue n'a pas pu être enregistré.",
+  "en": "The catalogue could not be saved."
+ },
+ "Le catalogue n'est pas encore chargé.": {
+  "fr": "Le catalogue n'est pas encore chargé.",
+  "en": "The catalogue is not loaded yet."
+ },
+ "Produit inconnu du catalogue.": {
+  "fr": "Produit inconnu du catalogue.",
+  "en": "Product not found in the catalogue."
+ },
+ "Vignette illisible.": {
+  "fr": "Vignette illisible.",
+  "en": "Unreadable thumbnail."
+ },
+ "Le modèle reçu n'est pas celui du catalogue : téléchargement abandonné.": {
+  "fr": "Le modèle reçu n'est pas celui du catalogue : téléchargement abandonné.",
+  "en": "The model received is not the one in the catalogue: download abandoned."
  }
 }

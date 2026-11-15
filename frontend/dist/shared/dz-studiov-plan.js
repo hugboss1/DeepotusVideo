@@ -26,6 +26,8 @@ export function creerPlan(o) {
   const x = canvas.getContext("2d");
   let E = null, prise = null, cadreFige = null, taille = [0, 0];
   const copie = (v) => JSON.parse(JSON.stringify(v));
+  // ce qui s'accroche au mur : les types muraux du catalogue, et un modèle importé dont la fiche dit « mur » (o.mural)
+  const estMural = (ob) => MURAUX.indexOf(ob.type) >= 0 || (typeof o.mural === "function" && !!o.mural(ob));
 
   // l'élément de la recette que désigne une cible, et sa place sur le plan
   const element = (d, c) => (!c ? null : c.genre === "objet" ? d.objets[c.index] : c.genre === "lumiere" ? d.lumieres[c.index] : c.genre === "camera" ? d.cameras[c.index]
@@ -69,7 +71,7 @@ export function creerPlan(o) {
     if (d.enseigne.actif) barre(d.enseigne, d.enseigne.l, couleur(d.enseigne.couleur, pal), { genre: "enseigne", index: 0 });
     // les objets : au sol d'abord, puis ce qui s'accroche (mur, plafond)
     const dessiner = (ob, i) => {
-      const coins = coinsObjet(ob, emps[i]), mural = MURAUX.indexOf(ob.type) >= 0, haut = ob.type === "suspension" || ob.type === "projecteur", choisi = meme(sel, { genre: "objet", index: i });
+      const coins = coinsObjet(ob, emps[i]), mural = estMural(ob), haut = ob.type === "suspension" || ob.type === "projecteur", choisi = meme(sel, { genre: "objet", index: i });
       trace(coins, true);
       x.fillStyle = choisi ? "rgba(240,180,41,.3)" : mural ? C.mural : ob.couleur ? couleur(ob.couleur, pal) + "44" : C.objet; x.fill();
       if (haut) x.setLineDash([3, 3]);
@@ -79,8 +81,8 @@ export function creerPlan(o) {
       const large = Math.hypot(coins[1][0] - coins[0][0], coins[1][1] - coins[0][1]) * k;
       if (choisi || large > 58) etiquette(T("studiov.objet." + ob.type), (coins[0][0] + coins[2][0]) / 2, (coins[0][1] + coins[2][1]) / 2);
     };
-    d.objets.forEach((ob, i) => { if (MURAUX.indexOf(ob.type) < 0) dessiner(ob, i); });
-    d.objets.forEach((ob, i) => { if (MURAUX.indexOf(ob.type) >= 0) dessiner(ob, i); });
+    d.objets.forEach((ob, i) => { if (!estMural(ob)) dessiner(ob, i); });
+    d.objets.forEach((ob, i) => { if (estMural(ob)) dessiner(ob, i); });
     // le présentateur
     { const R = d.presentateur, [px, py] = V(R.x, R.z), ch = meme(sel, { genre: "presentateur", index: 0 });
       x.beginPath(); x.arc(px, py, Math.max(9, 0.22 * k), 0, Math.PI * 2); x.fillStyle = ch ? "rgba(240,180,41,.35)" : "rgba(138,148,160,.35)"; x.fill(); x.strokeStyle = ch ? C.choisi : C.presentateur; x.lineWidth = ch ? 2 : 1.5; x.stroke();
@@ -119,7 +121,7 @@ export function creerPlan(o) {
       const large = c.genre === "camera" || c.genre === "lumiere";
       el.x = borne(aimanter(mx - prise.dx, pas), large ? -P.l / 2 - 3 : -P.l / 2, large ? P.l / 2 + 3 : P.l / 2);
       el.z = borne(aimanter(mz - prise.dz, pas), large ? -P.p / 2 - 1 : -P.p / 2, large ? P.p / 2 + 6 : P.p / 2 + 2);
-      if (c.genre === "objet" && MURAUX.indexOf(el.type) >= 0 && el.type !== "panneau_acoustique") Object.assign(el, collerAuMur(el, P));
+      if (c.genre === "objet" && estMural(el) && el.type !== "panneau_acoustique") Object.assign(el, collerAuMur(el, P));
     } else if (prise.mode === "tourner") {
       const a = (Math.atan2(mx - el.x, mz - el.z) * 180) / Math.PI;
       el.ry = Math.round(aimanter(a, libre ? 1 : PAS_ANGLE));

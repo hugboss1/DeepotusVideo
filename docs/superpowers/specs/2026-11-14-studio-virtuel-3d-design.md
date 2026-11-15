@@ -75,6 +75,7 @@ Couleurs : un rôle du kit de l'espace (`principale`, `accent`, `texte`, `fond`)
 | SVO | **Objets importés — le socle** (14/11, § 7) : bibliothèque de modèles GLB de l'utilisateur (fichier téléchargé, export d'un objet depuis Blender), lecture du GLB avant de le garder, provenance et licence par objet, droits tirés de la licence (vidéo, export, partage, crédit), licences NC / ND / SA refusées, crédits du décor prêts à coller, objet `modele` de la recette, affichage des modèles par le moteur | **fait** |
 | SVA | **Atelier du décor** (14/11, § 8) : trois vues du même décor — par ses caméras, en PLAN (placer meubles, lumières, caméras, présentateur à la souris), en 3D LIBRE (tourner autour de la pièce, choisir d'un clic un pan de mur, un meuble, une lumière, une caméra) ; une matière par pan de mur et par objet ; onglets Caméras (hauteur, focale, visée, mouvement) et Mes objets | **fait** |
 | SVB | **Depuis la Bibliothèque de l'application** (15/11, § 9) : les assets que l'utilisateur a générés — illustrations, logos, modèles 3D — entrent dans le studio : tableau, logo mural, kakémono, image sur l'écran du décor, enseigne, modèle 3D posé | **fait** |
+| SVC | **Catalogue de produits réels** (15/11, § 10) : les 7 775 modèles 3D d'Amazon Berkeley Objects qui tiennent dans un décor en direct (meubles, luminaires, tapis, art mural, à leur taille réelle), dans leur édition allégée `codepawl/abo-glb` — onglet « Catalogue » (recherche FR/EN, familles, vignettes), téléchargement à la demande d'une révision figée, licence CC BY 4.0 et crédit groupé automatiques, pose au sol / au mur / au plafond, compression Meshopt acceptée, textures ramenées à 1 024 px en qualité légère | **fait** (PR à relire) |
 | SV2 | Skill `studio-volumetrique` + fabrique Blender sans fenêtre : GLB biseauté, textures, lightmap, vignette ; les 11 décors passent au niveau « fabriqué » | skill et script livrés avec SV1, cuisson à faire |
 | SV3 | Présentateur détouré sans fond vert (MediaPipe embarqué), ombre au sol, teinte par la lumière du décor ; option fond vert | à faire |
 | SV4 | Éditeur : déplacer objets, lumières, enseigne, caméras (poignées), réglages par section, annuler/rétablir | à faire |
@@ -188,3 +189,37 @@ Demande : poser dans le studio ce qu'on a généré dans l'application — modè
 - **Droits** : ce que l'utilisateur a généré est à lui (tous droits, rien à citer). Une image importée dans la
   Bibliothèque garde la licence que la Bibliothèque lui connaît : CC BY = créditée dans les crédits du décor, licence
   inconnue = signalée « à vérifier ».
+
+## 10. Lot SVC — le catalogue de produits réels (15/11)
+
+Référence donnée par l'utilisateur : un post de @anxuanng (X, 05/11/2026) — « Amazon made 3D models of 7,953 real
+products it sells. I packed all 165 GB into about 12 GB of GLB for three.js » — et son dépôt Hugging Face
+`codepawl/abo-glb`.
+
+**Ce que c'est.** Amazon Berkeley Objects (ABO) : 7 953 modèles 3D de produits réellement vendus, chacun à sa taille
+réelle en mètres, Y vers le haut, avec ses cartes PBR. L'édition `abo-glb` les ramène de 165 Go à 12 Go : textures WebP
+de 2 048 px, géométrie compressée en Meshopt (`EXT_meshopt_compression`, `KHR_mesh_quantization`), triangles
+inchangés. 1,2 Mo et 18 000 triangles en médiane. Chaises 1 184, canapés 859, tapis 817, art mural 599, tables 584,
+lampes 345…
+
+**Licence.** CC BY 4.0, vérifiée à la source (amazon-berkeley-objects.s3.amazonaws.com) : usage commercial permis,
+crédit à Amazon.com obligatoire, lien vers la licence, changements signalés. Les noms de produits et de marques
+(AmazonBasics, Rivet, Stone & Beam…) restent des marques : la licence ne donne aucun droit dessus.
+
+| # | Chez eux | Chez nous | Décision |
+|---|---|---|---|
+| C1 | 12 Go à télécharger d'un bloc | l'installeur ne livre aucun modèle | RIEN n'est livré : la liste (9 Mo) se charge sur un geste, une vignette quand le produit s'affiche, un modèle quand on le pose. `services/studiov_catalogue.py` est le SEUL module du studio à ouvrir le réseau, par UNE fonction, vers une RÉVISION FIGÉE du dépôt ; aucun chemin ne vient de l'écran |
+| C2 | Meshopt + WebP (copie `objects/`), ou KTX2 (copies `objects_ktx2/`, `lods/`, `engine/`) | l'import refusait toute compression ; three.js embarque le décodeur Meshopt, pas le transcodeur Basis | on prend `objects/` ; Meshopt est ACCEPTÉ à l'import (Blender 5.3 le lit aussi) ; Draco et Basis restent refusés |
+| C3 | « every product drops in at real size » | un modèle importé garde déjà sa taille, base au sol | pose d'après l'origine du fichier : `sol` (base à y = 0), `mur` (centré, le dos à z = 0 : art mural, miroirs, horloges), `plafond` (pendu : suspensions) ; gardée dans la fiche de l'objet, suivie par le moteur, le plan et l'objet neuf |
+| C4 | 98 types de produit en anglais, dont de très vagues (« home », « home furniture and decor ») | des familles pour le décorateur | 12 familles FR/EN ; un type vague est rangé d'après le nom du produit ; la recherche accepte « chaise » comme « chair » |
+| C5 | 64 Mo de mémoire graphique par modèle (trois cartes de 2 048 px) | cible : portable à carte intégrée | en qualité légère, chaque carte est ramenée à 1 024 px avant son premier envoi à la carte graphique (un quart de la mémoire) ; 178 modèles de plus de 300 000 triangles sont écartés de l'index |
+| C6 | crédit laissé à l'utilisateur | les crédits du décor (lot SVO) | la licence CC BY est portée par la source (`abo`, non déclarable à l'import d'un fichier) ; les crédits du décor citent tous les produits d'UNE ligne : titres, Amazon.com, CC BY 4.0 et son adresse, fichiers recompressés par CodePawl, adresse du dépôt |
+| C7 | moteur 67.js / Crucible (MIT, piloté par agent) | three.js + Blender | non repris |
+
+Intégrité : la taille du modèle reçu doit égaler celle de l'index (révision figée), il passe ensuite la même lecture
+que tout GLB. Les dimensions d'un GLB sont désormais mesurées avec les transformations de ses nœuds et la
+normalisation de ses entiers (un modèle quantifié n'a ses mètres que par elles).
+
+Reste : faire émettre de la lumière aux lampes du catalogue (elles ne sont aujourd'hui que des objets) ; les copies
+KTX2 et leurs niveaux de détail (il faudrait embarquer le transcodeur Basis) ; garder plusieurs produits choisis avant
+de les poser ; guide et assistant « Demander » (SV10).

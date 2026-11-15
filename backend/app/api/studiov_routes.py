@@ -26,7 +26,12 @@ Boucle locale SEULEMENT (`routes._require_localhost`). L'espace est celui de la 
 - `POST   /bibliotheque/modele` {job, fichier?} -> la fiche du modèle 3D généré, recopié dans les objets du studio
 - `GET    /images/{id}/fichier` ; `DELETE /images/{id}` (409 si un décor l'emploie)
 - `GET    /three/{module}.js` un chargeur three.js embarqué, ses imports réécrits pour la coque (GLTFLoader et ses deux aides)
-Aucun réseau, aucune dépense. Journaux : identifiants seulement."""
+- `GET    /catalogue`            {pret, total, familles, source} : le catalogue de produits réels (lot SVC)
+- `POST   /catalogue/index`      télécharge la liste des produits et en fait l'index -> le même état
+- `GET    /catalogue/recherche?q=&famille=&page=` -> {total, page, pages, resultats}
+- `GET    /catalogue/vignette/{id}.webp` ; `POST /catalogue/poser` {id} -> la fiche de l'objet (téléchargé une fois)
+Aucune dépense. Aucun réseau, SAUF le catalogue de produits réels, sur un geste de l'utilisateur (studiov_catalogue).
+Journaux : identifiants seulement."""
 from __future__ import annotations
 
 import asyncio
@@ -37,6 +42,7 @@ from fastapi.responses import FileResponse, Response
 from loguru import logger
 
 from app.services import studiov as S
+from app.services import studiov_catalogue as CA
 from app.services import studiov_habillage as H
 from app.services import studiov_images as SI
 from app.services import studiov_objets as OB
@@ -212,6 +218,8 @@ async def objet_importer(request: Request, fichier: UploadFile = File(...), nom:
                          auteur: str = Form(""), licence: str = Form(""), url: str = Form("")):
     _local(request)
     octets = await fichier.read(OB.MAX_OCTETS + 1)
+    if source == "abo":                                     # la source du catalogue n'est pas déclarable : elle porte sa licence
+        source = "fichier"
     v = await _objet(OB.importer, octets, {"nom": nom or (fichier.filename or "").rsplit(".", 1)[0], "source": source,
                                            "auteur": auteur, "licence": licence, "url": url})
     logger.info("studiov: objet importé {} ({} triangles, source {})", v["id"], v["triangles"], v["source"])
@@ -275,6 +283,53 @@ async def module_three(nom: str, request: Request):
     except OSError:
         raise HTTPException(404, "Module inconnu.") from None
     return Response(content=src, media_type="text/javascript", headers={"Cache-Control": "no-cache"})
+
+
+# ── SVC : le catalogue de produits réels (Amazon Berkeley Objects). Seules ces routes ouvrent le réseau. ──
+
+async def _catalogue(f, *args):
+    try:
+        return await asyncio.to_thread(f, *args)
+    except CA.RefusCatalogue as e:
+        raise HTTPException(e.statut, str(e)) from None
+    except OB.RefusObjet as e:
+        raise HTTPException(e.statut, str(e)) from None
+
+
+@router.get("/catalogue")
+async def catalogue(request: Request):
+    _local(request)
+    return await _catalogue(CA.etat)
+
+
+@router.post("/catalogue/index")
+async def catalogue_index(request: Request):
+    _local(request)
+    e = await _catalogue(CA.charger)
+    logger.info("studiov: catalogue de produits chargé ({} produits)", e["total"])
+    return e
+
+
+@router.get("/catalogue/recherche")
+async def catalogue_recherche(request: Request, q: str = "", famille: str = "", page: int = 1):
+    _local(request)
+    return await _catalogue(CA.chercher, q, famille, page)
+
+
+@router.get("/catalogue/vignette/{pid}.webp")
+async def catalogue_vignette(pid: str, request: Request):
+    _local(request)
+    octets = await _catalogue(CA.vignette, pid)
+    return Response(content=octets, media_type="image/webp", headers={"Cache-Control": "private, max-age=86400"})
+
+
+@router.post("/catalogue/poser")
+async def catalogue_poser(request: Request):
+    _local(request)
+    d = await _json(request, 8 * 1024)
+    v = await _catalogue(CA.poser, d.get("id"))
+    logger.info("studiov: produit du catalogue rangé dans les objets {}", v["id"])
+    return v
 
 
 @router.post("/blender/matieres")

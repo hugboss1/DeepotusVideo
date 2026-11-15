@@ -101,9 +101,11 @@ if (!window.__dzStudiov) {
     return hab;
   }
   // le chargeur de modèles GLB (three.js embarqué, servi avec ses imports réécrits) : demandé au premier objet importé
-  const porteGLB = { classe: null };
+  // (lot SVC) avec le décodeur Meshopt embarqué : les modèles du catalogue de produits réels sont compressés ainsi
+  const porteGLB = { classe: null, meshopt: null };
   async function chargeurGLB() {
     if (!porteGLB.classe) { try { porteGLB.classe = (await import("/api/studiov/three/GLTFLoader.js")).GLTFLoader; } catch (e) { /* sans chargeur : l'objet reste un gabarit */ } }
+    if (!porteGLB.meshopt) { try { porteGLB.meshopt = (await import("/assets/three/addons/libs/meshopt_decoder.module.js")).MeshoptDecoder; } catch (e) { /* sans décodeur : un modèle compressé reste un gabarit */ } }
     return porteGLB.classe;
   }
   const nomTexture = (t) => (typeof window.dzLang === "function" && window.dzLang() === "en" ? t.nom_en : t.nom);
@@ -412,7 +414,7 @@ if (!window.__dzStudiov) {
           el("div", { style: "flex:1;min-width:0;display:flex;flex-direction:column" }, [el("span", { texte: v.nom, style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }),
             el("span", { style: S.badge, texte: [T("studiov.licence." + cleLic(v.licence)), v.auteur].concat(droits).filter(Boolean).join(" · ") })]),
           bouton(T("studiov.biblio.poser"), () => faire(async () => { await chargeurGLB(); const nd = copie(ctx.decor()); if (nd.objets.length >= 120) return;
-            nd.objets.push(objetNeuf(nd, "modele", v.ref)); etatImport = ""; ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 }); })),
+            nd.objets.push(objetNeuf(nd, "modele", v.ref, v.pose)); etatImport = ""; ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 }); })),
           bouton("×", () => faire(async () => { await api("DELETE", "/api/studiov/objets/" + v.id); await habillage(true); etatImport = ""; }), ";padding:1px 7px")]));
       }
       if (!(hab.objets || []).length) noeud.appendChild(el("div", { style: S.note, texte: T("studiov.biblio.vide") }));
@@ -521,7 +523,7 @@ if (!window.__dzStudiov) {
           el("div", { style: "flex:1;min-width:0;display:flex;flex-direction:column" }, [el("span", { texte: j.nom || j.id, style: "overflow:hidden;text-overflow:ellipsis;white-space:nowrap" }),
             el("span", { style: S.badge, texte: [j.moteur, der.libelle, der.triangles ? T("studiov.bibli.triangles", { n: der.triangles }) : null].filter(Boolean).join(" · ") })]),
           bouton(T("studiov.biblio.poser"), () => faire(async () => { const v = await api("POST", "/api/studiov/bibliotheque/modele", { job: j.id }); await habillage(true); await chargeurGLB();
-            const nd = copie(ctx.decor()); if (nd.objets.length >= 120) return; nd.objets.push(objetNeuf(nd, "modele", v.ref)); etatBib = T("studiov.bibli.pose", { nom: v.nom });
+            const nd = copie(ctx.decor()); if (nd.objets.length >= 120) return; nd.objets.push(objetNeuf(nd, "modele", v.ref, v.pose)); etatBib = T("studiov.bibli.pose", { nom: v.nom });
             ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 }); }))]));
       }
       if (!bib.jobs.length) noeud.appendChild(el("div", { style: S.note, texte: T("studiov.bibli.modeles.vide") }));
@@ -530,7 +532,81 @@ if (!window.__dzStudiov) {
       return noeud;
     }
 
-    const ONGLETS = [["style", panneauStyle], ["matieres", panneauMatieres], ["objets", panneauObjets], ["bibli", panneauBibli], ["biblio", panneauBiblio], ["lumieres", panneauLumieres],
+    // ── Catalogue : de vrais produits en 3D, à leur taille (Amazon Berkeley Objects, CC BY 4.0). Rien n'est livré avec
+    // l'application : la liste, les vignettes et chaque modèle sont téléchargés à la demande ; le crédit suit le modèle. ──
+    let cat = null, catQ = "", catFam = "", catPage = 1, catRes = null, catChoisi = null, etatCat = "", occupeCat = false, catDemande = 0;
+    const anglais = () => typeof window.dzLang === "function" && window.dzLang() === "en";
+    const cm = (m) => String(Math.round(m * 100));
+    async function chargerCat() {
+      try { cat = await api("GET", "/api/studiov/catalogue"); } catch (e) { cat = { pret: false, total: 0, familles: [], source: {} }; etatCat = (e && e.message) || "—"; }
+      if (cat.pret) await chercherCat(); else if (onglet === "catalogue") peindre();
+    }
+    async function chercherCat() {
+      const moi = ++catDemande;
+      try {
+        const r = await api("GET", "/api/studiov/catalogue/recherche?q=" + encodeURIComponent(catQ) + "&famille=" + encodeURIComponent(catFam) + "&page=" + catPage);
+        if (moi !== catDemande) return;
+        catRes = r; catPage = r.page;
+        if (catChoisi && !r.resultats.some((p) => p.id === catChoisi.id)) catChoisi = null;
+      } catch (e) { if (moi !== catDemande) return; catRes = { total: 0, page: 1, pages: 1, resultats: [] }; etatCat = (e && e.message) || "—"; }
+      if (onglet === "catalogue") peindre();
+    }
+    function panneauCatalogue() {
+      const noeud = el("div", { style: S.groupe, "data-dz-studiov-catalogue": true }), etat = el("div", { style: S.note, role: "status", texte: etatCat });
+      noeud.appendChild(el("div", { style: S.note, texte: T("studiov.cat.note") }));
+      if (!cat) { noeud.appendChild(el("div", { style: S.note, texte: T("studiov.biblio.patience") })); chargerCat(); return noeud; }
+      const faire = async (action) => { if (occupeCat) return; occupeCat = true; etatCat = T("studiov.biblio.patience"); etat.textContent = etatCat;
+        try { await action(); } catch (e) { etatCat = (e && e.message) || "—"; } occupeCat = false; peindre(); };
+      if (!cat.pret) {
+        noeud.appendChild(el("div", { style: S.note, texte: T("studiov.cat.absent") }));
+        noeud.appendChild(el("div", { style: S.ligne }, [el("button", { type: "button", style: S.principal, "data-dz-studiov-cat-charger": true, texte: T("studiov.cat.charger"),
+          on: { click: () => faire(async () => { cat = await api("POST", "/api/studiov/catalogue/index"); etatCat = T("studiov.cat.charge", { n: cat.total }); catPage = 1; await chercherCat(); }) } })]));
+        noeud.appendChild(etat);
+        return noeud;
+      }
+      // chercher (en français ou en anglais), filtrer par famille
+      const champ = el("input", { type: "search", value: catQ, style: S.champ, placeholder: T("studiov.cat.chercher"), "aria-label": T("studiov.cat.chercher"), "data-dz-studiov-cat-filtre": true });
+      champ.addEventListener("change", () => { catQ = champ.value; catPage = 1; etatCat = ""; chercherCat(); });
+      const familles = [["", T("studiov.cat.toutes", { n: cat.total })]].concat(cat.familles.map((x) => [x.id, `${anglais() ? x.nom_en : x.nom} (${x.n})`]));
+      noeud.appendChild(el("div", { style: S.ligne + ";flex-wrap:nowrap" }, [champ, liste(catFam, familles, (v) => { catFam = v; catPage = 1; etatCat = ""; chercherCat(); }, T("studiov.cat.famille"))]));
+      if (!catRes) { noeud.appendChild(el("div", { style: S.note, texte: T("studiov.biblio.patience") })); noeud.appendChild(etat); return noeud; }
+      const nomType = (p) => (anglais() ? p.libelle_en : p.libelle);
+      const grille = el("div", { style: "display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-height:330px;overflow-y:auto", "data-dz-studiov-cat-grille": true });
+      for (const p of catRes.resultats) {
+        const choisiIci = catChoisi && catChoisi.id === p.id;
+        grille.appendChild(el("button", { type: "button", title: p.nom + (p.deja ? " — " + T("studiov.cat.deja") : ""), "aria-label": p.nom, "aria-pressed": String(!!choisiIci), "data-dz-studiov-cat-produit": p.id,
+          style: `padding:0;border-radius:0;cursor:pointer;background:#f3f1ec;color:#111;display:flex;flex-direction:column;border:2px solid ${choisiIci ? "var(--brand,#f0b429)" : "transparent"}`,
+          on: { click: () => { catChoisi = p; etatCat = ""; peindre(); } } },
+          [el("img", { src: p.vignette, alt: "", loading: "lazy", width: 96, height: 96, style: "display:block;width:100%;aspect-ratio:1;object-fit:contain" }),
+            el("span", { style: "font-size:10.5px;line-height:1.2;padding:2px 3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--srf-raised,#1b2028);color:var(--txt-hi,#e6e9ee)",
+              texte: (p.deja ? "• " : "") + nomType(p) })]));
+      }
+      if (!catRes.resultats.length) grille.appendChild(el("div", { style: S.note + ";grid-column:1/-1", texte: T("studiov.cat.vide") }));
+      noeud.appendChild(grille);
+      noeud.appendChild(el("div", { style: S.ligne + ";justify-content:space-between" }, [
+        bouton("‹", () => { if (catPage > 1) { catPage -= 1; chercherCat(); } }, catPage > 1 ? "" : ";opacity:.4"),
+        el("span", { style: S.note, texte: T("studiov.cat.page", { n: catRes.total, page: catRes.page, pages: catRes.pages }) }),
+        bouton("›", () => { if (catPage < catRes.pages) { catPage += 1; chercherCat(); } }, catPage < catRes.pages ? "" : ";opacity:.4")]));
+      if (catChoisi) {
+        const p = catChoisi;
+        noeud.appendChild(el("div", { style: "font-size:12px", texte: p.nom, "data-dz-studiov-cat-fiche": p.id }));
+        noeud.appendChild(el("div", { style: S.badge, texte: [nomType(p), p.couleur, p.matiere, T("studiov.cat.dims", { l: cm(p.dims[0]), h: cm(p.dims[1]), p: cm(p.dims[2]) }),
+          T("studiov.bibli.triangles", { n: p.triangles }), T("studiov.cat.poids", { n: (p.octets / 1048576).toFixed(1) }), T("studiov.cat.pose." + p.pose),
+          p.lourd ? T("studiov.droit.lourd") : null].filter(Boolean).join(" · ") }));
+        noeud.appendChild(el("div", { style: S.ligne }, [el("button", { type: "button", style: S.principal, "data-dz-studiov-cat-poser": p.id, texte: T(p.deja ? "studiov.biblio.poser" : "studiov.cat.poser"),
+          on: { click: () => faire(async () => {
+            const v = await api("POST", "/api/studiov/catalogue/poser", { id: p.id }); await habillage(true); await chargeurGLB();
+            const nd = copie(ctx.decor()); if (nd.objets.length >= 120) { etatCat = T("studiov.cat.plein"); return; }
+            nd.objets.push(objetNeuf(nd, "modele", v.ref, v.pose)); p.deja = v.ref; etatCat = T("studiov.bibli.pose", { nom: v.nom });
+            ctx.modifier(nd, true); ctx.choisir({ genre: "objet", index: nd.objets.length - 1 });
+          }) } })]));
+      }
+      noeud.appendChild(etat);
+      noeud.appendChild(el("div", { style: S.note, texte: T("studiov.cat.credit") }));
+      return noeud;
+    }
+
+    const ONGLETS = [["style", panneauStyle], ["matieres", panneauMatieres], ["objets", panneauObjets], ["catalogue", panneauCatalogue], ["bibli", panneauBibli], ["biblio", panneauBiblio], ["lumieres", panneauLumieres],
       ["cameras", panneauCameras], ["enseigne", panneauEnseigne]];
     // ce qu'on vient de choisir sur le plan ou dans la vue 3D : le panneau ouvre l'onglet qui le règle
     function viser(c) {
@@ -828,7 +904,8 @@ if (!window.__dzStudiov) {
         ecouterVue3d(scene.canvas);
         apercu.plan = creerPlan({ T, decor: () => (apercu ? apercu.edition : null), empreintes: () => { const M = moteur(); return M ? M.empreintes() : []; },
           palette: () => palette(apercu ? apercu.contexte : null), selection: () => (apercu ? apercu.sel : null), choisir: choisirCible, modifier,
-          livre: () => !apercu || apercu.livre });
+          livre: () => !apercu || apercu.livre,
+          mural: (ob) => ob.type === "modele" && !!hab && !!hab.indexObjets[ob.ref] && hab.indexObjets[ob.ref].pose === "mur" });
         cadre.appendChild(apercu.plan.canvas);
         majFiche(d.decor);
         deco.viser(null);
