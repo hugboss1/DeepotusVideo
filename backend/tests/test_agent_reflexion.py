@@ -34,7 +34,7 @@ from app.config import settings                                      # noqa: E40
 from app.services import (agent_store as st, espaces, moteurs_texte as MT)   # noqa: E402
 from app.services import agent_campagnes as AC, agent_metier as AM, agent_whatsapp as AW          # noqa: E402
 from app.services.storage import init_db                             # noqa: E402
-from _faux_sse import evt, FluxRep                                   # noqa: E402
+from _faux_sse import evt, FluxRep, lignes_depuis_message            # noqa: E402
 
 PENSEUR = "claude-sonnet-5-5"
 SANS = "claude-haiku-4-5-20251001"
@@ -132,9 +132,9 @@ async def main():
     # le cas du 15/11 : la réflexion a tout pris — un bloc thinking vide, arrêt max_tokens, ni texte ni appel
     f = Faux([debut(60000) + bloc_reflexion(0) + fin("max_tokens", 8000)]); MT._POSTER = f
     ev = await derouler(cid, "Fais le plan.", d["plafond_usd"])
-    check("4b la requête demande 8 000 jetons et l'effort medium",
-          f.corps[0]["max_tokens"] == 8000 and f.corps[0].get("output_config") == {"effort": "medium"},
-          f.corps[0].get("max_tokens"))
+    check("4b la requête demande le garde-fou (32 000, plus les 8 000 du devis) et l'effort medium",
+          f.corps[0]["max_tokens"] == MT.GARDE_SORTIE == 32000
+          and f.corps[0].get("output_config") == {"effort": "medium"}, f.corps[0].get("max_tokens"))
     textes = [e["texte"] for e in ev if e["type"] == "texte"]
     check("4c un texte DIT que la réponse a été coupée (plus de réponse vide)", textes == [AC.COUPE["fr"]], textes)
     cartes = [e["carte"] for e in ev if e["type"] == "carte"]
@@ -180,9 +180,12 @@ async def main():
     f = Faux([debut(1000) + bloc_texte(0, "Bonjour.") + fin("end_turn", 20)]); MT._POSTER = f
     d5 = AC.devis_message(conv5, "Salut", "fr")
     ev = await derouler(c5, "Salut", d5["plafond_usd"])
-    check("5a 2 000 jetons demandés, aucun effort envoyé, devis à 8 × 2 000",
-          f.corps[0]["max_tokens"] == 2000 and "output_config" not in f.corps[0] and d5["out_tok"] == 16000,
-          f.corps[0].get("max_tokens"))
+    check("5a aucun effort envoyé, devis inchangé à 8 × 2 000, et le tour demande ce que ce devis paie",
+          "output_config" not in f.corps[0] and d5["out_tok"] == 16000
+          and 2000 <= f.corps[0]["max_tokens"] <= MT.GARDE_SORTIE
+          and f.corps[0]["max_tokens"] == AC._sortie_possible(
+              SANS, AC._jetons(f.corps[0]["system"], f.corps[0]["messages"], f.corps[0]["tools"]),
+              d5["plafond_usd"], 2000), f.corps[0].get("max_tokens"))
 
     print("\n== 6. l'espace choisi : une carte Continuer suit (l'écran ne relance rien de lui-même) ==")
     from app.api import agent_campagnes_routes as ACR
@@ -209,6 +212,128 @@ async def main():
     check("6c la route /carte la propose juste après avoir réglé l'espace", "_proposer_suite(cid, _lang(request))" in apres)
     await ACR._proposer_suite("conversation-inconnue", "fr")
     check("6d une conversation illisible ne lève rien (le choix reste écrit)", True)
+
+    print("\n== 7. le garde-fou de sortie suit le devis (16/11/2026) ==")
+    # Constat du 16/11 (claude-opus-5-5) : deux tours de production coupés à 8 000 jetons de réflexion, sans texte ni
+    # appel ; « Continue » rejouait le même tour. `max_tokens` devient un garde-fou borné par le RESTE du devis.
+    OPUS = "claude-opus-5-5"
+    check("7a sortie connue par modèle ; inconnue = 0",
+          MT.sortie_modele(OPUS) == 128000 and MT.sortie_modele(PENSEUR) == 128000 and MT.sortie_modele(SANS) == 64000
+          and MT.sortie_modele("claude-haiku-5-5") == 128000 and MT.sortie_modele("claude-opus-4-5") == 0
+          and MT.sortie_modele("claude-banc") == 0 and MT.sortie_modele(None) == 0)
+    check("7b garde d'un tour : 32 000 sur un modèle connu, la base sur un inconnu, jamais moins que la base",
+          MT.garde_tour(OPUS, 8000) == 32000 and MT.garde_tour(SANS, 2000) == 32000
+          and MT.garde_tour("claude-banc", 2000) == 2000 and MT.garde_tour(OPUS, 40000) == 40000)
+
+    def usd(m, i, o):
+        return AC._usd(MT.op_tour(m, i, o))
+    check("7c budget large : le garde-fou entier",
+          AC._sortie_possible(OPUS, 20000, usd(OPUS, 20000, 32000) + 1.0, 8000) == 32000)
+    reste = usd(OPUS, 20000, 15000)
+    n = AC._sortie_possible(OPUS, 20000, reste, 8000)
+    # le devis est arrondi au dix-millième de dollar : quelques jetons d'écart au plus (4 à 25 $ le million)
+    check("7d budget serré : le plus grand nombre de jetons que le reste paie, à l'arrondi du devis près",
+          0 <= n - 15000 <= 8 and usd(OPUS, 20000, n) <= reste + 1e-12, n)
+    check("7e budget sous la base : 0, aucun appel ne partira",
+          AC._sortie_possible(OPUS, 20000, usd(OPUS, 20000, 7990), 8000) == 0
+          and AC._sortie_possible(OPUS, 20000, 0.0, 8000) == 0)
+    check("7f budget = la sortie du devis exactement : elle part (à l'arrondi près), jamais 0",
+          0 <= AC._sortie_possible(OPUS, 20000, usd(OPUS, 20000, 8000), 8000) - 8000 <= 8)
+
+    # la boucle : le cas du 16/11 rejoué avec des tours chers. La dépense ne passe jamais le devis, la sortie demandée
+    # rétrécit avec le reste, et la boucle s'arrête d'elle-même quand même la sortie du devis ne tient plus.
+    settings.AGENT_MODEL = OPUS
+    conv7 = await st.creer("campagnes", E, "Reflexion"); c7 = conv7["id"]
+    d7 = AC.devis_message(conv7, "Lance la production.", "fr")
+    base7 = AC.sortie_tour(OPUS)
+    SORTIES = []
+
+    class Gourmand:
+        """Un modèle qui prend à chaque tour 30 000 jetons, ou toute la sortie accordée si elle est plus petite."""
+        def __init__(self):
+            self.corps = []
+        def __call__(self, url, **kw):
+            c = json.loads(json.dumps(kw.get("json")))
+            self.corps.append(c)
+            o = min(30000, int(c["max_tokens"]))
+            SORTIES.append(o)
+            return FluxRep(lignes_depuis_message({
+                "content": [{"type": "tool_use", "id": f"toolu_{len(self.corps)}", "name": "chercher_app",
+                             "input": {"requete": "planificateur"}}],
+                "stop_reason": "tool_use", "usage": {"input_tokens": 1000, "output_tokens": o}}))
+    f = Gourmand(); MT._POSTER = f
+    ev = await derouler(c7, "Lance la production.", d7["plafond_usd"])
+    check("7g le devis du message n'a pas changé (8 × la sortie du devis)",
+          d7["out_tok"] == AC.MAX_TOURS * base7 == 64000, d7)
+    check("7h le premier tour demande 32 000 jetons, plus 8 000", bool(f.corps) and f.corps[0]["max_tokens"] == 32000,
+          [c["max_tokens"] for c in f.corps])
+    dep, tenu, serre = 0.0, True, True
+    for k, c in enumerate(f.corps):
+        est = AC._jetons(c["system"], c["messages"], c["tools"])
+        tenu = (tenu and base7 <= c["max_tokens"] <= 32000
+                and dep + usd(OPUS, est, c["max_tokens"]) <= d7["plafond_usd"] + 1e-9)
+        if c["max_tokens"] < 32000:                          # borné par le reste : le plus grand nombre qui tient
+            serre = serre and dep + usd(OPUS, est, c["max_tokens"] + 8) > d7["plafond_usd"] - 1e-9
+        dep += usd(OPUS, 1000, SORTIES[k])
+    check("7i chaque tour : entre la sortie du devis et le garde-fou, et payé par le reste du devis", tenu,
+          [c["max_tokens"] for c in f.corps])
+    check("7j un tour borné par le reste demande le plus grand nombre qui tient",
+          serre and any(c["max_tokens"] < 32000 for c in f.corps), [c["max_tokens"] for c in f.corps])
+    check("7k la boucle s'arrête d'elle-même sur la carte Continuer « plafond », sans dépasser le devis",
+          ev[-1]["type"] == "fin" and ev[-1]["motif"] == "plafond" and ev[-1]["cout_usd"] <= d7["plafond_usd"] + 1e-9
+          and 0 < len(f.corps) < AC.MAX_TOURS
+          and [e["carte"]["arguments"]["motif"] for e in ev if e["type"] == "carte"] == ["plafond"],
+          (ev[-1], len(f.corps)))
+
+    # les plafonds du mois : le garde-fou large refusé (402), le tour du devis accepté : il part à la sortie du devis
+    from fastapi import HTTPException
+    vrai = AC.plafonds.verifier
+    vus = []
+
+    async def verifier_serre(op, categorie="", ref=None, confirme=None, espace_id=None):
+        vus.append(op["out_tok"])
+        if op["out_tok"] > base7:
+            raise HTTPException(402, {"code": "dz_plafond"})
+        return {"devis": {}, "lignes": [], "etat": {}}
+
+    async def verifier_ferme(op, categorie="", ref=None, confirme=None, espace_id=None):
+        raise HTTPException(402, {"code": "dz_plafond"})
+    try:
+        AC.plafonds.verifier = verifier_serre
+        conv8 = await st.creer("campagnes", E, "Reflexion"); c8 = conv8["id"]
+        f = Faux([debut(1000) + bloc_reflexion(0) + bloc_texte(1, "Voici.") + fin("end_turn", 500)]); MT._POSTER = f
+        ev = await derouler(c8, "Bonjour.", AC.devis_message(conv8, "Bonjour.", "fr")["plafond_usd"])
+        check("7l plafond du mois serré : le tour part à la sortie du devis au lieu d'être refusé",
+              vus == [32000, base7] and f.corps[0]["max_tokens"] == base7 and ev[-1]["motif"] == "reponse",
+              (vus, ev[-1]))
+        AC.plafonds.verifier = verifier_ferme
+        conv9 = await st.creer("campagnes", E, "Reflexion"); c9 = conv9["id"]
+        f = Faux([]); MT._POSTER = f
+        ev = await derouler(c9, "Bonjour.", AC.devis_message(conv9, "Bonjour.", "fr")["plafond_usd"])
+        l9 = await st.lire(c9)
+        check("7m plafond du mois fermé : erreur dz_plafond, aucun appel, aucun message orphelin",
+              ev[-1]["type"] == "erreur" and ev[-1]["code"] == "dz_plafond" and not f.corps and not l9["messages"],
+              ev[-1])
+    finally:
+        AC.plafonds.verifier = vrai
+
+    # la reprise après une coupure dit comment avancer, sans pousser à abréger
+    conv10 = await st.creer("campagnes", E, "Reflexion"); c10 = conv10["id"]
+    f = Faux([debut(1000) + bloc_reflexion(0) + fin("max_tokens", 32000)]); MT._POSTER = f
+    ev = await derouler(c10, "Lance la production.",
+                        AC.devis_message(conv10, "Lance la production.", "en")["plafond_usd"], "en")
+    carte10 = ([e["carte"] for e in ev if e["type"] == "carte"] or [{"arguments": {}}])[0]
+    check("7n la carte après coupure porte la reprise « une pièce à la fois, en entier »",
+          carte10["arguments"].get("motif") == "sortie" and carte10["arguments"].get("texte") == AC.TEXTE_APRES_COUPE["en"]
+          and "one piece at a time" in AC.TEXTE_APRES_COUPE["en"] and "in full" in AC.TEXTE_APRES_COUPE["en"]
+          and "une pièce à la fois" in AC.TEXTE_APRES_COUPE["fr"], carte10)
+    check("7o ni l'avis de coupure ni l'appel tronqué ne poussent à raccourcir",
+          "plus court" not in AC.APPEL_TRONQUE and "sans raccourcir" in AC.APPEL_TRONQUE
+          and "Rien n'est perdu" not in AC.COUPE["fr"] and "Nothing is lost" not in AC.COUPE["en"])
+    camp = (AC.DOCS / "CAMPAGNES.md").read_text(encoding="utf-8")
+    check("7p CAMPAGNES.md : une pièce à la fois, jamais abrégée",
+          "une pièce à la fois" in camp and "N'abrège jamais" in camp)
+    settings.AGENT_MODEL = SANS
 
     print(f"\n{ok} PASS, {fail} FAIL")
     return fail

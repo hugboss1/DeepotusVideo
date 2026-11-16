@@ -359,6 +359,38 @@ def sortie_tour(modele: str | None, sortie: int, effort=None) -> int:
     return min(PLAFOND_SORTIE, base + _RESERVE_REFLEXION.get(niveau, _RESERVE_REFLEXION["high"]))
 
 
+# ── le garde-fou de sortie d'un tour d'agent (16/11/2026) ────────────────────────────────────────────────────────
+# Constat du 16/11/2026 sur l'agent Campagnes (claude-opus-5-5, effort medium, 8 000 jetons par tour) : à l'étape de
+# production, deux tours de suite ont dépensé les 8 000 jetons à réfléchir, sans texte ni appel d'outil ; la carte
+# Continuer relançait le même tour, coupé au même endroit (0,45 $ à chaque fois). Avant cela, deux `ecrire_dossier`
+# coupés avaient fait réécrire la stratégie deux fois plus courte. `max_tokens` est un GARDE-FOU, pas un réglage : le
+# modèle ne le voit pas, l'atteindre coupe la réponse ; la réflexion se règle par l'effort (documentation Anthropic,
+# « Output tokens », relevé du 16/11/2026). La dépense, elle, est tenue par le devis du message : la boucle demande
+# donc le garde-fou, ramené à ce que le reste du devis peut payer (`agent_campagnes._sortie_possible`).
+GARDE_SORTIE = 32_000
+
+
+def sortie_modele(modele: str | None) -> int:
+    """La sortie maximale que CE modèle Claude accepte (tableau des modèles d'Anthropic, relevé du 16/11/2026) :
+    128 000 jetons depuis Opus 4.6, Sonnet 4.6, Haiku 5.5 et pour Fable / Mythos ; 64 000 pour Haiku 4.5. Id inconnu
+    ou plus ancien : 0 (on ne devine pas une limite qu'on n'a pas lue)."""
+    fam, v = _version_claude(str(modele or "").strip())
+    if fam in ("fable", "mythos"):
+        return 128_000 if v >= (5, 0) else 0
+    if fam in ("opus", "sonnet"):
+        return 128_000 if v >= (4, 6) else 0
+    if fam == "haiku":
+        return 128_000 if v >= (5, 5) else 64_000 if v == (4, 5) else 0
+    return 0
+
+
+def garde_tour(modele: str | None, base: int) -> int:
+    """Le plus grand `max_tokens` qu'un tour d'agent peut demander à ce modèle : GARDE_SORTIE, borné par la sortie du
+    modèle, jamais moins que `base` (la sortie du devis). Modèle dont la limite n'est pas connue : `base`, inchangé."""
+    m = sortie_modele(modele)
+    return max(int(base), min(GARDE_SORTIE, m)) if m else int(base)
+
+
 # ── les images (A5, assistant « Demander », 19/10/2026) ──────────────────────────────────────────────────────────
 # Spec 2026-10-19-agent-aide-design.md § 2 « Vision en secours ». UN appel peut joindre des images (une capture
 # d'écran) ; seuls les modèles qui les lisent en reçoivent. Relevé de la documentation des fournisseurs le 19/10/2026 :
