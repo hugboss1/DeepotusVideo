@@ -115,5 +115,56 @@ yt = [l for l in r["limites"] if l.startswith("youtube")]
 check("2.4 vidéo indisponible : une ligne par vidéo, avec la raison, sans la commande",
       len(yt) == 9 and all("Video unavailable" in l and "yt-dlp" not in l for l in yt), yt[:2])
 
+print("[3] certificat refusé sur le poste (15/11/2026)")
+# La collecte VideoGen du 15/11 a rendu 25 lignes « Unable to download API page: Failed to perform, curl: (60) SSL
+# certificate OpenSSL verify result: unable to get local issuer certificate » : l'app avait hérité à son démarrage d'un
+# SSLKEYLOGFILE de l'antivirus qui n'existait plus. yt-dlp est lancé SANS cette variable ; et un certificat refusé
+# suspend la source avec UNE ligne, sans pause ni nouvelle tentative.
+CERT = (b"ERROR: [youtube] 2kZ_mjtggiU: Unable to download API page: Failed to perform, curl: (60) SSL certificate "
+        b"OpenSSL verify result: unable to get local issuer certificate (20). See https://curl.se/libcurl/c/"
+        b"libcurl-errors.html first for more details.\n")
+APPELS.clear()
+
+
+def faux_run_cert(args, **kw):
+    APPELS.append(kw)
+    raise subprocess.CalledProcessError(1, args, output=b"", stderr=CERT)
+
+
+os.environ["SSLKEYLOGFILE"] = r"\\.\aswMonFltProxy\11178c071e5c1d5d"
+os.environ["DZ_TEMOIN_ENV"] = "garde"
+VC._RUN = faux_run_cert
+e = None
+try:
+    asyncio.run(VC._ytdlp_defaut("2kZ_mjtggiU", 10))
+except Exception as x:  # noqa: BLE001
+    e = x
+env = (APPELS[0].get("env") if APPELS else None) or {}
+check("3.1 yt-dlp est lancé sans SSLKEYLOGFILE", bool(env) and not [k for k in env if k.upper() == "SSLKEYLOGFILE"],
+      sorted(env)[:5])
+check("3.2 le reste de l'environnement est transmis", env.get("DZ_TEMOIN_ENV") == "garde" and "PATH" in {k.upper() for k in env})
+check("3.3 l'environnement de l'app n'est pas modifié", os.environ.get("SSLKEYLOGFILE", "").endswith("11178c071e5c1d5d"))
+check("3.4 certificat refusé reconnu, pas pris pour un blocage de YouTube", isinstance(e, VC.EchecYoutube)
+      and e.certificat is True and e.bloque is False, repr(e))
+check("3.5 les autres échecs ne sont pas des certificats", VC.EchecYoutube("Video unavailable").certificat is False
+      and not VC._CERTIFICAT.search(BOT.decode("utf-8")))
+check("3.6 l'erreur de Python est reconnue aussi", bool(VC._CERTIFICAT.search(
+    "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)")))
+
+ESSAIS.clear(); DORMI.clear()
+
+
+async def ytdlp_certificat(video, maxi):
+    ESSAIS.append(video)
+    raise VC.EchecYoutube("[youtube] x: Unable to download API page: Failed to perform, curl: (60)", certificat=True)
+
+
+VC._YTDLP = ytdlp_certificat
+r = asyncio.run(VC.collecter(PERIM, _tmp / "brut4", VC._horloge() + 600, lambda l: None))
+yt = [l for l in r["limites"] if l.startswith("youtube")]
+check("3.7 certificat : UNE ligne lisible, la source suspendue (pas 9 lignes)", len(yt) == 1 and "certificat" in yt[0]
+      and "suspendue" in yt[0] and "curl" not in yt[0], yt)
+check("3.8 certificat : ni pause ni nouvelle tentative", ESSAIS == ["aaaaaaaaaaa"] and not DORMI, (ESSAIS, DORMI))
+
 print(f"\n{ok} passed, {fail} failed")
 sys.exit(1 if fail else 0)
