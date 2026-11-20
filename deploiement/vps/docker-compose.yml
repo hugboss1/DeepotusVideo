@@ -1,0 +1,49 @@
+# t531 (20/11/2026) — Deepotus VideoGen sur le VPS : Caddy (HTTPS + mot de passe) -> Deepotus (boucle locale),
+# et un SFTP par clé où le PC dépose ses rendus. Pas à pas : README.md (même dossier).
+#
+# RÉSEAU DE L'HÔTE pour caddy et deepotus : un port publié par Docker arriverait dans le conteneur depuis la
+# passerelle du pont (172.x.0.1) et les gardes du backend, qui exigent la boucle locale, refuseraient toute écriture.
+# Deepotus écoute 127.0.0.1:8765 de l'hôte : seul Caddy l'atteint, ufw n'ouvre pas 8765.
+name: deepotus
+
+services:
+  caddy:
+    image: caddy:2
+    network_mode: host
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  deepotus:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: deepotus-videogen:local
+    network_mode: host
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - /srv/deepotus/data:/data
+      - /srv/deepotus/depot:/depot:ro
+      - /srv/deepotus/secrets:/secrets
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  sftp:
+    image: atmoz/sftp:alpine
+    restart: unless-stopped
+    ports:
+      - "2222:22"
+    volumes:
+      - /srv/deepotus/depot:/home/depot/upload
+      - ./cles/pc.pub:/home/depot/.ssh/keys/pc.pub:ro
+      - ./cles/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
+    # « depot » sans mot de passe (champ vide) : la clé SSH du PC est la seule entrée ; uid 1000 = deepotus.
+    command: depot::1000
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}

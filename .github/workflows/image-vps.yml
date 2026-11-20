@@ -1,0 +1,88 @@
+# t531 (20/11/2026) — couche hébergée : construit l'image du VPS et la sonde. RIEN n'est publié (pas de registre).
+# Les bancs de la couche hébergée (test_hebergee_*) tournent aussi ici, sous un vrai Linux.
+name: image-vps
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "frontend/dist/**"
+      - "vendor/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "deploiement/vps/**"
+      - ".github/workflows/image-vps.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bancs-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Dépendances
+        run: pip install -r backend/requirements.txt pytest
+      - name: Bancs test_hebergee_*
+        working-directory: backend
+        run: |
+          set -e
+          for t in tests/test_hebergee_*.py; do
+            echo "== $t"
+            python "$t"
+          done
+
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire l'image
+        run: docker build -t deepotus-videogen:ci .
+      - name: Démarrer comme sur le VPS (réseau de l'hôte, données vides)
+        run: |
+          mkdir -p /tmp/dzdata /tmp/dzsecrets
+          sudo chown 1000:1000 /tmp/dzdata /tmp/dzsecrets
+          docker run -d --name dz --network host --cap-drop ALL --security-opt no-new-privileges:true \
+            -e DEEPOTUS_HOSTNAME=studio.deepotus.tech -e DEEPOTUS_COFFRE_CLE_FICHIER=/secrets/coffre.cle \
+            -v /tmp/dzdata:/data -v /tmp/dzsecrets:/secrets deepotus-videogen:ci
+      - name: Sonder
+        run: |
+          set -e
+          for i in $(seq 1 90); do
+            curl -fsS http://127.0.0.1:8765/api/health >/dev/null 2>&1 && break
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8765/api/health
+          echo
+          # La coque web est servie.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/)" -lt 400
+          # Les labs et le guide, servis hors de frontend/dist.
+          for chemin in /atelier/ /vectorlab/ /photolab/ /spritelab/ /tilelab/ /cardforge/ /studio3d/ /etabli/ /guide/fr.html; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8765$chemin")
+            echo "$chemin -> $code"
+            test "$code" = "200"
+          done
+          # Garde CSRF (t530) : l'origine du domaine passe, une origine étrangère est refusée.
+          ok=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' \
+               -H 'Origin: https://studio.deepotus.tech' http://127.0.0.1:8765/api/settings/keys)
+          ko=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' \
+               -H 'Origin: https://evil.example.com' http://127.0.0.1:8765/api/settings/keys)
+          echo "origine du domaine : $ok ; origine étrangère : $ko"
+          test "$ok" != "403"
+          test "$ko" = "403"
+          # L'écoute est la boucle locale seulement.
+          ! curl -s -m 3 "http://$(hostname -I | awk '{print $1}'):8765/api/health"
+          # Outils du conteneur.
+          docker exec dz ffmpeg -hide_banner -version | head -1
+          docker exec dz /usr/local/bin/chromium-conteneur --headless=new --dump-dom about:blank | head -3
+          docker exec dz python -c "from app.services import motion_code as m; p = m.trouver_moteur(); print(p); assert p == '/usr/local/bin/chromium-conteneur'"
+          docker exec dz id
+      - name: Journal du conteneur
+        if: always()
+        run: docker logs dz 2>&1 | tail -200
