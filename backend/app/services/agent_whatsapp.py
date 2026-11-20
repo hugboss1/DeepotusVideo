@@ -35,6 +35,7 @@ from app.services import (agent_aide, agent_boites, agent_outils as ao, espaces,
 
 MAX_TOURS = 4
 SORTIE_MAX = 2000                     # jetons de sortie par tour (une réponse WhatsApp : 4096 caractères au plus)
+EFFORT = "low"                        # 15/11/2026 : une réponse courte ; la réserve de réflexion suit ce niveau
 CATEGORIE = "whatsapp_agent"          # plafonds.CATEGORIES ; « whatsapp » reste celle des messages Meta
 AGENT = "whatsapp"                    # la boîte d'outils (agent_boites) et `Ctx.agent`
 MAX_PERSONA = 6000
@@ -609,8 +610,9 @@ async def _boucle(cid: str, eid: str, pid: str, identite: str, langue: str, agen
     msgs: list[dict] = [{"role": "user", "content": CONSIGNE[langue].format(identite=identite)}]
     ctx = ao.Ctx(cid=f"wa:{cid}:{identite}", espace_id=eid, lang=langue, agent=AGENT, compte_id=cid, identite=identite)
     ref = f"{cid}:{cle}"
+    sortie = MT.sortie_tour(modele, SORTIE_MAX, EFFORT)
     for _n in range(MAX_TOURS):
-        op = MT.op_tour(modele, _jetons(sys_, msgs, outils), SORTIE_MAX)
+        op = MT.op_tour(modele, _jetons(sys_, msgs, outils), sortie)
         try:
             garde = await plafonds.verifier(op, CATEGORIE, ref=ref, espace_id=eid)
         except HTTPException as e:
@@ -619,7 +621,7 @@ async def _boucle(cid: str, eid: str, pid: str, identite: str, langue: str, agen
             return _res(None, None, "plafond")
         lignes = (garde or {}).get("lignes") or []
         try:
-            r = await asyncio.to_thread(MT.converser, modele, sys_, msgs, outils, SORTIE_MAX)
+            r = await asyncio.to_thread(MT.converser, modele, sys_, msgs, outils, sortie, effort=EFFORT)
         except Exception as e:  # noqa: BLE001 — jamais une trace : le motif seulement
             # Rien de facturé (refus, sans clé) : réel 0 ; flux coupé après le 200 : la réservation reste (précédent
             # de l'agent Campagnes).

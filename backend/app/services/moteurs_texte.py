@@ -327,6 +327,70 @@ def sortie_max(max_tokens: int, applique: str) -> int:
     return max(int(max_tokens), min(PLAFOND_SORTIE, int(round(int(max_tokens) * f))))
 
 
+# ── la réflexion des modèles de l'agent (15/11/2026) ─────────────────────────────────────────────────────────────
+# Constat du 15/11/2026 sur l'agent Campagnes (modèle claude-sonnet-5-5, sortie de 2 000 jetons) : trois réponses
+# PAYÉES et VIDES de suite. Ces modèles réfléchissent même quand la requête n'envoie pas `thinking`, et la réflexion
+# se compte dans `max_tokens` : elle consommait toute la sortie, l'arrêt était `max_tokens`, il ne restait ni texte ni
+# appel d'outil. Relevé de la documentation Anthropic (tableau « Thinking & Effort », 03/11/2026) : réflexion d'office
+# sur Fable / Mythos 5 et suivants, Opus 5 et suivants, Sonnet 5 et suivants, Haiku 5.5 ; pas sur Opus 4.8 / 4.7,
+# Sonnet 4.6, Haiku 4.5 et avant quand `thinking` est omis.
+_RESERVE_REFLEXION = {"low": 2000, "medium": 6000, "high": 10000, "xhigh": 16000, "max": 24000}
+
+
+def reflechit(modele: str | None) -> bool:
+    """Ce modèle Claude réfléchit-il D'OFFICE (requête sans `thinking`) ? Table de familles ; id inconnu : non."""
+    fam, v = _version_claude(str(modele or "").strip())
+    if fam in ("fable", "mythos", "opus", "sonnet"):
+        return v >= (5, 0)
+    if fam == "haiku":
+        return v >= (5, 5)
+    return False
+
+
+def sortie_tour(modele: str | None, sortie: int, effort=None) -> int:
+    """Le `max_tokens` d'UN tour d'agent. `sortie` = ce que l'agent écrit (texte et appels d'outils). Un modèle qui ne
+    réfléchit pas d'office : `sortie`, inchangé. Un modèle qui réfléchit toujours : `sortie` + la réserve de réflexion
+    du niveau qui partira (`effort` s'il est accepté, sinon le défaut du modèle), bornée par PLAFOND_SORTIE. Le devis
+    et les plafonds chiffrent CETTE valeur : c'est le pire cas réellement facturable."""
+    base = int(sortie)
+    if not reflechit(modele):
+        return base
+    niveau = effort_applique("anthropic", modele, effort) or efforts("anthropic", modele)["defaut"] or "high"
+    return min(PLAFOND_SORTIE, base + _RESERVE_REFLEXION.get(niveau, _RESERVE_REFLEXION["high"]))
+
+
+# ── le garde-fou de sortie d'un tour d'agent (16/11/2026) ────────────────────────────────────────────────────────
+# Constat du 16/11/2026 sur l'agent Campagnes (claude-opus-5-5, effort medium, 8 000 jetons par tour) : à l'étape de
+# production, deux tours de suite ont dépensé les 8 000 jetons à réfléchir, sans texte ni appel d'outil ; la carte
+# Continuer relançait le même tour, coupé au même endroit (0,45 $ à chaque fois). Avant cela, deux `ecrire_dossier`
+# coupés avaient fait réécrire la stratégie deux fois plus courte. `max_tokens` est un GARDE-FOU, pas un réglage : le
+# modèle ne le voit pas, l'atteindre coupe la réponse ; la réflexion se règle par l'effort (documentation Anthropic,
+# « Output tokens », relevé du 16/11/2026). La dépense, elle, est tenue par le devis du message : la boucle demande
+# donc le garde-fou, ramené à ce que le reste du devis peut payer (`agent_campagnes._sortie_possible`).
+GARDE_SORTIE = 32_000
+
+
+def sortie_modele(modele: str | None) -> int:
+    """La sortie maximale que CE modèle Claude accepte (tableau des modèles d'Anthropic, relevé du 16/11/2026) :
+    128 000 jetons depuis Opus 4.6, Sonnet 4.6, Haiku 5.5 et pour Fable / Mythos ; 64 000 pour Haiku 4.5. Id inconnu
+    ou plus ancien : 0 (on ne devine pas une limite qu'on n'a pas lue)."""
+    fam, v = _version_claude(str(modele or "").strip())
+    if fam in ("fable", "mythos"):
+        return 128_000 if v >= (5, 0) else 0
+    if fam in ("opus", "sonnet"):
+        return 128_000 if v >= (4, 6) else 0
+    if fam == "haiku":
+        return 128_000 if v >= (5, 5) else 64_000 if v == (4, 5) else 0
+    return 0
+
+
+def garde_tour(modele: str | None, base: int) -> int:
+    """Le plus grand `max_tokens` qu'un tour d'agent peut demander à ce modèle : GARDE_SORTIE, borné par la sortie du
+    modèle, jamais moins que `base` (la sortie du devis). Modèle dont la limite n'est pas connue : `base`, inchangé."""
+    m = sortie_modele(modele)
+    return max(int(base), min(GARDE_SORTIE, m)) if m else int(base)
+
+
 # ── les images (A5, assistant « Demander », 19/10/2026) ──────────────────────────────────────────────────────────
 # Spec 2026-10-19-agent-aide-design.md § 2 « Vision en secours ». UN appel peut joindre des images (une capture
 # d'écran) ; seuls les modèles qui les lisent en reçoivent. Relevé de la documentation des fournisseurs le 19/10/2026 :
@@ -780,15 +844,19 @@ def _lire_flux(lignes, sur_delta=None, cle: str = "") -> dict:
 
 
 def converser(modele: str, systeme: str, messages: list[dict], outils: list[dict], max_tokens: int,
-              timeout: float = 120.0, sur_delta=None) -> dict:
+              timeout: float = 120.0, sur_delta=None, effort=None) -> dict:
     """Un tour de l'API Messages d'Anthropic avec outils, LU EN FLUX → {"blocs": [...], "arret": stop_reason, "in_tok",
     "out_tok"}. `sur_delta(texte)` reçoit chaque morceau de texte à mesure (appelé dans le fil de l'appel). Sans clé :
     RuntimeError("sans_cle"), rien n'est envoyé. Statut ≠ 200 ou flux coupé : RuntimeError au corps rogné, la clé en
-    est ôtée (jamais dans un message, un journal ou un retour)."""
+    est ôtée (jamais dans un message, un journal ou un retour). `effort` (15/11/2026) : le niveau de réflexion du tour,
+    envoyé en `output_config.effort` SEULEMENT si ce modèle l'accepte (`effort_applique`) ; None ou refusé : rien."""
     cle = str(getattr(settings, "ANTHROPIC_API_KEY", "") or "").strip()
     if not cle:
         raise RuntimeError("sans_cle")
     body: dict = {"model": modele, "max_tokens": max_tokens, "messages": messages, "stream": True}
+    niveau = effort_applique("anthropic", modele, effort) if effort is not None else ""
+    if niveau:
+        body["output_config"] = {"effort": niveau}
     if systeme:
         body["system"] = systeme
     if outils:

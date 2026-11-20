@@ -363,7 +363,8 @@ def _paquet_telephone(espace_id: str | None, langue: str) -> dict:
         systeme={r: AC.systeme_pour(r, espace_id, langue) for r in ROLES_TELEPHONE},
         outils=[ref[n] for n in OUTILS_TELEPHONE],
         modele=moteurs_texte.modele_agent(),
-        constantes={"MAX_TOURS": AC.MAX_TOURS, "SORTIE_MAX": AC.SORTIE_MAX, "CARS_PAR_JETON": AC.CARS_PAR_JETON,
+        # 15/11/2026 : la sortie du tour, réserve de réflexion du modèle comprise (le téléphone chiffre et appelle avec)
+        constantes={"MAX_TOURS": AC.MAX_TOURS, "SORTIE_MAX": AC.sortie_tour(), "CARS_PAR_JETON": AC.CARS_PAR_JETON,
                     "SURCOUT_OUTILS": AC.SURCOUT_OUTILS})
     p["espace_id"] = espace_id or None
     p.pop("version")
@@ -591,6 +592,7 @@ async def carte(cid: str, n: int, request: Request):
             if acceptee and genre == "espace":
                 if not await ST.regler_espace(cid, extra["espace_id"]):
                     raise HTTPException(409, "La conversation a déjà son espace : il ne change pas.")
+                await _proposer_suite(cid, _lang(request))
             elif acceptee and genre == "porte":
                 await ST.regler_porte(cid, "porte1_validee")
     if acceptee and genre == "recherche":
@@ -598,6 +600,20 @@ async def carte(cid: str, n: int, request: Request):
     if acceptee and genre == "collecte":
         await _executer_collecte(cid, n, orig, collecte, appareil)
     return await ST.lire(cid)
+
+
+async def _proposer_suite(cid: str, lang: str) -> None:
+    """15/11/2026 : l'espace vient d'être choisi. La demande de départ n'a PAS été traitée (l'outil a rendu la carte
+    et le tour s'est arrêté là) et l'écran ne relance rien de lui-même : sans suite proposée, l'agent semblait ne rien
+    livrer. Une carte « Continuer », chiffrée pour l'espace choisi (sa persona entre dans le système), suit le choix.
+    Un devis qui échoue ne défait pas le choix : la carte manque, l'utilisateur écrit."""
+    lang = "en" if lang == "en" else "fr"
+    try:
+        conv = await ST.lire(cid)
+        d = await asyncio.to_thread(AC.devis_message, conv, AC.TEXTE_CONTINUER[lang], lang)
+        await ST.ajouter(cid, [fmt.nouveau_message("agent", [AC._carte_continuer(d, "espace", 0.0, lang)])])
+    except Exception:  # noqa: BLE001 — la suite est un confort, jamais une raison de rendre 500 après un choix écrit
+        pass
 
 
 def _decider_sequence(eid, sid, acceptee: bool) -> None:
