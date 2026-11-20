@@ -54,6 +54,14 @@ APP_HOSTNAME = APP_HOSTNAME_PUBLIC or APP_HOSTNAME_LOCAL
 NOMS_ECRAN = frozenset({APP_HOSTNAME_LOCAL, APP_HOSTNAME})
 
 
+def url_rappel(chemin: str) -> str:
+    """t534 (couche hébergée ⑤) : l'adresse de RETOUR d'une autorisation OAuth. Sur le PC, la boucle locale (client
+    « Application de bureau » / « Desktop ») ; sur le VPS, https://<DEEPOTUS_HOSTNAME><chemin>, que Caddy transmet."""
+    if APP_HOSTNAME_PUBLIC and not APP_HOSTNAME_PUBLIC.endswith(".localhost"):
+        return f"https://{APP_HOSTNAME_PUBLIC}{chemin}"
+    return f"http://127.0.0.1:{settings.PORT}{chemin}"
+
+
 def app_url(port: int | None = None) -> str:
     """L'URL que le lanceur ouvre ; `settings` est lu à l'appel. Hébergé (t530) : l'URL publique, servie par Caddy."""
     if APP_HOSTNAME_PUBLIC:
