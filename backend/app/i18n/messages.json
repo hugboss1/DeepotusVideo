@@ -190,6 +190,8 @@
   "blender.plan_introuvable": {"fr": "Ce plan n'existe pas ou plus.", "en": "This shot does not exist (any more)."},
   "blender.sans_scene": {"fr": "Ce plan n'a pas de scène au Plateau 3D : ouvrez le Plateau du plan, posez la caméra et les formes, puis renvoyez.", "en": "This shot has no 3D Stage scene: open the shot's Stage, set the camera and the shapes, then send again."},
   "blender.confirme_cout": {"fr": "Modèle 3D payant dans Blender : confirmez le coût avant de lancer.", "en": "Paid 3D model in Blender: confirm the cost before starting."},
+  "coffre.retenir_indisponible": {"fr": "« Retenir » n'est pas disponible ici : posez DEEPOTUS_COFFRE_CLE_FICHIER (chemin d'un fichier de clé, hors des données sauvegardées) puis relancez. Sans lui, le coffre se rouvre avec sa phrase à chaque démarrage.", "en": "“Remember” is not available here: set DEEPOTUS_COFFRE_CLE_FICHIER (path to a key file, outside the backed-up data) and restart. Without it, the vault is reopened with its passphrase at every start."},
+  "coffre.cle_fichier_exposee": {"fr": "Le fichier de clé du coffre ({chemin}) est lisible par d'autres comptes : rendez-le privé (chmod 600) puis réessayez.", "en": "The vault key file ({chemin}) is readable by other accounts: make it private (chmod 600) and try again."},
   "plateforme.windows_seul": {"fr": "{outil} n'existe que dans l'app Windows de Deepotus : utilisez-le sur le PC.", "en": "{outil} only exists in the Windows Deepotus app: use it on the PC."},
   "plateforme.outil.photolab": {"fr": "Le Photolab", "en": "The Photolab"},
   "plateforme.outil.clip": {"fr": "La recherche par le sens (CLIP)", "en": "Search by meaning (CLIP)"},

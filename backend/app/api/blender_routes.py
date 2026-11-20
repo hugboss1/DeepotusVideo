@@ -58,13 +58,13 @@ def _refus(request: Request, e: BM.RefusBlender) -> HTTPException:
 
 def _ecran(request: Request) -> None:
     """Un réglage qui choisit un exécutable vient du navigateur de l'app (Origin local), jamais d'un client natif."""
-    from app.config import APP_HOSTNAME
+    from app.config import NOMS_ECRAN  # t530 : + le nom public du VPS
     o = request.headers.get("origin") or ""
     try:
         h = (urllib.parse.urlparse(o).hostname or "").lower() if o else ""
     except ValueError:
         h = ""
-    if not h or h not in (_HOTES_ECRAN | {APP_HOSTNAME}):
+    if not h or h not in (_HOTES_ECRAN | NOMS_ECRAN):
         raise HTTPException(403, i18n.msg("blender.ecran_requis", _lang(request)))
 
 

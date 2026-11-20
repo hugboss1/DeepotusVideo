@@ -1,0 +1,41 @@
+# t531 — copier en « Caddyfile » (même dossier) et remplacer la ligne du mot de passe :
+#   docker run --rm caddy:2 caddy hash-password --plaintext 'ta-phrase-longue'
+# Le nom vient de .env (DEEPOTUS_HOSTNAME). Caddy obtient et renouvelle le certificat HTTPS tout seul.
+#
+# Le mot de passe est la SEULE serrure de la phase 1 : derrière Caddy, toutes les requêtes arrivent de 127.0.0.1 et
+# les gardes du backend les croient locales. Une phrase longue et unique.
+{$DEEPOTUS_HOSTNAME} {
+	basic_auth {
+		olivier REMPLACER_PAR_LE_HASH_BCRYPT
+	}
+
+	request_body {
+		max_size 8GB
+	}
+
+	encode zstd gzip
+
+	reverse_proxy 127.0.0.1:8765 {
+		# Jamais l'adresse réelle au backend : elle rendrait tout 403 (gardes locales).
+		header_up -X-Forwarded-For
+		header_up -X-Real-IP
+		transport http {
+			read_timeout 30m
+			write_timeout 30m
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		-Server
+	}
+
+	log {
+		output file /data/acces.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+	}
+}

@@ -85,7 +85,7 @@ def _migrate_legacy_data():
 _migrate_legacy_data()
 
 from app.api.routes import router
-from app.config import settings, APP_VERSION, APP_HOSTNAME
+from app.config import settings, APP_VERSION, NOMS_ECRAN
 from app.services.storage import init_db
 # Bibliothèque #78 (03/10/2026) : un job qui DEVIENT « done » se range dans le projet actif (un écouteur SQLAlchemy,
 # parce que l'état est posé depuis plus de vingt sites). Posé à l'import, pour toute session de l'application.
@@ -346,7 +346,8 @@ import urllib.parse as _urlparse
 from starlette.responses import JSONResponse as _JSONResponse
 
 # + l'origine nommée deepotus.localhost (finitions UI, 20/09/2026)
-_ALLOWED_ORIGIN_HOSTS = {"127.0.0.1", "localhost", "::1", "", APP_HOSTNAME}
+# + t530 (20/11/2026) : le nom public du VPS (DEEPOTUS_HOSTNAME), servi derrière Caddy
+_ALLOWED_ORIGIN_HOSTS = {"127.0.0.1", "localhost", "::1", ""} | set(NOMS_ECRAN)
 
 
 @app.middleware("http")

@@ -23,11 +23,49 @@ APP_VERSION = "2.8.0"
 # Origine nommée (finitions UI, 20/09/2026) : les navigateurs résolvent
 # *.localhost en boucle locale sans fichier hosts (RFC 6761). Le serveur
 # ÉCOUTE toujours sur HOST (127.0.0.1) ; c'est l'URL OUVERTE qui porte le nom.
-APP_HOSTNAME = "deepotus.localhost"
+APP_HOSTNAME_LOCAL = "deepotus.localhost"
+
+# t530 (20/11/2026, couche hébergée ①) : sur le VPS, le navigateur ouvre https://<DEEPOTUS_HOSTNAME> derrière Caddy,
+# qui transmet l'en-tête Host et l'Origin du domaine. Ce nom rejoint les gardes « écran » (CSRF, Blender, MCP,
+# WebSocket du direct) ; l'adresse cliente reste exigée locale. Un nom invalide est ignoré (repli sur le nom local),
+# jamais une garde ouverte à n'importe quel domaine.
+_NOM_DNS = __import__("re").compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$")
+
+
+def _nom_public(brut: str) -> str:
+    """« https://Studio.Exemple.fr:443/ » -> « studio.exemple.fr » ; vide ou invalide -> ""."""
+    s = (brut or "").strip().lower()
+    for prefixe in ("https://", "http://"):
+        if s.startswith(prefixe):
+            s = s[len(prefixe):]
+    s = s.rstrip("/")
+    if ":" in s:
+        s, _, port = s.partition(":")
+        if not port.isdigit():
+            return ""
+    return s if _NOM_DNS.match(s) else ""
+
+
+APP_HOSTNAME_PUBLIC = _nom_public(os.environ.get("DEEPOTUS_HOSTNAME", ""))
+if os.environ.get("DEEPOTUS_HOSTNAME", "").strip() and not APP_HOSTNAME_PUBLIC:
+    print("DEEPOTUS_HOSTNAME ignoré : nom d'hôte invalide", file=__import__("sys").stderr)
+APP_HOSTNAME = APP_HOSTNAME_PUBLIC or APP_HOSTNAME_LOCAL
+# Les noms sous lesquels le navigateur de l'app peut ouvrir l'écran (en plus de 127.0.0.1 / localhost).
+NOMS_ECRAN = frozenset({APP_HOSTNAME_LOCAL, APP_HOSTNAME})
+
+
+def url_rappel(chemin: str) -> str:
+    """t534 (couche hébergée ⑤) : l'adresse de RETOUR d'une autorisation OAuth. Sur le PC, la boucle locale (client
+    « Application de bureau » / « Desktop ») ; sur le VPS, https://<DEEPOTUS_HOSTNAME><chemin>, que Caddy transmet."""
+    if APP_HOSTNAME_PUBLIC and not APP_HOSTNAME_PUBLIC.endswith(".localhost"):
+        return f"https://{APP_HOSTNAME_PUBLIC}{chemin}"
+    return f"http://127.0.0.1:{settings.PORT}{chemin}"
 
 
 def app_url(port: int | None = None) -> str:
-    """L'URL que le lanceur ouvre ; `settings` est lu à l'appel."""
+    """L'URL que le lanceur ouvre ; `settings` est lu à l'appel. Hébergé (t530) : l'URL publique, servie par Caddy."""
+    if APP_HOSTNAME_PUBLIC:
+        return f"https://{APP_HOSTNAME_PUBLIC}"
     return f"http://{APP_HOSTNAME}:{port if port is not None else settings.PORT}"
 
 

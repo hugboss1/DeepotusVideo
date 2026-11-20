@@ -276,9 +276,35 @@ for _k in ("X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET"):
     GUIDES[_k] = GUIDES["X_API_KEY"]
 
 
+# t534 (20/11/2026, couche hébergée ⑤) : sur le VPS, le retour d'autorisation n'est plus la boucle locale — Google
+# et TikTok exigent alors un client WEB qui déclare l'adresse https exacte.
+_HEBERGE = {
+    "YOUTUBE_CLIENT_ID": ("/api/oauth/youtube/callback",
+                          "Version hébergée : créez plutôt un ID client de type « Application Web » et déclarez "
+                          "l'URI de redirection autorisée {uri}",
+                          "Hosted version: create a « Web application » OAuth client ID instead and add the "
+                          "authorized redirect URI {uri}"),
+    "TIKTOK_CLIENT_KEY": ("/api/oauth/tiktok/callback/",
+                          "Version hébergée : choisissez la plateforme « Web » et déclarez l'URI de redirection {uri}",
+                          "Hosted version: pick the « Web » platform and add the redirect URI {uri}"),
+}
+
+
+def _avec_heberge(nom: str, g: dict) -> dict:
+    from app.config import APP_HOSTNAME_PUBLIC, url_rappel
+    g = dict(g)
+    if nom in _HEBERGE and APP_HOSTNAME_PUBLIC and not APP_HOSTNAME_PUBLIC.endswith(".localhost"):
+        chemin, fr, en = _HEBERGE[nom]
+        uri = url_rappel(chemin)
+        g["fr"] = f"{g['fr']} {fr.format(uri=uri)}."
+        g["en"] = f"{g['en']} {en.format(uri=uri)}."
+    return g
+
+
 def guide(nom: str) -> dict | None:
-    return GUIDES.get(nom)
+    g = GUIDES.get(nom)
+    return None if g is None else _avec_heberge(nom, g)
 
 
 def tous() -> dict:
-    return {k: dict(v) for k, v in GUIDES.items()}
+    return {k: _avec_heberge(k, v) for k, v in GUIDES.items()}

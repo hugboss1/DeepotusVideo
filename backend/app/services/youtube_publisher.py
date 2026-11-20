@@ -44,7 +44,9 @@ _VERIFS_MAX = 16
 
 
 def redirect_uri() -> str:
-    return f"http://127.0.0.1:{settings.PORT}/api/oauth/youtube/callback"
+    # t534 : sur le VPS, https://<DEEPOTUS_HOSTNAME>/… (client « Application Web » côté Google)
+    from app.config import url_rappel
+    return url_rappel("/api/oauth/youtube/callback")
 
 
 def _client(timeout: float = 60.0) -> httpx.AsyncClient:
