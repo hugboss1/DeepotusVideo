@@ -7693,6 +7693,16 @@ async def job_media_info(job_id: str):
 
 # ---- Health ----
 
+def _canaux_auto() -> list[str] | None:
+    """Canaux publiés automatiquement par le serveur (triés) ; None (le graphe retombe alors sur les drapeaux
+    <canal>_enabled) plutôt qu'une exception dans /api/health."""
+    try:
+        from app.services import marketing as _mk
+        return sorted(_mk.auto_channels())
+    except Exception:
+        return None
+
+
 @router.get("/health")
 async def health():
     from app import i18n as _i18n
@@ -7713,6 +7723,9 @@ async def health():
         "youtube_enabled": settings.has_youtube,
         "instagram_enabled": settings.has_instagram,
         "tiktok_enabled": settings.has_tiktok,
+        # 10/11/2026 : les canaux que le serveur publie SEUL (adaptateur enregistré et clés présentes), lus par le graphe
+        # du Planificateur pour dire « auto possible » (maillon dzplanifaff) ; il ne disait vrai que pour Telegram et X.
+        "auto_channels": _canaux_auto(),
         "ollama_enabled": settings.has_ollama,
         "fal_configured": bool(settings.FAL_KEY),
         "voiceover_enabled": vo_enabled,

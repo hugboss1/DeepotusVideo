@@ -186,8 +186,11 @@ sys.path.insert(0, str(RACINE / "scripts"))
 sys.path.insert(0, str(_ICI))
 import _i18n_l1_aide as AIDE                                          # noqa: E402
 import patch_bundle_dzlogiciels3d as PM                               # noqa: E402
-check("6.8 avant_dzlogiciels3d == defaire, sans marqueur rendu tel quel",
-      AIDE.avant_dzlogiciels3d(B) == PM.defaire(B) and AIDE.avant_dzlogiciels3d(PM.defaire(B)) == PM.defaire(B))
+# fusion 14/11 : dzplanifaff est rejoué APRÈS dzlogiciels3d ; l'inverse le défait d'abord
+_sans_aval = AIDE.avant_dzplanifaff(B)
+check("6.8 avant_dzlogiciels3d == defaire (maillon aval défait d'abord), sans marqueur rendu tel quel",
+      AIDE.avant_dzlogiciels3d(B) == PM.defaire(_sans_aval)
+      and AIDE.avant_dzlogiciels3d(PM.defaire(_sans_aval)) == PM.defaire(_sans_aval))
 aide = (_ICI / "_i18n_l1_aide.py").read_text("utf-8")
 i = aide.index("def avant_dzclesguides(")
 corps = aide[i:aide.index("\ndef ", i + 10)]
