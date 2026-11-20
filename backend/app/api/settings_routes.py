@@ -217,6 +217,8 @@ async def coffre_etat(request: Request):
     _local(request)
     from app.services import coffre as C
     return {"pose": C.est_pose(), "ouvert": C.ouvert(), "retenu": C.retenu(),
+            # t532 : « retenir » n'existe que par DPAPI (Windows) ou par un fichier de clé (DEEPOTUS_COFFRE_CLE_FICHIER)
+            "retenir_possible": C.voie_retenir() is not None,
             "cles": sorted(C.cles_posees()) if C.ouvert() else []}
 
 
@@ -279,6 +281,12 @@ async def coffre_retenir(request: Request):
         C.retenir()
     except C.CoffreVerrouille as e:
         raise HTTPException(409, str(e))
+    except C.RetenirIndisponible as e:      # t532 : ni DPAPI ni fichier de clé
+        from app import i18n
+        raise HTTPException(501, i18n.msg(e.cle, i18n.langue_requete(request)))
+    except C.CleFichierExposee as e:        # t532 : clé lisible par d'autres comptes
+        from app import i18n
+        raise HTTPException(409, i18n.msg(e.cle, i18n.langue_requete(request), chemin=str(e)))
     return {"ok": True}
 
 

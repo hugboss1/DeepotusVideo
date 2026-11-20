@@ -136,7 +136,7 @@ def test_workflow_construit_et_sonde():
     assert "docker build" in w and "/api/health" in w
     assert "Origin: https://studio.deepotus.tech" in w
     assert "push" not in re.findall(r"docker (\w+)", w), "rien n'est publié"
-    assert "test_hebergee_" in w, "les bancs de la couche hébergée tournent sous Linux"
+    assert "tests/test_*_t53[0-5].py" in w, "les bancs t530-t535 tournent sous Linux (coffre 0600, askpass.sh…)"
     for lab in ("/atelier/", "/vectorlab/", "/photolab/", "/guide/"):
         assert lab in w, lab
 
