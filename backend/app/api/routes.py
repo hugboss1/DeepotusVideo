@@ -4266,6 +4266,8 @@ async def library_recherche(q: str = "", moteur: str = "texte"):
     commentaires, noms) ; « clip » (sémantique, local) arrive en PR D — 503 dit d'ici là."""
     if moteur == "clip":   # tâche #82 PR D : par le SENS, en local
         from app.services import library_clip as LCLIP
+        from app.services import plateforme as PF
+        PF.exiger("clip")                      # t535 : roues win_amd64 seulement
         if not LCLIP.installe():
             raise HTTPException(503, "CLIP n'est pas installé (Recherche → Installer CLIP).")
         return await asyncio.to_thread(LCLIP.chercher, q[:200])
@@ -4276,10 +4278,15 @@ async def library_recherche(q: str = "", moteur: str = "texte"):
 
 
 @router.get("/library/clip/etat")
-async def library_clip_etat():
-    """Tâche #82 PR D : CLIP installé ? taille, avancement de l'installation et de l'index."""
+async def library_clip_etat(request: Request):
+    """Tâche #82 PR D : CLIP installé ? taille, avancement de l'installation et de l'index.
+    t535 : + disponible / raison (grisé hors Windows : l'installeur ne connaît que des roues win_amd64)."""
+    from app import i18n
     from app.services import library_clip as LCLIP
-    return await asyncio.to_thread(LCLIP.etat)
+    from app.services import plateforme as PF
+    e = await asyncio.to_thread(LCLIP.etat)
+    ok = PF.disponible("clip")
+    return {**e, "disponible": ok, "raison": "" if ok else PF.message("clip").dans(i18n.langue_requete(request))}
 
 
 @router.post("/library/clip/installer")
@@ -4288,6 +4295,8 @@ async def library_clip_installer(request: Request):
     dans <données>/clip, en tâche de fond. Gratuit ; réservé à la machine locale. 409 si déjà en cours."""
     _require_localhost(request)
     from app.services import library_clip as LCLIP
+    from app.services import plateforme as PF
+    PF.exiger("clip")                          # t535
     if not LCLIP.lancer_installation():
         raise HTTPException(409, "Une installation de CLIP est déjà en cours.")
     return {"lance": True, "octets": LCLIP.TOTAL_OCTETS}
@@ -4297,6 +4306,8 @@ async def library_clip_installer(request: Request):
 async def library_clip_indexer(request: Request):
     """Calcule les vecteurs des images nouvelles ou modifiées (local, gratuit), en tâche de fond."""
     _require_localhost(request)
+    from app.services import plateforme as PF
+    PF.exiger("clip")                          # t535
     from app.services import library_clip as LCLIP
     if not LCLIP.installe():
         raise HTTPException(503, "CLIP n'est pas installé.")
@@ -18753,6 +18764,8 @@ async def print3d_open(body: dict):
     """Ouvre le `.3mf` d'un export dans le slicer. Le nom de dossier est
     CONTENU dans assets/print3d — jamais de startfile arbitraire."""
     from app.services import print3d as P3
+    from app.services import plateforme as PF
+    PF.exiger("slicer")                        # t535 : un slicer lancé sur le serveur n'ouvre rien chez l'utilisateur
     nom = str(body.get("dossier") or "")
     safe = Path(nom).name
     if not safe or safe != nom or safe in (".", ".."):

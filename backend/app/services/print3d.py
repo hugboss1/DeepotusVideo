@@ -520,6 +520,8 @@ def ouvrir_dans_slicer(chemin) -> str:
     l'association Windows (`os.startfile`). Rend le mode employé."""
     import os
     import subprocess
+    from app.services import plateforme as PF
+    PF.exiger("slicer")                      # t535
     slicer = os.environ.get("SLICER_PATH", "").strip()
     if slicer:
         subprocess.Popen([slicer, str(chemin)])

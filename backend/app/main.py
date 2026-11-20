@@ -296,6 +296,26 @@ async def _http_exception_traduite(request, exc):
             logger.warning(f"traduction d'erreur ignorée : {e}")
     return await _http_exception_handler(request, exc)
 
+# t535 (20/11/2026, couche hébergée ⑥) : un outil réservé à Windows, demandé ailleurs (le VPS) -> 501 traduit.
+from app.services.plateforme import ReserveWindows as _ReserveWindows
+from starlette.requests import Request as _Request
+
+
+@app.exception_handler(_ReserveWindows)
+async def _reserve_windows(request, exc):
+    from app import i18n as _i18n
+    return _JSONResponse({"detail": _i18n.texte(exc, _i18n.langue_requete(request)), "code": "windows_seul",
+                          "outil": exc.outil}, status_code=501)
+
+
+@app.get("/api/plateforme")
+async def _plateforme(request: _Request):
+    """t535 : {windows, indisponibles: {outil: raison traduite}} — l'écran grise ces outils."""
+    from app import i18n as _i18n
+    from app.services import plateforme as _PF
+    return _PF.etat(_i18n.langue_requete(request))
+
+
 # CORS — the Vite dev server only. A shipped install serves the UI from this
 # same origin and needs no cross-origin grant, so leaving credentialed access
 # open to :5173/:3000 would just hand any local process that binds those ports

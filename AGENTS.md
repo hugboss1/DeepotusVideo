@@ -152,6 +152,9 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
   navigateur ouvre l'écran (garde CSRF, gardes « écran » de Blender et du MCP, WebSocket du direct) se lit dans
   `config.NOMS_ECRAN` (`deepotus.localhost` + `DEEPOTUS_HOSTNAME` du VPS), jamais une liste en dur. L'adresse cliente,
   elle, reste exigée locale : sur le VPS, Caddy parle depuis 127.0.0.1. Banc `test_hebergee_hote_t530.py`.
+- Un outil réservé à Windows (t535) passe par `services/plateforme.py` : son état dit `disponible`/`raison`, ses gestes
+  appellent `plateforme.exiger("<outil>")` (501 traduit `plateforme.windows_seul`, jamais un 500 ni un processus
+  lancé sur le VPS) ; `GET /api/plateforme` les liste. Banc `test_hebergee_windows_seul_t535.py`.
 - Les bancs arrivent avant le code (TDD). Les bancs de patch ont leur inverse.
 
 ## Git
