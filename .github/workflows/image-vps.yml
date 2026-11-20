@@ -1,5 +1,5 @@
 # t531 (20/11/2026) — couche hébergée : construit l'image du VPS et la sonde. RIEN n'est publié (pas de registre).
-# Les bancs de la couche hébergée (test_hebergee_*) tournent aussi ici, sous un vrai Linux.
+# Les bancs de la couche hébergée (test_hebergee_* et les autres bancs t530-t535) tournent aussi ici, sous un vrai Linux.
 name: image-vps
 
 on:
@@ -28,11 +28,11 @@ jobs:
           python-version: "3.13"
       - name: Dépendances
         run: pip install -r backend/requirements.txt pytest
-      - name: Bancs test_hebergee_*
+      - name: Bancs de la couche hébergée (t530-t535)
         working-directory: backend
         run: |
           set -e
-          for t in tests/test_hebergee_*.py; do
+          for t in tests/test_*_t53[0-5].py; do
             echo "== $t"
             python "$t"
           done
