@@ -1,0 +1,6 @@
+#!/bin/sh
+# t531 (20/11/2026) : le navigateur du bac à sable motion code DANS le conteneur (DEEPOTUS_NAVIGATEUR).
+# Le bac à sable de Chromium exige des espaces de noms que Docker refuse à un utilisateur sans privilèges :
+# l'isolation est ici celle du conteneur (utilisateur deepotus, sans capacités, système de fichiers à part).
+# /dev/shm vaut 64 Mo par défaut dans Docker : Chromium écrit ses tampons partagés dans /tmp.
+exec /usr/bin/chromium --no-sandbox --disable-dev-shm-usage "$@"
