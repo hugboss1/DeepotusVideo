@@ -120,6 +120,10 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
   `claude mcp add deepotus -e DEEPOTUS_URL=http://127.0.0.1:8799 -- $PY <worktree>/backend/app/mcp_stdio.py` vise un
   backend de preuve (l'activer d'abord dans ses Réglages).
 - Installation : comparer les empreintes avec `git hash-object`, jamais sha256.
+- Version hébergée (t531) : `Dockerfile` à la racine, `deploiement/vps/` (compose, Caddyfile, pas à pas). Le PC n'a pas
+  Docker : l'image est construite et sondée par `.github/workflows/image-vps.yml`, qui lance aussi les bancs
+  `test_hebergee_*` sous Linux. Deepotus et Caddy partagent le réseau de l'hôte ; uvicorn écoute 127.0.0.1 avec
+  `--no-proxy-headers` (banc `test_hebergee_image_t531`).
 - Relance de l'app installée (t386) : `scripts\launch-silent.vbs` appelle `scripts\stop.ps1 -Port 8765 -AppDir <app>`.
   Ce script reconnaît le backend à sa LIGNE DE COMMANDE (`-m uvicorn app.main:app … --port 8765`, exécutable sous
   le dossier de l'app), l'arrête avec ses enfants (`ParentProcessId`, `spawn_main(parent_pid=…)`), ne touche jamais

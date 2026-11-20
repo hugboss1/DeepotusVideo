@@ -1,3 +1,8 @@
 # Avatar live G4 (t165) : le SDK Decart empaqueté est servi tel quel — aucune conversion de fin de ligne
 # (un module minifié peut porter des sauts de ligne DANS ses gabarits de chaînes).
 frontend/avatar/vendor/*.js -text
+# t531 (couche hébergée) : les fichiers lus par Linux dans l'image et sur le VPS gardent des fins de ligne LF.
+deploiement/vps/** text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+.github/workflows/*.yml text eol=lf

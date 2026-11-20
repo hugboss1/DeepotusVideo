@@ -13195,6 +13195,10 @@
   "fr": "dossier : chemin absolu requis (C:\\…, Z:\\… ou \\\\NAS\\partage\\…)",
   "en": "folder: absolute path required (C:\\…, Z:\\… or \\\\NAS\\share\\…)"
  },
+ "dossier : chemin absolu requis (/srv/…, /depot)": {
+  "fr": "dossier : chemin absolu requis (/srv/…, /depot)",
+  "en": "folder: absolute path required (/srv/…, /depot)"
+ },
  "dossier : chemin UNC incomplet (\\\\serveur\\partage\\…)": {
   "fr": "dossier : chemin UNC incomplet (\\\\serveur\\partage\\…)",
   "en": "folder: incomplete UNC path (\\\\server\\share\\…)"

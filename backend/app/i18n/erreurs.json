@@ -3573,6 +3573,7 @@
   "erreur.f31138e981": {"fr": "paquet d'espace : compte n°{v} illisible", "en": "space package: account no. {v} unreadable", "src": "fr"},
   "erreur.f319845925": {"fr": "hashtags : une liste de {MAX_TAGS} textes au plus", "en": "hashtags: a list of {MAX_TAGS} texts at most", "src": "fr"},
   "erreur.f3372481ff": {"fr": "date du consentement invalide (AAAA-MM-JJ, pas dans le futur)", "en": "invalid consent date (YYYY-MM-DD, not in the future)", "src": "fr"},
+  "erreur.f36f045c2b": {"fr": "dossier : chemin absolu requis (/srv/…, /depot)", "en": "folder: absolute path required (/srv/…, /depot)", "src": "fr"},
   "erreur.f36ff39592": {"fr": "Aucune scène à rendre", "en": "No scenes to render", "src": "en"},
   "erreur.f38555bdab": {"fr": "Sauvegarde refusée — plus de 2 Mo.", "en": "Save rejected — over 2 MB.", "src": "fr"},
   "erreur.f3dbd17198": {"fr": "aucune pièce à creuser dans la scène active", "en": "no part to hollow in the active scene", "src": "fr"},
