@@ -1,0 +1,27 @@
+# t531 : l'image prend le backend, la coque et les labs (frontend), le guide et docs/agent, assets, vendor et le
+# lanceur Chromium (voir Dockerfile). Jamais de données, de secrets ni de sources de build.
+.git
+.github
+.claude
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.env
+**/*.db
+**/*.db-journal
+**/*.log
+**/node_modules
+**/qa
+backend/tests
+backend/outputs
+frontend/src
+frontend/patches
+installer
+docs/superpowers
+docs/licences
+docs/icones
+scripts
+tools
+release
+runtime
+bin
