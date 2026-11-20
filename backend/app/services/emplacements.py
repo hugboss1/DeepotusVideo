@@ -32,7 +32,7 @@ import subprocess
 import tempfile
 import unicodedata
 from datetime import datetime
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from loguru import logger
 
@@ -125,14 +125,38 @@ def _dans(enfant: Path, parent: Path) -> bool:
         return False
 
 
+def _chemins_posix() -> bool:
+    """t533 (20/11/2026, couche hébergée ④) : hors Windows (le VPS), les chemins locaux sont POSIX."""
+    return os.name != "nt"
+
+
+def _chemin_posix(s: str):
+    """Un chemin POSIX absolu, normalisé (« //a/./b/ » -> « /a/b ») ; None s'il est relatif, porte « .. » ou un
+    antislash (un chemin Windows tapé par erreur)."""
+    if not s.startswith("/") or "\\" in s:
+        return None
+    p = PurePosixPath(s)
+    if ".." in p.parts:
+        return None
+    return PurePosixPath("/", *[x for x in p.parts[1:] if x not in ("", ".")])
+
+
 def verifier_dossier(v) -> str:
-    """Un chemin ABSOLU (lettre de lecteur ou UNC), hors des dossiers de l'application et de ses données : une
-    sauvegarde rangée dans ce qu'elle sauvegarde se recopierait elle-même."""
+    """Un chemin ABSOLU (lettre de lecteur ou UNC ; t533 : /… hors Windows), hors des dossiers de l'application et de
+    ses données : une sauvegarde rangée dans ce qu'elle sauvegarde se recopierait elle-même."""
     s = str(v or "").strip().strip('"')
     if not s:
         raise ValueError("dossier : chemin requis")
     if any(ord(c) < 32 for c in s) or len(s) > 400:
         raise ValueError("dossier : chemin invalide")
+    if _chemins_posix():
+        px = _chemin_posix(s)
+        if px is None:
+            raise ValueError("dossier : chemin absolu requis (/srv/…, /depot)")
+        for interdit in (DATA_ROOT, settings.images_path, settings.outputs_path):
+            if _dans(Path(str(px)), Path(interdit)) or _dans(Path(interdit), Path(str(px))):
+                raise ValueError("dossier : pas dans les dossiers de l'application ni au-dessus")
+        return str(px)
     p = PureWindowsPath(s)
     if not (p.is_absolute() and (p.drive.startswith("\\\\") or re.match(r"^[A-Za-z]:$", p.drive))):
         raise ValueError("dossier : chemin absolu requis (C:\\…, Z:\\… ou \\\\NAS\\partage\\…)")
@@ -163,7 +187,8 @@ def _sftp_champs(c: dict, avant: dict | None = None) -> dict:
     if not _DISTANT.match(distant):
         raise ValueError("sftp : dossier distant invalide (chemin absolu /…)")
     cle_ssh = str(c.get("cle_ssh", a.get("cle_ssh")) or "").strip()
-    if cle_ssh and (any(ord(ch) < 32 for ch in cle_ssh) or not PureWindowsPath(cle_ssh).is_absolute()):
+    absolu = (_chemin_posix(cle_ssh) is not None) if _chemins_posix() else PureWindowsPath(cle_ssh).is_absolute()
+    if cle_ssh and (any(ord(ch) < 32 for ch in cle_ssh) or not absolu):
         raise ValueError("sftp : fichier de clé SSH invalide (chemin absolu)")
     return {"hote": hote, "port": port, "utilisateur": util, "dossier_distant": distant.rstrip("/") or "/",
             "cle_ssh": cle_ssh}
@@ -367,7 +392,13 @@ def _known_hosts() -> Path:
 
 def _askpass(dossier: Path) -> Path:
     """Le petit programme que ssh appelle pour lire le mot de passe : il le RECOPIE depuis une variable
-    d'environnement du seul processus sftp ; le mot de passe n'est jamais écrit dans un fichier."""
+    d'environnement du seul processus sftp ; le mot de passe n'est jamais écrit dans un fichier.
+    t533 : hors Windows, un script shell 0700 (printf, aucune évaluation du secret)."""
+    if _chemins_posix():
+        f = dossier / "askpass.sh"
+        f.write_bytes(b'#!/bin/sh\nprintf \'%s\\n\' "$DZC_ASKPASS"\n')
+        os.chmod(f, 0o700)
+        return f
     f = dossier / "askpass.cmd"
     f.write_text("@echo off\r\nsetlocal EnableDelayedExpansion\r\necho(!DZC_ASKPASS!\r\n", encoding="ascii")
     return f
