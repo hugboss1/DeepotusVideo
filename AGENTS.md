@@ -144,6 +144,10 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
   (version lue dans Engine/Build/Build.version, lanceur Epic), Unity (version du dossier Unity Hub, glTFast vérifié) :
   aucun test ne LANCE Unreal ni Unity. Bancs `backend/tests/test_logiciels3d_t521.py`, `test_logiciels3d_lot2_t521.py`.
 - On n'écrit jamais une clé dans un journal, une URL ou une réponse.
+- Couche hébergée (t530, plan `docs/superpowers/plans/2026-11-20-couche-hebergee-vps.md`) : un nom sous lequel le
+  navigateur ouvre l'écran (garde CSRF, gardes « écran » de Blender et du MCP, WebSocket du direct) se lit dans
+  `config.NOMS_ECRAN` (`deepotus.localhost` + `DEEPOTUS_HOSTNAME` du VPS), jamais une liste en dur. L'adresse cliente,
+  elle, reste exigée locale : sur le VPS, Caddy parle depuis 127.0.0.1. Banc `test_hebergee_hote_t530.py`.
 - Les bancs arrivent avant le code (TDD). Les bancs de patch ont leur inverse.
 
 ## Git
