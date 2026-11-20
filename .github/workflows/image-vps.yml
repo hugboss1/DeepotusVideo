@@ -62,6 +62,12 @@ jobs:
           echo
           # La coque web est servie.
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8765/)" -lt 400
+          # Les labs et le guide, servis hors de frontend/dist.
+          for chemin in /atelier/ /vectorlab/ /photolab/ /spritelab/ /tilelab/ /cardforge/ /studio3d/ /etabli/ /guide/fr.html; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8765$chemin")
+            echo "$chemin -> $code"
+            test "$code" = "200"
+          done
           # Garde CSRF (t530) : l'origine du domaine passe, une origine étrangère est refusée.
           ok=$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' \
                -H 'Origin: https://studio.deepotus.tech' http://127.0.0.1:8765/api/settings/keys)

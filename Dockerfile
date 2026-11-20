@@ -19,7 +19,12 @@ COPY backend/requirements.txt backend/requirements.txt
 RUN pip install -r backend/requirements.txt
 
 COPY backend/app backend/app
-COPY frontend/dist frontend/dist
+# La coque (frontend/dist) ET les labs servis à part (/atelier, /vectorlab, /photolab… : frontend/<lab>), le guide
+# (/guide) et la connaissance de l'assistant (docs/agent) ; frontend/src et node_modules restent dehors (.dockerignore).
+COPY frontend frontend
+COPY docs/guide docs/guide
+COPY docs/agent docs/agent
+COPY assets assets
 COPY vendor vendor
 COPY --chmod=755 deploiement/vps/chromium-conteneur /usr/local/bin/chromium-conteneur
 

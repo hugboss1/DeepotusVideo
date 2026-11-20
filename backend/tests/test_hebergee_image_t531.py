@@ -67,9 +67,18 @@ def test_lanceur_chromium_du_conteneur():
 
 def test_dockerignore_ecarte_donnees_et_secrets():
     ig = _lire(RACINE / ".dockerignore")
-    for motif in (".git", "**/__pycache__", "**/.env", "**/*.db", "installer", "docs"):
+    for motif in (".git", "**/__pycache__", "**/.env", "**/*.db", "installer", "docs/superpowers", "frontend/src"):
         assert motif in ig.split(), motif
-    assert "frontend/dist" not in ig.split()
+    for garde in ("frontend", "frontend/dist", "docs", "docs/guide", "docs/agent", "assets"):
+        assert garde not in ig.split(), garde
+
+
+def test_image_porte_les_labs_le_guide_et_la_connaissance():
+    """Le backend sert /atelier, /vectorlab, /photolab… depuis frontend/<lab>, /guide depuis docs/guide, et lit
+    docs/agent (assistant, fiches modèle) : copier frontend/dist seul les ferait disparaître sans erreur."""
+    d = _lire(RACINE / "Dockerfile")
+    for src in ("frontend", "docs/guide", "docs/agent", "assets"):
+        assert re.search(rf"^COPY {re.escape(src)} {re.escape(src)}$", d, re.M), src
 
 
 def _service(compose: str, nom: str) -> str:
@@ -128,6 +137,8 @@ def test_workflow_construit_et_sonde():
     assert "Origin: https://studio.deepotus.tech" in w
     assert "push" not in re.findall(r"docker (\w+)", w), "rien n'est publié"
     assert "test_hebergee_" in w, "les bancs de la couche hébergée tournent sous Linux"
+    for lab in ("/atelier/", "/vectorlab/", "/photolab/", "/guide/"):
+        assert lab in w, lab
 
 
 # Paquets importés par app/ qui n'ont PAS à être dans requirements.txt : la stdlib, Blender (bpy), et les dépendances

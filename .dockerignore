@@ -1,4 +1,5 @@
-# t531 : l'image ne prend que le backend, la coque web compilée, vendor et le lanceur Chromium (voir Dockerfile).
+# t531 : l'image prend le backend, la coque et les labs (frontend), le guide et docs/agent, assets, vendor et le
+# lanceur Chromium (voir Dockerfile). Jamais de données, de secrets ni de sources de build.
 .git
 .github
 .claude
@@ -10,12 +11,16 @@
 **/*.db-journal
 **/*.log
 **/node_modules
+**/qa
 backend/tests
 backend/outputs
+frontend/src
+frontend/patches
 installer
-docs
+docs/superpowers
+docs/licences
+docs/icones
 scripts
-assets
 tools
 release
 runtime
