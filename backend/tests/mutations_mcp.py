@@ -29,7 +29,7 @@ M = [
     (PONT, '        d = _transition(jeton, ("devis",), "en_attente",', '        d = _transition(jeton, ("devis",), "lancee",',
      ["3.5", "3.9"]),
     # 3 — le client MCP peut faire avancer la demande : la garde d'Origin des gestes de l'écran disparaît
-    (ROUTES, '    if not h or h not in (_HOTES_ECRAN | {APP_HOSTNAME}):', '    if False:', ["2.4", "3.11", "3.12"]),
+    (ROUTES, '    if not h or h not in (_HOTES_ECRAN | NOMS_ECRAN):', '    if False:', ["2.4", "3.11", "3.12"]),
     # 4 — serveur actif par défaut
     (PONT, '    return bool(_lire_json(dossier() / "reglages.json", {}).get("actif") is True)',
      '    return bool(_lire_json(dossier() / "reglages.json", {"actif": True}).get("actif", True))', ["2.1", "2.2", "2.3"]),
