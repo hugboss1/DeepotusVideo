@@ -144,6 +144,9 @@ de référence, l'anglais en est la traduction. Le produit est décrit dans `PRO
   (version lue dans Engine/Build/Build.version, lanceur Epic), Unity (version du dossier Unity Hub, glTFast vérifié) :
   aucun test ne LANCE Unreal ni Unity. Bancs `backend/tests/test_logiciels3d_t521.py`, `test_logiciels3d_lot2_t521.py`.
 - On n'écrit jamais une clé dans un journal, une URL ou une réponse.
+- Un outil réservé à Windows (t535) passe par `services/plateforme.py` : son état dit `disponible`/`raison`, ses gestes
+  appellent `plateforme.exiger("<outil>")` (501 traduit `plateforme.windows_seul`, jamais un 500 ni un processus
+  lancé sur le VPS) ; `GET /api/plateforme` les liste. Banc `test_hebergee_windows_seul_t535.py`.
 - Les bancs arrivent avant le code (TDD). Les bancs de patch ont leur inverse.
 
 ## Git
