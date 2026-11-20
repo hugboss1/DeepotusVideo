@@ -1,0 +1,22 @@
+# t531 : l'image ne prend que le backend, la coque web compilée, vendor et le lanceur Chromium (voir Dockerfile).
+.git
+.github
+.claude
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.env
+**/*.db
+**/*.db-journal
+**/*.log
+**/node_modules
+backend/tests
+backend/outputs
+installer
+docs
+scripts
+assets
+tools
+release
+runtime
+bin
