@@ -167,6 +167,38 @@ async def main():
               and r.json()["totaux"]["posts"] == 4 and "IGbanc" not in r.text, r.text[:200])
         _C.panne = False
         check("D7 l'ancienne route analytics tient", cl.get("/api/schedule/analytics").status_code == 200)
+        # 10/11/2026 (essai réel) : le compte lu est celui de L'ESPACE demandé, pas le compte historique
+        from app.services import comptes as CP, espaces as ES
+        perso = ES.creer({"nom": "Perso banc"})["id"]
+        vide = ES.creer({"nom": "Sans compte"})["id"]
+        CP.creer({"espace_id": perso, "plateforme": "instagram",
+                  "valeurs": {"IG_ACCESS_TOKEN": "EAAperso", "IG_BUSINESS_ID": "1784"}})
+        ig._cache_compte.clear()
+        _C.appels.clear()
+        r = cl.get(f"/api/schedule/croissance?espace_id={perso}")
+        check("D8 un espace : SON compte Instagram est lu (son identifiant, son jeton, son hôte)",
+              r.status_code == 200 and r.json()["compte"]["instagram"] is not None and _C.appels
+              and all(u.startswith("https://graph.facebook.com/") and "/1784" in u and p["access_token"] == "EAAperso"
+                      for u, p in _C.appels), str(_C.appels[:1]))
+        check("D9 le jeton de l'espace n'est pas dans la réponse", "EAAperso" not in r.text)
+        _C.appels.clear()
+        r = cl.get(f"/api/schedule/croissance?espace_id={vide}")
+        check("D10 un espace sans compte Instagram : None, aucun appel, jamais le compte d'un autre",
+              r.json()["compte"] == {"instagram": None} and not _C.appels, str(_C.appels[:1]))
+        ES.activer(perso)
+        ig._cache_compte.clear()
+        _C.appels.clear()
+        r = cl.get("/api/schedule/croissance")
+        check("D11 tous les espaces : le compte de l'espace ACTIF",
+              r.json()["compte"]["instagram"] is not None and all("/1784" in u for u, _p in _C.appels) and _C.appels,
+              str(_C.appels[:1]))
+        ES.activer("deepotus")
+        ig._cache_compte.clear()
+        _C.appels.clear()
+        r = cl.get("/api/schedule/croissance?espace_id=deepotus")
+        check("D12 l'espace Deepotus garde son compte historique (clés plates)",
+              r.json()["compte"]["instagram"] is not None and all("/42" in u and p["access_token"] == "IGbanc"
+                                                                  for u, p in _C.appels) and _C.appels, str(_C.appels[:1]))
 
 
 asyncio.run(main())
