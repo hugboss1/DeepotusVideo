@@ -264,6 +264,60 @@ for f in (1, 30, 60):
     sp.rotation_quaternion = (1, 0, 0, 0.1 * f / 60); sp.keyframe_insert("rotation_quaternion", frame=f)
 bpy.ops.object.mode_set(mode="OBJECT")
 bpy.ops.wm.save_as_mainfile(filepath=dossier + "/rig.blend")
+# (4) un rig facon Blender Studio (CloudRig, comme Rain) : des os de MECANIQUE dont le nom contient jaw / lid /
+# corner / brow sont crees AVANT les vraies commandes (collection « Face Main », forme de commande, MSTR-/ACT-) ;
+# la tete a une cle PILOTEE par l'os de la paupiere ; le corps a plus de cles, mais aucune du visage
+vider()
+bpy.ops.object.armature_add(location=(0, 0, 0))
+arm = bpy.context.object; arm.name = "RIG-studio"
+bpy.ops.object.mode_set(mode="EDIT")
+eb = arm.data.edit_bones
+eb[0].name = "spine"; eb[0].head = (0, 0, 0); eb[0].tail = (0, 0, 1.4)
+os_("head", (0, 0, 1.45), (0, 0, 1.8))
+for s, x in (("L", 0.06), ("R", -0.06)):
+    os_("P-BB-JawLine_3." + s, (x, 0.0, 1.52), (x, -0.1, 1.50), "head")
+    os_("P-ACT-Lips_Corner." + s, (x * 0.8, -0.15, 1.53), (x * 0.8, -0.15, 1.55), "head")
+    os_("N-BB-Eyelid_Top_2." + s, (x, -0.15, 1.65), (x, -0.15, 1.67), "head")
+    os_("AIM-TAN-Tail-Eyebrow_Lower_4." + s, (x, -0.15, 1.70), (x, -0.15, 1.72), "head")
+os_("MSTR-Jaw", (0, 0.02, 1.58), (0, -0.12, 1.50), "head")
+for s, x in (("L", 0.06), ("R", -0.06)):
+    os_("ACT-Lips_Corner." + s, (x * 0.8, -0.15, 1.53), (x * 0.8, -0.15, 1.55), "head")
+    os_("ACT-Eyelid_Upper." + s, (x, -0.15, 1.65), (x, -0.15, 1.67), "head")
+    os_("MSTR-Eyebrow." + s, (x, -0.15, 1.70), (x, -0.15, 1.72), "head")
+bpy.ops.object.mode_set(mode="OBJECT")
+bpy.ops.mesh.primitive_circle_add(radius=0.01)
+wgt = bpy.context.object; wgt.name = "WGT-Ctrl"
+main = arm.data.collections.new("Face Main")
+meca = arm.data.collections.new("P-BB: Parent of BB Controllers")
+for b in arm.data.bones:
+    if b.name in ("spine", "head"):
+        continue
+    if b.name.startswith(("MSTR-", "ACT-")):
+        main.assign(b)
+        arm.pose.bones[b.name].custom_shape = wgt
+    else:
+        meca.assign(b)
+bpy.ops.mesh.primitive_uv_sphere_add(radius=0.15, location=(0, 0, 1.6))
+tete = bpy.context.object; tete.name = "GEO-studio-head"
+tete.modifiers.new("Armature", "ARMATURE").object = arm
+tete.shape_key_add(name="Basis")
+for n in ("mouth_open", "EyelidsClose.L", "Smile.L"):
+    k = tete.shape_key_add(name=n)
+    for d in k.data:
+        d.co.z -= 0.005
+fc = tete.data.shape_keys.key_blocks["EyelidsClose.L"].driver_add("value")
+fc.driver.type = "SCRIPTED"
+v = fc.driver.variables.new(); v.name = "var"; v.type = "TRANSFORMS"
+v.targets[0].id = arm; v.targets[0].bone_target = "ACT-Eyelid_Upper.L"
+v.targets[0].transform_type = "LOC_Y"; v.targets[0].transform_space = "LOCAL_SPACE"
+fc.driver.expression = "var*-25"
+bpy.ops.mesh.primitive_cylinder_add(radius=0.2, depth=1.3, location=(0, 0, 0.7))
+corps = bpy.context.object; corps.name = "GEO-studio-body"
+corps.modifiers.new("Armature", "ARMATURE").object = arm
+corps.shape_key_add(name="Basis")
+for n in ("Spine_Fwd", "Spine_Back", "Chest_Fwd", "Chest_Back", "Thigh_Fwd.L", "Thigh_Fwd.R"):
+    corps.shape_key_add(name=n)
+bpy.ops.wm.save_as_mainfile(filepath=dossier + "/studio.blend")
 '''
 
 INSPECTE = r'''
@@ -281,7 +335,13 @@ for o in s.objects:
             dz = [kb.data[i].co.z - o.data.vertices[i].co.z for i in range(len(kb.data))]
             out[o.name]["jaw_min_dz"] = min(dz)
             out[o.name]["jaw_n"] = sum(1 for x in dz if abs(x) > 1e-6)
-    if o.type == "ARMATURE":
+    if o.type == "MESH" and o.name == "GEO-studio-head":
+        haut = 0.0
+        for f in range(1, 140):
+            s.frame_set(f)
+            haut = max(haut, o.data.shape_keys.key_blocks["EyelidsClose.L"].value)
+        out[o.name]["fermeture_max"] = haut
+    if o.type == "ARMATURE" and "jaw_master" in o.pose.bones:
         r = {}
         for f in (1, 6):
             s.frame_set(f)
@@ -377,6 +437,18 @@ if exe and os.environ.get("VISAGE_SANS_BLENDER") != "1":
     check("B7 la mâchoire s'ouvre VERS LE BAS", r.get("jaw_tail_min_z", 9) < r.get("jaw_tail_rest_z", 0) - 0.01, r)
     check("B8 la paupière descend au clignement", r.get("lid_min_z", 9) < r.get("lid_rest_z", 0) - 0.001, r)
     check("B9 l'animation du corps (spine) est intacte", r.get("spine_cles") == 12, r)   # 3 images × 4 canaux
+    rc, res, ins, o = animer("studio")
+    st = ins.get("GEO-studio-head", {})
+    an = (res or {}).get("animees", [])
+    check("B11 rig Blender Studio : tête choisie (pas le corps), clé pilotée laissée au rig → mode « os »",
+          res and res["mode"] == "os" and res["objet"] == "GEO-studio-head"
+          and "EyelidsClose.L" in res.get("pilotees", []), (res, o[-600:]))
+    check("B12 les VRAIES commandes (MSTR-/ACT-, « Face Main ») et aucun os de mécanique",
+          all(any(x.startswith(n + " ") for x in an) for n in ("MSTR-Jaw", "ACT-Lips_Corner.L", "ACT-Eyelid_Upper.L",
+                                                              "MSTR-Eyebrow.L", "ACT-Eyelid_Upper.R"))
+          and not any(x.startswith(("P-", "N-", "AIM-")) for x in an), an)
+    check("B13 la paupière animée ferme l'œil par le driver du rig (EyelidsClose.L > 0,3)",
+          st.get("fermeture_max", 0) > 0.3, st)
     import shutil
     shutil.copy(_tmp / "genere.blend", _tmp / "outputs" / "perso.blend")
     rr = cl.post("/api/blender/visage/fichier", json={"source": "outputs/perso.blend", "texte": "Salut, ca va ?"})

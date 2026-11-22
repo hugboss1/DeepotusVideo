@@ -44,6 +44,19 @@ activité, pilotage sans interface). Rien n'a été cloné ni exécuté.
   - pour chacun : commande à copier, écrans aidés, licence et état local ;
   - banc : `test_mcp_catalogue`.
 
+## Essai sur Rain (Blender Studio, CC-BY, rig CloudRig v3.4) — 22/11/2026
+
+- Premier passage : le tri par nom prenait des os de MÉCANIQUE (P-BB-JawLine_3.L, N-BB-Eyelid_Top_2.L, AIM-TAN-…)
+  et le maillage du corps (79 clés de correction) au lieu de la tête.
+- Corrigé :
+  - les os sont classés par `rang()` : forme de commande, collection visible « Face Main », préfixes MSTR-/ACT-/CTR- ;
+    les préfixes CloudRig P-, N-, AIM-, TAN-, GRP-, SK-, HLP- sont écartés ;
+  - le maillage choisi est celui dont les clés parlent du visage ;
+  - les clés pilotées par un driver (20 sur la tête de Rain) sont laissées au rig : en automatique, on anime alors ses os.
+- Résultat : MSTR-Jaw, ACT-Lips_Corner, ACT-Eyelid_Upper et MSTR-Eyebrow animés. Au rendu EEVEE, les yeux se ferment,
+  la mâchoire s'ouvre (dents visibles), le sourire et les sourcils bougent.
+- Banc : cas « rig façon Blender Studio » B11-B13 (53 vérifications).
+
 ## Lots suivants proposés
 1. gltfpack dans l'Établi : densités et compression d'un clic.
 2. AutoRemesher : remaillage en quads avant le rig d'un visage parlant.

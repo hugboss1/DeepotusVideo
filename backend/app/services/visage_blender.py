@@ -598,6 +598,9 @@ def norm(t):
     return "".join(c for c in t.lower() if c.isalnum() or c in "._")
 
 
+MOTS_VISAGE = ("mouth", "lip", "jaw", "eye", "blink", "brow", "smile", "cheek", "viseme", "frown", "pucker")
+
+
 def dire():
     print("DZVISAGE " + json.dumps(resume))
 
@@ -613,17 +616,28 @@ def choisir_objet():
         if o is not None and o.type == "MESH":
             return o
         resume["erreurs"].append("objet introuvable : " + P["objet"])
+    # d'abord le maillage dont les cles de forme parlent du VISAGE (la tete de Rain, pas son corps a 79 cles de
+    # correction), puis le nombre de cles, puis le nombre de sommets
     meilleurs = []
     for o in maillages():
-        n = len(o.data.shape_keys.key_blocks) if o.data.shape_keys else 0
-        meilleurs.append((n, len(o.data.vertices), o.name, o))
+        f = 0
+        n = 0
+        if o.data.shape_keys:
+            for kb in o.data.shape_keys.key_blocks:
+                n += 1
+                k = kb.name.lower()
+                for m in MOTS_VISAGE:
+                    if m in k:
+                        f += 1
+                        break
+        meilleurs.append((f, n, len(o.data.vertices), o.name, o))
     if not meilleurs:
         return None
     meilleur = meilleurs[0]
     for m in meilleurs:
-        if (m[0], m[1]) > (meilleur[0], meilleur[1]):
+        if (m[0], m[1], m[2]) > (meilleur[0], meilleur[1], meilleur[2]):
             meilleur = m
-    return meilleur[3]
+    return meilleur[4]
 
 
 def choisir_armature(obj):
@@ -695,7 +709,19 @@ def animer_cles(obj):
     sk = obj.data.shape_keys
     if sk is None:
         return False
-    blocs = [kb for kb in sk.key_blocks if kb != sk.reference_key]
+    # une cle PILOTEE par le rig (driver : EyelidsClose de Rain suit l'os de la paupiere) ignore les cles qu'on
+    # y poserait : on la laisse, et c'est l'os qui la commande (mode os)
+    pilotes = set()
+    ad = sk.animation_data
+    if ad is not None:
+        for d in ad.drivers:
+            if d.data_path.startswith('key_blocks["'):
+                pilotes.add(d.data_path.split('"')[1])
+    if pilotes:
+        resume["pilotees"] = sorted(pilotes)
+        if P["mode"] == "auto":
+            return False   # le visage est commande par le rig : en automatique, on anime ses os
+    blocs = [kb for kb in sk.key_blocks if kb != sk.reference_key and kb.name not in pilotes]
     if not blocs:
         return False
     vis = {}
@@ -748,12 +774,45 @@ def cote(nom):
 
 
 def est_mecanique(nom):
+    """Os de mecanique (Rigify : MCH/ORG/DEF ; CloudRig de Blender Studio : P-, N-, AIM-, TAN-, GRP-, SK-, HLP-)."""
     n = nom.lower()
-    return n.startswith(("mch", "org", "def", "str-", "tgt", "vis_", "wgt"))
+    return n.startswith(("mch", "org", "def", "str-", "tgt", "vis_", "wgt", "p-", "n-", "aim-", "tan-", "grp-",
+                         "sk-", "hlp-"))
+
+
+def rang(pb):
+    """Plus c'est haut, plus l'os est une VRAIE commande d'animateur : forme de commande, collection visible
+    (« Face Main » chez Blender Studio), prefixe MSTR-/ACT-/CTR- ; les os de mecanique tombent tout en bas."""
+    n = pb.name.lower()
+    r = 0
+    if est_mecanique(pb.name):
+        r -= 100
+    if pb.custom_shape is not None:
+        r += 10
+    if n.startswith(("mstr-", "act-", "ctr-", "ctrl")):
+        r += 15
+    if n.startswith("bb-"):
+        r -= 5
+    try:
+        cols = list(pb.bone.collections)
+    except AttributeError:
+        cols = []
+    for c in cols:
+        cn = c.name.lower()
+        if "main" in cn:
+            r += 20
+        if c.is_visible:
+            r += 5
+        for m in ("mch", "mechanism", "helper", "parent", "convert", "tangent", "disabled", "def"):
+            if m in cn:
+                r -= 30
+                break
+    return r
 
 
 def classer_os(arm):
-    """Associe des os du visage aux commandes : (commande, os, canal, gain)."""
+    """Associe des os du visage aux commandes : (commande, os, canal, gain). Pour chaque role, l'os le mieux
+    classe par rang() l'emporte (un rig de Blender Studio a des centaines d'os qui portent « jaw » ou « lid »)."""
     trouve = []
     pris = set()
     for nom, r in P["os_reglages"].items():
@@ -761,56 +820,45 @@ def classer_os(arm):
         if pb is not None:
             trouve.append((r["commande"], pb, r["canal"], r["gain"]))
             pris.add(nom)
-    poses = [pb for pb in arm.pose.bones if pb.name not in pris]
-    controles = [pb for pb in poses if not est_mecanique(pb.name)] or poses
-
-    def est_jaw(n):
-        return n in ("jaw_master", "jaw", "c_jawbone.x", "jaw_ctrl") or "jaw" in n
-
     jaw = None
-    for liste in (controles, poses):
-        for pb in liste:
-            if jaw is None and est_jaw(pb.name.lower()):
+    jr = -10000
+    coins = {"L": [None, -10000], "R": [None, -10000]}
+    lids = {"L": [None, -10000], "R": [None, -10000]}
+    brows = {"L": [None, -10000], "R": [None, -10000]}
+    for pb in arm.pose.bones:
+        if pb.name in pris:
+            continue
+        n = pb.name.lower()
+        r = rang(pb)
+        c = cote(n)
+        if "jaw" in n and "jawline" not in n and "jaw_line" not in n:
+            rj = r + (30 if n in ("jaw_master", "jaw", "c_jawbone.x", "jaw_ctrl", "mstr-jaw") else 0)
+            if rj > jr:
                 jaw = pb
+                jr = rj
+        if c not in coins:
+            continue
+        if (("lip" in n and ("corner" in n or n.startswith("lips."))) or "mouth_corner" in n or
+                "lips_corner" in n or "c_lips_smile" in n) and r > coins[c][1]:
+            coins[c] = [pb, r]
+        if ("lid" in n or "paupiere" in n) and ("t" in n.split(".") or "top" in n or "upper" in n or
+                                                  "_up" in n) and r > lids[c][1]:
+            lids[c] = [pb, r]
+        if ("brow" in n or "sourcil" in n) and r > brows[c][1]:
+            brows[c] = [pb, r]
     if jaw is not None:
         trouve.append(("jawOpen", jaw, "rotation", 1.0))
     for c_cmd, c_suf in (("Left", "L"), ("Right", "R")):
-        coin = None
-        for liste in (controles, poses):
-            for pb in liste:
-                n = pb.name.lower()
-                if cote(n) == c_suf and (("lip" in n and ("corner" in n or n.startswith("lips."))) or
-                                         "mouth_corner" in n or "lips_corner" in n or "c_lips_smile" in n):
-                    coin = pb
-                    break
-            if coin is not None:
-                break
+        coin = coins[c_suf][0]
         if coin is not None:
             trouve.append(("mouthSmile" + c_cmd, coin, "haut", 1.0))
             trouve.append(("mouthFrown" + c_cmd, coin, "haut", -1.0))
             trouve.append(("mouthStretch" + c_cmd, coin, "cote", 1.0))
-        lid = None
-        for liste in (controles, poses):
-            for pb in liste:
-                n = pb.name.lower()
-                if cote(n) == c_suf and ("lid" in n or "eyelid" in n or "paupiere" in n) and \
-                        ("t" in n.split(".") or "top" in n or "upper" in n or "_up" in n or ".t." in n or "lid.t" in n):
-                    lid = pb
-                    break
-            if lid is not None:
-                break
+        lid = lids[c_suf][0]
         if lid is not None:
             trouve.append(("eyeBlink" + c_cmd, lid, "haut", -1.0))
             trouve.append(("eyeWide" + c_cmd, lid, "haut", 0.5))
-        brow = None
-        for liste in (controles, poses):
-            for pb in liste:
-                n = pb.name.lower()
-                if cote(n) == c_suf and ("brow" in n or "sourcil" in n):
-                    brow = pb
-                    break
-            if brow is not None:
-                break
+        brow = brows[c_suf][0]
         if brow is not None:
             trouve.append(("browOuterUp" + c_cmd, brow, "haut", 1.0))
             trouve.append(("browDown" + c_cmd, brow, "haut", -1.0))
@@ -1080,6 +1128,8 @@ def principal():
         fait = animer_cles(obj)
         if fait:
             resume["mode"] = "cles"
+        else:
+            resume["absentes"] = []
     if not fait and mode in ("auto", "os") and arm is not None:
         fait = animer_os(arm)
         if fait:
