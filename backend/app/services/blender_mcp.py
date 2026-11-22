@@ -16,7 +16,7 @@ LES DROITS (la liste des outils EST la liste des droits) :
   * generate_3d : seulement par `generer_3d`, appelée par la route POST /api/blender/generer APRÈS le 409
     `confirme_cout` et la garde des plafonds (« moteurs3d ») ;
   * execute_blender_code : seulement par `executer_gabarit`, avec un script de blender_gabarits (gabarit fixe, un seul
-    trou = un JSON vérifié). Aucun code ne vient du client, de l'écran ni d'un modèle ;
+    trou = un JSON vérifié), et par `executer_visage` (22/11/2026, animation faciale : visage_blender, même discipline). Aucun code ne vient du client, de l'écran ni d'un modèle ;
   * tout autre outil (disable_telemetry, record_trajectory_feedback, get_addon_status…) est refusé.
 Le processus reçoit un environnement MINIMAL (aucune clé de l'app : FAL_KEY, ANTHROPIC_API_KEY… ne sortent pas) plus
 DISABLE_TELEMETRY=true, BLENDER_MCP_SAFE_MODE=1, BLENDERMCP_NO_UPDATE_CHECK=1, BLENDER_HOST=127.0.0.1, BLENDER_PORT.
@@ -539,6 +539,20 @@ def executer_gabarit(params: dict) -> dict:
         r = _juger(s.appeler("execute_blender_code", {"code": script}))
     t = texte_de(r)
     return {"resume": G.lire_resume(t), "texte": t.strip()[:600]}
+
+
+def executer_visage(params: dict) -> dict:
+    """22/11/2026 — l'animation FACIALE sur le Blender ouvert : le script de visage_blender (gabarit fixe + JSON
+    vérifié), par le même et seul chemin execute_blender_code."""
+    from app.services import visage_blender as VB
+    try:
+        script = VB.generer_script(params)
+    except VB.VisageRefuse as e:
+        raise RefusBlender("blender.gabarit", 400, msg=str(e)[:200]) from None
+    with Session() as s:
+        r = _juger(s.appeler("execute_blender_code", {"code": script}))
+    t = texte_de(r)
+    return {"resume": VB.lire_resume(t), "texte": t.strip()[:600]}
 
 
 def reprendre(params: dict, vignette: bool = True) -> dict:

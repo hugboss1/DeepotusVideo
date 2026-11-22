@@ -91,12 +91,26 @@ def _verifier_agent(agent: str) -> None:
 COMPETENCES = {"publicitaire": ("accroches", "script-court")}
 
 
+# 22/11/2026 : des fiches de compétences propres aux métiers (docs/agent/metiers/competences/<x>.md) — la chaîne d'un
+# personnage 3D, le nettoyage et l'export, l'animation faciale, la Scène Blender, les illustrations 3D de Card Forge,
+# les décors. Courtes (~1 Ko) : elles entrent dans l'invite de chaque tour.
+COMPETENCES_METIER = {
+    "artiste_3d": ("personnage-3d", "nettoyage-export-3d", "animation-faciale"),
+    "realisateur": ("personnage-3d", "animation-faciale", "scene-blender", "decors-3d"),
+    "directeur_acteurs": ("animation-faciale",),
+    "publicitaire": ("animation-faciale",),
+    "declinaisons": ("personnage-3d", "decors-3d"),
+    "editeur_illustre": ("cartes-3d",),
+}
+
+
 def _competences(agent: str) -> str:
     morceaux = []
-    for x in COMPETENCES.get(agent, ()):
+    fichiers = [_ROLES.parent / "campagnes" / f"competence-{x}.md" for x in COMPETENCES.get(agent, ())]
+    fichiers += [_ROLES / "competences" / f"{x}.md" for x in COMPETENCES_METIER.get(agent, ())]
+    for f in fichiers:
         try:
-            morceaux.append((_ROLES.parent / "campagnes" / f"competence-{x}.md").read_text(encoding="utf-8")
-                            .replace("\r\n", "\n").strip())
+            morceaux.append(f.read_text(encoding="utf-8").replace("\r\n", "\n").strip())
         except OSError:
             pass
     return ("\n" + "\n\n".join(morceaux) + "\n") if morceaux else ""
