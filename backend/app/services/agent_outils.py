@@ -895,6 +895,27 @@ async def rapport_web_glb(ctx: Ctx, chemin: str, budget_mo: float = 5.0, budget_
     return _res(True, f"{r['mo']} Mo, {r['triangles']} triangles, textures {round(r['part_textures'] * 100)} % : "
                       f"{'dans le budget' if r['dans_le_budget'] else 'hors budget'}"
                       + (f" ; {'; '.join(r['conseils'])}" if r["conseils"] else ""), r)
+# ---- 22/11/2026 : l'animation FACIALE (boîte « visage », lecture : calcule, ne touche pas Blender) ---------------------
+async def visage_preparer(ctx: Ctx, texte: str = "", duree_s: float = 0.0, expressions: list | None = None,
+                          clignements: bool = True) -> dict:
+    """Prépare l'animation faciale d'une réplique : visèmes, commandes du visage animées, durée. Local, gratuit ; la
+    pose dans Blender reste un geste de l'utilisateur (Scène Blender ou scripts/blender/animer_visage.py)."""
+    from app.services import visage_blender as _VB
+    try:
+        vis = _VB.visemes_depuis_texte(texte, duree_s or None)
+        c = _VB.courbes(vis, expressions=expressions or [], clignements=clignements, duree_s=duree_s or None)
+    except (_VB.VisageRefuse, TypeError, ValueError) as e:
+        return _res(False, str(e)[:300])
+    i0, i1 = c["images"]
+    d = {"visemes": len(vis), "images": c["images"], "duree_s": round((i1 - i0) / 24.0, 2),
+         "commandes": sorted(c["controles"]), "clignements": c["clignements"],
+         "expressions": sorted({e.get("nom") for e in (expressions or []) if isinstance(e, dict)}),
+         "lancer": "POST /api/blender/visage (Blender ouvert) ou /api/blender/visage/fichier {source} (arrière-plan) ; "
+                   "ligne de commande : scripts/blender/animer_visage.py"}
+    return _res(True, f"{len(vis)} visèmes sur {d['duree_s']} s, {len(d['commandes'])} commandes du visage, "
+                      f"{c['clignements']} clignement(s) ; à poser par l'utilisateur dans Blender", d)
+
+
 # ---- t442 (08/11/2026, lot M9) : l'Arbitre (B6, boîte « arbitre ») et la mise en texte (boîte « edition ») ---------
 async def arbitrer_sorties(ctx: Ctx, sorties: list, reference: str = "") -> dict:
     """t442 B6 : le tableau COMPLET d'un comparatif équitable (une sortie par modèle, même référence). Gratuit."""
@@ -2580,6 +2601,22 @@ OUTILS: dict[str, dict] = {
                                       "budget_mo": {"type": "number", "description": "budget de poids en Mo (5)"},
                                       "budget_tris": {"type": "integer", "description": "budget de triangles (100000)"}},
                                      ["chemin"])},
+    # 22/11/2026 : l'animation faciale (boîte « visage », lecture)
+    "visage_preparer": {"nature": "lecture", "fn": visage_preparer,
+                        "description": "Prépare l'animation FACIALE d'une réplique (synchronisation labiale sur le "
+                                       "texte, expressions, clignements) : visèmes, commandes du visage, durée. Ne "
+                                       "touche pas Blender ; l'utilisateur la pose depuis la Scène Blender ou en "
+                                       "arrière-plan. Local, gratuit.",
+                        "schema": _o({"texte": dict(_T, description="la réplique"),
+                                      "duree_s": {"type": "number", "description": "durée de la voix en secondes "
+                                                                                   "(facultatif)"},
+                                      "expressions": {"type": "array", "items": {"type": "object", "properties": {
+                                          "nom": {"type": "string", "enum": ["neutre", "joie", "sourire", "tristesse",
+                                                                            "colere", "surprise", "peur", "degout",
+                                                                            "malice"]},
+                                          "debut": {"type": "number"}, "fin": {"type": "number"},
+                                          "intensite": {"type": "number"}}, "required": ["nom", "debut", "fin"]}},
+                                      "clignements": {"type": "boolean"}}, ["texte"])},
     # t442 : l'Arbitre (B6) et la mise en texte de l'Éditeur illustré
     "arbitrer_sorties": {"nature": "lecture", "fn": arbitrer_sorties,
                          "description": "Arbitre un comparatif équitable : les sorties déjà produites (une par modèle, "

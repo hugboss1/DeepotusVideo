@@ -179,6 +179,13 @@ BOITES: dict[str, dict] = {
         "agents": ["artiste_3d"],
         "mobile": False,
     },
+    # 22/11/2026 : l'animation faciale (lecture, locale, gratuite : prépare, ne touche pas Blender)
+    "visage": {
+        "libelle": "agent.boites.visage",
+        "outils": ["visage_preparer"],
+        "agents": ["realisateur", "directeur_acteurs", "artiste_3d", "publicitaire"],
+        "mobile": False,
+    },
     # t442 (08/11/2026, lot M9) : B6, l'Arbitre — outil commun de TOUS les agents métier (lecture, gratuit)
     "arbitre": {
         "libelle": "agent.boites.arbitre",

@@ -52,6 +52,15 @@ async def etat(request: Request):
             "en_attente": len(P.demandes("en_attente"))}
 
 
+@router.get("/catalogue")
+async def catalogue(request: Request):
+    """22/11/2026 — les serveurs MCP utiles à l'app (Blender, ElevenLabs, Figma, Canva, Notion, GitHub…) : rôle, écrans
+    aidés, commande à copier, état local. Lecture seule : rien n'est installé ni lancé (services/mcp_catalogue.py)."""
+    _require_localhost(request)
+    from app.services import mcp_catalogue as MC
+    return MC.liste(i18n.langue_requete(request))
+
+
 @router.put("/reglages")
 async def reglages(request: Request, body: dict):
     _require_localhost(request)

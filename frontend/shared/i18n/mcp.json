@@ -170,5 +170,18 @@
  "mcp.erreur.lancement": {
   "fr": "Le lancement a échoué : {msg}",
   "en": "The launch failed: {msg}"
- }
+ },
+  "mcp.utiles.titre": {"fr": "MCP utiles à connecter", "en": "Useful MCP servers to connect"},
+  "mcp.utiles.aide": {"fr": "Ces serveurs se branchent à Claude Code (ou à un autre client MCP), à côté du serveur de l'app : ils donnent à votre assistant la main sur les logiciels voisins de DeepotusVideo. Copiez la commande dans un terminal ; une clé s'écrit à la place de <VOTRE_CLE>.", "en": "These servers plug into Claude Code (or another MCP client), next to the app's own server: they let your assistant drive the software around DeepotusVideo. Paste the command in a terminal; a key goes where <VOTRE_CLE> is."},
+  "mcp.utiles.ecrans": {"fr": "Aide :", "en": "Helps:"},
+  "mcp.utiles.licence": {"fr": "Licence :", "en": "License:"},
+  "mcp.utiles.doc": {"fr": "Documentation", "en": "Documentation"},
+  "mcp.utiles.etat_actif": {"fr": "Actif", "en": "On"},
+  "mcp.utiles.etat_inactif": {"fr": "Désactivé (case ci-dessus)", "en": "Off (box above)"},
+  "mcp.utiles.etat_trouve": {"fr": "Installé", "en": "Installed"},
+  "mcp.utiles.etat_uvx": {"fr": "Non installé (uvx présent)", "en": "Not installed (uvx available)"},
+  "mcp.utiles.etat_absent": {"fr": "Non installé : installez d'abord uv", "en": "Not installed: install uv first"},
+  "mcp.utiles.etat_branche": {"fr": "Branché à Claude Code", "en": "Connected to Claude Code"},
+  "mcp.utiles.etat_a_brancher": {"fr": "À brancher", "en": "Not connected"},
+  "mcp.utiles.erreur": {"fr": "Catalogue illisible", "en": "Catalogue unavailable"}
 }
