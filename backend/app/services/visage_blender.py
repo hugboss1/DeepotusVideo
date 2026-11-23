@@ -372,6 +372,11 @@ def parametres(*, texte: str = "", rhubarb=None, wav: str | None = None, express
         vis = _visemes_depuis_enveloppe(env, fps)
     else:
         vis = []
+    # 23/11 : une expression `"fin": "parole"` tient toute la réplique (le bouton « Animer le visage » ne connaît pas
+    # sa durée) ; son fondu de sortie finit avec la parole, sans allonger l'animation.
+    fin_parole = max([v["fin"] for v in vis] + [float(duree or 0), 1.0])
+    expressions = [dict(e, fin=max(float(e.get("debut", 0) or 0), fin_parole - float(e.get("fondu", 0.3) or 0)))
+                   if isinstance(e, dict) and e.get("fin") == "parole" else e for e in (expressions or [])]
     c = courbes(vis, fps=fps, expressions=expressions, clignements=clignements, enveloppe=env,
                 debut_image=debut_image, duree_s=duree, intensite_bouche=intensite_bouche, graine=graine)
     p = {"version": VERSION, "fps": int(fps), "images": c["images"], "mode": mode, "face": face,

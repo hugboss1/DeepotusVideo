@@ -247,6 +247,47 @@ const ETAT = () => ({ status: 200, json: { exe: { trouve: true, port: 9876 }, pr
      !marque(hote, "retour").hasAttribute("hidden") && marque(hote, "appliquer").hasAttribute("disabled")
      && marque(hote, "retour-avant-apres").textContent === FR("blenderscene.ar.sans_proposition", { msg: "aucune caméra" }));
 }
+// ── 8. 23/11 : « Animer le visage » ──
+{
+  let rep = { status: 200, json: { images: [1, 64], commandes: ["jawOpen"], resume: { mode: "os", objet: "GEO-rain-head" } } };
+  const w = monde({ "GET /api/blender/etat": ETAT, "POST /api/blender/visage": () => rep });
+  const hote = new Node("div");
+  w.B.monter(hote, { shot: { id: "s1" }, toast: w.ctx.toast });
+  await ticks();
+  ok("8a le bloc visage, ses 9 expressions et « gratuit » avant le clic ; clignements cochés",
+     marque(hote, "visage").textContent === FR("blenderscene.visage.animer") && marque(hote, "visage-expression").children.length === 9
+     && marque(hote, "visage-prix").textContent === FR("blenderscene.visage.gratuit") && marque(hote, "visage-clignements").checked);
+  const n0 = w.appels.length;
+  marque(hote, "visage").click();
+  await ticks();
+  ok("8b ni réplique ni expression : refus dit, rien envoyé", w.appels.length === n0
+     && marque(hote, "visage-erreur").textContent === FR("blenderscene.visage.vide"));
+  marque(hote, "visage-texte").value = "  Bonjour Rain  ";
+  marque(hote, "visage-expression").value = "joie";
+  marque(hote, "visage").click();
+  await ticks();
+  const a = w.appels.find((x) => x.url === "/api/blender/visage");
+  ok("8c corps = texte, expression tenue toute la réplique, clignements — rien d'autre",
+     a && JSON.stringify(a.corps) === JSON.stringify({ clignements: true, texte: "Bonjour Rain",
+       expressions: [{ nom: "joie", debut: 0, fin: "parole", intensite: 0.8 }] }), a && JSON.stringify(a.corps));
+  ok("8d statut : objet, façon d'animer, images ; un toast",
+     marque(hote, "visage-statut").textContent === FR("blenderscene.visage.fait", { objet: "GEO-rain-head", mode: FR("blenderscene.visage.mode.os"), a: 1, b: 64 })
+     && w.toasts.includes(FR("blenderscene.visage.fait_toast")), marque(hote, "visage-statut").textContent);
+  rep = { status: 200, json: { images: [1, 10], resume: { mode: "", erreurs: ["aucun maillage"] } } };
+  marque(hote, "visage-expression").value = "neutre";
+  marque(hote, "visage-clignements").checked = false;
+  marque(hote, "visage").click();
+  await ticks();
+  const b = w.appels[w.appels.length - 1];
+  ok("8e expression seule absente, clignements décochés : le corps le dit ; aucun visage trouvé → erreur dite",
+     JSON.stringify(b.corps) === JSON.stringify({ clignements: false, texte: "Bonjour Rain" })
+     && marque(hote, "visage-erreur").textContent === FR("blenderscene.visage.rien", { msg: "aucun maillage" }), marque(hote, "visage-erreur").textContent);
+  rep = { status: 503, json: { detail: "Blender ne répond pas" } };
+  marque(hote, "visage").click();
+  await ticks();
+  ok("8f 503 : message du serveur, bouton rendu", marque(hote, "visage-erreur").textContent === FR("blenderscene.section.ko", { msg: "Blender ne répond pas" })
+     && !marque(hote, "visage").hasAttribute("disabled"));
+}
 ok("6 aucun innerHTML dans le code", !/innerHTML/.test(SRC.replace(/\/\*[\s\S]*?\*\//g, "")));
 
 if (echecs.length) { console.log(echecs.map((e) => "FAIL " + e).join("\n")); console.log(`${n - echecs.length}/${n}`); process.exit(1); }

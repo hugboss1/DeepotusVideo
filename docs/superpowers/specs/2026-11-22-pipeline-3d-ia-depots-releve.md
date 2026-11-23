@@ -63,3 +63,11 @@ activité, pilotage sans interface). Rien n'a été cloné ni exécuté.
 3. SDK Tripo 1.x : rig et retarget d'un personnage généré.
 4. Rhubarb Lip Sync embarqué : minutage réel des visèmes depuis la voix off.
 5. Bouton « Animer le visage » dans la Scène Blender et le Studio 3D.
+
+## 23/11/2026 — lot 5 livré : bouton « Animer le visage »
+- Atelier › fiche d'un plan › Passes Blender › « Blender ouvert » : sous-bloc « Visage du personnage » (réplique,
+  expression tenue toute la réplique, clignements, « Gratuit » dit avant le clic) → POST /api/blender/visage.
+- Serveur : une expression `"fin": "parole"` dure toute la réplique sans allonger l'animation.
+- Essai réel sur Rain dans un Blender ouvert : « Visage animé sur GEO-rain-head (os du rig) », bouche, clignements et
+  sourcils visibles. Au passage, les blocs cachés de la section (capture, retour) ne s'affichent plus en images cassées.
+- Le Studio 3D n'a pas encore son bouton (il ne passe pas par le pont Blender).

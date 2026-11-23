@@ -62,7 +62,10 @@ dico = json.loads((SH / "i18n" / "blenderscene.json").read_text("utf-8"))
 employees = set(re.findall(r'"(blenderscene\.[a-z0-9_.]*[a-z0-9_])"', code))
 dynamiques = ({f"blenderscene.element.{k}" for k in ("camera", "eclairage", "blocking", "cles")}
               | {f"blenderscene.element_aide.{k}" for k in ("camera", "eclairage", "blocking", "cles")}
-              | {f"blenderscene.mode.{k}" for k in ("camera", "viewport", "angles")})
+              | {f"blenderscene.mode.{k}" for k in ("camera", "viewport", "angles")}
+              | {f"blenderscene.expression.{k}" for k in ("neutre", "joie", "sourire", "tristesse", "colere", "surprise",
+                                                          "peur", "degout", "malice")}
+              | {f"blenderscene.visage.mode.{k}" for k in ("cles", "os", "procedural")})
 manque = sorted(k for k in employees | dynamiques if k not in dico)
 check("T1 chaque clé employée existe (éléments, aides et modes bâtis par nom compris)", not manque, manque)
 orph = sorted(k for k in dico if k not in employees | dynamiques)
@@ -90,6 +93,16 @@ check("H1 « gratuit » posé à la construction, avant tout clic",
 corps = re.findall(r"appel\([^;]*?,\s*(\{[^;]*?\})\)", code)
 check("H2 la page n'envoie que des éléments, un mode ou un plan — jamais de code",
       corps and all("code" not in c for c in corps) and "elements: elements" in code, corps)
+
+sys.path.insert(0, str(RACINE / "backend"))
+from app.services import visage_blender as _VB  # noqa: E402
+m_expr = re.search(r"var EXPRESSIONS = \[([^\]]*)\]", code)
+check("H3 les expressions de l'écran sont exactement celles du serveur",
+      m_expr and re.findall(r'"(\w+)"', m_expr.group(1)) == list(_VB.EXPRESSIONS), m_expr and m_expr.group(1))
+m_vis = re.search(r"var corps = \{ clignements[\s\S]*?appel\(\"/api/blender/visage\", corps\)", code)
+check("H4 visage : « gratuit » posé à la construction ; le corps ne porte que texte, expressions, clignements",
+      'T("blenderscene.visage.gratuit")' in code and m_vis
+      and set(re.findall(r"corps\.(\w+) =", m_vis.group(0))) == {"texte", "expressions"} and "code" not in m_vis.group(0))
 
 print(f"\n=== {ok} passed, {fail} failed ===")
 sys.exit(1 if fail else 0)
