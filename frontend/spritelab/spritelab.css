@@ -72,7 +72,8 @@ select option:disabled{color:var(--ink-muted)}
    ligne au lieu de déborder de l'encart. */
 .pane-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--stroke);flex-wrap:wrap}
 .pane-head h2{margin:0;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);flex:1}
-.tabs{display:flex;gap:4px;flex:1}
+/* écran calé (23/11) : sur pane étroite (Tile Lab intégré), les onglets passent à la ligne */
+.tabs{display:flex;gap:4px;flex:1;flex-wrap:wrap;min-width:0}
 .tab{background:transparent;border:0;border-bottom:2px solid transparent;color:var(--ink-soft);padding:6px 10px;font-size:12.5px;cursor:pointer}
 .tab.active{color:var(--ink-strong);border-bottom-color:var(--cyan)}
 
