@@ -129,6 +129,13 @@ check("P24 os_reglages : canal inconnu → refus", refuse(lambda: V.parametres(
     texte="a", os_reglages={"jaw": {"commande": "jawOpen", "canal": "exec", "gain": 1}})))
 check("P25 os_reglages valides acceptés", V.parametres(texte="a", os_reglages={
     "CTRL-Jaw": {"commande": "jawOpen", "canal": "rotation", "gain": -1}})["os_reglages"]["CTRL-Jaw"]["gain"] == -1)
+p_seul = V.parametres(texte="Bonjour tout le monde")
+p_par = V.parametres(texte="Bonjour tout le monde", expressions=[{"nom": "joie", "debut": 0, "fin": "parole"}])
+sm = [x for _, x in p_par["controles"].get("mouthSmileLeft", [])]
+check("P25b expression « fin: parole » : tient la réplique sans l'allonger",
+      p_par["images"] == p_seul["images"] and sm and max(sm) >= 0.79, (p_par["images"], p_seul["images"]))
+check("P25c « fin » inconnue (autre texte) → refus",
+      refuse(lambda: V.parametres(texte="a", expressions=[{"nom": "joie", "fin": "toujours"}])))
 check("P26 repères hors [0, 1] → refus", refuse(lambda: V.parametres(texte="a", reperes={"bouche": [1.4, 0.2]})))
 q = dict(p)
 q["controles"] = {"jawOpen": [[1, 2.0]]}
