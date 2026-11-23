@@ -1,0 +1,97 @@
+/* Écran calé sur la fenêtre (23/11/2026) — RÈGLE COMMUNE de la coque.
+   Liée EN DERNIER par frontend/dist/index.html (copie identique dans frontend/dist/shared/).
+   Ne touche pas au bundle prébâti : elle corrige la mise en page par-dessus, à la racine.
+   Gardée par backend/tests/test_ecran_cale.py : aucun bouton, lien, champ, onglet ni lab
+   hors d'atteinte à 1280×800, 1440×900, 1366×768 et 1280×800 zoomé à 125 %.
+   Angles vifs (DESIGN.md) : cette feuille ne pose aucun rayon.
+
+   Les quatre principes :
+   1. la coque fait la hauteur VISIBLE de la fenêtre (100dvh, pas 100vh) ;
+   2. chaque zone de travail est un enfant flex/grid avec min-width/min-height 0 :
+      elle se loge dans la place qui reste au lieu de pousser ses voisines dehors ;
+   3. ce qui ne tient pas DÉFILE (le menu latéral, le corps d'un écran) : rien n'est coupé ;
+   4. les barres d'actions restent posées dans la zone visible (collantes en bas). */
+
+/* ── 1. la hauteur visible ─────────────────────────────────────────────────────────────── */
+html, body { height: 100%; }
+body.deepotus { min-height: 0 !important; }
+#root { height: 100%; }
+/* le bundle pose width:100vw;height:100vh en ligne : 100vw ajoute la barre de défilement,
+   100vh ignore les barres du navigateur (Safari sur macOS, iPad) */
+#root > .deepotus.depth-bg { width: 100% !important; height: 100dvh !important; }
+
+/* ── 2. la grille de la coque : rail | zone de travail ─────────────────────────────────── */
+/* grid-template-columns: auto 1fr — sans min-width:0, la piste 1fr prend la largeur
+   minimale de son contenu (l'en-tête) et pousse l'écran hors de la fenêtre à droite */
+#root .deepotus > main { min-width: 0; min-height: 0; }
+#root .deepotus > main > div { min-width: 0; min-height: 0; }
+
+/* ── 3. le menu latéral : il défile, le pied (espace, FR/EN) reste visible ─────────────── */
+.dzNavRail { height: 100%; max-height: 100dvh; min-height: 0; }
+.dzNavRail > nav {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--stroke, #333) transparent;
+}
+.dzNavRail > nav::-webkit-scrollbar { width: 6px; }
+.dzNavRail > nav::-webkit-scrollbar-thumb { background: var(--stroke, #333); border-radius: 0; }
+.dzNavRail > :not(nav) { flex-shrink: 0; }
+
+/* ── 4. l'en-tête : il rétrécit, puis passe à la ligne plutôt que de sortir à droite ───── */
+#root .deepotus > main > header {
+  min-width: 0;
+  height: auto !important;
+  min-height: 56px;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+#root .deepotus > main > header > div:first-child { min-width: 0; flex: 0 1 auto; overflow: hidden; }
+#root .deepotus > main > header > div:first-child > span { white-space: nowrap; }
+#root .deepotus > main > header > div:first-child > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#root .deepotus > main > header > button[style*="min-width"] { min-width: 150px !important; flex: 0 1 240px; }
+
+/* ── 5. les labs intégrés : l'iframe prend la place qui reste, jamais plus ─────────────── */
+/* le bundle leur donne min-height: calc(100vh - 110px) : sous l'en-tête et la barre
+   d'onglets, il manque toujours 20 px ou plus, et c'est là que sont les barres du bas */
+main iframe[style*="100vh"] { min-height: 0 !important; }
+
+/* ── 6. les barres d'onglets : elles rétrécissent et défilent au lieu de déborder ──────── */
+.dzCatTab { min-width: 0; }
+
+/* ── 7. repli : un écran plus haut ou plus large que la zone de travail y DÉFILE ────────── */
+/* (les écrans posés en absolute/inset:0 tiennent exactement : aucune barre n'apparaît) */
+#root .deepotus > main > div { overflow: auto; overscroll-behavior: contain; }
+
+/* ── 8. Son & VFX, Montage : la barre de titre passe à la ligne au lieu de couper ses boutons */
+.svm-titlebar { height: auto !important; min-height: 48px; flex-wrap: wrap; row-gap: 6px; padding-top: 6px; padding-bottom: 6px; }
+.dzsvh .svm-titlebar { min-height: 36px; }
+.svm-titlebar > div { flex-wrap: wrap; min-width: 0; row-gap: 4px; }
+
+/* ── 9. Modèles (gabarits) : colonne de travail | inspecteur de 360 px qui défile ──────── */
+#root .deepotus > main > div > div[style*="grid-template-columns: 1fr 360px"] > div { min-width: 0; min-height: 0; }
+#root .deepotus > main > div > div[style*="grid-template-columns: 1fr 360px"] > div:last-child { overflow-y: auto; }
+#root .deepotus > main > div > div[style*="grid-template-columns: 1fr 360px"] > div:first-child > div:first-child { flex-wrap: wrap; row-gap: 6px; }
+
+/* ── 10. grilles posées en ligne dans les écrans (Réglages › clés, etc.) : une piste 1fr
+   peut rétrécir sous la largeur de son champ au lieu de pousser « Enregistrer » dehors ── */
+#root .deepotus > main [style*="display: grid"] > * { min-width: 0; }
+
+/* ── 11. Son & VFX : sous ~540 px de haut, le corps de l'onglet DÉFILE ─────────────────── */
+/* (VFX particules : la vue centrale tombait à 10 px et ses outils sortaient du cadre) */
+.dzsvh-corps { overflow: auto !important; overscroll-behavior: contain; }
+/* !important : la feuille du bundle (injectée au chargement, donc APRÈS celle-ci) pose .dzsvx{min-height:0} */
+.dzsvh-corps > * { min-height: 600px !important; }
+
+/* ── 12. Montage : sous ~650 px de haut la colonne DÉFILE (la timeline garde ses 386 px,
+   le lecteur et la narration gardent 220 px) ; la barre flottante et le transport
+   passent à la ligne au lieu de sortir à droite ──────────────────────────────────────── */
+.dzsvm.svm-col { overflow: auto !important; overscroll-behavior: contain; }
+.dzsvm .svm-mid { min-height: 220px; }
+.dzsvm .svm-trans { flex-wrap: wrap; height: auto; min-height: 34px; row-gap: 4px; }
+.dzsvm .dzm-tbar { max-width: calc(100% - 28px); }
+.dzsvm .dzm-tbar .dzm-tbzone { flex: 1 1 auto; flex-wrap: wrap; min-width: 0; }

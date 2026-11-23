@@ -75,7 +75,12 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
    96 px pour une plage 0..1, soit un centième par pixel de glissement. La
    colonne du libellé est bornée, le curseur prend TOUT le reste. */
 .mf { display: grid; grid-template-columns: 296px minmax(0, 1fr) 400px;
-  height: calc(100vh - 46px); min-height: 0; }
+  height: calc(100vh - 46px); height: calc(100dvh - 46px); min-height: 0; }
+/* écran calé (23/11) : intégré dans la coque sur un portable (≈ 800 px de large), les deux rails
+   ne laissaient que 96 px à la galerie, dont l'en-tête passait sous le bord */
+@media (max-width: 1100px) { .mf { grid-template-columns: 236px minmax(0, 1fr) 300px; } }
+/* sur un écran bas, la carte « galerie vide » (et son bouton Catalogue CC0) passait sous le bord : la colonne défile */
+.mf > .center { overflow-y: auto; }
 .rail-left  { border-right: 1px solid var(--stroke); }
 .rail-right { border-left: 1px solid var(--stroke); }
 .rail-left, .rail-right { display: flex; flex-direction: column; min-height: 0;
