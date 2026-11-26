@@ -194,6 +194,8 @@ def section_routes():
               and any(isinstance(c, dict) and c.get("type") == "image" for m in APPELS[0]["messages"]
                       for c in (m["content"] if isinstance(m["content"], list) else [])), str(APPELS[:1])[:200])
         check("2k la transcription part ENCADRÉE (<<<PREUVE)", "<<<PREUVE transcription" in json.dumps(APPELS[0], ensure_ascii=False))
+        check("2k2 l'appel Claude est gardé sous « campagnes » (pas « scheduler »)",
+              [c for c in PLAF_APPELS[1:] if c[1] != "campagnes"] == [] and len(PLAF_APPELS) >= 2, PLAF_APPELS)
         check("2l garde : la règle recopiée est vidée, alerte rendue", j.get("alertes") and
               all(COPIEE not in b["regle"] for b in rc["structure"]), j.get("alertes"))
         check("2m inspire_de rempli (R12 a), compteurs non vérifiés", rc.get("inspire_de", {}).get("lien") == "https://x.example/r")
