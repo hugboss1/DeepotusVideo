@@ -10,8 +10,12 @@ Un tour, pour chaque compte whatsapp RELIÉ (`WHATSAPP_PHONE_ID` posé, lu brut 
 agent inactif, dont l'espace attend une réponse de validation client (`whatsapp_validation.en_attente` : le crochet de
 validation seul passe alors, rien d'autre) :
   · lit les messages chez Kapso depuis le marqueur du compte (`whatsapp_echanges.lire`, qui journalise chaque entrant une
-    fois : STOP et accords à jour) ; au premier tour d'un compte, seuls les entrants des 10 dernières minutes sont neufs
-    (jamais de réponse à l'historique au démarrage) ; `marqueur[cid]` = ISO du plus récent entrant vu (EN MÉMOIRE) ;
+    fois : STOP et accords à jour) ; `marqueur[cid]` = ISO du plus récent entrant vu, en mémoire ET rangé dans
+    `whatsapp.json` (clé `releve`, 26/11 : cahier des charges §6.2 « relus dans l'ordre » après une coupure) : au premier
+    tour après un démarrage, l'arriéré est relu depuis le marqueur rangé (RATTRAPAGE = 7 jours au plus) ; un compte jamais
+    relevé ne lit que les 10 dernières minutes (jamais de réponse à l'historique d'un numéro qu'on vient de relier) ;
+    l'arriéré passe tout entier par le crochet de validation, mais l'agent ne rédige que pour un contact dont le dernier
+    entrant a moins de 24 h (FENETRE_AGENT : au-delà, une réponse texte ne pourrait plus partir) ;
   · chaque entrant neuf passe d'abord par le crochet de validation (`whatsapp_validation.traiter_reponse`, tâche 6) :
     True = message consommé ;
   · les autres sont regroupés par contact (clé canonique `agent_whatsapp.canonique`) ; contact en STOP ou brouillon à
@@ -50,7 +54,10 @@ from app.services import agent_whatsapp as AW, comptes, espaces_brut
 
 INTERVALLE = 120                      # secondes entre deux tours (Kapso Free : 100 requêtes/min)
 DELAI_DEMARRAGE = 30                  # secondes avant le premier tour (jamais `espaces.lire()` au démarrage)
-PREMIER_TOUR = timedelta(minutes=10)  # au premier tour d'un compte, seuls les entrants plus récents sont neufs
+PREMIER_TOUR = timedelta(minutes=10)  # compte JAMAIS relevé : seuls les entrants plus récents sont neufs
+RATTRAPAGE = timedelta(days=7)        # 26/11 : après une coupure, l'arriéré est relu depuis le marqueur RANGÉ, 7 jours au plus
+FENETRE_AGENT = timedelta(hours=24)   # 26/11 : l'agent ne rédige que pour un contact dont le dernier entrant a moins de 24 h
+CLE_RELEVE = "releve"                 # whatsapp.json : {cid: {"quand": ISO, "vus": [ids]}} — le marqueur qui survit au redémarrage
 JOURS_GARDES = 7                      # `auto_jour` ne garde que les derniers jours
 _VUS = "_vus"                         # marqueur[_VUS][cid] : ids des entrants vus à la seconde du marqueur
 _MONTANT = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:[€$£]|eur\b|euros?\b|dollars?\b)|[€$£]\s*(\d+(?:[.,]\d+)?)")
@@ -207,11 +214,40 @@ async def releve_tick(marqueur: dict, maintenant: datetime | None = None) -> dic
     return rapport
 
 
-async def _lire_neufs(cid: str, marqueur: dict, now: datetime) -> list:
-    """Les entrants neufs du compte (du plus ancien au plus récent) ; met à jour le marqueur."""
+def _marqueur_range(eid: str, cid: str) -> dict | None:
+    """Le marqueur du compte rangé dans `whatsapp.json` (None s'il n'y en a pas ou s'il est illisible)."""
+    from app.services import whatsapp as WA
+    try:
+        r = (WA._lire_doc(eid).get(CLE_RELEVE) or {}).get(cid)
+    except Exception:  # noqa: BLE001 — un fichier illisible : comme jamais relevé
+        return None
+    return r if isinstance(r, dict) and _date(r.get("quand")) is not None else None
+
+
+def _ranger_marqueur(eid: str, cid: str, quand: str, vus: list) -> None:
+    from app.services import whatsapp as WA
+
+    def geste(doc):
+        r = doc.get(CLE_RELEVE) if isinstance(doc.get(CLE_RELEVE), dict) else {}
+        r[cid] = {"quand": quand, "vus": list(vus)[-200:]}
+        doc[CLE_RELEVE] = r
+    try:
+        WA._modifier(eid, geste)
+    except Exception as e:  # noqa: BLE001 — le relevé continue ; le marqueur en mémoire reste juste
+        logger.warning(f"relevé WhatsApp : marqueur non rangé pour le compte {cid} ({type(e).__name__})")
+
+
+async def _lire_neufs(cid: str, marqueur: dict, now: datetime, eid: str | None = None) -> list:
+    """Les entrants neufs du compte (du plus ancien au plus récent) ; met à jour le marqueur (mémoire et fichier)."""
     from app.services import whatsapp_echanges as WE
     vus_tous = marqueur.setdefault(_VUS, {})
     depuis = _date(marqueur.get(cid)) if marqueur.get(cid) else None
+    if depuis is None and eid is not None:      # premier tour après un démarrage : le marqueur rangé, borné à 7 jours
+        r = _marqueur_range(eid, cid)
+        if r is not None:
+            d = _date(r["quand"])
+            depuis = max(d, now - RATTRAPAGE)
+            vus_tous[cid] = list(r.get("vus") or []) if depuis == d else []
     if depuis is None:
         depuis, vus = now - PREMIER_TOUR, set()
     else:
@@ -229,13 +265,15 @@ async def _lire_neufs(cid: str, marqueur: dict, now: datetime) -> list:
     haut = max([depuis] + [d for d, _m in entrants])
     marqueur[cid] = haut.isoformat(timespec="seconds")
     vus_tous[cid] = sorted({m["id"] for d, m in entrants if d == haut} | (vus if haut == depuis else set()))
+    if eid is not None:
+        _ranger_marqueur(eid, cid, marqueur[cid], vus_tous[cid])
     return [m for _d, m in neufs]
 
 
 async def _releve_compte(cid, eid, pid, agent, marqueur, now, rapport, wv, seulement_validation=False) -> None:
     """Un compte : ses entrants neufs passent par le crochet de validation, puis (agent actif) par l'agent.
     `seulement_validation` (agent inactif, validation client en attente) : le crochet seul, rien d'autre."""
-    neufs = await _lire_neufs(cid, marqueur, now)
+    neufs = await _lire_neufs(cid, marqueur, now, eid)
     rapport["neufs"] += len(neufs)
     restants, consommes = [], []
     for m in neufs:                              # le crochet de validation passe AVANT tout le reste
@@ -283,6 +321,9 @@ async def _agent_compte(cid, eid, pid, agent, restants, now, rapport, consommes=
         if d is not None and (cle not in haut_consomme or d > haut_consomme[cle]):
             haut_consomme[cle] = d
     for cle, (groupe, ms) in groupes.items():
+        d_dernier = _date(ms[-1].get("quand"))
+        if d_dernier is not None and now - d_dernier >= FENETRE_AGENT:
+            continue                             # arriéré de plus de 24 h : journalisé (STOP, accords), pas de rédaction
         try:
             if await _traiter_contact(cid, eid, pid, agent, cle, groupe, ms, now, haut_consomme.get(cle)):
                 rapport["envoyes"] += 1
