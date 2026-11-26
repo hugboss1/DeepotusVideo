@@ -22,6 +22,10 @@ Boucle locale SEULEMENT (`routes._require_localhost`) ; les deux routes payantes
 - `GET  /{id}/devis-script`       t514 : devis GRATUIT du script sur recette ; 409 `sans_offre` / `sans_recette`.
 - `POST /{id}/script`             t514 : {max_usd, langue?} PAYANT ; `PUT /{id}/script` {briques} réécriture à la main ;
                                   `POST /{id}/script/valider` = PORTE 1 (409 `bloquant` si un contrôle bloquant échoue).
+- `GET  /{id}/reel`               t515 (RV5) : repères, rendu, proposition de brouillon (mention publique décochée, R12 c).
+- `POST /{id}/reel/reperes`       t515 : {temps?} -> le fichier de repères (409 `script_non_valide` avant la porte 1).
+- `POST /{id}/reel/rendu`         t515 : le gabarit rendu par le motion code (local, GRATUIT) en job ; MP4 commenté (R12 b).
+- `POST /{id}/reel/brouillon`     t515 : {titre?, legende?, mention_publique?} -> brouillon, mode TOUJOURS assisté (R8).
 - `GET  /{id}/devis-lecture`      t512 (RV2) : le devis GRATUIT de la lecture (transcription + Claude sur les planches).
 - `POST /{id}/lecture`            t512 : {max_usd, langue?, nouvelle?} : PAYANTE ; la RECETTE (rangée dans l'espace).
 Codes : 400 corps ou refus de forme, 404 inconnue, 409 {message, code, …} (coût changé `cout` + usd, `en_cours`,
@@ -32,7 +36,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from loguru import logger
 
 from app.services import inspiration as I
@@ -326,6 +330,99 @@ async def script_valider(iid: str):
     from app.services import inspiration_script as IS
     try:
         return await asyncio.to_thread(IS.valider, iid)
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+
+
+# ---- t515 (RV5) : le Reel en tableaux et son brouillon (tout est LOCAL et GRATUIT : aucun modèle, aucun devis) ----------
+
+@router.get("/{iid}/reel", dependencies=[Depends(_local)])
+async def reel_etat(iid: str):
+    """Les repères, le rendu et la proposition de brouillon (ligne publique « Format inspiré… » décochée, R12 c)."""
+    from app.services import inspiration_reel as IRL
+    try:
+        rec = I.lire(iid)
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    return {**(rec.get("reel") or {}), "proposition": IRL.proposition(rec)}
+
+
+@router.post("/{iid}/reel/reperes", dependencies=[Depends(_local)])
+async def reel_reperes(iid: str, request: Request):
+    """{temps?} : les temps des mots de la voix s'ils existent ; sinon estimés à 2,5 mots/s. 409 avant la porte 1."""
+    from app.services import inspiration_reel as IRL
+    c = await _corps(request)
+    try:
+        return await asyncio.to_thread(IRL.fabriquer_reperes, iid, c.get("temps"))
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+
+
+@router.post("/{iid}/reel/rendu", dependencies=[Depends(_local)])
+async def reel_rendu(iid: str, request: Request, background_tasks: BackgroundTasks):
+    """Le gabarit rendu par le moteur motion code (local, gratuit), en tâche de fond : un job comme /api/motion/code/rendre
+    (Job Dock, Bibliothèque), sous le provider `animation`. Le MP4 porte le commentaire de provenance (R12 b)."""
+    from datetime import datetime
+    from uuid import uuid4
+    from app.config import settings
+    from app.i18n import langue_requete
+    from app.models.schemas import JobStatus
+    from app.services import inspiration_reel as IRL
+    from app.services.storage import JobRecord, async_session_factory
+    c = await _corps(request)
+    try:
+        rec = I.lire(iid)
+        if not ((rec.get("reel") or {}).get("reperes") or {}).get("tableaux"):
+            raise I.RefusInspiration("Prépare d'abord les repères du Reel.", "sans_reperes")
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    langue = langue_requete(request)
+    fps = c.get("fps") if isinstance(c.get("fps"), int) and not isinstance(c.get("fps"), bool) else IRL.FPS_DEFAUT
+    job_id = str(uuid4())
+    sortie = settings.outputs_path / f"reel_{job_id[:8]}.mp4"
+    titre = str((IRL.proposition(rec).get("titre") or "Reel")).strip()[:200] or "Reel"
+    async with async_session_factory() as session:
+        session.add(JobRecord(id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10, title=titre,
+                              image_filename=sortie.name, aspect_ratio="9:16", provider="animation",
+                              current_step="Rendering", espace_id=rec.get("espace_id")))
+        await session.commit()
+
+    async def _run():
+        try:
+            r = await asyncio.to_thread(IRL.rendre, iid, sortie, job_id=job_id, fps=fps, langue=langue)
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                jr.status = JobStatus.DONE.value
+                jr.progress = 100
+                jr.final_video_path = jr.video_path = str(sortie)
+                jr.duration_s = int(round(float(r.get("duree_s") or 0)))
+                jr.current_step = "Complete"
+                jr.completed_at = datetime.utcnow()
+                await session.commit()
+        except Exception as e:  # noqa: BLE001 — refus, arrêt du bac à sable, encodage : le job le dit
+            logger.warning(f"inspiration {iid[:8]} : rendu du Reel en échec ({type(e).__name__})")
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.FAILED.value
+                    jr.error = str(e)[:500]
+                    jr.current_step = "Failed"
+                    await session.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued", "usd": 0, "fps": fps}
+
+
+@router.post("/{iid}/reel/brouillon", dependencies=[Depends(_local)])
+async def reel_brouillon(iid: str, request: Request):
+    """{titre?, legende?, mention_publique?} : le brouillon au Planificateur, mode ASSISTÉ quoi que dise le corps (R8)."""
+    from app.services import inspiration_reel as IRL
+    c = await _corps(request)
+    try:
+        return await IRL.brouillon(iid, titre=c.get("titre") or "", legende=c.get("legende"),
+                                   mention=c.get("mention_publique") is True)
+    except HTTPException:
+        raise
     except Exception as e:  # noqa: BLE001
         raise _http(e) from None
 
