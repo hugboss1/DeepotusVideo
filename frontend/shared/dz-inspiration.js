@@ -155,6 +155,8 @@
     E.corps.appendChild(el("div", { "data-dz-insp": "regle", style: S.note }, T("inspiration.boite.regle")));
     E.recents = el("div", { "data-dz-insp": "recents", style: "display:flex;flex-direction:column;gap:3px", hidden: "" });
     E.corps.appendChild(E.recents);
+    E.mesRecettes = el("div", { "data-dz-insp": "mes-recettes", style: "display:flex;flex-direction:column;gap:3px;font-size:12px", hidden: "" });
+    E.corps.appendChild(E.mesRecettes);
 
     /* 1. capture */
     var s1 = section(E, "capture");
@@ -361,12 +363,28 @@
       E.recents.appendChild(l);
     });
   }
+  function mesRecettes(E, liste) {
+    /* t513 (RV3) : « mes recettes » de l'espace (rangées par la lecture d'une vidéo, RV2) */
+    liste = (liste || []).slice(0, 5);
+    if (!liste.length) return;
+    var b = E.mesRecettes;
+    vider(b);
+    montrer(b, true);
+    b.appendChild(el("div", { style: S.titre }, T("inspiration.recettes.titre")));
+    liste.forEach(function (x) {
+      b.appendChild(el("div", { "data-dz-insp": "ma-recette" }, T("inspiration.recettes.ligne", { date: String(x.lu_le || "").slice(0, 10),
+        source: String(x.libelle || T("inspiration.plateforme." + (x.plateforme || "inconnue"))), n: x.tableaux == null ? "—" : String(x.tableaux),
+        mpm: x.mots_par_minute == null ? "—" : String(Math.round(x.mots_par_minute)) })));
+    });
+  }
   async function entete(E) {
     try {
       var r = await appel("GET", BASE);
       if (E.ferme || !r.R.ok) return;
       pourQui(E, r.j);
       recents(E, r.j && r.j.inspirations);
+      var m = await appel("GET", BASE + "/recettes");
+      if (!E.ferme && m.R.ok) mesRecettes(E, m.j && m.j.recettes);
     } catch (e) { /* l'en-tête n'empêche rien */ }
   }
   async function reprendre(E, id) {
@@ -384,6 +402,8 @@
   async function capter(E) {
     if (E.occupe) return;
     var texte = String(E.texte.value || "");
+    /* t513 (RV3) : un lien seul -> métadonnées publiques (et sous-titres YouTube), jamais la vidéo */
+    if (!E.image && !texte.trim() && String(E.lien.value || "").trim()) { capterLien(E); return; }
     if (!E.image && !texte.trim()) { dire(E, T("inspiration.capture.vide"), true); return; }
     var fd = new FormData();
     var video = !!E.image && estVideo(E.image);
@@ -404,6 +424,35 @@
     } catch (e) {
       dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true);
     } finally { verrouiller(E, false); }
+  }
+  async function capterLien(E) {
+    verrouiller(E, true, false);
+    dire(E, T("inspiration.lien.lecture"));
+    try {
+      var r = await appel("POST", BASE + "/lien", { url: String(E.lien.value || "").trim(), source_libelle: String(E.source.value || ""), langue: langue() });
+      if (E.ferme) return;
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      dire(E, "");
+      montrerCapture(E, r.j);
+    } catch (e) {
+      dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true);
+    } finally { verrouiller(E, false); }
+  }
+  var ETATS_ST = { lus: "inspiration.lien.st_lus", aucun: "inspiration.lien.st_aucun", sans_outil: "inspiration.lien.st_sans_outil",
+    echec: "inspiration.lien.st_echec" };
+  function montrerLien(E, j) {
+    var s = j.source || {}, l = j.lien || {}, st = l.soustitres || {};
+    var bloc = el("div", { "data-dz-insp": "fiche-lien", style: "display:flex;flex-direction:column;gap:4px;font-size:12px" });
+    bloc.appendChild(el("div", { style: S.titre }, T("inspiration.lien.titre")));
+    bloc.appendChild(el("div", { "data-dz-insp": "lien-plateforme" }, T("inspiration.lien.plateforme", {
+      plateforme: T("inspiration.plateforme." + (s.plateforme || "inconnue")) })));
+    if (s.titre || s.auteur) bloc.appendChild(el("div", { "data-dz-insp": "lien-meta" }, T("inspiration.lien.meta", {
+      titre: String(s.titre || "—"), auteur: String(s.auteur || "—") })));
+    if (l.acces === "jeton") bloc.appendChild(el("div", { "data-dz-insp": "lien-jeton", style: S.note }, T("inspiration.lien.jeton")));
+    if (s.plateforme === "youtube") bloc.appendChild(el("div", { "data-dz-insp": "lien-soustitres", style: st.etat === "lus" ? "" : S.note },
+      T(ETATS_ST[st.etat] || "inspiration.lien.st_aucun", { n: String(String(j.texte_capte || "").split(/\s+/).filter(Boolean).length) })));
+    bloc.appendChild(el("div", { "data-dz-insp": "lien-capture", style: S.alerte }, T("inspiration.lien.capture")));
+    E.lu.appendChild(bloc);
   }
   function montrerCapture(E, j) {
     E.rec = j;
@@ -427,6 +476,7 @@
       E.lu.appendChild(l);
     }
     if (j.matiere === "video") { montrerFiche(E, j); return; }
+    if (j.matiere === "lien") { montrerLien(E, j); if (!j.texte_capte) { montrer(E.s2, false); return; } }
     montrer(E.s2, true);
     montrer(E.ligneImage, !!j.image);
     E.avecImage.checked = false;

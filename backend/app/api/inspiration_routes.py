@@ -15,6 +15,9 @@ Boucle locale SEULEMENT (`routes._require_localhost`) ; les deux routes payantes
 - `POST /video`                   t511 (RV1) : multipart `video` (≤ 300 Mo, ≤ 10 min), `source_libelle?`, `source_lien?`
                                   -> l'inspiration « vidéo » avec sa FICHE (étages 0 et 1, gratuits, locaux).
 - `GET  /{id}/planches/{nom}`     t511 : une planche d'images (JPEG) tant que la source n'est pas effacée (R4).
+- `POST /lien`                    t513 (RV3) : {url, source_libelle?, langue?} -> l'inspiration « lien » (plateforme,
+                                  métadonnées publiques, sous-titres YouTube) ; jamais la vidéo (R2). Gratuit.
+- `GET  /recettes`                t513 : « mes recettes » de l'espace de la requête.
 - `GET  /{id}/devis-lecture`      t512 (RV2) : le devis GRATUIT de la lecture (transcription + Claude sur les planches).
 - `POST /{id}/lecture`            t512 : {max_usd, langue?, nouvelle?} : PAYANTE ; la RECETTE (rangée dans l'espace).
 Codes : 400 corps ou refus de forme, 404 inconnue, 409 {message, code, …} (coût changé `cout` + usd, `en_cours`,
@@ -34,7 +37,7 @@ from app.services import scan_pages as SP
 router = APIRouter()
 
 MAX_CORPS = 64 * 1024
-CODES_400 = ("vide", "texte", "format", "sans_image", "titre", "visuel", "illisible", "longue", "matiere")
+CODES_400 = ("vide", "texte", "format", "sans_image", "titre", "visuel", "illisible", "longue", "matiere", "lien")
 
 
 def _local(request: Request) -> None:
@@ -160,6 +163,28 @@ async def capter(request: Request, image: UploadFile | None = File(None), texte:
     if v.get("ocr", {}).get("raison"):
         v["ocr"] = {**v["ocr"], "raison": _traduire(v["ocr"]["raison"], request)}
     return {**v, **await _pour_qui(rec["espace_id"])}
+
+
+@router.post("/lien", dependencies=[Depends(_local)])
+async def capter_lien(request: Request):
+    from app.services import espaces
+    from app.services import inspiration_lien as IL
+    c = await _corps(request)
+    eid = espaces.espace_courant()
+    try:
+        rec = await IL.capter_lien(url=c.get("url") or "", espace_id=eid, source_libelle=c.get("source_libelle") or "",
+                                   langue=_langue(request, c))
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    return {**I.vue(rec), **await _pour_qui(eid)}
+
+
+@router.get("/recettes", dependencies=[Depends(_local)])
+async def mes_recettes(request: Request):
+    from app.services import espaces
+    from app.services import inspiration_lien as IL
+    eid = espaces.espace_courant()
+    return {**await _pour_qui(eid), "recettes": await asyncio.to_thread(IL.recettes, eid)}
 
 
 @router.post("/video", dependencies=[Depends(_local)])
