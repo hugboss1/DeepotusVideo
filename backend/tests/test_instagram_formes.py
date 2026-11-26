@@ -231,6 +231,10 @@ async def main():
                             brief=json.dumps({"objective": "garder"})))
         s.add(ScheduledPost(id="p2", title="Parti", channels="instagram", run_at=datetime.utcnow(), status="posted"))
         s.add(ScheduledPost(id="p3", title="Avec rendu", channels="instagram", run_at=datetime.utcnow(), status="draft", job_id="j1"))
+        # t504 (clôture G7) : un post noté avant publication (brief.note_rendu, « estimation »)
+        s.add(ScheduledPost(id="p4", title="Noté", channels="instagram", run_at=datetime.utcnow(), status="draft",
+                            brief=json.dumps({"note_rendu": {"note": 72, "estimation": True,
+                                                             "remarques": [{"code": "accroche_tardive", "secondes": 2.1}]}})))
         await s.commit()
     ig.regler(False)
     with TestClient(app) as c:
@@ -242,6 +246,10 @@ async def main():
         check("D3 autre chose qu'un booléen : 422, rien ne change", c.put("/api/schedule/instagram/reglage", json={"depot_fal": "oui"}).status_code == 422
               and ig.reglage()["depot_fal"] is True)
         j = c.get("/api/schedule/p1/instagram").json()
+        j4 = c.get("/api/schedule/p4/instagram", headers={"Accept-Language": "en"}).json()
+        check("D4b t504 : note avant publication rendue dans la langue de la requête ; aucune sans note",
+              j4.get("note_rendu") == "Pre-publish score (estimate): 72/100\n- voice starts at 2.1 s" and j.get("note_rendu") is None,
+              str(j4.get("note_rendu")))
         check("D4 post sans format : Reel, pas de dépôt requis", j["forme"] == "reel" and j["exige_depot"] is False and j["a_video"] is False and j["statut"] == "draft", str(j))
         r = c.put("/api/schedule/p1/instagram", json={"forme": "carrousel", "images": ["carre.png", "portrait.png"]})
         check("D5 carrousel posé : 200, dépôt requis", r.status_code == 200 and r.json()["forme"] == "carrousel" and r.json()["exige_depot"] is True

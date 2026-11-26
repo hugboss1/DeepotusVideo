@@ -10005,13 +10005,17 @@ def _brief_dict(p) -> dict:
 
 
 @router.get("/schedule/{post_id}/instagram")
-async def get_post_instagram(post_id: str):
-    from app.services import instagram_publisher as _ig
+async def get_post_instagram(post_id: str, request: Request):
+    from app.services import instagram_publisher as _ig, whatsapp_suivi as _ws
+    from app import i18n as _i18n
     async with async_session_factory() as session:
         p = await _post_ou_404(session, post_id)
     f = _ig.format_post(_brief_dict(p).get("instagram"))
     a_video = bool(p.job_id)
-    return {**f, "exige_depot": _ig.exige_depot(f["forme"], a_video), "a_video": a_video, "statut": p.status}
+    # t504 (clôture G7) : la note avant publication (`brief.note_rendu`, « estimation ») et ses trois premières remarques,
+    # dans la langue de la requête, pour l'inspecteur du Planificateur (panneau Instagram) ; None sans note
+    return {**f, "exige_depot": _ig.exige_depot(f["forme"], a_video), "a_video": a_video, "statut": p.status,
+            "note_rendu": _ws.bloc_note(p.brief, _i18n.langue_requete(request))}
 
 
 @router.put("/schedule/{post_id}/instagram")
