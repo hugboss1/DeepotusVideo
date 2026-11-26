@@ -7,7 +7,9 @@ Sections :
      invalide refusé (message traduit), route POST /api/schedule/{id}/lien-whatsapp (locale, 404 post inconnu) ;
   3. entrant : un message qui porte le code note l'ORIGINE (code + date, jamais le texte) ; un STOP ne la note pas ;
      prospects_sources.whatsapp_entrants rend origine_post ;
-  4. textes du bilan et de l'alerte (purs, FR/EN) ; aucun envoi n'est branché.
+  4. textes du bilan et de l'alerte (purs, FR/EN) ;
+  5. envoi après ACCORD seulement : modèle utilitaire exigé, prix accepté, alerte d'un gagnant une seule fois, bilan du
+     lundi, prix monté -> suspendu, révocation.
 Run (depuis backend/) : & $PY tests/test_croissance_whatsapp.py"""
 import json, os, pathlib, sys, tempfile, uuid
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -88,8 +90,60 @@ def run():
     t = {"totaux": {"posts": 5, "views": 1200, "engagement": 80}, "gagnants": [{}, {}]}
     check("4a bilan FR", WS.texte_bilan(t) == "Bilan de la semaine : 5 post(s), 1200 vues, 80 interactions ; 2 gagnant(s).", WS.texte_bilan(t))
     check("4b alerte EN", WS.texte_alerte("Pay once", 3.0, "en") == "Winner spotted: “Pay once” is at 3× your usual. Worth recycling?")
-    import inspect
-    check("4c aucun envoi branché dans le module (attente de la décision)", "envoyer(" not in inspect.getsource(WS))
+    import asyncio
+    from datetime import datetime, timezone
+    from app.services import whatsapp_echanges as WE, whatsapp_validation as WV, metrics_service as MS
+    print("[5] envoi après accord")
+    ENVOIS = []
+    sauve = (WV._compte_relie, WE.modeles, WE.envoyer, WS.prix_message, MS.tableau)
+    PRIX = {"v": 0.0113}
+    WV._compte_relie = lambda eid: ("cptwa", "pid1")
+
+    async def modeles(cid):
+        return [{"nom": "bilan", "langue": "fr", "categorie": "utility", "n_parametres": 1},
+                {"nom": "promo", "langue": "fr", "categorie": "marketing", "n_parametres": 1}]
+
+    async def envoyer(cid, ident, envoi):
+        ENVOIS.append((cid, ident, envoi))
+        return {"id": "w1", "statut": "envoye"}
+
+    async def tableau(days=30, espace_id=None, tz_min=0):
+        return {"totaux": {"posts": 3, "views": 900, "engagement": 40},
+                "gagnants": [{"id": "p1", "title": "Pay once", "croissance": {"multiplicateur": 4.2}}]}
+    WE.modeles, WE.envoyer, MS.tableau = modeles, envoyer, tableau
+    WS.prix_message = lambda eid, ident: PRIX["v"]
+    try:
+        lundi = datetime(2026, 11, 30, 9, tzinfo=timezone.utc)
+        check("5a sans accord : rien ne part", asyncio.run(WS.tic_espace(A, lundi))["raison"] == "sans_accord" and not ENVOIS)
+        for modele, attendu in (({"nom": "promo", "langue": "fr"}, "utilitaire"), ({"nom": "x", "langue": "fr"}, "inconnu")):
+            try:
+                asyncio.run(WS.accorder(A, numero="33612345678", modele=modele, usd_accepte=0.02)); check(f"5b refus {attendu}", False)
+            except ValueError as e:
+                check(f"5b refus : modèle {attendu}", attendu in str(e), str(e))
+        try:
+            asyncio.run(WS.accorder(A, numero="33612345678", modele={"nom": "bilan", "langue": "fr"}, usd_accepte=0.001))
+            check("5c prix au-dessus de l'accord refusé", False)
+        except ValueError as e:
+            check("5c prix au-dessus de l'accord refusé", "coût" in str(e))
+        d = asyncio.run(WS.accorder(A, numero="+33 6 12 34 56 78", modele={"nom": "bilan", "langue": "fr"}, usd_accepte=0.0113))
+        check("5d accord enregistré : prix, destinataire, actif", d["accord"]["usd_par_message"] == 0.0113 and d["destinataire"] == "tel:33612345678"
+              and d["etat"] == "actif")
+        r = asyncio.run(WS.tic_espace(A, lundi))
+        check("5e lundi : alerte du gagnant + bilan, par modèle utilitaire", r["envoyes"] == 2 and len(ENVOIS) == 2
+              and ENVOIS[0][2]["type"] == "modele" and ENVOIS[0][2]["nom"] == "bilan" and "4.2×" in ENVOIS[0][2]["parametres"][0]
+              and ENVOIS[1][2]["parametres"][0].startswith("Bilan de la semaine"), ENVOIS)
+        r = asyncio.run(WS.tic_espace(A, lundi))
+        check("5f le même gagnant n'est pas réalerté, le bilan pas renvoyé", r["envoyes"] == 0 and len(ENVOIS) == 2)
+        PRIX["v"] = 0.02
+        r = asyncio.run(WS.tic_espace(A, datetime(2026, 12, 7, 9, tzinfo=timezone.utc)))
+        check("5g prix monté : envoi suspendu (prix_change)", r["raison"] == "prix_change" and len(ENVOIS) == 2
+              and WS.lire_alertes(A)["etat"] == "prix_change")
+        PRIX["v"] = 0.0113
+        WS.revoquer(A)
+        check("5h révoqué : plus rien ne part", asyncio.run(WS.tic_espace(A, datetime(2026, 12, 14, 9, tzinfo=timezone.utc)))["raison"] == "sans_accord")
+        check("5i tic global sans fichier d'accord : 0", asyncio.run(WS.tic(lundi)) == 0)
+    finally:
+        WV._compte_relie, WE.modeles, WE.envoyer, WS.prix_message, MS.tableau = sauve
     print("[2f] route")
     from fastapi.testclient import TestClient
     from app.main import app
@@ -110,6 +164,10 @@ def run():
         check("2h numéro invalide -> 400 traduit", r.status_code == 400 and "Invalid WhatsApp number" in r.text, r.text[:200])
         r = dehors.post(f"/api/schedule/{pid}/lien-whatsapp", json={"numero": "33612345678"})
         check("2i hors machine -> 401 ou 403", r.status_code in (401, 403), r.status_code)
+        r = client.get(f"/api/schedule/croissance/alertes?espace_id={A}")
+        check("2j état des alertes : révoqué, lu sans envoi", r.status_code == 200 and r.json()["alertes"].get("etat") == "revoque", r.text[:200])
+        r = dehors.put("/api/schedule/croissance/alertes", json={})
+        check("2k accord hors machine -> 401 ou 403", r.status_code in (401, 403), r.status_code)
 
 
 def test_croissance_whatsapp():

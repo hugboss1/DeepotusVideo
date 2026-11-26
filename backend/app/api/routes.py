@@ -10114,6 +10114,55 @@ async def post_scheduled_post_lien_whatsapp(post_id: str, request: Request):
         raise HTTPException(400, str(e))
 
 
+@router.get("/schedule/croissance/alertes")
+async def get_alertes_croissance(request: Request, espace_id: str = "", numero: str = ""):
+    """t502 (G12) : l'état du bilan et de l'alerte WhatsApp de l'espace et, avec `numero`, le DEVIS d'un message
+    utilitaire (gratuit). Rien ne part sans l'accord (PUT)."""
+    _require_localhost(request)
+    from app.services import espaces as _es, whatsapp_suivi as WS
+    eid = espace_id or _es.espace_courant()
+    try:
+        etat = WS.lire_alertes(eid)
+        devis = WS.devis_alertes(eid, numero) if numero else None
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"espace_id": eid, "alertes": etat, "devis": devis}
+
+
+@router.put("/schedule/croissance/alertes")
+async def put_alertes_croissance(request: Request):
+    """t502 (G12) : l'ACCORD de l'utilisateur {espace_id?, numero, modele: {nom, langue}, usd_accepte, bilan, alerte}.
+    400 modèle non utilitaire ou prix changé ; 404 espace."""
+    _require_localhost(request)
+    from app.services import espaces as _es, whatsapp_suivi as WS
+    try:
+        c = await request.json()
+    except Exception:  # noqa: BLE001
+        c = {}
+    c = c if isinstance(c, dict) else {}
+    eid = c.get("espace_id") or _es.espace_courant()
+    try:
+        return await WS.accorder(eid, numero=c.get("numero") or "", modele=c.get("modele") or {},
+                                 usd_accepte=c.get("usd_accepte"), bilan=c.get("bilan") is not False,
+                                 alerte=c.get("alerte") is not False)
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.delete("/schedule/croissance/alertes")
+async def delete_alertes_croissance(request: Request, espace_id: str = ""):
+    _require_localhost(request)
+    from app.services import espaces as _es, whatsapp_suivi as WS
+    try:
+        return WS.revoquer(espace_id or _es.espace_courant())
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
+
+
 # ---- t328 tâche 4 (27/10/2026) : la DIFFUSION WhatsApp d'un post (services/whatsapp_diffusions.py) ------------------
 # Clé Kapso lue : boucle locale seulement, lecture comprise. Erreurs : refus des règles 409 {message, code, ecartes?},
 # Kapso 502, plafond 402 tel quel (_wa_erreur) ; post inconnu 404 ; fichier des diffusions illisible 409.
