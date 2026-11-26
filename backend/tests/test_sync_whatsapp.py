@@ -118,6 +118,9 @@ with TestClient(app, client=("127.0.0.1", 50001)) as loc:
     check("L1e réglages de l'espace (plafond, marché, agent en brouillon) et total du mois (2)",
           esp[marque]["reglages"]["plafond_mois"] == WA.PLAFOND_DEFAUT and esp[marque]["reglages"]["agent"]["mode"] == "brouillon"
           and esp[marque]["total_mois"] == 2 and esp[marque]["mois"] == mois)
+    check("L1g le système de l'agent WhatsApp de l'espace (sa voix pour le brouillon du téléphone), FR puis EN",
+          "Atelier Soleil" in esp[marque].get("agent_systeme", "") and "## Langue" in esp[marque]["agent_systeme"]
+          and "English" in {e["espace_id"]: e for e in js(lan.get("/api/sync/whatsapp?langue=en", headers=H))["espaces"]}[marque]["agent_systeme"])
     check("L1f aucun secret ni clé Kapso dans la réponse", "KAPSO_API_KEY" not in r.text and "secret" not in r.text.lower())
     nc = esp[client]["numeros"][0]
     check("L2a espace client : client_responsable posé, consentement absent -> faux",

@@ -57,9 +57,21 @@ def _consentement_client(eid: str, pid: str) -> bool:
         return False
 
 
-def lecture(maintenant: datetime | None = None) -> dict:
-    """Les espaces qui ont au moins un numéro WhatsApp relié, avec ce qu'il faut au téléphone pour juger un envoi."""
+def _systeme(eid: str, agent: dict, langue: str) -> str:
+    """Le système de l'agent WhatsApp de l'espace (WHATSAPP.md, rôles, persona, mots interdits, horaires), pour que le
+    brouillon rédigé sur le téléphone suive la même voix que celui du PC. "" si le PC ne sait pas le bâtir."""
+    from app.services import agent_whatsapp as AW
+    try:
+        return AW.systeme(eid, agent, langue)
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def lecture(maintenant: datetime | None = None, langue: str = "fr") -> dict:
+    """Les espaces qui ont au moins un numéro WhatsApp relié, avec ce qu'il faut au téléphone pour juger un envoi et
+    rédiger un brouillon (`agent_systeme`, dans la langue demandée)."""
     maintenant = maintenant or datetime.now(timezone.utc)
+    langue = "en" if langue == "en" else "fr"
     vues = _es.lire()["espaces"]
     par_espace: dict = {}
     for cid, pid, v in _numeros():
@@ -76,6 +88,7 @@ def lecture(maintenant: datetime | None = None) -> dict:
                 "client_responsable": _es.client_responsable(eid),
                 "reglages": {"plafond_mois": r["plafond_mois"], "marche_defaut": r["marche_defaut"],
                              "agent": _wa._agent_complet(r.get("agent"))},
+                "agent_systeme": _systeme(eid, _wa._agent_complet(r.get("agent")), langue),
                 "mois": _wa._mois(maintenant), "total_mois": _wa._total_mois(doc, _wa._mois(maintenant)),
                 "numeros": [], "_doc": doc}
         doc = par_espace[eid]["_doc"]

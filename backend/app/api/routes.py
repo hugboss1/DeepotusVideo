@@ -20462,10 +20462,10 @@ async def sync_evenements_get(request: Request, depuis: str | None = None, limit
 # celui du JETON ; aucune route ne rend un secret ni un texte de message.
 
 @router.get("/sync/whatsapp")
-async def sync_whatsapp_get(request: Request):
+async def sync_whatsapp_get(request: Request, langue: str = "fr"):
     from app.services import sync_whatsapp as _sw
     await _appareil_requis(request)
-    return await asyncio.to_thread(_sw.lecture)
+    return await asyncio.to_thread(_sw.lecture, None, langue)
 
 
 @router.post("/sync/whatsapp")
