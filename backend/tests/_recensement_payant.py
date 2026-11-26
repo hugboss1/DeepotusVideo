@@ -37,6 +37,7 @@ MODULES = {
     "news_fils": RACINE / "api" / "news_fils_routes.py",   # t380 : le relevé payant d'un fil social suivi (Apify)
     "studio3d_texture": RACINE / "api" / "studio3d_texture_routes.py",   # t393 : écran Texture (image fal, retexture Meshy) ; t394 : texture auto (lot de N vues)
     "studio3d_animer": RACINE / "api" / "studio3d_animer_routes.py",   # t398-t399 : écran Animer (animation Meshy, texte → mouvement)
+    "instagram_commentaires": RACINE / "api" / "instagram_commentaires_routes.py",   # t501 : brouillons Claude, réponse publique Instagram
 }
 
 PUITS = {
@@ -73,6 +74,8 @@ PUITS = {
     "P.classer_image",   # t376 : personnage ou non pour la pose 3D (pose3d.classer_image -> moteurs_texte.tirer_garde, Anthropic)
     "NF.relever",   # t380 : le relevé d'un fil social suivi (news_fils.relever -> apify.lancer, sous accord du fil)
     "WD.lancer",   # t328 : le lancement d'une diffusion WhatsApp (whatsapp_diffusions.lancer -> kapso.envoyer_broadcast)
+    "IC.rediger_claude",   # t501 : les brouillons de réponse aux commentaires Instagram (instagram_commentaires -> tirer_garde, Anthropic)
+    "IC.envoyer",   # t501 : UNE réponse publique Instagram (POST /{commentaire}/replies, quota de l'application Meta)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
     "transcribe",
@@ -113,6 +116,8 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
           "RV.noter",   # t337 : la garde vit DANS revue_plan.noter (tirer_garde après l'accord) ; test_plafonds_garde A2m
           "P.classer_image",   # t376 : la garde vit DANS pose3d.classer_image (tirer_garde après l'accord) ; test_plafonds_garde A2n
           "NF.relever",   # t380 : la garde vit DANS news_fils.relever (plafonds.verifier « news » avant apify.lancer) ; test_plafonds_garde A2o
+          "IC.rediger_claude",   # t501 : la garde vit DANS instagram_commentaires (accord, puis tirer_garde) ; test_plafonds_garde A2p
+          "IC.envoyer",   # t501 : la garde vit DANS instagram_commentaires.envoyer (validé, confirmé, garde-fou du jour) ; A2q
           "WD.lancer"}   # t328 : la garde vit DANS whatsapp_diffusions._lancer_sous_verrou (plafonds.verifier avant le send) ;
                          # test_plafonds_garde A2k le vérifie, A2l que lancer y mène (A2i/A2j de t328 renommés à la fusion t320)
 

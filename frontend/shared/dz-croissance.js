@@ -84,7 +84,7 @@
 
   function monter(hote) {
     poserCss();
-    var vivant = true, jours = 30, espace = "", tour = 0;
+    var vivant = true, jours = 30, espace = "", tour = 0, igc = null;
     var racine = el("div", { class: "dzCroi", "data-dz-croissance": "racine" });
     var selPeriode = el("select", { "data-dz-croissance": "periode", "aria-label": T("croissance.periode.libelle") },
       PERIODES.map(function (p) { return el("option", { value: String(p), texte: T("croissance.periode.jours", { n: p }) }); }));
@@ -202,6 +202,14 @@
     function dessiner(d) {
       vider(corps);
       corps.appendChild(compte(d.compte));
+      // t501 (G11) : les commentaires au mot-clé et la file des brouillons de réponse publique, montés par
+      // dz-ig-commentaires.js (les gestes y vivent ; cet écran reste en lecture)
+      if (igc) { igc.demonter(); igc = null; }
+      if (window.DzIgCommentaires) {
+        var hoteIgc = section("croissance.section.commentaires", "commentaires", []);
+        corps.appendChild(hoteIgc);
+        igc = window.DzIgCommentaires.monter(hoteIgc, { espace: espace });
+      }
       var t = d.totaux || {};
       corps.appendChild(section("croissance.section.posts", "posts", [el("div", { class: "dzCroiTuiles" },
         TUILES_POSTS.map(function (k) { return tuile("croissance.posts." + k, nombre(t[k]), "posts-" + k); }))]));
@@ -219,7 +227,7 @@
     lireEspaces();
     recharger();
     return {
-      demonter: function () { vivant = false; if (racine.parentNode) racine.parentNode.removeChild(racine); },
+      demonter: function () { vivant = false; if (igc) igc.demonter(); if (racine.parentNode) racine.parentNode.removeChild(racine); },
       recharger: recharger,
     };
   }

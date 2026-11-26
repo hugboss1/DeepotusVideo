@@ -10,6 +10,7 @@
   "croissance.etat.releve": {"fr": "Relevé en cours…", "en": "Reading metrics…"},
   "croissance.etat.releve_erreur": {"fr": "Le relevé a échoué.", "en": "The reading failed."},
   "croissance.section.compte": {"fr": "Compte Instagram", "en": "Instagram account"},
+  "croissance.section.commentaires": {"fr": "Commentaires au mot-clé", "en": "Keyword comments"},
   "croissance.section.posts": {"fr": "Vos posts mesurés", "en": "Your measured posts"},
   "croissance.section.regularite": {"fr": "Régularité", "en": "Consistency", "contexte": true},
   "croissance.section.gagnants": {"fr": "Gagnants", "en": "Winners"},
