@@ -138,6 +138,7 @@ def section_pures():
     check("1l l'empreinte ne contient aucun mot de la source", not any(w.lower() in " ".join(e) for w in ("outil", "chiffre")))
     check("1m suite copiée reconnue par l'empreinte, accents et casse neutres",
           IR.suite_dans_empreinte(e, "Écoute : UN OUTIL que tu ouvres deux fois par semaine et personne ne te le dit jamais !"))
+    check("1o planches lues ≤ le plafond d'images de la garde", IR.PLANCHES_LUES <= MT.MAX_IMAGES)
     check("1n texte neuf non reconnu", not IR.suite_dans_empreinte(e, "Un logiciel payé une seule fois, à vie, sans abonnement caché"))
 
 
