@@ -330,7 +330,7 @@ async def lire_reference(iid: str, *, max_usd, langue: str = "fr", nouvelle: boo
         if tr_usd + usd_texte > mx + I.EPS_USD:
             raise I.CoutChange("Le coût a changé : il dépasse le montant accepté.", round(tr_usd + usd_texte, 4))
         images = [await asyncio.to_thread(SV._reduire, p.read_bytes()) for p in planches] or None
-        sortie = await I._appel(prompt, SYSTEME, MAX_TOKENS, modele, DELAI, images)
+        sortie = await I._appel(prompt, SYSTEME, MAX_TOKENS, modele, DELAI, images, categorie=CATEGORIE)
         j = I._json(sortie)
         recette = normaliser_recette(j, rec, mots or [])
         texte_ecran = I._texte(j.get("texte_ecran"), I.MAX_TEXTE)
