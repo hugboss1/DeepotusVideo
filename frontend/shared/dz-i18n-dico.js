@@ -24,6 +24,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "agent.boites.campagnes": {"fr": "Campagnes", "en": "Campaigns"},
   "agent.boites.capture": {"fr": "Capture de l'app", "en": "App recording"},
   "agent.boites.chapitres": {"fr": "Chapitres", "en": "Chapters"},
+  "agent.boites.croissance": {"fr": "Boucle de croissance", "en": "Growth loop"},
   "agent.boites.edition": {"fr": "Mise en texte par langue", "en": "Per-language text fitting"},
   "agent.boites.fils": {"fr": "Fils suivis de News", "en": "Followed News feeds"},
   "agent.boites.methodes": {"fr": "Méthodes (lecture)", "en": "Methods (read-only)"},

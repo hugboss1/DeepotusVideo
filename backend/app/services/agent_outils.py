@@ -2394,6 +2394,39 @@ async def proposer_fil(ctx: Ctx, plateforme: str, identifiant: str, raison: str,
                 {"suggestion": s["id"], "plateforme": s["plateforme"], "identifiant": s["identifiant"], "lecture": lecture})
 
 
+async def ecrire_script_court(ctx: Ctx, accroche: str, corps, appel: str, ecran=None, gagnant: str = "",
+                              nom: str = "script-court", langue: str = "fr") -> dict:
+    """t496 (G6, 26/11/2026) : le script court (accroche / corps / appel) écrit par l'agent est CONTRÔLÉ ici, sans
+    modèle ni dépense : durée lue estimée, les quatre contrôles (accroche en 3 s, une idée par ligne, fin sur un appel,
+    mêmes mots à l'écran) et les mots interdits de l'espace (`script_court`). Le script va dans `textes/<nom>.md`,
+    le verdict dans `controle.md` du dossier de la campagne. `gagnant` = le gagnant enregistré dont il part (G5)."""
+    from app.services import script_court as SC
+    lignes = [str(accroche or "")] + [str(x or "") for x in (corps if isinstance(corps, list) else [corps])] + [str(appel or "")]
+    ecr = ecran if isinstance(ecran, list) else []
+    script = [{"texte": t, "ecran": str(ecr[i] if i < len(ecr) else "")} for i, t in enumerate(lignes)]
+    if not SC.lignes_de(script):
+        raise _Refus("script vide")
+    nom = re.sub(r"[^a-z0-9-]+", "-", str(nom or "script-court").lower()).strip("-")[:60] or "script-court"
+    langue = langue if langue in ("fr", "en") else "fr"
+    persona, brief = await _mots_interdits(_espace(ctx))
+    r = SC.controler_script(script, langue=langue)
+    r["controles"]["interdits"] = SC.controler_interdits(script, persona + brief)
+    r["ok"] = all(v["ok"] for v in r["controles"].values())
+    entete = (f"# {nom}\n\n" + (f"Part du gagnant : {str(gagnant)[:200]}\n\n" if gagnant else "")
+              + f"Durée lue estimée : {r['duree_s']} s\n\n")
+    corps_md = "\n".join(f"{i + 1}. {l['texte']}" + (f"  \n   À l'écran : {l['ecran']}" if l["ecran"] else "")
+                         for i, l in enumerate(SC.lignes_de(script)))
+    e1 = await ecrire_dossier(ctx, f"textes/{nom}.md", entete + corps_md + "\n")
+    if not e1.get("ok"):
+        return e1
+    await ecrire_dossier(ctx, "controle.md", SC.controle_md(r, langue, f"Contrôle : {nom}" if langue != "en" else f"Check: {nom}"))
+    ko = [k for k, v in r["controles"].items() if not v["ok"]]
+    return _res(True, (f"script de {r['lignes']} ligne(s), {r['duree_s']} s ; " +
+                       ("contrôles conformes" if not ko else "à revoir : " + ", ".join(ko))
+                       + " ; consigné dans controle.md"),
+                {"chemin": f"textes/{nom}.md", "duree_s": r["duree_s"], "ok": r["ok"], "controles": r["controles"]})
+
+
 def _o(props: dict, requis=()) -> dict:
     return {"type": "object", "properties": props, "required": list(requis), "additionalProperties": False}
 
@@ -2752,6 +2785,23 @@ OUTILS: dict[str, dict] = {
                                                 description="le travail qui a fait naître la suggestion"),
                                    "nom": dict(_T, description="nom lisible (facultatif)")},
                                   ("plateforme", "identifiant", "raison", "pour"))},
+    # t496 (G6) : le script court contrôlé (boîte « croissance ») ; aucun modèle, aucune dépense
+    "ecrire_script_court": {"nature": "ecriture", "fn": ecrire_script_court,
+                            "description": "Écrit un script court de vidéo verticale (accroche, corps une idée par "
+                                           "ligne, appel) dans textes/<nom>.md du dossier de la campagne, et le "
+                                           "CONTRÔLE sans dépense : durée lue estimée (2,5 mots/s), accroche en 3 s, "
+                                           "une idée par ligne (12 mots au plus), fin sur un appel, mêmes mots à "
+                                           "l'écran, mots interdits de l'espace. Le verdict va dans controle.md. "
+                                           "Réécris les lignes signalées puis rappelle l'outil.",
+                            "schema": _o({"accroche": dict(_T, description="la première ligne, dite en 3 s"),
+                                          "corps": {"type": "array", "items": _T, "description": "une idée par ligne"},
+                                          "appel": dict(_T, description="la dernière ligne : une seule action"),
+                                          "ecran": {"type": "array", "items": _T,
+                                                    "description": "texte à l'écran ligne par ligne (accroche, corps, appel), mots dits seulement"},
+                                          "gagnant": dict(_T, description="le gagnant enregistré dont part le script (facultatif)"),
+                                          "nom": dict(_T, description="nom du fichier, ex. reel-prix"),
+                                          "langue": dict(_T, enum=["fr", "en"])},
+                                         ("accroche", "corps", "appel"))},
     # t313 : inspiration -> contenu neuf (boîte « scan », aucun agent ne la déclare encore, §11 bis)
     "angles_inspiration": {"nature": "lecture", "fn": angles_inspiration,
                            "description": "Lit la capture d'une inspiration rangée dans la Bibliothèque (texte comme "
