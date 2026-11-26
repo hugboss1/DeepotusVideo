@@ -100,6 +100,8 @@
     + ".dzCroiDetail{grid-column:1 / -1;font-size:11px;color:var(--ink-soft,#8a857d)}"
     + ".dzCroiVide{color:var(--ink-soft,#8a857d);margin:0}"
     + ".dzCroiActions{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px;align-items:center}"
+    + ".dzCroiActions label{display:inline-flex;gap:6px;align-items:center}"   // t504 : libellé et champ séparés (accord X, bilan WhatsApp)
+    + ".dzCroi input[type=tel],.dzCroi input[type=number]{background:var(--bg-panel-2,#1c1c21);color:var(--ink-strong,#f2efe9);border:1px solid var(--stroke,#2a2930);border-radius:var(--r);padding:3px 6px;font:inherit;min-width:0}"
     + ".dzCroi a{color:var(--accent,#f0b429)}"
     + ".dzCroi textarea{width:100%;box-sizing:border-box;min-height:52px;background:var(--bg-panel-2,#1c1c21);color:var(--ink-strong,#f2efe9);border:1px solid var(--stroke,#2a2930);border-radius:var(--r);font:inherit;padding:4px 6px}"
     + ".dzCroiAnalyse{grid-column:1 / -1;display:flex;flex-direction:column;gap:4px;border-top:1px solid var(--stroke,#2a2930);padding-top:6px}"
