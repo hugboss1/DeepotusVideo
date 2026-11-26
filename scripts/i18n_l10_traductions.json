@@ -14982,5 +14982,9 @@
  "La vidéo n'a pas pu être gardée.": {
   "fr": "La vidéo n'a pas pu être gardée.",
   "en": "The video could not be kept."
+ },
+ "Numéro WhatsApp de l'espace invalide : indicatif du pays compris, chiffres seulement.": {
+  "fr": "Numéro WhatsApp de l'espace invalide : indicatif du pays compris, chiffres seulement.",
+  "en": "Invalid WhatsApp number for the space: country code included, digits only."
  }
 }

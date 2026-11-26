@@ -549,6 +549,7 @@
   "erreur.25128fa7eb": {"fr": "pack doit être une liste", "en": "pack must be a list", "src": "en"},
   "erreur.253088ba82": {"fr": "le fournisseur n'a rendu aucune image", "en": "the provider returned no image", "src": "fr"},
   "erreur.256944d54f": {"fr": "Clé fal absente — ajoute-la dans les Réglages (Clés d'API) : les moteurs 3D choisis passent par fal.", "en": "fal key missing — add it in Settings (API keys): the chosen 3D engines run on fal.", "src": "fr"},
+  "erreur.257a8f379f": {"fr": "Numéro WhatsApp de l'espace invalide : indicatif du pays compris, chiffres seulement.", "en": "Invalid WhatsApp number for the space: country code included, digits only.", "src": "fr"},
   "erreur.257eabf4d5": {"fr": "{nom} : aucun triangle", "en": "{nom}: no triangles", "src": "fr"},
   "erreur.25861693cd": {"fr": "quality : entier de 1 à 100 attendu", "en": "quality: integer from 1 to 100 expected", "src": "fr"},
   "erreur.2588ed5777": {"fr": "size doit valoir {v}", "en": "size must be {v}", "src": "fr"},

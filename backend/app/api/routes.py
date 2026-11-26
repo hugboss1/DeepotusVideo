@@ -10088,6 +10088,32 @@ async def post_scheduled_post_validation_whatsapp(post_id: str, request: Request
         raise _wa_erreur(e)
 
 
+@router.post("/schedule/{post_id}/lien-whatsapp")
+async def post_scheduled_post_lien_whatsapp(post_id: str, request: Request):
+    """t502 (G12) : le lien wa.me SUIVI d'un post (appel à l'action « écris-nous sur WhatsApp ») : {numero, texte?,
+    langue?} -> {lien, code, message}. Gratuit, aucun envoi. L'entrant qui renvoie le code devient un prospect rattaché
+    au post (prospects_sources.whatsapp_entrants : origine_post). 400 numéro, 404 post ou espace."""
+    _require_localhost(request)
+    from app.services import whatsapp_suivi as WS
+    try:
+        corps = await request.json()
+    except Exception:  # noqa: BLE001
+        corps = {}
+    corps = corps if isinstance(corps, dict) else {}
+    async with async_session_factory() as session:
+        p = await session.get(ScheduledPost, post_id)
+    if not p:
+        raise HTTPException(404, "post inconnu")
+    from app.services import espaces as _es
+    try:
+        return WS.lien(p.espace_id or _es.espace_courant(), corps.get("numero") or "", p.id, corps.get("texte") or "",
+                       "en" if corps.get("langue") == "en" else "fr")
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 # ---- t328 tâche 4 (27/10/2026) : la DIFFUSION WhatsApp d'un post (services/whatsapp_diffusions.py) ------------------
 # Clé Kapso lue : boucle locale seulement, lecture comprise. Erreurs : refus des règles 409 {message, code, ecartes?},
 # Kapso 502, plafond 402 tel quel (_wa_erreur) ; post inconnu 404 ; fichier des diffusions illisible 409.

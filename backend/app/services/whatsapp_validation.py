@@ -335,6 +335,10 @@ async def envoyer_validation(post_id: str) -> dict:
         media_id = await kapso.televerser_media(pid, *apercu)
     ok, corr = ids(post.id)
     bloc = await _bloc_diffusion(post, langue)       # t328 revue finale I2 : le client voit ce qui partira en diffusion
+    from app.services import whatsapp_suivi as WS     # t502 (G12) : et la note avant publication (G7) avec ses remarques
+    note = WS.bloc_note(post.brief, langue)
+    if note:
+        bloc = note + ("\n\n" + bloc if bloc else "")
     if modele is None:
         envoi = {"type": "boutons", "texte": _avec_bloc(_texte(post, langue), bloc, WE.MAX_CORPS_BOUTONS, "\n\n"),
                  "boutons": list(titres(langue)), "ids": [ok, corr]}
