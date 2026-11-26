@@ -2,6 +2,8 @@
 """t492 (09/11/2026) — l'écran « Croissance » (frontend/shared/dz-croissance.js, 5e onglet du tiroir F1) : copie dist
 identique, balise dans la SPA après dz-prospects.js, clés FR/EN complètes et employées, aucune chaîne en dur, aucun mot
 « publier », listes alignées sur le serveur, banc node du composant et du tiroir.
+t498 (26/11/2026) : « Recycler ce gagnant » — ses éléments et raisons suivent recyclage.py, ses seules écritures sont
+les routes /api/recyclage/{id}/redaction et /brouillons (en plus du relevé).
 Run : & $PY tests/test_croissance_ecran.py   (depuis backend/)"""
 import json, pathlib, re, shutil, subprocess, sys
 import pytest
@@ -42,6 +44,10 @@ def test_listes_suivent_le_serveur():
     cles = set(re.findall(r'"([a-z_]+)": None', src_ig[src_ig.index("async def fetch_compte"):]))
     assert set(_liste("TUILES_COMPTE")) <= cles, "tuiles hors du contrat de fetch_compte"
     assert set(_liste("TUILES_POSTS")) <= {"posts", *MS._CLES}
+    from app.services import recyclage as RC                      # t498
+    assert _liste("ELEMENTS_RECYCLAGE") == list(RC.ELEMENTS)
+    src_rc = (RACINE / "backend" / "app" / "services" / "recyclage.py").read_text(encoding="utf-8")
+    assert set(_liste("RAISONS_RECYCLAGE")) == {"cle", *re.findall(r'\("(sans_[a-z]+)" if el ==', src_rc)}, "raisons des cartes"
 
 
 def test_cles_fr_en():
@@ -55,6 +61,8 @@ def test_cles_fr_en():
     employees |= {f"croissance.posts.{t}" for t in _liste("TUILES_POSTS")}
     employees |= {f"croissance.jalon.{j}" for j in _liste("JALONS")}
     employees |= {f"croissance.raison.{r}" for r in _liste("RAISONS")}
+    employees |= {f"croissance.recyclage.{e}" for e in _liste("ELEMENTS_RECYCLAGE")}           # t498
+    employees |= {f"croissance.raison_recyclage.{r}" for r in _liste("RAISONS_RECYCLAGE")}
     assert employees <= set(I18N), "clés employées sans traduction : " + str(sorted(employees - set(I18N)))
     assert set(I18N) <= employees, "clés orphelines : " + str(sorted(set(I18N) - employees))
 
@@ -87,8 +95,11 @@ def test_aucune_chaine_visible_en_dur():
 def test_lecture_seule():
     sans = re.sub(r"/\*.*?\*/", "", SRC, flags=re.S)
     assert not re.search(r"publi(er|sh)|/fire|/schedule/validate", sans, re.I)
-    ecritures = re.findall(r'fetch\("([^"]+)",\s*\{\s*method:\s*"POST"', sans)
-    assert ecritures == ["/api/schedule/analytics/refresh"], ecritures
+    ecritures = re.findall(r'fetch\(([^,]+),\s*\{\s*method:\s*"POST"', sans)
+    # t498 : le relevé, puis la rédaction d'UNE carte acceptée et les brouillons du recyclage (adresse sous `base`)
+    assert ecritures == ['"/api/schedule/analytics/refresh"', 'base + "/redaction"', 'base + "/brouillons"'], ecritures
+    assert 'var base = "/api/recyclage/" + encodeURIComponent(String(p.id));' in sans
+    assert "max_usd: usd" in sans, "la rédaction part au montant de la carte affichée"
     for k, v in I18N.items():
         assert not re.search(r"publi(er|sh)", v["fr"] + " " + v["en"], re.I), k
 

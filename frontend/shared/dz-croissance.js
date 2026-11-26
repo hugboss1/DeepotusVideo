@@ -10,7 +10,11 @@
    - GET  /api/schedule/croissance?days=&espace_id=&tz=   {totaux, canaux, top, gagnants, seuil_gagnant, regularite, compte}
    - POST /api/schedule/analytics/refresh                 la passe de mesures (rationnée par le serveur)
    - GET  /api/espaces                                    la liste du filtre
-   Lecture seule : aucun bouton ne publie ni ne dépense. Tout texte venu du serveur (titres, noms) est posé en
+   t498 (lot G8, 26/11/2026) — « Recycler ce gagnant » sur chaque ligne gagnante :
+   - GET  /api/recyclage/{id}/proposition                  quatre cartes de devis (carrousel, accroches, fil X, branche)
+   - POST /api/recyclage/{id}/redaction  {element, max_usd} l'appel Claude d'UNE carte, au montant affiché et accepté
+   - POST /api/recyclage/{id}/brouillons {elements}         les brouillons au Planificateur (jamais en mode automatique)
+   Aucun bouton ne publie ; seule l'acceptation d'une carte dépense, à son montant. Tout texte venu du serveur (titres, noms) est posé en
    textContent. Les libellés viennent de dzT (zone.objet.role). Vanilla DOM, aucune dépendance. */
 (function () {
   "use strict";
@@ -21,6 +25,8 @@
   var TUILES_COMPTE = ["views", "reach", "followers", "follows", "interactions", "non_abonnes_pct"];
   var TUILES_POSTS = ["posts", "views", "engagement"];
   var JALONS = ["j1", "j3", "j7", "j30"];
+  var ELEMENTS_RECYCLAGE = ["carrousel", "accroches", "fil_x", "branche"];   // t498 : recyclage.ELEMENTS
+  var RAISONS_RECYCLAGE = ["cle", "sans_plans", "sans_gabarit"];
 
   function T(cle, vars) { return typeof window.dzT === "function" ? window.dzT(cle, vars) : cle; }
   function langue() {
@@ -72,7 +78,12 @@
     + ".dzCroiMult{font-family:var(--f-mono,monospace);font-variant-numeric:tabular-nums;color:var(--ink-strong,#f2efe9);text-align:right}"
     + ".dzCroiMult[data-gagnant]{color:var(--accent,#f0b429);font-weight:700}"
     + ".dzCroiDetail{grid-column:1 / -1;font-size:11px;color:var(--ink-soft,#8a857d)}"
-    + ".dzCroiVide{color:var(--ink-soft,#8a857d);margin:0}";
+    + ".dzCroiVide{color:var(--ink-soft,#8a857d);margin:0}"
+    + ".dzCroiRecyBtn,.dzCroiRecy{grid-column:1 / -1;justify-self:start}.dzCroiRecy{justify-self:stretch}"
+    + ".dzCroiRecy .dzCroiNote[data-erreur]{color:var(--red,#e35d4a)}"
+    + ".dzCroiCartes{list-style:none;margin:4px 0;padding:0;display:flex;flex-direction:column;gap:4px}"
+    + ".dzCroiCarte{border:1px solid var(--stroke,#2a2930);border-radius:var(--r);padding:4px 8px;display:grid;grid-template-columns:1fr auto;gap:2px 8px}"
+    + ".dzCroiCarte button{grid-column:1 / -1;justify-self:start}";
   function poserCss() {
     if (document.getElementById && document.getElementById("dzCroiCss")) return;
     var s = el("style", { id: "dzCroiCss" });
@@ -195,8 +206,113 @@
         .map(function (k) { return T("croissance.jalon." + k, { n: nombre(jal[k]) }); });
       if (lus.length) detail.push(lus.join(" · "));
       if (typeof c.visionnage_s === "number") detail.push(T("croissance.post.visionnage", { n: nombre(c.visionnage_s) }));
-      return el("li", { class: "dzCroiPost", "data-dz-croissance": "post" }, [
-        el("strong", { texte: String(p.title || "") }), mult, el("div", { class: "dzCroiDetail", texte: detail.join(" — ") })]);
+      var enfants = [el("strong", { texte: String(p.title || "") }), mult, el("div", { class: "dzCroiDetail", texte: detail.join(" — ") })];
+      if (c.gagnant && p.id) {                       // t498 : recycler ce gagnant (proposition gratuite, devis par carte)
+        var zone = el("div", { class: "dzCroiRecy", "data-dz-croissance": "recyclage" });
+        var br = el("button", { type: "button", class: "dzCroiRecyBtn", "data-dz-croissance": "recycler",
+          texte: T("croissance.recyclage.bouton"), title: T("croissance.recyclage.bouton_aide") });
+        br.addEventListener("click", function () { recycler(p, zone, br); });
+        enfants.push(br, zone);
+      }
+      return el("li", { class: "dzCroiPost", "data-dz-croissance": "post" }, enfants);
+    }
+
+    // ---- t498 : recycler un gagnant ----------------------------------------------------------------------------------
+    function dollars(v) {
+      var n = typeof v === "number" && isFinite(v) ? v : 0;
+      return n.toLocaleString(langue() === "en" ? "en-US" : "fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: n > 0 && n < 0.01 ? 4 : 2 }) + " $";
+    }
+    async function messageDe(r) {
+      var j = await lireJson(r), d = j && j.detail;
+      if (typeof d === "string") return d;
+      return d && typeof d.message === "string" ? d.message : T("croissance.recyclage.erreur");
+    }
+    function recycler(p, zone, bouton) {
+      var base = "/api/recyclage/" + encodeURIComponent(String(p.id));
+      var redige = {};
+      vider(zone);
+      var etatR = el("p", { class: "dzCroiNote", "data-dz-croissance": "recyclage-etat", role: "status" });
+      zone.appendChild(etatR);
+      function direR(t, err) {
+        etatR.textContent = t || "";
+        if (err) etatR.setAttribute("data-erreur", "1"); else etatR.removeAttribute("data-erreur");
+      }
+      var envoi = { "Content-Type": "application/json" };
+      var btnB = el("button", { type: "button", "data-dz-croissance": "recyclage-brouillons", texte: T("croissance.recyclage.brouillons") });
+
+      async function accepter(elt, usd, b) {
+        b.setAttribute("disabled", "");
+        direR(T("croissance.recyclage.redaction"));
+        var bon = false, msg = "";
+        try {
+          var r = await window.fetch(base + "/redaction", { method: "POST", headers: envoi,
+            body: JSON.stringify({ element: elt, max_usd: usd, langue: langue() }) });
+          if (r.ok) {
+            var j = await lireJson(r);
+            bon = true;
+            if (Array.isArray(j.interdits) && j.interdits.length) msg = T("croissance.recyclage.interdits", { mots: j.interdits.join(", ") });
+          } else msg = await messageDe(r);
+        } catch (e) { msg = T("croissance.recyclage.erreur"); }
+        if (!vivant) return;
+        if (!bon) { b.removeAttribute("disabled"); direR(msg, true); return; }
+        redige[elt] = true;
+        b.textContent = T("croissance.recyclage.redige");
+        direR(msg || T("croissance.recyclage.pret"), !!msg);
+      }
+
+      function carte(c) {
+        var a = c.arguments || {}, t = a.texte || {}, elt = String(a.element || "");
+        var li = el("li", { class: "dzCroiCarte", "data-dz-croissance": "recyclage-carte", "data-element": elt }, [
+          el("strong", { texte: ELEMENTS_RECYCLAGE.indexOf(elt) >= 0 ? T("croissance.recyclage." + elt) : elt }),
+          el("span", { class: "dzCroiMult", texte: dollars(c.devis) })]);
+        var note = "";
+        if (!t.disponible) note = RAISONS_RECYCLAGE.indexOf(t.raison) >= 0 ? T("croissance.raison_recyclage." + t.raison) : "—";
+        else if (elt === "branche") note = T("croissance.recyclage.branche_note");
+        if (note) li.appendChild(el("div", { class: "dzCroiDetail", texte: note }));
+        if (t.disponible) {
+          var b = el("button", { type: "button", "data-dz-croissance": "recyclage-accepter",
+            texte: a.redige ? T("croissance.recyclage.redige") : T("croissance.recyclage.accepter", { usd: dollars(t.usd) }) });
+          if (a.redige) { redige[elt] = true; b.setAttribute("disabled", ""); }
+          b.addEventListener("click", function () { accepter(elt, t.usd, b); });
+          li.appendChild(b);
+        }
+        return li;
+      }
+
+      async function brouillons() {
+        var els = ELEMENTS_RECYCLAGE.filter(function (e) { return redige[e]; });
+        if (!els.length) { direR(T("croissance.recyclage.rien"), true); return; }
+        btnB.setAttribute("disabled", "");
+        direR(T("croissance.recyclage.creation"));
+        var j = null, msg = "";
+        try {
+          var r = await window.fetch(base + "/brouillons", { method: "POST", headers: envoi, body: JSON.stringify({ elements: els }) });
+          if (r.ok) j = await lireJson(r); else msg = await messageDe(r);
+        } catch (e) { msg = T("croissance.recyclage.erreur"); }
+        if (!vivant) return;
+        btnB.removeAttribute("disabled");
+        if (!j) { direR(msg || T("croissance.recyclage.erreur"), true); return; }
+        var dit = T("croissance.recyclage.crees", { n: (j.brouillons || []).length });
+        if ((j.non_crees || []).length) dit += " " + T("croissance.recyclage.branche_montage");
+        direR(dit);
+      }
+      btnB.addEventListener("click", brouillons);
+
+      (async function () {
+        bouton.setAttribute("disabled", "");
+        direR(T("croissance.recyclage.lecture"));
+        var prop = null, msg = "";
+        try {
+          var r = await window.fetch(base + "/proposition");
+          if (r.ok) prop = await lireJson(r); else msg = await messageDe(r);
+        } catch (e) { msg = T("croissance.recyclage.erreur"); }
+        if (!vivant) return;
+        bouton.removeAttribute("disabled");
+        if (!prop || !Array.isArray(prop.cartes)) { direR(msg || T("croissance.recyclage.erreur"), true); return; }
+        direR(T("croissance.recyclage.aide"));
+        zone.appendChild(el("ul", { class: "dzCroiCartes", "data-dz-croissance": "recyclage-cartes" }, prop.cartes.map(carte)));
+        zone.appendChild(btnB);
+      })();
     }
 
     function dessiner(d) {

@@ -49,14 +49,15 @@ const dzTde = (lang) => (cle, vars) => {
 };
 const reponse = (status, json) => ({ ok: status >= 200 && status < 300, status, json: async () => J(json === undefined ? {} : json) });
 
-function monde({ lang = "fr", tableau, releve = 200, panne = false } = {}) {
+function monde({ lang = "fr", tableau, releve = 200, panne = false, recyclage = null } = {}) {
   const appels = [];
   const win = {
     dzT: dzTde(lang), dzLang: () => lang,
     fetch: async (url, init = {}) => {
       const m = init.method || "GET";
-      appels.push({ url: String(url), methode: m });
+      appels.push({ url: String(url), methode: m, corps: init.body ? JSON.parse(init.body) : null });
       if (panne) throw new Error("réseau coupé");
+      if (String(url).startsWith("/api/recyclage/")) return recyclage ? recyclage(String(url), m) : reponse(404, {});
       if (String(url) === "/api/espaces") return reponse(200, { actif: "e1", espaces: [{ id: "e1", nom: "Marque" }, { id: "e2", nom: "Client <b>" }, { id: "e3", nom: "Vieux", archive: true }] });
       if (String(url).startsWith("/api/schedule/croissance")) return typeof tableau === "function" ? tableau(String(url)) : reponse(200, tableau);
       if (String(url) === "/api/schedule/analytics/refresh") return reponse(releve, {});
@@ -173,6 +174,58 @@ const txt = (x) => (x ? x.textContent : "");
   const sp = marque(lent.hote, "periode"); sp.value = "7"; sp.fire("change");
   await new Promise((r) => setTimeout(r, 90));
   ok("3.4 une réponse lente et périmée n'écrase pas la plus récente", txt(marque(lent.hote, "posts-posts")).startsWith("77"), txt(marque(lent.hote, "posts-posts")));
+}
+
+// ---- t498 : recycler un gagnant -----------------------------------------------------------------------------------------
+{
+  const carte = (element, usd, texte = {}) => ({ type: "carte", genre: "devis", devis: usd, etat: "proposee",
+    arguments: { element, redige: false, texte: Object.assign({ usd, disponible: true, raison: "" }, texte) } });
+  const PROP = { cartes: [carte("carrousel", 0.012), carte("accroches", 0.004), carte("fil_x", 0.006),
+    carte("branche", 0, { disponible: false, raison: "sans_plans" })] };
+  let refusRedaction = false;
+  const recy = (url, m) => {
+    if (url.endsWith("/proposition")) return reponse(200, PROP);
+    if (url.endsWith("/redaction")) return refusRedaction ? reponse(409, { detail: { message: "Le coût a changé : il dépasse le montant accepté.", code: "cout", usd: 1 } })
+      : reponse(200, { accroches: ["a", "b", "c"], interdits: [] });
+    if (url.endsWith("/brouillons")) return reponse(200, { brouillons: [{}, {}, {}], non_crees: [] });
+    return reponse(404, {});
+  };
+  const m = monde({ tableau: TABLEAU, recyclage: recy });
+  m.Dz.monter(m.hote); await tick(); await tick();
+  const gl = marque(marque(m.hote, "gagnants"), "post");
+  ok("4.1 le gagnant porte « Recycler ce gagnant », les autres non", txt(marque(gl, "recycler")) === FR("croissance.recyclage.bouton")
+    && marques(marque(m.hote, "top"), "recycler").length === 1);
+  marque(gl, "recycler").click(); await tick(); await tick();
+  ok("4.2 la proposition est lue (GET), sans aucune écriture", m.appels.some((a) => a.url === "/api/recyclage/g/proposition" && a.methode === "GET")
+    && !m.appels.some((a) => a.url.startsWith("/api/recyclage/") && a.methode === "POST"));
+  const cartes = marques(gl, "recyclage-carte");
+  ok("4.3 quatre cartes nommées, chacune avec son devis", cartes.length === 4 && txt(cartes[1]).includes(FR("croissance.recyclage.accroches"))
+    && txt(cartes[1]).includes("0,004 $") && txt(cartes[0]).includes("0,01 $"), cartes.map(txt).join(" | "));
+  ok("4.4 carte indisponible : raison dite, aucun bouton", txt(cartes[3]).includes(FR("croissance.raison_recyclage.sans_plans"))
+    && !marque(cartes[3], "recyclage-accepter"));
+  marque(gl, "recyclage-brouillons").click(); await tick();
+  ok("4.5 brouillons avant toute carte acceptée : refusé sur place", txt(marque(gl, "recyclage-etat")) === FR("croissance.recyclage.rien")
+    && !m.appels.some((a) => a.url.endsWith("/brouillons")));
+  marque(cartes[1], "recyclage-accepter").click(); await tick(); await tick();
+  const red = m.appels.find((a) => a.url.endsWith("/redaction"));
+  ok("4.6 accepter : POST redaction de CET élément, au montant affiché", red && red.methode === "POST" && red.corps.element === "accroches"
+    && red.corps.max_usd === 0.004, JSON.stringify(red));
+  ok("4.7 rédigé : le bouton le dit et se fige", txt(marque(cartes[1], "recyclage-accepter")) === FR("croissance.recyclage.redige")
+    && marque(cartes[1], "recyclage-accepter").hasAttribute("disabled"));
+  marque(gl, "recyclage-brouillons").click(); await tick(); await tick();
+  const br = m.appels.find((a) => a.url.endsWith("/brouillons"));
+  ok("4.8 brouillons : les seuls éléments rédigés", br && br.methode === "POST" && JSON.stringify(br.corps) === '{"elements":["accroches"]}', JSON.stringify(br));
+  ok("4.9 le nombre de brouillons est dit", txt(marque(gl, "recyclage-etat")) === FR("croissance.recyclage.crees", { n: 3 }));
+  refusRedaction = true;
+  marque(cartes[2], "recyclage-accepter").click(); await tick(); await tick();
+  ok("4.10 refus du serveur : son message, le bouton revient", txt(marque(gl, "recyclage-etat")).startsWith("Le coût a changé")
+    && marque(gl, "recyclage-etat").hasAttribute("data-erreur") && !marque(cartes[2], "recyclage-accepter").hasAttribute("disabled"));
+  const m2 = monde({ tableau: TABLEAU, recyclage: () => reponse(409, { detail: { message: "Ce post n'est pas un gagnant", code: "sous_seuil" } }) });
+  m2.Dz.monter(m2.hote); await tick(); await tick();
+  const g2 = marque(marque(m2.hote, "gagnants"), "post");
+  marque(g2, "recycler").click(); await tick(); await tick();
+  ok("4.11 proposition refusée : le message du serveur, posé en texte", txt(marque(g2, "recyclage-etat")) === "Ce post n'est pas un gagnant"
+    && !marque(g2, "recyclage-cartes"));
 }
 
 if (echecs.length) { console.log("ÉCHECS (" + echecs.length + "/" + n + ") :\n- " + echecs.join("\n- ")); process.exit(1); }

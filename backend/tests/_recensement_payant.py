@@ -27,6 +27,7 @@ MODULES = {
     "agent_campagnes": RACINE / "api" / "agent_campagnes_routes.py",   # t285a : le message de l'agent Campagnes (Anthropic)
     "scan": RACINE / "api" / "scan_routes.py",   # t312 : le secours Claude vision de la boîte Scan (Anthropic)
     "inspiration": RACINE / "api" / "inspiration_routes.py",   # t313 : matière, angles et rédaction d'une inspiration (Anthropic)
+    "recyclage": RACINE / "api" / "recyclage_routes.py",   # t498 : la rédaction du recyclage d'un gagnant (Anthropic)
     "schema": RACINE / "api" / "schema_routes.py",   # t314 : le détourage fal d'un schéma (calques du Vectorlab)
     "comparatif3d": RACINE / "api" / "comparatif3d_routes.py",   # t344 : N moteurs image → 3D en un clic (fal)
     "studio3d": RACINE / "api" / "studio3d_routes.py",   # t389 : l'écran Créer — N modèles × images × exemplaires (fal)
@@ -69,6 +70,7 @@ PUITS = {
     "WV.envoyer_validation",   # t311 : la demande de validation au client (whatsapp_validation.envoyer_validation -> WE.envoyer)
     "SV.lire",   # t312 : le secours Claude vision du Scan (scan_vision.lire -> moteurs_texte.tirer_garde, Anthropic)
     "I.analyser", "I.rediger",   # t313 : l'inspiration (inspiration.analyser / rediger -> moteurs_texte.tirer_garde, Anthropic)
+    "RC.rediger",   # t498 : le recyclage d'un gagnant (recyclage.rediger -> moteurs_texte.tirer_garde, Anthropic)
     "RV.noter",   # t337 : l'avis « directeur artistique » de la revue d'un plan (revue_plan.noter -> moteurs_texte.tirer_garde, Anthropic)
     "P.classer_image",   # t376 : personnage ou non pour la pose 3D (pose3d.classer_image -> moteurs_texte.tirer_garde, Anthropic)
     "NF.relever",   # t380 : le relevé d'un fil social suivi (news_fils.relever -> apify.lancer, sous accord du fil)
@@ -110,6 +112,7 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
           "WV.envoyer_validation",   # t311 tâche 6 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2h le vérifie
           "SV.lire",   # t312 : la garde vit DANS scan_vision.lire (tirer_garde avant CHAQUE lot) ; test_plafonds_garde A2i
           "I.analyser", "I.rediger",   # t313 : la garde vit DANS inspiration (tirer_garde après l'accord) ; test_plafonds_garde A2j
+          "RC.rediger",   # t498 : la garde vit DANS recyclage (tirer_garde « campagnes » après l'accord) ; test_plafonds_garde A2p
           "RV.noter",   # t337 : la garde vit DANS revue_plan.noter (tirer_garde après l'accord) ; test_plafonds_garde A2m
           "P.classer_image",   # t376 : la garde vit DANS pose3d.classer_image (tirer_garde après l'accord) ; test_plafonds_garde A2n
           "NF.relever",   # t380 : la garde vit DANS news_fils.relever (plafonds.verifier « news » avant apify.lancer) ; test_plafonds_garde A2o

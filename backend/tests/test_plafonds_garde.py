@@ -37,6 +37,7 @@ PAYANTES = {
     ("news_fils", "POST", "/{fid}/lire"),   # t380 : le relevé d'un fil social suivi (Apify ; garde « news » dans NF.relever)
     ("pose3d", "POST", "/classer"),   # t376 : la classification vision de la source 3D (garde « moteurs3d » dans P.classer_image)
     ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
+    ("recyclage", "POST", "/{post_id}/redaction"),   # t498 : le recyclage d'un gagnant (Claude, garde « campagnes » dans RC.rediger)
     ("schema", "POST", "/analyser"),   # t314 : détourage fal d'un schéma (garde « vectorlab » avant l'envoi)
     ("agent_campagnes", "POST", "/{cid}/message"),   # t285a : le message de l'agent Campagnes (garde « campagnes » à chaque tour)
     ("post", "POST", "/rendre"),   # t277 : maillons IA de la pile de post-traitement (garde « son », avant le job)
@@ -188,6 +189,14 @@ _ap = _ins[_ins.find("async def _appel("):_ins.find("def _json(")]
 check("A2j l'inspiration refuse un coût hors accord AVANT d'appeler, et _appel passe par MT.tirer_garde",
       0 < _ia.find("raise CoutChange(") < _ia.find("await _appel(") and 0 < _ir.find("raise CoutChange(") < _ir.find("await _appel(")
       and "MT.tirer_garde(" in _ap and "MT.tirer(" not in _ins, "")
+# t498 : la route payante du recyclage délègue sa garde à recyclage.rediger — l'accord (CoutChange) avant _appel, qui
+# appelle MT.tirer_garde catégorie « campagnes » ; aucun appel nu au modèle
+_rcy = (RP.RACINE / "services" / "recyclage.py").read_text(encoding="utf-8")
+_rr = _rcy[_rcy.find("async def rediger("):_rcy.find("# ---- brouillons")]
+_ra = _rcy[_rcy.find("async def _appel("):_rcy.find("async def _interdits(")]
+check("A2p le recyclage refuse un coût hors accord AVANT d'appeler, et _appel passe par MT.tirer_garde",
+      0 < _rr.find("raise CoutChange(") < _rr.find("await _appel(") and "MT.tirer_garde(" in _ra
+      and "categorie=CATEGORIE" in _ra and 'CATEGORIE = "campagnes"' in _rcy and "MT.tirer(" not in _rcy, "")
 # t328 tâche 3 : une diffusion WhatsApp réserve son devis (plafonds.verifier) AVANT le send Kapso, dans `lancer`
 _wd = (RP.RACINE / "services" / "whatsapp_diffusions.py").read_text(encoding="utf-8")
 _ld = _wd[_wd.find("async def _lancer_sous_verrou("):]
@@ -253,6 +262,9 @@ anciens["scan"] = _scr.replace("SV.lire(", "_sans_garde(") if "SV.lire(" in _scr
 _inr = (RP.MODULES["inspiration"]).read_text(encoding="utf-8")
 anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I.rediger(", "_sans_garde(")
                           if "I.analyser(" in _inr else None)
+# t498 : le recyclage d'un gagnant n'existait pas en bfec23e — même témoin
+_rcr = (RP.MODULES["recyclage"]).read_text(encoding="utf-8")
+anciens["recyclage"] = _rcr.replace("RC.rediger(", "_sans_garde(") if "RC.rediger(" in _rcr else None
 # t314 : la boîte « schéma » n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
 _shr = (RP.MODULES["schema"]).read_text(encoding="utf-8")
 anciens["schema"] = _shr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _shr else None
