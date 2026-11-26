@@ -63,7 +63,6 @@ services:
       SITE_URL: https://deepotus.tech
       ORIGINES_SUPPLEMENTAIRES: https://www.deepotus.tech
       DERRIERE_PROXY: "1"
-      ENVOI: brevo
       ATTENTE_BASE: /donnees/attente.sqlite
       EMAILS_DOSSIER: /app/emails
     volumes:

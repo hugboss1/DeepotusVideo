@@ -133,27 +133,16 @@ toutes les pages ──pixel──▶ stats.deepotus.tech ──▶ Caddy ──
 ```
 
 1. DNS : enregistrements **A** `api` et `stats` → IP du VPS.
-2. Code du site (dépôt privé `hugboss1/deepotus-site`), par une clé de déploiement en lecture seule :
-   ```
-   ssh-keygen -t ed25519 -f /root/.ssh/deepotus_site -N '' -C "vps deepotus-site"
-   cat /root/.ssh/deepotus_site.pub   # GitHub › deepotus-site › Settings › Deploy keys (lecture seule)
-   GIT_SSH_COMMAND='ssh -i /root/.ssh/deepotus_site' git clone git@github.com:hugboss1/deepotus-site.git /opt/deepotus-site
-   git -C /opt/deepotus-site config core.sshCommand 'ssh -i /root/.ssh/deepotus_site'
-   ```
-3. Dossiers et secrets :
-   ```
-   mkdir -p /srv/deepotus/api /srv/deepotus/stats /srv/deepotus/telechargements
-   chown 1000:1000 /srv/deepotus/api /srv/deepotus/stats /srv/deepotus/telechargements
-   cp api.env.exemple /srv/deepotus/secrets/api.env && chmod 600 /srv/deepotus/secrets/api.env
-   nano /srv/deepotus/secrets/api.env
-   ```
-4. `Caddyfile` : ajouter les deux blocs `api.deepotus.tech` et `stats.deepotus.tech` de `Caddyfile.exemple`.
-5. `docker compose up -d --build api goatcounter && docker compose restart caddy`.
-6. Compte GoatCounter (une fois) : `docker compose run --rm goatcounter db create site -vhost stats.deepotus.tech -user.email TOI@… -db sqlite+/data/goatcounter.sqlite3`
+2. Sur le PC (Git Bash), une seule connexion SSH : `bash deploiement/vps/publier-api.sh ~/DeepotusVideo/site-vitrine`.
+   Le script envoie le code commité du site (`git archive`) dans `/opt/deepotus-site` (le VPS n'a aucun accès au dépôt
+   privé), crée les dossiers et `/srv/deepotus/secrets/api.env` depuis `api.env.exemple` (clés `ATTENTE_*` générées),
+   ajoute les blocs `api` et `stats` au `Caddyfile`, puis démarre `goatcounter` et `api`.
+3. Compléter `/srv/deepotus/secrets/api.env` (Brevo, Stripe), puis relancer le même script.
+4. Mettre à jour l'API après un commit du site : relancer le même script.
+5. Compte GoatCounter (une fois) : `docker compose run --rm goatcounter db create site -vhost stats.deepotus.tech -user.email TOI@… -db sqlite+/data/goatcounter.sqlite3`
    (le mot de passe est demandé). Réglages › Données : conservation 395 jours.
-7. Stripe › Développeurs › Webhooks : point de terminaison `https://api.deepotus.tech/api/stripe/webhook`, événements
+6. Stripe › Développeurs › Webhooks : point de terminaison `https://api.deepotus.tech/api/stripe/webhook`, événements
    `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `charge.refunded` ; son secret `whsec_…` dans
    `STRIPE_WEBHOOK_SECRET` (et celui du mode test dans `STRIPE_WEBHOOK_SECRET_TEST`).
-8. Installeur : `scp VideoGen-Setup.exe deepotus-vps:/srv/deepotus/telechargements/` (nom = `TELECHARGEMENT_FICHIER`).
+7. Installeur : `scp VideoGen-Setup.exe deepotus-vps:/srv/deepotus/telechargements/` (nom = `TELECHARGEMENT_FICHIER`).
 
-Mettre à jour le site côté API : `git -C /opt/deepotus-site pull && docker compose restart api`.
