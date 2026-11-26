@@ -616,10 +616,16 @@
       var c = champ(x[1], "offre-" + x[0], T("inspiration.offre." + x[0]), x[1] === "input" ? { type: "text", maxlength: "400" } : { rows: "2" });
       champs[x[0]] = c.c; f.appendChild(c.l);
     });
+    /* t504 (R6) : « commentez un mot » s'autorise ici depuis G11 (réponses publiques en brouillons validés un par un) ;
+       décochée par défaut, l'appel reste « lien en description ». */
+    var lc = el("label", { style: "display:flex;gap:6px;align-items:center;font-size:12px" }, null);
+    var caseCom = el("input", { type: "checkbox", "data-dz-insp": "offre-commentaire" });
+    lc.appendChild(caseCom); lc.appendChild(el("span", null, T("inspiration.offre.commentaire")));
+    f.appendChild(lc);
     var go = bouton("offre-enregistrer", T("inspiration.offre.enregistrer"));
     go.addEventListener("click", async function () {
       var corps = { produit: champs.produit.value, pour_qui: champs.pour_qui.value, promesse: champs.promesse.value,
-        frein_leve: champs.frein_leve.value, appels: ["lien"],
+        frein_leve: champs.frein_leve.value, appels: caseCom.checked ? ["lien", "commentaire"] : ["lien"],
         preuves: String(champs.preuves.value || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean),
         chiffres: String(champs.chiffres.value || "").split("\n").map(function (x) { var p = x.split("|"); return { valeur: (p[0] || "").trim(), libelle: (p[1] || "").trim(), source: (p[2] || "").trim() }; }).filter(function (x) { return x.valeur; }) };
       var r = await appel("PUT", BASE + "/offre", corps);

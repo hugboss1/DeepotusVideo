@@ -7464,6 +7464,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "inspiration.matiere.structure": {"fr": "Structure : {v}", "en": "Structure: {v}"},
   "inspiration.matiere.ton": {"fr": "Ton : {v}", "en": "Tone: {v}"},
   "inspiration.offre.chiffres": {"fr": "Chiffres publiables : valeur | libellé | source (une ligne chacun)", "en": "Publishable figures: value | label | source (one per line)"},
+  "inspiration.offre.commentaire": {"fr": "Autoriser l'appel « commentez un mot » (réponses publiques validées une par une)", "en": "Allow the \"comment a word\" call to action (public replies approved one by one)"},
   "inspiration.offre.enregistrer": {"fr": "Enregistrer la fiche d'offre", "en": "Save the offer sheet"},
   "inspiration.offre.frein_leve": {"fr": "Frein levé (essai, garantie…)", "en": "Objection removed (trial, guarantee…)"},
   "inspiration.offre.manque": {"fr": "La fiche d'offre de l'espace est incomplète : produit, promesse et au moins une preuve.", "en": "The space's offer sheet is incomplete: product, promise and at least one proof."},

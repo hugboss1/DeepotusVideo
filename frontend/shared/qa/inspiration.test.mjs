@@ -272,11 +272,14 @@ async function jusquAuxAngles(opts = {}) {
   ok("2.21 sans offre : le formulaire de la fiche d'offre s'ouvre", !!marque(c, "offre") && !!marque(c, "offre-promesse"));
   marque(c, "offre-produit").value = "VideoGen"; marque(c, "offre-promesse").value = "à vie"; marque(c, "offre-preuves").value = "mises à jour\n";
   marque(c, "offre-chiffres").value = "45 € | prix | page d'achat";
+  ok("2.21b t504 (R6) : case « commentez un mot » présente et décochée", !!marque(c, "offre-commentaire") && marque(c, "offre-commentaire").checked === false);
+  marque(c, "offre-commentaire").checked = true;
   marque(c, "offre-enregistrer").click();
   await ticks();
   const put = m.appels.find((a) => a.url === "/api/inspiration/offre");
   const corps = put && JSON.parse(put.corps);
   ok("2.22 PUT offre : preuves en liste, chiffres découpés", corps && corps.preuves.length === 1 && corps.chiffres[0].source === "page d'achat", corps);
+  ok("2.22b t504 (R6) : case cochée -> appels lien et commentaire", corps && JSON.stringify(corps.appels) === '["lien","commentaire"]', corps && corps.appels);
   ok("2.23 devis du script redemandé, montant sur le bouton", marque(c, "ecrire-script").textContent === FR("inspiration.script.bouton", { usd: "0,01 $" }));
   marque(c, "ecrire-script").click();
   await ticks();
