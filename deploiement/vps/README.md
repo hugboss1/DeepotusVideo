@@ -144,5 +144,8 @@ toutes les pages ──pixel──▶ stats.deepotus.tech ──▶ Caddy ──
 6. Stripe › Développeurs › Webhooks : point de terminaison `https://api.deepotus.tech/api/stripe/webhook`, événements
    `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `charge.refunded` ; son secret `whsec_…` dans
    `STRIPE_WEBHOOK_SECRET` (et celui du mode test dans `STRIPE_WEBHOOK_SECRET_TEST`).
+8. Rendez-vous : `RDV_ICAL_GOOGLE` (adresse iCal secrète de ton agenda) dans `api.env`, puis
+   `docker compose run --rm api node server/attente.mjs --flux-rdv` donne l'adresse du flux des réservations, à ajouter
+   dans Google Agenda (« Autres agendas › À partir de l'URL »). Rappels la veille, annulation et déplacement : automatiques.
 7. Installeur : `scp VideoGen-Setup.exe deepotus-vps:/srv/deepotus/telechargements/` (nom = `TELECHARGEMENT_FICHIER`).
 

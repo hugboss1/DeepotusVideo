@@ -67,6 +67,7 @@ api.deepotus.tech {
 			request>uri query {
 				replace jeton REDACTED
 				replace ticket REDACTED
+				replace cle REDACTED
 			}
 			request>remote_ip ip_mask 16 32
 		}
