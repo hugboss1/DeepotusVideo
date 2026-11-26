@@ -187,8 +187,8 @@ with TestClient(app, client=("127.0.0.1", 50001)) as loc:
     check("E5b corps sans liste : 400", lan.post("/api/sync/whatsapp", headers=H, json={}).status_code == 400)
     check("E5c sans jeton : 401", lan.post("/api/sync/whatsapp", json={"evenements": []}).status_code == 401)
     base_ouv = subprocess.run(["git", "show", f"{BASE}:backend/app/main.py"], capture_output=True, cwd=str(_ICI.parent)).stdout
-    check("E5d la route est ouverte au Wi-Fi, ELLE SEULE de plus que la base (22 = 21 + 1)",
-          ("POST", "/api/sync/whatsapp") in _MAIN._ECRITURES_OUVERTES and len(_MAIN._ECRITURES_OUVERTES) == 22
+    check("E5d la route est ouverte au Wi-Fi, ouverte (23 = 21 + whatsapp + post t322)",
+          ("POST", "/api/sync/whatsapp") in _MAIN._ECRITURES_OUVERTES and len(_MAIN._ECRITURES_OUVERTES) == 23
           and b'("POST", "/api/agent/campagnes/{cid}/depot")})' in base_ouv, str(len(_MAIN._ECRITURES_OUVERTES)))
 
     r = lan.post("/api/sync/whatsapp", headers=H2, json={"evenements": [dict(evs[0], identite="tel:33600000011")]})
