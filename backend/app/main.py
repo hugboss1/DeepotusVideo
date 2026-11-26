@@ -191,6 +191,8 @@ async def lifespan(app: FastAPI):
     empl_task = asyncio.create_task(_EC.boucle())    # t379 : sauvegardes, miroir des rendus, index des sources (45 s, puis 60 s)
     from app.services import news_fils as _NF
     fils_task = asyncio.create_task(_NF.boucle())   # t380 : fils sociaux suivis de News, chacun à sa fréquence (90 s, puis 10 min)
+    from app.services import whatsapp_suivi as _WSU
+    alertes_task = asyncio.create_task(_WSU.boucle())   # t502 : bilan et alerte de croissance WhatsApp, RIEN sans accord (2 min, puis 30 min)
 
     async def _maj_au_demarrage():
         """Tâche #18 : une fois par lancement, 20 s après le boot, et au plus une fois par jour (cache disque).
@@ -241,7 +243,7 @@ async def lifespan(app: FastAPI):
         if warm_task:
             from app.services.heygen_service import annuler_en_vol
             annuler_en_vol()
-        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, email_task, empl_task, fils_task, maj_task, warm_task) if t])
+        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, email_task, empl_task, fils_task, alertes_task, maj_task, warm_task) if t])
         # t136 : le moteur du Photolab s'arrête avec le backend (fin de stdin = fin propre de photocraft-cli serve)
         try:
             from app.services import photolab_moteur

@@ -15190,5 +15190,21 @@
  "L'encodage vidéo a échoué (ffmpeg).": {
   "fr": "L'encodage vidéo a échoué (ffmpeg).",
   "en": "Video encoding failed (ffmpeg)."
+ },
+ "Numéro WhatsApp de l'espace invalide : indicatif du pays compris, chiffres seulement.": {
+  "fr": "Numéro WhatsApp de l'espace invalide : indicatif du pays compris, chiffres seulement.",
+  "en": "Invalid WhatsApp number for the space: country code included, digits only."
+ },
+ "aucun numéro WhatsApp relié pour cet espace": {
+  "fr": "aucun numéro WhatsApp relié pour cet espace",
+  "en": "no WhatsApp number linked for this space"
+ },
+ "le modèle du bilan et de l'alerte doit être de catégorie « utilitaire »": {
+  "fr": "le modèle du bilan et de l'alerte doit être de catégorie « utilitaire »",
+  "en": "the report and alert template must be in the “utility” category"
+ },
+ "le modèle du bilan et de l'alerte doit avoir au plus un paramètre (le texte)": {
+  "fr": "le modèle du bilan et de l'alerte doit avoir au plus un paramètre (le texte)",
+  "en": "the report and alert template must have at most one parameter (the text)"
  }
 }
