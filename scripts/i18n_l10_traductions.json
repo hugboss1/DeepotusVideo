@@ -15111,10 +15111,6 @@
   "fr": "Ce post n'est pas un gagnant : ses vues restent sous le seuil face à l'habituel de son compte.",
   "en": "This post is not a winner: its views stay below the threshold compared with its account's usual."
  },
- "Élément inconnu : carrousel, accroches, fil_x ou branche.": {
-  "fr": "Élément inconnu : carrousel, accroches, fil_x ou branche.",
-  "en": "Unknown element: carrousel, accroches, fil_x or branche."
- },
  "Ce post n'a pas de vidéo : la variante « branche » demande ses plans.": {
   "fr": "Ce post n'a pas de vidéo : la variante « branche » demande ses plans.",
   "en": "This post has no video: the \"branch\" variant needs its shots."
@@ -15138,5 +15134,41 @@
  "Carrousel impossible : {x}": {
   "fr": "Carrousel impossible : {x}",
   "en": "Carousel failed: {x}"
+ },
+ "Liste de messages attendue (25 au plus).": {
+  "fr": "Liste de messages attendue (25 au plus).",
+  "en": "A list of messages is expected (25 at most)."
+ },
+ "auto : vrai ou faux.": {
+  "fr": "auto : vrai ou faux.",
+  "en": "auto: true or false."
+ },
+ "Plafond X hors bornes : de 0 à 10 000 $.": {
+  "fr": "Plafond X hors bornes : de 0 à 10 000 $.",
+  "en": "X cap out of range: from $0 to $10,000."
+ },
+ "Le relevé automatique de X demande un plafond X du mois (en dollars).": {
+  "fr": "Le relevé automatique de X demande un plafond X du mois (en dollars).",
+  "en": "Automatic X reading needs a monthly X cap (in dollars)."
+ },
+ "Aucun accord enregistré pour relever X automatiquement.": {
+  "fr": "Aucun accord enregistré pour relever X automatiquement.",
+  "en": "No recorded consent to read X automatically."
+ },
+ "Accord manquant : max_usd (le montant du devis affiché) est requis.": {
+  "fr": "Accord manquant : max_usd (le montant du devis affiché) est requis.",
+  "en": "Missing consent: max_usd (the amount of the displayed quote) is required."
+ },
+ "Le relevé X n'est pas disponible (adaptateur absent).": {
+  "fr": "Le relevé X n'est pas disponible (adaptateur absent).",
+  "en": "X reading is not available (adapter missing)."
+ },
+ "quantité X invalide ({cle}) : un entier >= 0 est attendu": {
+  "fr": "quantité X invalide ({cle}) : un entier >= 0 est attendu",
+  "en": "invalid X quantity ({cle}): an integer >= 0 is expected"
+ },
+ "Élément inconnu : carrousel, accroches, fil_x, branche ou x_video.": {
+  "fr": "Élément inconnu : carrousel, accroches, fil_x, branche ou x_video.",
+  "en": "Unknown element: carrousel, accroches, fil_x, branche or x_video."
  }
 }

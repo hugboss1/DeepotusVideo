@@ -16,6 +16,10 @@ Et ceux du script sur recette (RV4) :
 6. `distance`   aucune suite de 12 mots de la source (`inspiration_garde`) ni de son empreinte ;
 7. `interdits`  aucun mot interdit de l'espace.
 `controle_md` met le verdict en Markdown pour `controle.md` du dossier de campagne.
+t500 (G10) : `controler_fil`, les contrôles adaptés à un FIL X (une liste de messages) : `fil_longueur` (280 caractères
+par message, un lien compté 23 comme chez X), `fil_accroche` (le premier message porte l'accroche : 4 mots au moins,
+pas une simple annonce de fil, sans lien), `fil_appel` (le dernier message est un appel), `fil_lien` (un lien au plus,
+dans le dernier message).
 """
 from __future__ import annotations
 
@@ -34,6 +38,11 @@ APPELS = {
     "en": ("comment", "click", "tap", "follow", "subscribe", "link", "bio", "try", "download", "get", "grab", "buy",
            "book", "save", "share", "join", "dm", "message", "order", "sign", "shop", "claim", "start"),
 }
+TWEET_MAX = 280
+LIEN_X = 23                          # X compte toute adresse pour 23 caractères (t.co)
+MOTS_ACCROCHE_FIL = 4
+_LIEN = re.compile(r"(?i)\bhttps?://\S+|\bwww\.\S+")
+_ANNONCE_FIL = re.compile(r"(?i)^\W*(🧵|un fil|fil|thread|a thread|\d+\s*/\s*\d*)\W*$")
 _CHIFFRE = re.compile(r"(?<![\w])[-−]?\d+(?:[  .,]\d+)*(?:\s?(?:%|€|\$|x|×|k|K|M))?")
 _PHRASE = re.compile(r"[.!?…]+(?=\s+\S)")
 
@@ -109,6 +118,33 @@ def controler_script(script, *, mots_par_minute: float = MOTS_PAR_MINUTE, langue
     return {"ok": all(x["ok"] for x in c.values()), "controles": c, "duree_s": total, "lignes": len(L)}
 
 
+def longueur_x(texte: str) -> int:
+    """La longueur d'un message telle que X la compte (chaque adresse vaut LIEN_X caractères)."""
+    t = str(texte or "")
+    return len(_LIEN.sub("", t)) + LIEN_X * len(_LIEN.findall(t))
+
+
+def controler_fil(messages, *, langue: str = "fr") -> dict:
+    """Les contrôles d'un fil X. {ok, controles: {nom: {ok, detail}}, messages}."""
+    M = [" ".join(str(m or "").split()) for m in (messages or []) if str(m or "").strip()]
+    noms = ("fil_longueur", "fil_accroche", "fil_appel", "fil_lien")
+    if not M:
+        return {"ok": False, "controles": {k: {"ok": False, "detail": "vide"} for k in noms}, "messages": 0}
+    c = {}
+    trop = [{"message": i + 1, "caracteres": longueur_x(m)} for i, m in enumerate(M) if longueur_x(m) > TWEET_MAX]
+    c["fil_longueur"] = {"ok": not trop, "detail": trop}
+    p = M[0]
+    nus = _LIEN.sub("", p)
+    c["fil_accroche"] = {"ok": len(mots(nus)) >= MOTS_ACCROCHE_FIL and not _ANNONCE_FIL.match(nus) and not _LIEN.search(p),
+                         "detail": {"mots": len(mots(nus)), "lien": bool(_LIEN.search(p))}}
+    lex = set(APPELS.get(langue, ()) + APPELS["fr" if langue == "en" else "en"])
+    fin = set(mots(M[-1]))
+    c["fil_appel"] = {"ok": bool(fin & {G.mots(x)[0] for x in lex if G.mots(x)}), "detail": {"message": len(M)}}
+    ou = [i + 1 for i, m in enumerate(M) for _ in _LIEN.findall(m)]
+    c["fil_lien"] = {"ok": len(ou) <= 1 and all(i == len(M) for i in ou), "detail": {"liens": ou}}
+    return {"ok": all(x["ok"] for x in c.values()), "controles": c, "messages": len(M)}
+
+
 def controler_verite(script, chiffres_publiables: list) -> dict:
     """Chaque chiffre du script figure dans la fiche d'offre (valeur), sinon il doit être marqué « illustration »."""
     connus = {_nombre(v) for x in chiffres_publiables or [] for v in chiffres(str((x or {}).get("valeur") or ""))}
@@ -139,10 +175,14 @@ def controler_interdits(script, interdits: list) -> dict:
 
 _NOMS = {"fr": {"accroche": "Accroche en 3 s", "une_idee": "Une idée par ligne", "appel": "Fin sur un appel",
                 "ecran": "Mêmes mots à l'écran", "verite": "Chiffres réels et sourcés", "distance": "Distance à la source",
-                "interdits": "Mots interdits"},
+                "interdits": "Mots interdits", "fil_longueur": "280 caractères par message",
+                "fil_accroche": "Accroche dans le premier message", "fil_appel": "Appel dans le dernier message",
+                "fil_lien": "Un lien au plus, à la fin"},
          "en": {"accroche": "Hook within 3 s", "une_idee": "One idea per line", "appel": "Ends on a call to action",
                 "ecran": "Same words on screen", "verite": "Real, sourced figures", "distance": "Distance from the source",
-                "interdits": "Forbidden words"}}
+                "interdits": "Forbidden words", "fil_longueur": "280 characters per post",
+                "fil_accroche": "Hook in the first post", "fil_appel": "Call to action in the last post",
+                "fil_lien": "At most one link, at the end"}}
 
 
 def controle_md(resultat: dict, langue: str = "fr", titre: str = "") -> str:

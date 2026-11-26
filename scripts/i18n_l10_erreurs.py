@@ -36,6 +36,7 @@ TRADUCTIONS = RACINE / "scripts" / "i18n_l10_traductions.json"
 ERREURS = {"RefusInspiration", "InspirationInconnue", "InspirationEnCours",   # t313 : refus du service inspiration
            "MesureImpossible", "NoteImpossible",   # t497 : note avant publication (note_rendu) ; t511 : ffmpeg absent ou vidéo illisible (inspiration_video)
            "RefusRecyclage", "RecyclageInconnu", "RecyclageEnCours",   # t498 : refus du recyclage d'un gagnant
+           "RefusX", "CoutChange",   # t500 : refus de la boucle X (croissance_x)
            "ValueError", "RuntimeError", "FileNotFoundError", "PermissionError", "LookupError", "TimeoutError",
            "ConflitClient", "FluxCoupe", "CoffreVerrouille", "RefusClient", "WhatsappRefus",
            "RefusValidation", "RefusProspect", "PlafondEspaces", "RegistreIndisponible",   # t353 : refus de la fiche Prospects, plafond d'espaces   # t311 : RefusValidation = refus de validation_client.valider_post (400/404/409)   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;

@@ -53,7 +53,7 @@ def test_listes_suivent_le_serveur():
     from app.services import recyclage as RC                      # t498
     assert _liste("ELEMENTS_RECYCLAGE") == list(RC.ELEMENTS)
     src_rc = (RACINE / "backend" / "app" / "services" / "recyclage.py").read_text(encoding="utf-8")
-    assert set(_liste("RAISONS_RECYCLAGE")) == {"cle", *re.findall(r'\("(sans_[a-z]+)" if el ==', src_rc)}, "raisons des cartes"
+    assert set(_liste("RAISONS_RECYCLAGE")) == {"cle", *re.findall(r'\("(sans_[a-z]+)" if el (?:==|in)', src_rc)}, "raisons des cartes"
 
 
 def test_cles_fr_en():
@@ -113,7 +113,8 @@ def test_lecture_seule():
     envois = re.findall(r'envoyer\(("[^"]+"(?:\s*\+[^,]+)?),\s*"([A-Z]+)"', sans)
     assert sorted((u.split('"')[1] + u.split('"')[-2] if u.count('"') > 2 else u.split('"')[1], m) for u, m in envois) == sorted([
         ("/api/croissance/niche", "PUT"), ("/api/croissance/enregistres", "POST"),
-        ("/api/croissance/gagnants//devis", "POST"), ("/api/croissance/gagnants//analyse", "POST")]), envois
+        ("/api/croissance/gagnants//devis", "POST"), ("/api/croissance/gagnants//analyse", "POST"),
+        ("/api/croissance/x/releve", "POST"), ("/api/croissance/x/accord", "PUT")]), envois   # t500 : relevé X sur accord, accord
     assert sans.count('"/analyse", "POST", { max_usd: devisUsd') == 1, "l'analyse n'est envoyée qu'avec l'accord du devis"
     for k, v in I18N.items():
         assert not re.search(r"publi(er|sh)", v["fr"] + " " + v["en"], re.I), k

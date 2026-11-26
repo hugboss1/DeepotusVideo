@@ -19,6 +19,11 @@
      (PAYANT : seulement après le clic sur le bouton qui affiche le montant du devis, max_usd = ce montant)
    Aucun bouton ne diffuse quoi que ce soit. Tout texte venu du serveur (titres, noms, légendes, raisons) est posé en textContent. Les
    libellés viennent de dzT (zone.objet.role).
+   t500 (G10, 26/11/2026) — « Mes posts X » (services/croissance_x.py ; l'API X est PAYANTE à l'usage) :
+   - GET  /api/croissance/x/devis                          les posts X dus à leur jalon et le coût (gratuit)
+   - POST /api/croissance/x/releve {max_usd}               le relevé, au montant affiché sur le bouton (PAYANT)
+   - PUT  /api/croissance/x/accord {auto, plafond_usd}     l'accord du relevé automatique et le plafond X du mois
+   Les cartes « fil X » et « post vidéo X » du recyclage disent ce que coûtera la mise en ligne sur X.
    t498 (lot G8, 26/11/2026) — « Recycler ce gagnant » sur chaque ligne gagnante :
    - GET  /api/recyclage/{id}/proposition                  quatre cartes de devis (carrousel, accroches, fil X, branche)
    - POST /api/recyclage/{id}/redaction  {element, max_usd} l'appel Claude d'UNE carte, au montant affiché et accepté
@@ -40,7 +45,7 @@
     vues: { habituel: "croissance.niche.habituel_vues", valeur: "croissance.niche.valeur_vues" },
     interactions: { habituel: "croissance.niche.habituel_interactions", valeur: "croissance.niche.valeur_interactions" },
   };
-  var ELEMENTS_RECYCLAGE = ["carrousel", "accroches", "fil_x", "branche"];   // t498 : recyclage.ELEMENTS
+  var ELEMENTS_RECYCLAGE = ["carrousel", "accroches", "fil_x", "branche", "x_video"];   // t498 : recyclage.ELEMENTS
   var RAISONS_RECYCLAGE = ["cle", "sans_plans", "sans_gabarit"];
 
   function T(cle, vars) { return typeof window.dzT === "function" ? window.dzT(cle, vars) : cle; }
@@ -162,6 +167,7 @@
     async function recharger() {
       var moi = ++tour;
       rechargerNiche();
+      rechargerX();
       dire(T("croissance.etat.lecture"));
       var d = null;
       try {
@@ -295,6 +301,12 @@
         if (!t.disponible) note = RAISONS_RECYCLAGE.indexOf(t.raison) >= 0 ? T("croissance.raison_recyclage." + t.raison) : "—";
         else if (elt === "branche") note = T("croissance.recyclage.branche_note");
         if (note) li.appendChild(el("div", { class: "dzCroiDetail", texte: note }));
+        var pub = a.publication;                       // t500 : la mise en ligne sur X a son prix (lien plus cher)
+        if (pub && typeof pub.usd_max === "number") {
+          li.appendChild(el("div", { class: "dzCroiDetail", "data-dz-croissance": "recyclage-publication-x",
+            texte: T("croissance.recyclage.publication_x", { usd: dollarsX(pub.usd_max), post: dollarsX(pub.usd_post),
+              lien: dollarsX(pub.usd_post_lien) }) }));
+        }
         if (t.disponible) {
           var b = el("button", { type: "button", "data-dz-croissance": "recyclage-accepter",
             texte: a.redige ? T("croissance.recyclage.redige") : T("croissance.recyclage.accepter", { usd: dollarsRecy(t.usd) }) });
@@ -528,6 +540,67 @@
       zone.appendChild(el("p", { class: "dzCroiNote", texte: T("croissance.analyse.note", { usd: dollars(a.usd) }) }));
     }
 
+    // ---- t500 : « Mes posts X » — relevé payant par jalon, sur accord, et le plafond X ---------------------------------
+    var blocX = el("section", { "data-dz-croissance": "x" });
+    var tourX = 0;
+    function dollarsX(v) { return dollars(v) + " $"; }   // t500 : 0,015 $ reste 0,015 $
+    async function rechargerX() {
+      var moi = ++tourX, d = null;
+      try { var r = await window.fetch("/api/croissance/x/devis"); if (r.ok) d = await lireJson(r); } catch (e) { d = null; }
+      if (!vivant || moi !== tourX) return;
+      dessinerX(d);
+    }
+    function dessinerX(d) {
+      vider(blocX);
+      blocX.appendChild(el("h3", { texte: T("croissance.section.x") }));
+      var etatX = el("p", { class: "dzCroiNote", "data-dz-croissance": "x-etat", role: "status" });
+      function direX(t, err) { etatX.textContent = t || ""; if (err) etatX.setAttribute("data-erreur", "1"); else etatX.removeAttribute("data-erreur"); }
+      if (!d || typeof d.n !== "number") { direX(T("croissance.x.erreur"), true); blocX.appendChild(etatX); return; }
+      var t = d.tarifs || {}, relu = d.relu || {};
+      blocX.appendChild(el("p", { class: "dzCroiNote", "data-dz-croissance": "x-tarifs", texte: T("croissance.x.tarifs", {
+        lecture: dollarsX(t.lecture), post: dollarsX(t.post), lien: dollarsX(t.post_lien), le: String(relu.le || "") }) }));
+      var devisX = typeof d.usd === "number" ? d.usd : 0;
+      blocX.appendChild(el("p", { "data-dz-croissance": "x-devis", texte: d.n ? T("croissance.x.devis", { n: d.n, usd: dollarsX(devisX) })
+        : T("croissance.x.rien") }));
+      if (d.n) {
+        var btnX = el("button", { type: "button", "data-dz-croissance": "x-relever", texte: T("croissance.x.relever", { usd: dollarsX(devisX) }) });
+        btnX.addEventListener("click", async function () {
+          btnX.setAttribute("disabled", "");
+          var r = null, j = null;
+          try { r = await envoyer("/api/croissance/x/releve", "POST", { max_usd: devisX }); j = await lireJson(r); } catch (e) { r = null; }
+          if (!vivant) return;
+          btnX.removeAttribute("disabled");
+          var det = j && j.detail;
+          if (r && r.status === 409 && det && det.code === "cout" && typeof det.usd === "number") {
+            devisX = det.usd;
+            btnX.textContent = T("croissance.x.relever", { usd: dollarsX(devisX) });
+            direX(T("croissance.x.cout", { usd: dollarsX(devisX) }), true);
+            return;
+          }
+          if (!r || !r.ok) { direX(typeof det === "string" ? det : T("croissance.x.erreur"), true); return; }
+          direX(T("croissance.x.releve_ok", { n: (j && j.releves) || 0 }));
+          recharger();
+        });
+        blocX.appendChild(btnX);
+      }
+      var acc = d.accord || {};
+      var caseAuto = el("input", { type: "checkbox", "data-dz-croissance": "x-auto" });
+      caseAuto.checked = acc.auto === true;
+      var plaf = el("input", { type: "number", min: "0", step: "0.5", "data-dz-croissance": "x-plafond",
+        "aria-label": T("croissance.x.plafond"), value: String(acc.plafond_usd || 0) });
+      var btnAcc = el("button", { type: "button", "data-dz-croissance": "x-accord", texte: T("croissance.x.accord") });
+      btnAcc.addEventListener("click", async function () {
+        var r = null;
+        try { r = await envoyer("/api/croissance/x/accord", "PUT", { auto: caseAuto.checked === true, plafond_usd: parseFloat(plaf.value) || 0 }); } catch (e) { r = null; }
+        if (!vivant) return;
+        direX(r && r.ok ? T("croissance.x.accord_ok") : T("croissance.x.accord_erreur"), !(r && r.ok));
+      });
+      blocX.appendChild(el("div", { class: "dzCroiActions" }, [
+        el("label", {}, [caseAuto, el("span", { texte: T("croissance.x.auto") })]),
+        el("label", {}, [el("span", { texte: T("croissance.x.plafond") }), plaf]), btnAcc]));
+      blocX.appendChild(etatX);
+    }
+
     function dessiner(d) {
       vider(corps);
       corps.appendChild(compte(d.compte));
@@ -540,6 +613,7 @@
         ? [el("ul", { class: "dzCroiPosts" }, gagn.map(ligne))]
         : [el("p", { class: "dzCroiVide", texte: T("croissance.vide.gagnants", { n: nombre(d.seuil_gagnant) }) })]));
       corps.appendChild(blocNiche);
+      corps.appendChild(blocX);
       var top = d.top || [];
       corps.appendChild(section("croissance.section.top", "top", top.length
         ? [el("ul", { class: "dzCroiPosts" }, top.map(ligne)), el("p", { class: "dzCroiNote", texte: T("croissance.top.note") })]

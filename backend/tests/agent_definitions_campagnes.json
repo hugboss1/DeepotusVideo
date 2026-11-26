@@ -273,7 +273,7 @@
   "name": "noter_rendu"
  },
  {
-  "description": "Propose de redire un gagnant de l'espace sous une autre forme : carrousel, trois nouvelles accroches, fil X ou variante « branche » (mêmes plans, voix et textes refaits). Rend la carte de devis d'UN élément, que l'utilisateur accepte ou non : rien n'est rédigé ni payé avant son clic ; le tour s'arrête. Refusé sous 3× l'habituel.",
+  "description": "Propose de redire un gagnant de l'espace sous une autre forme : carrousel, trois nouvelles accroches, fil X, post vidéo X ou variante « branche » (mêmes plans, voix et textes refaits). Rend la carte de devis d'UN élément, que l'utilisateur accepte ou non : rien n'est rédigé ni payé avant son clic ; le tour s'arrête. Refusé sous 3× l'habituel.",
   "input_schema": {
    "additionalProperties": false,
    "properties": {
@@ -282,7 +282,8 @@
       "carrousel",
       "accroches",
       "fil_x",
-      "branche"
+      "branche",
+      "x_video"
      ],
      "type": "string"
     },

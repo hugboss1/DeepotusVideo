@@ -16,6 +16,11 @@
 - `GET    /note/devis`                     ?job_id=|post_id= : le devis GRATUIT de l'étage 2
 - `POST   /note/affiner`                   {job_id | post_id, max_usd, langue?, mots?} : étage 2, PAYANT (Claude sur
                                            quatre images clés)
+- t500 (G10) : X, la même boucle (services/croissance_x.py ; API X payante à l'usage, plafond du moteur « x ») :
+  `GET  /x/devis` (gratuit : les posts X dus à leur jalon, le coût), `POST /x/releve` {max_usd} (PAYANT : accord, garde
+  « x », fetcher X), `GET|PUT /x/accord` {auto, plafond_usd} (le relevé automatique et le plafond X),
+  `GET /x/devis-publication` ?post_id= (le coût de mise en ligne, lien compris), `POST /x/controle-fil` {messages}
+  (contrôles gratuits du fil).
 Codes : 400 (forme, accord manquant, transcription trop longue), 404 (espace ou élément inconnu), 409 {message, code}
 (`cout` + usd, `en_cours`, `trop`), 402 (plafond), 502/504 (appel peut-être facturé), 503 (Claude non configuré).
 """
@@ -99,9 +104,11 @@ def _http(e: Exception) -> HTTPException:
 
 
 @router.get("/gagnants", dependencies=[Depends(_local)])
-async def gagnants(espace_id: str = "", jours: int = CG.FENETRE_JOURS, seuil: float = CG.SEUIL_GAGNANT, tous: int = 0):
+async def gagnants(espace_id: str = "", jours: int = CG.FENETRE_JOURS, seuil: float = CG.SEUIL_GAGNANT, tous: int = 0,
+                   plateforme: str = ""):
     try:
-        return await asyncio.to_thread(CG.lire_gagnants, _eid(espace_id), jours, seuil, bool(tous))
+        return await asyncio.to_thread(CG.lire_gagnants, _eid(espace_id), jours, seuil, bool(tous), None,
+                                       plateforme.strip()[:20] or None)
     except Exception as e:  # noqa: BLE001
         raise _http(e) from None
 
@@ -231,3 +238,71 @@ async def affiner(request: Request):
         raise
     except Exception as e:  # noqa: BLE001
         raise _http_note(e) from None
+
+
+# ── t500 (G10) : X, la même boucle ───────────────────────────────────────────────────────────────────────────────────
+def _http_x(e: Exception) -> HTTPException:
+    from app.services import croissance_x as CX
+    if isinstance(e, CX.CoutChange):
+        return HTTPException(409, {"message": str(e), "code": "cout", "usd": e.usd})
+    if isinstance(e, LookupError):
+        return HTTPException(404, str(e))
+    if isinstance(e, ValueError):
+        return HTTPException(400, str(e))
+    if isinstance(e, RuntimeError):
+        return HTTPException(503, str(e))
+    raise e
+
+
+@router.get("/x/devis", dependencies=[Depends(_local)])
+async def x_devis():
+    from app.services import croissance_x as CX
+    return await CX.devis_releve()
+
+
+@router.post("/x/releve", dependencies=[Depends(_local), Depends(_depense_locale)])
+async def x_releve(request: Request):
+    from app.services import croissance_x as CX
+    c = await _corps(request)
+    try:
+        return await CX.relever(c.get("max_usd"))
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"croissance x : relevé refusé ou en échec ({type(e).__name__})")
+        raise _http_x(e) from None
+
+
+@router.get("/x/accord", dependencies=[Depends(_local)])
+async def x_accord():
+    from app.services import croissance_x as CX
+    return CX.lire_accord()
+
+
+@router.put("/x/accord", dependencies=[Depends(_local)])
+async def x_poser_accord(request: Request):
+    from app.services import croissance_x as CX
+    c = await _corps(request)
+    try:
+        return CX.regler_accord(c.get("auto"), c.get("plafond_usd"))
+    except Exception as e:  # noqa: BLE001
+        raise _http_x(e) from None
+
+
+@router.get("/x/devis-publication", dependencies=[Depends(_local)])
+async def x_devis_publication(post_id: str = ""):
+    from app.services import croissance_x as CX
+    try:
+        return await CX.devis_publication_post(post_id)
+    except Exception as e:  # noqa: BLE001
+        raise _http_x(e) from None
+
+
+@router.post("/x/controle-fil", dependencies=[Depends(_local)])
+async def x_controle_fil(request: Request):
+    from app.services import script_court as SC
+    c = await _corps(request)
+    m = c.get("messages")
+    if not isinstance(m, list) or len(m) > 25 or not all(isinstance(x, str) for x in m):
+        raise HTTPException(400, "Liste de messages attendue (25 au plus).")
+    return SC.controler_fil(m, langue=_langue(request, c.get("langue")))
