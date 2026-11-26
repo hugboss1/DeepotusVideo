@@ -15,6 +15,8 @@ Boucle locale SEULEMENT (`routes._require_localhost`) ; les deux routes payantes
 - `POST /video`                   t511 (RV1) : multipart `video` (≤ 300 Mo, ≤ 10 min), `source_libelle?`, `source_lien?`
                                   -> l'inspiration « vidéo » avec sa FICHE (étages 0 et 1, gratuits, locaux).
 - `GET  /{id}/planches/{nom}`     t511 : une planche d'images (JPEG) tant que la source n'est pas effacée (R4).
+- `GET  /{id}/devis-lecture`      t512 (RV2) : le devis GRATUIT de la lecture (transcription + Claude sur les planches).
+- `POST /{id}/lecture`            t512 : {max_usd, langue?, nouvelle?} : PAYANTE ; la RECETTE (rangée dans l'espace).
 Codes : 400 corps ou refus de forme, 404 inconnue, 409 {message, code, …} (coût changé `cout` + usd, `en_cours`,
 gardes `copie` / `interdits` / `visuel_capte`, `angle`, `sans_analyse`, `espace`), 413, 415, 402 (plafond), 502/504
 (appel peut-être facturé), 503 (Claude non configuré ou sans vision). Messages fixes : L10.
@@ -107,7 +109,8 @@ def _http(e: Exception) -> HTTPException:
     if isinstance(e, IV.MesureImpossible):
         return HTTPException(503 if str(e) == IV.M_FFMPEG else 415, str(e))
     if isinstance(e, RuntimeError):
-        return HTTPException(503 if str(e) in I.RAISONS.values() else 502, str(e))
+        sans_cle = str(e) in I.RAISONS.values() or str(e).startswith("Aucune clé de transcription")
+        return HTTPException(503 if sans_cle else 502, str(e))
     raise e
 
 
@@ -202,6 +205,30 @@ async def planche(iid: str, nom: str):
     if not f.is_file():
         raise HTTPException(404, I.M_INCONNUE)
     return FileResponse(f, media_type="image/jpeg")
+
+
+@router.get("/{iid}/devis-lecture", dependencies=[Depends(_local)])
+async def devis_lecture(iid: str, request: Request, langue: str = ""):
+    from app.services import inspiration_recette as IR
+    try:
+        d = await IR.devis_lecture(iid, _langue(request, {"langue": langue}))
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    return {**d, "raison": _traduire(d.get("raison") or "", request)}
+
+
+@router.post("/{iid}/lecture", dependencies=[Depends(_local), Depends(_depense_locale)])
+async def lecture(iid: str, request: Request):
+    from app.services import inspiration_recette as IR
+    c = await _corps(request)
+    try:
+        return await IR.lire_reference(iid, max_usd=c.get("max_usd"), langue=_langue(request, c),
+                                       nouvelle=c.get("nouvelle") is True)
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"inspiration : lecture refusée ou en échec ({type(e).__name__})")
+        raise _http(e) from None
 
 
 @router.get("/{iid}", dependencies=[Depends(_local)])

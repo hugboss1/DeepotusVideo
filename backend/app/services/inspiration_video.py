@@ -372,6 +372,11 @@ def purger(maintenant: datetime | None = None) -> int:
         shutil.rmtree(d / "planches", ignore_errors=True)
         v.update({"purgee": True, "planches": [], "purgee_le": t.isoformat(timespec="seconds")})
         rec["video"] = v
+        if rec.get("texte_capte"):
+            # t512 (RV2) : la transcription et le texte lu s'effacent avec la source ; leur empreinte suffit à la garde
+            from app.services import inspiration_recette as IR
+            rec["empreinte_texte"] = IR.empreinte_texte(rec["texte_capte"])
+            rec["texte_capte"] = ""
         I._ecrire(rec)
         n += 1
     if n:
