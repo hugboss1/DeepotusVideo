@@ -73,8 +73,8 @@ NOMS = ["lire_conversation", "rediger_reponse", "choisir_modele", "proposer_cren
 check("W1.2 definitions_pour('whatsapp') = les cinq outils", [d["name"] for d in B.definitions_pour("whatsapp")] == NOMS,
       [d["name"] for d in B.definitions_pour("whatsapp")])
 check("W1.3 verifier() == []", B.verifier() == [], B.verifier())
-check("W1.4 paquet_mobile() == ['campagnes'] et boîte whatsapp non mobile",
-      [b["id"] for b in B.paquet_mobile()] == ["campagnes"] and B.BOITES["whatsapp"]["mobile"] is False
+check("W1.4 paquet_mobile() == [campagnes, croissance (t499)] et boîte whatsapp non mobile",
+      [b["id"] for b in B.paquet_mobile()] == ["campagnes", "croissance"] and B.BOITES["whatsapp"]["mobile"] is False
       and B.BOITES["whatsapp"]["libelle"] == "agent.boites.whatsapp" and B.BOITES["whatsapp"]["agents"] == ["whatsapp"])
 check("W1.5 natures", [ao.OUTILS[n]["nature"] for n in NOMS] == ["lecture", "carte", "carte", "lecture", "carte"])
 check("W1.6 Campagnes ne voit aucun outil WhatsApp", not set(NOMS) & set(B.outils_pour("campagnes")))

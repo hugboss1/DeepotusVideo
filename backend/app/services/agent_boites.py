@@ -63,13 +63,15 @@ BOITES: dict[str, dict] = {
         "agents": ["campagnes"],
         "mobile": False,
     },
-    # t496 (G6, 26/11/2026) : la boucle de croissance de l'agent Campagnes (script court contrôlé ; G9 y ajoute
-    # gagnants, mesures, note et recyclage, et l'ouvre au téléphone)
+    # t496 (G6, 26/11/2026) : la boucle de croissance de l'agent Campagnes (script court contrôlé) ; t499 (G9) : + les
+    # gagnants de la niche, les mesures (multiplicateur), la note d'un rendu, le recyclage d'un gagnant (cartes de devis)
+    # et les apprentissages de l'espace ; ouverte au téléphone. Aucun outil pour mettre en ligne.
     "croissance": {
         "libelle": "agent.boites.croissance",
-        "outils": ["ecrire_script_court"],
+        "outils": ["ecrire_script_court", "lire_gagnants", "lire_mesures", "noter_rendu", "proposer_recyclage",
+                   "ecrire_apprentissages"],
         "agents": ["campagnes"],
-        "mobile": False,
+        "mobile": True,
     },
     # t312 : lire le texte d'une image de la Bibliothèque ; aucun agent ne la déclare encore (§11 bis)
     # t313 : + l'inspiration vers un contenu neuf (angles_inspiration en lecture, deviser_contenu_neuf en carte)
