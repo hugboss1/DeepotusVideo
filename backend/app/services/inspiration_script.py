@@ -121,7 +121,7 @@ async def ecrire(iid: str, *, max_usd, langue: str = "fr") -> dict:
         usd = I._usd(I._op(prompt, SYSTEME, MAX_TOKENS, modele))
         if usd > mx + I.EPS_USD:
             raise I.CoutChange("Le coût a changé : il dépasse le montant accepté.", usd)
-        j = I._json(await I._appel(prompt, SYSTEME, MAX_TOKENS, modele, DELAI))
+        j = I._json(await I._appel(prompt, SYSTEME, MAX_TOKENS, modele, DELAI, categorie="campagnes"))
         briques = []
         for b in (j.get("briques") if isinstance(j.get("briques"), list) else [])[:40]:
             if isinstance(b, dict) and I._texte(b.get("texte"), 400):
