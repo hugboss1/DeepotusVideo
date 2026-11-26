@@ -591,6 +591,9 @@ app.include_router(inspiration_router, prefix="/api/inspiration")
 # t497 + t495 (26/11/2026) : /api/croissance — la note avant publication d'un rendu (estimation en deux étages), le fil des gagnants de la niche et « pourquoi ça marche » (Claude sur devis), local seulement
 from app.api.croissance_routes import router as croissance_router
 app.include_router(croissance_router, prefix="/api/croissance")
+# t498 (26/11/2026) : /api/recyclage — recycler un gagnant (carrousel, accroches, fil X, branche), local seulement
+from app.api.recyclage_routes import router as recyclage_router
+app.include_router(recyclage_router, prefix="/api/recyclage")
 # t314 (28/10/2026) : /api/schema — illustration ou schéma -> calques nommés (Vectorlab) -> base d'animation, local seulement
 from app.api.schema_routes import router as schema_router
 app.include_router(schema_router, prefix="/api/schema")

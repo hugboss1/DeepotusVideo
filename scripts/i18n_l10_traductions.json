@@ -15102,5 +15102,41 @@
  "Une analyse est déjà en cours pour ce gagnant : attends sa réponse.": {
   "fr": "Une analyse est déjà en cours pour ce gagnant : attends sa réponse.",
   "en": "An analysis is already running for this winner: wait for its answer."
+ },
+ "Post inconnu : rien à recycler.": {
+  "fr": "Post inconnu : rien à recycler.",
+  "en": "Unknown post: nothing to recycle."
+ },
+ "Ce post n'est pas un gagnant : ses vues restent sous le seuil face à l'habituel de son compte.": {
+  "fr": "Ce post n'est pas un gagnant : ses vues restent sous le seuil face à l'habituel de son compte.",
+  "en": "This post is not a winner: its views stay below the threshold compared with its account's usual."
+ },
+ "Élément inconnu : carrousel, accroches, fil_x ou branche.": {
+  "fr": "Élément inconnu : carrousel, accroches, fil_x ou branche.",
+  "en": "Unknown element: carrousel, accroches, fil_x or branche."
+ },
+ "Ce post n'a pas de vidéo : la variante « branche » demande ses plans.": {
+  "fr": "Ce post n'a pas de vidéo : la variante « branche » demande ses plans.",
+  "en": "This post has no video: the \"branch\" variant needs its shots."
+ },
+ "Cet élément n'est pas encore rédigé : accepte d'abord son devis.": {
+  "fr": "Cet élément n'est pas encore rédigé : accepte d'abord son devis.",
+  "en": "This element is not written yet: accept its quote first."
+ },
+ "L'espace de ce post est inconnu ou archivé.": {
+  "fr": "L'espace de ce post est inconnu ou archivé.",
+  "en": "This post's space is unknown or archived."
+ },
+ "Une rédaction payante est déjà en cours pour ce post : attends sa réponse.": {
+  "fr": "Une rédaction payante est déjà en cours pour ce post : attends sa réponse.",
+  "en": "A paid writing request is already running for this post: wait for its answer."
+ },
+ "Aucun gabarit Templates avec une case de texte : crée-en un pour le carrousel.": {
+  "fr": "Aucun gabarit Templates avec une case de texte : crée-en un pour le carrousel.",
+  "en": "No Templates layout with a text slot: create one for the carousel."
+ },
+ "Carrousel impossible : {x}": {
+  "fr": "Carrousel impossible : {x}",
+  "en": "Carousel failed: {x}"
  }
 }
