@@ -5,7 +5,8 @@ JETON, jamais un champ du corps. Les trois écritures sont ouvertes au Wi-Fi par
 
 - `POST /api/sync/capture` {empreinte (64 hex), taille, sha256, mime video/mp4, duree_ms, cadre, options} -> {id, recus} :
   une session `captures/<id>/` en mode `telephone`, IDEMPOTENTE par (appareil, empreinte) : la même empreinte rend la
-  même session et le nombre de morceaux déjà reçus (reprise après une coupure). Une session déjà close rend 409.
+  même session et le nombre de morceaux déjà reçus (reprise après une coupure) ; une session déjà reçue rend
+  `terminee: true` (rien à renvoyer) ; une session abandonnée rend 409.
 - `POST /api/sync/capture/{id}/morceau/{n}` corps brut video/mp4 (16 Mo au plus) : `capture.ajouter_morceau`, piste
   `scene`, dans l'ordre. Un morceau déjà reçu (n < attendu) rend {recu, deja: true} sans rien écrire.
 - `POST /api/sync/capture/{id}/terminer` {clics (dzclics v1), montage, recette, titre} : la taille et le sha256 du
@@ -99,8 +100,10 @@ def _ouvrir(appareil: dict, d: dict) -> dict:
         v = reg.get(cle)
         if isinstance(v, dict):
             s = C._lire_session(v["id"])
+            if s["etat"] == "terminee":                          # déjà reçue : le téléphone n'a rien à renvoyer
+                return {"id": v["id"], "recus": int((s["pistes"].get("scene") or {}).get("morceaux") or 0), "terminee": True}
             if s["etat"] != "en_cours":
-                raise HTTPException(409, "Cette capture est déjà close au PC.")
+                raise HTTPException(409, "Cette capture est close au PC sans avoir été reçue (abandonnée).")
             return {"id": v["id"], "recus": int((s["pistes"].get("scene") or {}).get("morceaux") or 0)}
         o = d.get("options") if isinstance(d.get("options"), dict) else {}
         s = C.creer({"mode": "telephone", "voix": o.get("voix") is True, "camera": o.get("camera") is True, "clics": True})

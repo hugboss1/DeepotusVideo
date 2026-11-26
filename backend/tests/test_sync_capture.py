@@ -122,7 +122,9 @@ with TestClient(app, client=("127.0.0.1", 50001)) as loc:
           and lu["evenements"][2]["cible"]["t"] == "" and lu["cadre"]["mode"] == "telephone"
           and lu["evenements"][1]["cible"].get("test_id") == "envoyer" and "test_id" not in lu["evenements"][2]["cible"], str(lu)[:300])
     check("F1e montage du téléphone gardé", json.loads((C._dossier(cid) / "montage_telephone.json").read_text("utf-8"))["coupe"] == [0, 3000])
-    check("F1f rouvrir la même empreinte après clôture : 409", lan.post("/api/sync/capture", headers=H, json=decl()).status_code == 409)
+    r = lan.post("/api/sync/capture", headers=H, json=decl())
+    check("F1f rouvrir la même empreinte après clôture : terminee (rien à renvoyer)", r.status_code == 200
+          and r.json().get("terminee") is True and r.json().get("id") == cid, r.text[:200])
 
     import asyncio
     from app.services.storage import LibraryAsset, async_session_factory
