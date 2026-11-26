@@ -673,7 +673,13 @@
         T(c[k].ok ? "inspiration.controle.ok" : "inspiration.controle.ko", { nom: T(CONTROLES[k]) })));
     });
     b.appendChild(cl);
-    if (s.statut === "valide") { b.appendChild(el("div", { "data-dz-insp": "script-valide" }, T("inspiration.script.valide"))); return; }
+    if (s.statut === "valide") {
+      b.appendChild(el("div", { "data-dz-insp": "script-valide" }, T("inspiration.script.valide")));
+      E.reelBloc = el("div", { "data-dz-insp": "reel", style: "display:flex;flex-direction:column;gap:4px" });
+      b.appendChild(E.reelBloc);
+      peindreReel(E, (E.rec && E.rec.reel) || {});
+      return;
+    }
     var v = bouton("valider-script", T("inspiration.script.valider"));
     if (s.controle && s.controle.bloquant) { griser(v, true); b.appendChild(el("div", { style: S.note }, T("inspiration.script.bloquant"))); }
     v.addEventListener("click", async function () {
@@ -682,6 +688,72 @@
       montrerScript(E, r.j);
     });
     b.appendChild(v);
+  }
+
+  /* t515 (RV5) : le Reel en tableaux — repères (temps des mots ou estimés), rendu LOCAL et gratuit par le motion code,
+     brouillon au Planificateur toujours en mode assisté (R8) ; la ligne publique « Format inspiré de… » est proposée
+     DÉCOCHÉE (R12 c), la provenance interne et le commentaire du MP4 sont posés d'office par le serveur (R12 a, b). */
+  function memoReel(E, r) {
+    if (!E.rec) E.rec = {};
+    E.rec.reel = r;
+    peindreReel(E, r);
+  }
+  function peindreReel(E, r) {
+    vider(E.reelBloc);
+    var b = E.reelBloc, id = encodeURIComponent(E.iid), rp = r.reperes;
+    b.appendChild(el("div", { style: S.titre }, T("inspiration.reel.titre")));
+    b.appendChild(el("div", { style: S.note }, T("inspiration.reel.aide")));
+    if (rp) {
+      b.appendChild(el("div", { "data-dz-insp": "reel-reperes" }, T("inspiration.reel.reperes", {
+        n: (rp.tableaux || []).length, s: nombre(rp.duree_s, 1) })));
+      b.appendChild(el("div", { "data-dz-insp": "reel-temps", style: S.note },
+        T(rp.temps === "mots" ? "inspiration.reel.temps_mots" : "inspiration.reel.temps_estimes")));
+      if (rp.mention_illustration) b.appendChild(el("div", { "data-dz-insp": "reel-illustration", style: S.alerte }, T("inspiration.reel.illustration")));
+    }
+    var prep = bouton("reel-preparer", T(rp ? "inspiration.reel.refaire" : "inspiration.reel.preparer"), rp ? "" : S.ok);
+    prep.addEventListener("click", async function () {
+      if (E.occupe) return;
+      var x = await appel("POST", BASE + "/" + id + "/reel/reperes", {});
+      if (!x.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(x.j, x.R.status) }), true); return; }
+      dire(E, "");
+      memoReel(E, { reperes: x.j });
+    });
+    b.appendChild(prep);
+    if (!rp) return;
+    var rendre = bouton("reel-rendre", T(r.rendu ? "inspiration.reel.rerendre" : "inspiration.reel.rendre"), r.rendu ? "" : S.ok);
+    rendre.addEventListener("click", async function () {
+      if (E.occupe) return;
+      var x = await appel("POST", BASE + "/" + id + "/reel/rendu", {});
+      if (!x.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(x.j, x.R.status) }), true); return; }
+      dire(E, T("inspiration.reel.rendu_lance"));
+      memoReel(E, { reperes: rp, rendu: { job_id: x.j.job_id } });
+    });
+    b.appendChild(rendre);
+    if (!r.rendu || !r.rendu.job_id) return;
+    b.appendChild(el("div", { "data-dz-insp": "reel-rendu", style: S.note }, T("inspiration.reel.rendu", { job: String(r.rendu.job_id).slice(0, 8) })));
+    var l = el("label", { "data-dz-insp": "ligne-mention", style: S.ligne + ";font-size:12px" });
+    var coche = el("input", { type: "checkbox", "data-dz-insp": "reel-mention" });
+    coche.checked = false;
+    var lib = el("span", { "data-dz-insp": "reel-mention-texte" }, T("inspiration.reel.mention", { texte: "…" }));
+    l.appendChild(coche); l.appendChild(lib);
+    b.appendChild(l);
+    b.appendChild(el("div", { style: S.note }, T("inspiration.reel.mention_aide")));
+    (async function () {
+      var p = await appel("GET", BASE + "/" + id + "/reel");
+      var m = p.R.ok && p.j && p.j.proposition && p.j.proposition.mention_publique;
+      if (m && m.texte) { lib.textContent = T("inspiration.reel.mention", { texte: String(m.texte) }); coche.checked = m.coche === true; }
+      else montrer(l, false);
+    })();
+    var go = bouton("reel-brouillon", T("inspiration.reel.brouillon"), S.ok);
+    go.addEventListener("click", async function () {
+      if (E.occupe) return;
+      var x = await appel("POST", BASE + "/" + id + "/reel/brouillon", { mention_publique: !!coche.checked });
+      if (!x.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(x.j, x.R.status) }), true); return; }
+      var post = x.j.post || {};
+      dire(E, post.status === "a_valider" ? T("inspiration.brouillon.a_valider") : T("inspiration.reel.brouillon_ok"));
+      try { window.dispatchEvent(new CustomEvent("deepotus:schedule-recharger")); } catch (e) { /* l'écran se rechargera seul */ }
+    });
+    b.appendChild(go);
   }
 
   /* ---- 2. analyse (payante) ---------------------------------------------------------------------------------------- */
