@@ -179,6 +179,7 @@
       if (!d || !d.totaux) { dire(T("croissance.etat.erreur"), true); return; }
       dire("");
       dessiner(d);
+      rechargerAlertes();   // t504 : après le tableau (G12)
     }
 
     async function relever() {
@@ -601,6 +602,116 @@
       blocX.appendChild(etatX);
     }
 
+    // ---- t504 (clôture G12) : l'ACCORD du bilan hebdo et de l'alerte « gagnant » WhatsApp ---------------------------
+    // GET /api/schedule/croissance/alertes (état, et devis par message avec `numero`, gratuit), PUT (accord : modèle
+    // utilitaire approuvé, montant accepté = le devis affiché), DELETE (retrait). Rien ne part sans la case d'accord.
+    var blocAlertes = el("section", { "data-dz-croissance": "alertes" });
+    var tourAl = 0;
+    async function rechargerAlertes() {
+      var moi = ++tourAl, d = null;
+      try { var r = await window.fetch(avecEspace("/api/schedule/croissance/alertes")); if (r.ok) d = await lireJson(r); } catch (e) { d = null; }
+      if (!vivant || moi !== tourAl) return;
+      dessinerAlertes(d);
+    }
+    function dessinerAlertes(d) {
+      vider(blocAlertes);
+      blocAlertes.appendChild(el("h3", { texte: T("croissance.section.alertes") }));
+      var etatA = el("p", { class: "dzCroiNote", "data-dz-croissance": "alertes-etat", role: "status" });
+      function direA(t, err) { etatA.textContent = t || ""; if (err) etatA.setAttribute("data-erreur", "1"); else etatA.removeAttribute("data-erreur"); }
+      if (!d || typeof d.alertes !== "object" || d.alertes === null) { direA(T("croissance.alertes.erreur"), true); blocAlertes.appendChild(etatA); return; }
+      var a = d.alertes, actif = !!(a.accord && a.etat === "actif");
+      blocAlertes.appendChild(el("p", { class: "dzCroiNote", texte: T("croissance.alertes.explication") }));
+      blocAlertes.appendChild(el("p", { "data-dz-croissance": "alertes-statut", texte: actif
+        ? T("croissance.alertes.actif", { le: String(a.accord.le || "").slice(0, 10), usd: dollars(a.accord.usd_par_message) + " $",
+          quoi: [a.bilan ? T("croissance.alertes.bilan") : "", a.alerte ? T("croissance.alertes.alerte") : ""].filter(Boolean).join(" + ") })
+        : T("croissance.alertes.inactif") }));
+      if (!d.compte) { blocAlertes.appendChild(el("p", { class: "dzCroiVide", "data-dz-croissance": "alertes-sans-compte", texte: T("croissance.alertes.sans_compte") })); }
+      var numero = el("input", { type: "tel", "data-dz-croissance": "alertes-numero", "aria-label": T("croissance.alertes.numero"),
+        placeholder: T("croissance.alertes.numero_exemple"), value: String(a.destinataire || "").replace(/^tel:/, "") });
+      var caseBilan = el("input", { type: "checkbox", "data-dz-croissance": "alertes-bilan" });
+      var caseAlerte = el("input", { type: "checkbox", "data-dz-croissance": "alertes-alerte" });
+      caseBilan.checked = actif ? a.bilan !== false : true;
+      caseAlerte.checked = actif ? a.alerte !== false : true;
+      var selModele = el("select", { "data-dz-croissance": "alertes-modele", "aria-label": T("croissance.alertes.modele") },
+        [el("option", { value: "", texte: T("croissance.alertes.modele_aucun") })]);
+      if (actif && a.modele && a.modele.nom) {
+        selModele.appendChild(el("option", { value: a.modele.nom + "|" + a.modele.langue, texte: a.modele.nom + " (" + a.modele.langue + ")" }));
+        selModele.value = a.modele.nom + "|" + a.modele.langue;
+      }
+      var btnModeles = el("button", { type: "button", "data-dz-croissance": "alertes-modeles", texte: T("croissance.alertes.lire_modeles") });
+      var devisTxt = el("p", { "data-dz-croissance": "alertes-devis" });
+      var btnDevis = el("button", { type: "button", "data-dz-croissance": "alertes-devis-bouton", texte: T("croissance.alertes.devis_bouton") });
+      var caseAccord = el("input", { type: "checkbox", "data-dz-croissance": "alertes-accord-case" });
+      var btnAccord = el("button", { type: "button", "data-dz-croissance": "alertes-accord", texte: T("croissance.alertes.accord") });
+      btnAccord.setAttribute("disabled", "");
+      var devisA = null;
+      function majAccord() {
+        if (devisA && devisA.disponible && caseAccord.checked && selModele.value && (caseBilan.checked || caseAlerte.checked)) btnAccord.removeAttribute("disabled");
+        else btnAccord.setAttribute("disabled", "");
+      }
+      [caseAccord, caseBilan, caseAlerte, selModele].forEach(function (x) { x.addEventListener("change", majAccord); });
+      numero.addEventListener("change", function () { devisA = null; devisTxt.textContent = ""; caseAccord.checked = false; majAccord(); });
+      btnModeles.addEventListener("click", async function () {
+        if (!d.compte) { direA(T("croissance.alertes.sans_compte"), true); return; }
+        var r = null, j = null;
+        try { r = await window.fetch("/api/whatsapp/" + encodeURIComponent(d.compte) + "/modeles"); j = await lireJson(r); } catch (e) { r = null; }
+        if (!vivant) return;
+        if (!r || !r.ok || !Array.isArray(j)) { direA(T("croissance.alertes.modeles_erreur"), true); return; }
+        var bons = j.filter(function (m) { return m && String(m.categorie || "").toLowerCase() === "utility" && (m.n_parametres || 0) <= 1; });
+        vider(selModele);
+        selModele.appendChild(el("option", { value: "", texte: T("croissance.alertes.modele_aucun") }));
+        bons.forEach(function (m) { selModele.appendChild(el("option", { value: m.nom + "|" + m.langue, texte: m.nom + " (" + m.langue + ")" })); });
+        direA(bons.length ? T("croissance.alertes.modeles_lus", { n: bons.length }) : T("croissance.alertes.modeles_vide"), !bons.length);
+        majAccord();
+      });
+      btnDevis.addEventListener("click", async function () {
+        var r = null, j = null;
+        try { r = await window.fetch(avecEspace("/api/schedule/croissance/alertes?numero=" + encodeURIComponent(numero.value || ""))); j = await lireJson(r); } catch (e) { r = null; }
+        if (!vivant) return;
+        if (!r || !r.ok) { direA(j && typeof j.detail === "string" ? j.detail : T("croissance.alertes.erreur"), true); return; }
+        devisA = j.devis || null;
+        caseAccord.checked = false;
+        if (!devisA || !devisA.disponible) { devisTxt.textContent = T("croissance.alertes.devis_indispo"); majAccord(); return; }
+        devisTxt.textContent = T("croissance.alertes.devis", { usd: dollars(devisA.usd_par_message) + " $", mois: dollars(devisA.par_mois_max) + " $" });
+        direA("");
+        majAccord();
+      });
+      btnAccord.addEventListener("click", async function () {
+        if (!devisA || !caseAccord.checked) return;
+        var p = String(selModele.value || "").split("|");
+        btnAccord.setAttribute("disabled", "");
+        var r = null, j = null;
+        try {
+          r = await envoyer("/api/schedule/croissance/alertes", "PUT", { numero: numero.value || "", modele: { nom: p[0] || "", langue: p[1] || "" },
+            usd_accepte: devisA.usd_par_message, bilan: caseBilan.checked === true, alerte: caseAlerte.checked === true });
+          j = await lireJson(r);
+        } catch (e) { r = null; }
+        if (!vivant) return;
+        if (!r || !r.ok) { majAccord(); direA(j && typeof j.detail === "string" ? j.detail : T("croissance.alertes.erreur"), true); return; }
+        rechargerAlertes();
+      });
+      blocAlertes.appendChild(el("div", { class: "dzCroiActions" }, [
+        el("label", {}, [el("span", { texte: T("croissance.alertes.numero") }), numero]),
+        el("label", {}, [caseBilan, el("span", { texte: T("croissance.alertes.bilan") })]),
+        el("label", {}, [caseAlerte, el("span", { texte: T("croissance.alertes.alerte") })])]));
+      blocAlertes.appendChild(el("div", { class: "dzCroiActions" }, [selModele, btnModeles, btnDevis]));
+      blocAlertes.appendChild(devisTxt);
+      blocAlertes.appendChild(el("div", { class: "dzCroiActions" }, [
+        el("label", {}, [caseAccord, el("span", { texte: T("croissance.alertes.accord_case") })]), btnAccord]));
+      if (actif) {
+        var btnRetirer = el("button", { type: "button", "data-dz-croissance": "alertes-retirer", texte: T("croissance.alertes.retirer") });
+        btnRetirer.addEventListener("click", async function () {
+          var r = null;
+          try { r = await window.fetch(avecEspace("/api/schedule/croissance/alertes"), { method: "DELETE" }); } catch (e) { r = null; }
+          if (!vivant) return;
+          if (!r || !r.ok) { direA(T("croissance.alertes.erreur"), true); return; }
+          rechargerAlertes();
+        });
+        blocAlertes.appendChild(el("div", { class: "dzCroiActions" }, [btnRetirer]));
+      }
+      blocAlertes.appendChild(etatA);
+    }
+
     function dessiner(d) {
       vider(corps);
       corps.appendChild(compte(d.compte));
@@ -622,6 +733,7 @@
         : [el("p", { class: "dzCroiVide", texte: T("croissance.vide.gagnants", { n: nombre(d.seuil_gagnant) }) })]));
       corps.appendChild(blocNiche);
       corps.appendChild(blocX);
+      corps.appendChild(blocAlertes);   // t504 : accord du bilan et de l'alerte WhatsApp (G12)
       var top = d.top || [];
       corps.appendChild(section("croissance.section.top", "top", top.length
         ? [el("ul", { class: "dzCroiPosts" }, top.map(ligne)), el("p", { class: "dzCroiNote", texte: T("croissance.top.note") })]

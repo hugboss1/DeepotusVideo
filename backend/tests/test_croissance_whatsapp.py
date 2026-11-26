@@ -166,6 +166,8 @@ def run():
         check("2i hors machine -> 401 ou 403", r.status_code in (401, 403), r.status_code)
         r = client.get(f"/api/schedule/croissance/alertes?espace_id={A}")
         check("2j état des alertes : révoqué, lu sans envoi", r.status_code == 200 and r.json()["alertes"].get("etat") == "revoque", r.text[:200])
+        check("2j' t504 : l'écran d'accord reçoit le compte relié (None sans numéro WhatsApp relié)", "compte" in r.json()
+              and r.json()["compte"] is None, r.text[:200])
         r = dehors.put("/api/schedule/croissance/alertes", json={})
         check("2k accord hors machine -> 401 ou 403", r.status_code in (401, 403), r.status_code)
 

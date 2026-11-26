@@ -51,7 +51,7 @@ const dzTde = (lang) => (cle, vars) => {
 };
 const reponse = (status, json) => ({ ok: status >= 200 && status < 300, status, json: async () => J(json === undefined ? {} : json) });
 
-function monde({ lang = "fr", tableau, releve = 200, panne = false, niche = null, recyclage = null, x = null } = {}) {
+function monde({ lang = "fr", tableau, releve = 200, panne = false, niche = null, recyclage = null, x = null, alertes = null } = {}) {
   const appels = [];
   const win = {
     dzT: dzTde(lang), dzLang: () => lang,
@@ -61,6 +61,11 @@ function monde({ lang = "fr", tableau, releve = 200, panne = false, niche = null
       if (panne) throw new Error("réseau coupé");
       if (String(url).startsWith("/api/recyclage/")) return recyclage ? recyclage(String(url), m) : reponse(404, {});
       if (String(url) === "/api/espaces") return reponse(200, { actif: "e1", espaces: [{ id: "e1", nom: "Marque" }, { id: "e2", nom: "Client <b>" }, { id: "e3", nom: "Vieux", archive: true }] });
+      if (String(url).startsWith("/api/schedule/croissance/alertes")) {   // t504 : l'accord du bilan et de l'alerte (G12)
+        if (alertes) return alertes(String(url), m, init.body ? JSON.parse(init.body) : null);
+        return reponse(200, { espace_id: "e1", alertes: {}, devis: null, compte: null });
+      }
+      if (String(url).startsWith("/api/whatsapp/")) return alertes ? alertes(String(url), m, null) : reponse(404, {});
       if (String(url).startsWith("/api/schedule/croissance")) return typeof tableau === "function" ? tableau(String(url)) : reponse(200, tableau);
       if (String(url) === "/api/schedule/analytics/refresh") return reponse(releve, {});
       if (String(url).startsWith("/api/croissance/x/")) {   // t500 : la section « Mes posts X »
@@ -148,7 +153,7 @@ const txt = (x) => (x ? x.textContent : "");
   ok("1.17 aucune écriture tant qu'on ne relève pas", m.appels.every((a) => a.methode === "GET"));
   const avant = m.appels.length;
   marque(m.hote, "relever").click(); await tick(); await tick();
-  ok("1.18 relever : POST refresh puis relecture", m.appels.slice(avant).filter((a) => !a.url.startsWith("/api/croissance/")).map((a) => a.methode + " " + a.url.split("?")[0]).join()
+  ok("1.18 relever : POST refresh puis relecture", m.appels.slice(avant).filter((a) => !a.url.startsWith("/api/croissance/") && !a.url.startsWith("/api/schedule/croissance/alertes")).map((a) => a.methode + " " + a.url.split("?")[0]).join()
     === "POST /api/schedule/analytics/refresh,GET /api/schedule/croissance" && !marque(m.hote, "relever").hasAttribute("disabled"));
   c.recharger(); await tick();
   c.demonter();
@@ -399,6 +404,54 @@ const txt = (x) => (x ? x.textContent : "");
   marque(gl, "recycler").click(); await tick(); await tick();
   ok("6.9 la carte fil X : coût de mise en ligne X, lien compris", txt(marque(gl, "recyclage-publication-x"))
     === FR("croissance.recyclage.publication_x", { usd: "0,305 $", post: "0,015 $", lien: "0,20 $" }), txt(gl));
+}
+
+// ---- t504 (clôture G12) : l'accord du bilan hebdo et de l'alerte « gagnant » WhatsApp --------------------------------
+{
+  let etat = {}, puts = [];
+  const MODELES = [{ nom: "bilan_util", langue: "fr", categorie: "UTILITY", n_parametres: 1 },
+    { nom: "promo", langue: "fr", categorie: "MARKETING", n_parametres: 0 }, { nom: "trop", langue: "fr", categorie: "utility", n_parametres: 3 }];
+  const alertes = (u, meth, corps) => {
+    if (u.startsWith("/api/whatsapp/")) return u === "/api/whatsapp/wa1/modeles" ? reponse(200, MODELES) : reponse(404, {});
+    if (meth === "PUT") { puts.push(corps); etat = { accord: { le: "2026-11-27T08:00:00+00:00", usd_par_message: corps.usd_accepte }, etat: "actif",
+      destinataire: "tel:" + corps.numero, modele: corps.modele, bilan: corps.bilan, alerte: corps.alerte }; return reponse(200, etat); }
+    if (meth === "DELETE") { etat = { etat: "revoque" }; return reponse(200, etat); }
+    const devis = u.includes("numero=") ? { disponible: true, usd_par_message: 0.0113, par_mois_max: 0.0678 } : null;
+    return reponse(200, { espace_id: "e1", alertes: etat, devis, compte: "wa1" });
+  };
+  const m = monde({ tableau: TABLEAU, alertes });
+  m.Dz.monter(m.hote); await tick(); await tick(); await tick();
+  const s = marque(m.hote, "alertes");
+  ok("7.1 section « Bilan et alerte WhatsApp » lue, sans accord, et le bouton d'accord grisé", !!s
+    && txt(marque(s, "alertes-statut")) === FR("croissance.alertes.inactif") && marque(s, "alertes-accord").hasAttribute("disabled"), txt(s));
+  ok("7.2 aucune écriture à l'ouverture", m.appels.every((a) => a.methode === "GET"));
+  marque(s, "alertes-modeles").click(); await tick(); await tick();
+  const opts = marque(s, "alertes-modele").children.map((o) => o.attrs.value);
+  ok("7.3 « Lire mes modèles » : seuls les utilitaires à un paramètre au plus", JSON.stringify(opts) === '["","bilan_util|fr"]', opts);
+  marque(s, "alertes-numero").value = "33612345678";
+  marque(s, "alertes-devis-bouton").click(); await tick(); await tick();
+  ok("7.4 devis gratuit affiché, par message et par mois", txt(marque(s, "alertes-devis")) === FR("croissance.alertes.devis", { usd: "0,0113 $", mois: "0,0678 $" })
+    && m.appels.some((a) => a.url.includes("/alertes?numero=33612345678")), txt(marque(s, "alertes-devis")));
+  marque(s, "alertes-modele").value = "bilan_util|fr"; marque(s, "alertes-modele").fire("change");
+  ok("7.5 sans la case d'accord : bouton toujours grisé", marque(s, "alertes-accord").hasAttribute("disabled"));
+  marque(s, "alertes-accord").click(); await tick();
+  ok("7.6 clic sur le bouton grisé : aucun PUT", puts.length === 0);
+  marque(s, "alertes-accord-case").checked = true; marque(s, "alertes-accord-case").fire("change");
+  marque(s, "alertes-alerte").checked = false; marque(s, "alertes-alerte").fire("change");
+  ok("7.7 case cochée, modèle choisi : bouton actif", !marque(s, "alertes-accord").hasAttribute("disabled"));
+  marque(s, "alertes-accord").click(); await tick(); await tick(); await tick();
+  ok("7.8 PUT : montant accepté = le devis affiché, modèle, bilan seul", puts.length === 1 && puts[0].usd_accepte === 0.0113
+    && puts[0].modele.nom === "bilan_util" && puts[0].modele.langue === "fr" && puts[0].bilan === true && puts[0].alerte === false
+    && puts[0].numero === "33612345678", JSON.stringify(puts[0]));
+  const s2 = marque(m.hote, "alertes");
+  ok("7.9 relu : accord actif dit, bouton « Retirer l'accord »", txt(marque(s2, "alertes-statut")).startsWith("Accord donné le 2026-11-27")
+    && !!marque(s2, "alertes-retirer"), txt(marque(s2, "alertes-statut")));
+  marque(s2, "alertes-retirer").click(); await tick(); await tick(); await tick();
+  ok("7.10 retrait : DELETE puis « Aucun accord »", m.appels.some((a) => a.methode === "DELETE" && a.url.startsWith("/api/schedule/croissance/alertes"))
+    && txt(marque(marque(m.hote, "alertes"), "alertes-statut")) === FR("croissance.alertes.inactif"));
+  const m2 = monde({ tableau: TABLEAU, lang: "en" });
+  m2.Dz.monter(m2.hote); await tick(); await tick(); await tick();
+  ok("7.11 sans compte relié : dit (en anglais aussi)", txt(marque(marque(m2.hote, "alertes"), "alertes-sans-compte")) === EN("croissance.alertes.sans_compte"));
 }
 
 if (echecs.length) { console.log("ÉCHECS (" + echecs.length + "/" + n + ") :\n- " + echecs.join("\n- ")); process.exit(1); }

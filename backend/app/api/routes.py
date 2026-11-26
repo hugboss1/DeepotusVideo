@@ -10130,7 +10130,9 @@ async def get_alertes_croissance(request: Request, espace_id: str = "", numero: 
         raise HTTPException(404, "espace inconnu")
     except ValueError as e:
         raise HTTPException(400, str(e))
-    return {"espace_id": eid, "alertes": etat, "devis": devis}
+    from app.services import whatsapp_validation as _wv
+    relie = _wv._compte_relie(eid)   # t504 : l'écran d'accord lit les modèles de CE compte (GET /api/whatsapp/{cid}/modeles)
+    return {"espace_id": eid, "alertes": etat, "devis": devis, "compte": relie[0] if relie else None}
 
 
 @router.put("/schedule/croissance/alertes")
