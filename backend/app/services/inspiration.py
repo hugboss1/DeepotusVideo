@@ -159,7 +159,7 @@ def _capture(rec: dict) -> bytes | None:
 
 def vue(rec: dict) -> dict:
     """Ce que l'écran voit : tout sauf les empreintes et le nom interne du fichier capté."""
-    src = {k: v for k, v in (rec.get("source") or {}).items() if k not in ("sha256", "ahash", "capture")}
+    src = {k: v for k, v in (rec.get("source") or {}).items() if k not in ("sha256", "ahash", "capture", "video")}
     return {**{k: v for k, v in rec.items() if k != "source"}, "source": src,
             "image": bool((rec.get("source") or {}).get("capture"))}
 
@@ -183,7 +183,11 @@ def lister(espace_id: str) -> list[dict]:
         out.append({"id": rec["id"], "cree": rec.get("cree"), "source": vue(rec)["source"],
                     "image": vue(rec)["image"], "mots": len(str(rec.get("texte_capte") or "").split()),
                     "angles": [x.get("titre") for x in a.get("angles") or []],
-                    "brouillons": rec.get("brouillons") or []})
+                    "brouillons": rec.get("brouillons") or [],
+                    # t511 (RV1) : une référence vidéo montre sa fiche (format, rythme) et si sa source est effacée
+                    "matiere": rec.get("matiere") or "capture",
+                    "fiche": (rec.get("video") or {}).get("fiche"),
+                    "purgee": bool((rec.get("video") or {}).get("purgee"))})
     out.sort(key=lambda x: str(x.get("cree") or ""), reverse=True)
     return out[:MAX_LISTE]
 

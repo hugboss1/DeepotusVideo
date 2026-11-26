@@ -12,6 +12,9 @@ Boucle locale SEULEMENT (`routes._require_localhost`) ; les deux routes payantes
 - `POST /{id}/devis`              {angle, image?} : la carte de devis du contenu neuf (gratuit).
 - `POST /{id}/redaction`          {angle, max_usd, langue?, nouvelle?} : PAYANTE (Claude).
 - `POST /{id}/brouillon`          {titre, accroche?, legende?, visuel?} : le brouillon au Planificateur, après les gardes.
+- `POST /video`                   t511 (RV1) : multipart `video` (≤ 300 Mo, ≤ 10 min), `source_libelle?`, `source_lien?`
+                                  -> l'inspiration « vidéo » avec sa FICHE (étages 0 et 1, gratuits, locaux).
+- `GET  /{id}/planches/{nom}`     t511 : une planche d'images (JPEG) tant que la source n'est pas effacée (R4).
 Codes : 400 corps ou refus de forme, 404 inconnue, 409 {message, code, …} (coût changé `cout` + usd, `en_cours`,
 gardes `copie` / `interdits` / `visuel_capte`, `angle`, `sans_analyse`, `espace`), 413, 415, 402 (plafond), 502/504
 (appel peut-être facturé), 503 (Claude non configuré ou sans vision). Messages fixes : L10.
@@ -29,7 +32,7 @@ from app.services import scan_pages as SP
 router = APIRouter()
 
 MAX_CORPS = 64 * 1024
-CODES_400 = ("vide", "texte", "format", "sans_image", "titre", "visuel")
+CODES_400 = ("vide", "texte", "format", "sans_image", "titre", "visuel", "illisible", "longue", "matiere")
 
 
 def _local(request: Request) -> None:
@@ -84,6 +87,10 @@ def _http(e: Exception) -> HTTPException:
     if isinstance(e, I.EnCours):
         return HTTPException(409, {"message": str(e), "code": "en_cours"})
     if isinstance(e, I.Refus):
+        if e.code == "lourde":
+            return HTTPException(413, {"message": str(e), "code": e.code})
+        if e.code == "purgee":
+            return HTTPException(410, {"message": str(e), "code": e.code})
         if e.code in CODES_400:
             return HTTPException(400, {"message": str(e), "code": e.code})
         d = {"message": str(e), "code": e.code}
@@ -96,6 +103,9 @@ def _http(e: Exception) -> HTTPException:
         return HTTPException(e.statut, str(e))
     if isinstance(e, ValueError):
         return HTTPException(400, str(e))
+    from app.services import inspiration_video as IV
+    if isinstance(e, IV.MesureImpossible):
+        return HTTPException(503 if str(e) == IV.M_FFMPEG else 415, str(e))
     if isinstance(e, RuntimeError):
         return HTTPException(503 if str(e) in I.RAISONS.values() else 502, str(e))
     raise e
@@ -124,7 +134,9 @@ async def _pour_qui(eid: str) -> dict:
 @router.get("/", dependencies=[Depends(_local)])
 async def liste(request: Request):
     from app.services import espaces
+    from app.services import inspiration_video as IV
     eid = espaces.espace_courant()
+    await asyncio.to_thread(IV.purger)          # t511 (R4) : sources vidéo effacées à 7 jours, la fiche reste
     return {**await _pour_qui(eid), "inspirations": await asyncio.to_thread(I.lister, eid)}
 
 
@@ -145,6 +157,51 @@ async def capter(request: Request, image: UploadFile | None = File(None), texte:
     if v.get("ocr", {}).get("raison"):
         v["ocr"] = {**v["ocr"], "raison": _traduire(v["ocr"]["raison"], request)}
     return {**v, **await _pour_qui(rec["espace_id"])}
+
+
+@router.post("/video", dependencies=[Depends(_local)])
+async def deposer_video(request: Request, video: UploadFile = File(...), source_libelle: str = Form(""),
+                        source_lien: str = Form(""), langue: str = Form("fr")):
+    """t511 (RV1) : le fichier est écrit par morceaux dans le dossier de l'inspiration (jamais en mémoire entier),
+    refusé au-delà de 300 Mo, puis mesuré dans un fil (ffmpeg, gratuit)."""
+    from app.services import espaces
+    from app.services import inspiration_video as IV
+    eid = espaces.espace_courant()
+    try:
+        iid, chemin = IV.nouvelle(nom=video.filename or "", espace_id=eid)
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    taille = 0
+    try:
+        with open(chemin, "wb") as f:
+            while True:
+                bloc = await video.read(1024 * 1024)
+                if not bloc:
+                    break
+                taille += len(bloc)
+                if taille > IV.OCTETS_MAX:
+                    raise I.Refus(IV.M_LOURDE, "lourde")
+                f.write(bloc)
+        rec = await asyncio.to_thread(lambda: IV.mesurer(iid, chemin=chemin, espace_id=eid,
+                                                         source_libelle=source_libelle, source_lien=source_lien,
+                                                         langue=langue))
+    except Exception as e:  # noqa: BLE001
+        IV.abandonner(iid)
+        raise _http(e) from None
+    return {**I.vue(rec), **await _pour_qui(eid)}
+
+
+@router.get("/{iid}/planches/{nom}", dependencies=[Depends(_local)])
+async def planche(iid: str, nom: str):
+    from fastapi.responses import FileResponse
+    from app.services import inspiration_video as IV
+    try:
+        f = IV.chemin_planche(iid, nom)
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    if not f.is_file():
+        raise HTTPException(404, I.M_INCONNUE)
+    return FileResponse(f, media_type="image/jpeg")
 
 
 @router.get("/{iid}", dependencies=[Depends(_local)])

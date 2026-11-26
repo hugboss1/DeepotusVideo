@@ -100,9 +100,14 @@
     var R = await window.fetch(chemin, init);
     return { R: R, j: await lireJson(R) };
   }
+  function estVideo(f) {
+    /* t511 (RV1) : une vidéo de référence (enregistrement d'écran) part vers POST /video */
+    var type = String((f && f.type) || "").toLowerCase(), nom = String((f && f.name) || "").toLowerCase();
+    return type.indexOf("video/") === 0 || /\.(mp4|mov|m4v|webm|mkv)$/.test(nom);
+  }
   function accepte(f) {
     var type = String((f && f.type) || "").toLowerCase(), nom = String((f && f.name) || "").toLowerCase();
-    return (type.indexOf("image/") === 0 && type !== "image/svg+xml") || (!type && /\.(png|jpe?g|webp|bmp|tiff?)$/.test(nom));
+    return (type.indexOf("image/") === 0 && type !== "image/svg+xml") || (!type && /\.(png|jpe?g|webp|bmp|tiff?)$/.test(nom)) || estVideo(f);
   }
   function nomImage(j) {
     var i = j && j.images && j.images[0];
@@ -157,7 +162,7 @@
     depot.appendChild(el("div", { style: S.note }, T("inspiration.capture.depot")));
     var ligne = el("div", { style: S.ligne });
     E.choisir = bouton("choisir", T("inspiration.capture.choisir"));
-    E.entree = el("input", { type: "file", accept: "image/*", "data-dz-insp": "fichier", hidden: "" });
+    E.entree = el("input", { type: "file", accept: "image/*,video/*", "data-dz-insp": "fichier", hidden: "" });
     E.nomFichier = el("span", { "data-dz-insp": "nom-fichier", style: S.note });
     E.retirer = bouton("retirer", T("inspiration.capture.retirer"), "min-width:0");
     montrer(E.retirer, false);
@@ -381,15 +386,17 @@
     var texte = String(E.texte.value || "");
     if (!E.image && !texte.trim()) { dire(E, T("inspiration.capture.vide"), true); return; }
     var fd = new FormData();
-    if (E.image) fd.append("image", E.image, E.image.name || "capture");
+    var video = !!E.image && estVideo(E.image);
+    if (video) fd.append("video", E.image, E.image.name || "reference.mp4");
+    else if (E.image) fd.append("image", E.image, E.image.name || "capture");
     fd.append("texte", texte);
     fd.append("source_libelle", String(E.source.value || ""));
     fd.append("source_lien", String(E.lien.value || ""));
     fd.append("langue", E.langue.value || "auto");
     verrouiller(E, true, false);
-    dire(E, T("inspiration.capture.lecture"));
+    dire(E, T(video ? "inspiration.video.mesure" : "inspiration.capture.lecture"));
     try {
-      var r = await appel("POST", BASE + "/capter", fd);
+      var r = await appel("POST", BASE + (video ? "/video" : "/capter"), fd);
       if (E.ferme) return;
       if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
       dire(E, "");
@@ -419,12 +426,44 @@
       });
       E.lu.appendChild(l);
     }
+    if (j.matiere === "video") { montrerFiche(E, j); return; }
     montrer(E.s2, true);
     montrer(E.ligneImage, !!j.image);
     E.avecImage.checked = false;
     vider(E.matiere); vider(E.angles);
     montrer(E.s3, false); montrer(E.s4, false); montrer(E.fait, false);
     devisAnalyse(E);
+  }
+
+  /* ---- 1 bis. fiche d'une vidéo de référence (t511, RV1 : étages 0 et 1 gratuits) ---------------------------------- */
+  function nombre(v, n) { return v == null ? "—" : String(Math.round(Number(v) * Math.pow(10, n || 0)) / Math.pow(10, n || 0)); }
+  function montrerFiche(E, j) {
+    var v = j.video || {}, f = v.fiche || {}, fo = f.format || {}, ry = f.rythme || {};
+    var bloc = el("div", { "data-dz-insp": "fiche-video", style: "display:flex;flex-direction:column;gap:4px;font-size:12px" });
+    bloc.appendChild(el("div", { style: S.titre }, T("inspiration.video.titre")));
+    bloc.appendChild(el("div", { "data-dz-insp": "fiche-format" }, T("inspiration.video.format", {
+      duree: nombre(fo.duree_s, 1), cadre: String(fo.cadre || "—"), ips: nombre(fo.images_par_s, 0) })));
+    if (fo.boucle) bloc.appendChild(el("div", { "data-dz-insp": "fiche-boucle", style: S.note }, T("inspiration.video.boucle", {
+      fichier: nombre(fo.duree_fichier_s, 1), duree: nombre(fo.duree_s, 1) })));
+    bloc.appendChild(el("div", { "data-dz-insp": "fiche-son", style: fo.son ? "" : S.alerte },
+      T(fo.son ? "inspiration.video.son_oui" : "inspiration.video.son_non")));
+    bloc.appendChild(el("div", { "data-dz-insp": "fiche-rythme" }, T("inspiration.video.rythme", {
+      n: nombre(ry.plans, 0), moy: nombre(ry.duree_moyenne_s, 1), min: nombre(ry.duree_min_s, 1), max: nombre(ry.duree_max_s, 1),
+      ppm: nombre(ry.plans_par_minute, 1) })));
+    var planches = v.purgee ? [] : (v.planches || []);
+    if (planches.length) {
+      var l = el("div", { "data-dz-insp": "planches", style: "display:flex;flex-wrap:wrap;gap:4px" });
+      planches.slice(0, 12).forEach(function (nom) {
+        l.appendChild(el("img", { src: BASE + "/" + encodeURIComponent(j.id) + "/planches/" + encodeURIComponent(nom),
+          alt: "", loading: "lazy", style: "height:96px;border:1px solid var(--brd-soft,var(--stroke,#222830))" }));
+      });
+      bloc.appendChild(l);
+    }
+    bloc.appendChild(el("div", { "data-dz-insp": "fiche-purge", style: S.note }, v.purgee ? T("inspiration.video.purgee")
+      : T("inspiration.video.purge", { date: String(v.purge_le || "").slice(0, 10) })));
+    bloc.appendChild(el("div", { style: S.note }, T("inspiration.video.suite")));
+    E.lu.appendChild(bloc);
+    montrer(E.s2, false); montrer(E.s3, false); montrer(E.s4, false); montrer(E.fait, false);
   }
 
   /* ---- 2. analyse (payante) ---------------------------------------------------------------------------------------- */
