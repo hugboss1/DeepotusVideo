@@ -588,6 +588,9 @@ app.include_router(live_router, prefix="/api/live")
 # t313 (28/10/2026) : /api/inspiration — d'une inspiration à un contenu NEUF (matière, angles, devis, brouillon), local seulement
 from app.api.inspiration_routes import router as inspiration_router
 app.include_router(inspiration_router, prefix="/api/inspiration")
+# t497 (26/11/2026) : /api/croissance — la note avant publication d'un rendu (estimation en deux étages), local seulement
+from app.api.croissance_routes import router as croissance_router
+app.include_router(croissance_router, prefix="/api/croissance")
 # t314 (28/10/2026) : /api/schema — illustration ou schéma -> calques nommés (Vectorlab) -> base d'animation, local seulement
 from app.api.schema_routes import router as schema_router
 app.include_router(schema_router, prefix="/api/schema")
