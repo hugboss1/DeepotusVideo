@@ -15022,5 +15022,33 @@
  "Lien attendu : une adresse qui commence par https://": {
   "fr": "Lien attendu : une adresse qui commence par https://",
   "en": "Link expected: an address that starts with https://"
+ },
+ "Chaque chiffre publiable a besoin de sa source (où le vérifier).": {
+  "fr": "Chaque chiffre publiable a besoin de sa source (où le vérifier).",
+  "en": "Each publishable figure needs its source (where to check it)."
+ },
+ "Il faut d'abord lire la référence et obtenir sa recette.": {
+  "fr": "Il faut d'abord lire la référence et obtenir sa recette.",
+  "en": "First read the reference and get its recipe."
+ },
+ "Remplis d'abord la fiche d'offre de l'espace (produit, promesse, au moins une preuve).": {
+  "fr": "Remplis d'abord la fiche d'offre de l'espace (produit, promesse, au moins une preuve).",
+  "en": "First fill in the space's offer sheet (product, promise, at least one proof)."
+ },
+ "Aucun script à valider.": {
+  "fr": "Aucun script à valider.",
+  "en": "No script to approve."
+ },
+ "Un contrôle bloquant échoue (chiffre non sourcé, copie ou mot interdit) : réécris le script avant de le valider.": {
+  "fr": "Un contrôle bloquant échoue (chiffre non sourcé, copie ou mot interdit) : réécris le script avant de le valider.",
+  "en": "A blocking check fails (unsourced figure, copy or forbidden word): rewrite the script before approving it."
+ },
+ "HTTP {status_code}": {
+  "fr": "HTTP {status_code}",
+  "en": "HTTP {status_code}"
+ },
+ "yt-dlp": {
+  "fr": "yt-dlp",
+  "en": "yt-dlp"
  }
 }

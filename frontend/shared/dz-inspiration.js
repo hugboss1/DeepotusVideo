@@ -475,7 +475,7 @@
       });
       E.lu.appendChild(l);
     }
-    if (j.matiere === "video") { montrerFiche(E, j); return; }
+    if (j.matiere === "video") { E.rec = j; montrerFiche(E, j); return; }
     if (j.matiere === "lien") { montrerLien(E, j); if (!j.texte_capte) { montrer(E.s2, false); return; } }
     montrer(E.s2, true);
     montrer(E.ligneImage, !!j.image);
@@ -583,6 +583,105 @@
     if ((alertes || []).length) b.appendChild(el("div", { "data-dz-insp": "recette-alertes", style: S.alerte },
       T("inspiration.recette.alertes", { n: alertes.length })));
     b.appendChild(el("div", { style: S.note }, T("inspiration.recette.rangee")));
+    /* t514 (RV4) : le script sur recette avec la fiche d'offre, ses contrôles, la porte 1 */
+    E.scriptBloc = el("div", { "data-dz-insp": "script", style: "display:flex;flex-direction:column;gap:4px" });
+    b.appendChild(E.scriptBloc);
+    if (E.rec && E.rec.script) { montrerScript(E, E.rec.script); return; }
+    E.ecrireScript = bouton("ecrire-script", T("inspiration.script.bouton", { usd: "…" }));
+    griser(E.ecrireScript, true);
+    E.ecrireScript.addEventListener("click", function () { ecrireScript(E); });
+    E.scriptBloc.appendChild(E.ecrireScript);
+    devisScript(E);
+  }
+  async function devisScript(E) {
+    var id = E.iid;
+    E.devisS = null;
+    try {
+      var r = await appel("GET", BASE + "/" + encodeURIComponent(id) + "/devis-script?langue=" + langue());
+      if (E.ferme || E.iid !== id) return;
+      if (r.R.status === 409 && r.j && r.j.detail && r.j.detail.code === "sans_offre") { formulaireOffre(E); return; }
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      if (!r.j.disponible) { dire(E, T("inspiration.analyse.indispo", { raison: String(r.j.raison || "") }), true); return; }
+      E.devisS = r.j;
+      E.ecrireScript.textContent = T("inspiration.script.bouton", { usd: usd(r.j.usd) });
+      if (!E.occupe) griser(E.ecrireScript, false);
+    } catch (e) { dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true); }
+  }
+  function formulaireOffre(E) {
+    var f = el("div", { "data-dz-insp": "offre", style: "display:flex;flex-direction:column;gap:4px" });
+    f.appendChild(el("div", { style: S.alerte }, T("inspiration.offre.manque")));
+    var champs = {};
+    [["produit", "input"], ["pour_qui", "input"], ["promesse", "input"], ["preuves", "textarea"], ["frein_leve", "input"],
+      ["chiffres", "textarea"]].forEach(function (x) {
+      var c = champ(x[1], "offre-" + x[0], T("inspiration.offre." + x[0]), x[1] === "input" ? { type: "text", maxlength: "400" } : { rows: "2" });
+      champs[x[0]] = c.c; f.appendChild(c.l);
+    });
+    var go = bouton("offre-enregistrer", T("inspiration.offre.enregistrer"));
+    go.addEventListener("click", async function () {
+      var corps = { produit: champs.produit.value, pour_qui: champs.pour_qui.value, promesse: champs.promesse.value,
+        frein_leve: champs.frein_leve.value, appels: ["lien"],
+        preuves: String(champs.preuves.value || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean),
+        chiffres: String(champs.chiffres.value || "").split("\n").map(function (x) { var p = x.split("|"); return { valeur: (p[0] || "").trim(), libelle: (p[1] || "").trim(), source: (p[2] || "").trim() }; }).filter(function (x) { return x.valeur; }) };
+      var r = await appel("PUT", BASE + "/offre", corps);
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      if (!r.j.complete) { dire(E, T("inspiration.offre.manque"), true); return; }
+      dire(E, "");
+      f.parentNode && f.parentNode.removeChild ? f.parentNode.removeChild(f) : montrer(f, false);
+      devisScript(E);
+    });
+    f.appendChild(go);
+    E.scriptBloc.appendChild(f);
+  }
+  async function ecrireScript(E) {
+    if (E.occupe || !E.iid || !E.devisS) return;
+    var montant = E.devisS.usd;
+    if (!(await confirmer(T("inspiration.script.confirmer", { usd: usd(montant) })))) return;
+    if (E.ferme) return;
+    verrouiller(E, true);
+    try {
+      var r = await appel("POST", BASE + "/" + encodeURIComponent(E.iid) + "/script", { max_usd: montant, langue: langue() });
+      if (r.R.status === 409 && r.j && r.j.detail && r.j.detail.code === "cout") {
+        E.devisS = Object.assign({}, E.devisS, { usd: r.j.detail.usd });
+        E.ecrireScript.textContent = T("inspiration.script.bouton", { usd: usd(r.j.detail.usd) });
+        dire(E, T("inspiration.cout.change", { usd: usd(r.j.detail.usd) }), true);
+        return;
+      }
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      dire(E, "");
+      montrerScript(E, r.j);
+    } catch (e) {
+      dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true);
+    } finally { verrouiller(E, false); }
+  }
+  var CONTROLES = { accroche: "inspiration.controle.accroche", une_idee: "inspiration.controle.une_idee", appel: "inspiration.controle.appel",
+    ecran: "inspiration.controle.ecran", verite: "inspiration.controle.verite", distance: "inspiration.controle.distance",
+    interdits: "inspiration.controle.interdits", longueur: "inspiration.controle.longueur" };
+  function montrerScript(E, s) {
+    vider(E.scriptBloc);
+    var b = E.scriptBloc;
+    b.appendChild(el("div", { style: S.titre }, T("inspiration.script.titre")));
+    var l = el("ol", { "data-dz-insp": "script-briques", style: "margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px" });
+    (s.briques || []).forEach(function (x) {
+      l.appendChild(el("li", null, T("inspiration.script.brique", { texte: String(x.texte || ""), ecran: String(x.ecran || "—") })));
+    });
+    b.appendChild(l);
+    var c = (s.controle && s.controle.controles) || {};
+    var cl = el("div", { "data-dz-insp": "script-controles", style: "display:flex;flex-direction:column;gap:1px;font-size:12px" });
+    Object.keys(CONTROLES).forEach(function (k) {
+      if (!c[k]) return;
+      cl.appendChild(el("div", { "data-dz-insp": "controle-" + k, style: c[k].ok ? "" : S.alerte },
+        T(c[k].ok ? "inspiration.controle.ok" : "inspiration.controle.ko", { nom: T(CONTROLES[k]) })));
+    });
+    b.appendChild(cl);
+    if (s.statut === "valide") { b.appendChild(el("div", { "data-dz-insp": "script-valide" }, T("inspiration.script.valide"))); return; }
+    var v = bouton("valider-script", T("inspiration.script.valider"));
+    if (s.controle && s.controle.bloquant) { griser(v, true); b.appendChild(el("div", { style: S.note }, T("inspiration.script.bloquant"))); }
+    v.addEventListener("click", async function () {
+      var r = await appel("POST", BASE + "/" + encodeURIComponent(E.iid) + "/script/valider", {});
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      montrerScript(E, r.j);
+    });
+    b.appendChild(v);
   }
 
   /* ---- 2. analyse (payante) ---------------------------------------------------------------------------------------- */
