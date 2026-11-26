@@ -1194,6 +1194,11 @@ async def tick(marker: list[str | None] | None = None) -> None:
                 logger.info(f"metrics refreshed: {n}")
         except Exception as e:
             logger.warning(f"metrics pass failed: {e}")
+        try:                     # t493 (26/11/2026) : jetons « Instagram Login » à moins de 10 j de l'échéance
+            from app.services import instagram_oauth as _igo
+            await _igo.renouveler_dus()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"renouvellement Instagram : {type(e).__name__}")
     async with async_session_factory() as session:
         res = await session.execute(
             select(ScheduledPost)
