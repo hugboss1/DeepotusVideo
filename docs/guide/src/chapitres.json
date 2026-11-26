@@ -384,6 +384,28 @@
       "etat": "v3"
     },
     {
+      "id": "croissance",
+      "famille": "publier",
+      "lot": "t504",
+      "icone": "dz-nav-analytics",
+      "fr": "Faire grandir ses posts",
+      "en": "Grow your posts",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
+      "id": "reference-recette",
+      "famille": "publier",
+      "lot": "t516",
+      "icone": "dz-action-lancer-recette",
+      "fr": "Partir d'une vidéo de référence",
+      "en": "Start from a reference video",
+      "anciens": [],
+      "ecrans": [],
+      "etat": "v3"
+    },
+    {
       "id": "prospection",
       "famille": "publier",
       "lot": "t360",

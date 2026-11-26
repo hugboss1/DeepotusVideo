@@ -1,0 +1,75 @@
+{
+  "base": "http://127.0.0.1:8812",
+  "preparation": "Backend de preuve t504/t516 (scripts/guide/serve_guide.py, PORT=8812) : code du worktree de clôture, dossier de données jetable et vide, aucune clé. Aucun canal relié, aucun accord, rien de payant ni de publié. Chapitres « Faire grandir ses posts » et « Partir d'une vidéo de référence ».",
+  "scenes": [
+    {
+      "scene": "croissance/ecran",
+      "taille": [1440, 900],
+      "titre": {"fr": "F1 › Croissance", "en": "F1 › Growth"},
+      "legende": {
+        "fr": "L'onglet Croissance : période, espace, Relever maintenant, puis les gagnants de la niche.",
+        "en": "The Growth tab: period, space, Read now, then the niche's winners."
+      },
+      "avant": [{"attente": 1500}, {"touche": "F1"}, {"attente": 800}],
+      "captures": [
+        {"nom": "onglet", "etapes": [{"clic": "css:[data-dz-agent=onglet-croissance]"}, {"attente": 2200}]},
+        {"nom": "niche", "etapes": [{"defiler": "css:[data-dz-croissance=niche]"}, {"attente": 600}]}
+      ],
+      "temps": [
+        {"capture": 0, "duree": 2.2, "curseur": "css:[data-dz-agent=onglet-croissance]", "clic": true,
+         "surligne": "css:[data-dz-agent=onglet-croissance]",
+         "bulle": {"fr": "Onglet Croissance", "en": "Growth tab"}, "ancre": "css:[data-dz-agent=onglet-croissance]"},
+        {"capture": 0, "duree": 2.6, "curseur": "css:[data-dz-croissance=relever]", "clic": true,
+         "surligne": "css:[data-dz-croissance=relever]",
+         "bulle": {"fr": "Relève les mesures, gratuit", "en": "Reads the metrics, free"}, "ancre": "css:[data-dz-croissance=relever]"},
+        {"capture": 1, "duree": 2.6, "surligne": "css:[data-dz-croissance=niche]",
+         "bulle": {"fr": "Les gagnants de votre niche", "en": "Your niche's winners"}, "ancre": "css:[data-dz-croissance=niche]"}
+      ]
+    },
+    {
+      "scene": "croissance/alertes",
+      "taille": [1440, 900],
+      "titre": {"fr": "Croissance › Bilan et alerte WhatsApp", "en": "Growth › WhatsApp summary and alert"},
+      "legende": {
+        "fr": "L'accord du bilan hebdo et de l'alerte : numéro, modèle, devis, case d'accord.",
+        "en": "The consent for the weekly summary and the alert: number, template, quote, consent box."
+      },
+      "avant": [{"attente": 1500}, {"touche": "F1"}, {"attente": 800},
+                {"clic": "css:[data-dz-agent=onglet-croissance]"}, {"attente": 2200}],
+      "captures": [
+        {"nom": "accord", "etapes": [{"defiler": "css:[data-dz-croissance=alertes-accord]"}, {"attente": 600}]}
+      ],
+      "temps": [
+        {"capture": 0, "duree": 2.4, "surligne": "css:[data-dz-croissance=alertes-numero]",
+         "bulle": {"fr": "Votre numéro, indicatif compris", "en": "Your number, country code included"},
+         "ancre": "css:[data-dz-croissance=alertes-numero]"},
+        {"capture": 0, "duree": 2.4, "curseur": "css:[data-dz-croissance=alertes-devis-bouton]", "clic": true,
+         "surligne": "css:[data-dz-croissance=alertes-devis-bouton]",
+         "bulle": {"fr": "Le prix d'un message, gratuit", "en": "The price of one message, free"},
+         "ancre": "css:[data-dz-croissance=alertes-devis-bouton]"},
+        {"capture": 0, "duree": 2.6, "surligne": "css:[data-dz-croissance=alertes-accord]",
+         "bulle": {"fr": "Rien ne part sans la case d'accord", "en": "Nothing is sent without the consent box"},
+         "ancre": "css:[data-dz-croissance=alertes-accord]"}
+      ]
+    },
+    {
+      "scene": "reference-recette/boite",
+      "taille": [1440, 900],
+      "titre": {"fr": "Planificateur › Depuis une inspiration", "en": "Scheduler › From an inspiration"},
+      "legende": {
+        "fr": "La boîte Inspiration : déposer l'enregistrement d'écran ou coller un lien, puis lire la capture.",
+        "en": "The Inspiration box: drop the screen recording or paste a link, then read the capture."
+      },
+      "avant": [{"attente": 1500}, {"clic": {"fr": "texte:Planificateur", "en": "texte:Scheduler"}, "apres": 2500}],
+      "captures": [
+        {"nom": "boite", "etapes": [{"clic": {"fr": "texte:Depuis une inspiration", "en": "texte:From an inspiration"}}, {"attente": 1800}]}
+      ],
+      "temps": [
+        {"capture": 0, "duree": 2.4, "surligne": "css:[data-dz-insp=depot]",
+         "bulle": {"fr": "Glissez l'enregistrement ici", "en": "Drop the recording here"}, "ancre": "css:[data-dz-insp=depot]"},
+        {"capture": 0, "duree": 2.6, "curseur": "css:[data-dz-insp=lire]", "clic": true, "surligne": "css:[data-dz-insp=lire]",
+         "bulle": {"fr": "Mesures gratuites, sur ce PC", "en": "Free measurements, on this PC"}, "ancre": "css:[data-dz-insp=lire]"}
+      ]
+    }
+  ]
+}
