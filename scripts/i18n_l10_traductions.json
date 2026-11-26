@@ -15206,5 +15206,13 @@
  "le modèle du bilan et de l'alerte doit avoir au plus un paramètre (le texte)": {
   "fr": "le modèle du bilan et de l'alerte doit avoir au plus un paramètre (le texte)",
   "en": "the report and alert template must have at most one parameter (the text)"
+ },
+ "Style de reel inconnu.": {
+  "fr": "Style de reel inconnu.",
+  "en": "Unknown reel style."
+ },
+ "Les styles de reel ne sont accessibles que depuis ce PC.": {
+  "fr": "Les styles de reel ne sont accessibles que depuis ce PC.",
+  "en": "Reel styles are only accessible from this PC."
  }
 }

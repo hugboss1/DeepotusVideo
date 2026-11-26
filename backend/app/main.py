@@ -663,6 +663,9 @@ app.include_router(mcp_router, prefix="/api/mcp")
 # t380 (30/10/2026) : /api/news/fils — fils sociaux suivis de News (flux gratuits, Apify sous accord), suggestions des agents ; local seulement
 from app.api.news_fils_routes import router as news_fils_router
 app.include_router(news_fils_router, prefix="/api/news/fils")
+# t503 (26/11/2026) : /api/styles-reel — bibliothèque de styles de reel nommés, lecture et devis gratuit ; local seulement
+from app.api.styles_reel_routes import router as styles_reel_router
+app.include_router(styles_reel_router, prefix="/api/styles-reel")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
