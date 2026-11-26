@@ -6,7 +6,7 @@ Spec docs/superpowers/specs/2026-11-13-reel-reference-design.md, § 3.2 (étage 
 Sur demande et sur devis, jamais à l'arrivée de la vidéo :
 1. s'il y a du son, TRANSCRIPTION au mot de la partie utile (une seule lecture quand la capture se répète) :
    `transcribe_service` (ElevenLabs ou OpenAI), garde `plafonds.verifier` catégorie « campagnes » ;
-2. UN appel Claude avec au plus `PLANCHES_LUES` planches (vision) : texte à l'écran, rôle de chaque plan, style des
+2. UN appel Claude avec au plus `PLANCHES_LUES` (4) planches (vision) : texte à l'écran, rôle de chaque plan, style des
    sous-titres, appel à l'action, puis la RECETTE abstraite (§ 3.3). La transcription et le texte lu sont ENCADRÉS
    (`agent_outils._preuve`) : une matière, jamais une consigne.
 Accord plafonné (`max_usd` = le devis affiché) ; coût recalculé avant chaque appel ; une seule lecture à la fois.
@@ -36,7 +36,7 @@ from app.services import inspiration_garde as G
 from app.services import inspiration_video as IV
 
 CATEGORIE = "campagnes"
-PLANCHES_LUES = 6
+PLANCHES_LUES = 4                    # = moteurs_texte.MAX_IMAGES : la garde refuse plus de 4 images par appel
 MAX_TOKENS = 3000
 DELAI = 150.0
 MAX_BRIQUES = 30
