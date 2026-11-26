@@ -619,7 +619,7 @@
     /* t504 (R6) : « commentez un mot » s'autorise ici depuis G11 (réponses publiques en brouillons validés un par un) ;
        décochée par défaut, l'appel reste « lien en description ». */
     var lc = el("label", { style: "display:flex;gap:6px;align-items:center;font-size:12px" }, null);
-    var caseCom = el("input", { type: "checkbox", "data-dz-insp": "offre-commentaire" });
+    var caseCom = el("input", { type: "checkbox", "data-dz-insp": "offre-commentaire", "aria-label": T("inspiration.offre.commentaire") });
     lc.appendChild(caseCom); lc.appendChild(el("span", null, T("inspiration.offre.commentaire")));
     f.appendChild(lc);
     var go = bouton("offre-enregistrer", T("inspiration.offre.enregistrer"));

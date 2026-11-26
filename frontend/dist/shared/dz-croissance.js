@@ -587,7 +587,7 @@
         blocX.appendChild(btnX);
       }
       var acc = d.accord || {};
-      var caseAuto = el("input", { type: "checkbox", "data-dz-croissance": "x-auto" });
+      var caseAuto = el("input", { type: "checkbox", "data-dz-croissance": "x-auto", "aria-label": T("croissance.x.auto") });
       caseAuto.checked = acc.auto === true;
       var plaf = el("input", { type: "number", min: "0", step: "0.5", "data-dz-croissance": "x-plafond",
         "aria-label": T("croissance.x.plafond"), value: String(acc.plafond_usd || 0) });
@@ -630,8 +630,8 @@
       if (!d.compte) { blocAlertes.appendChild(el("p", { class: "dzCroiVide", "data-dz-croissance": "alertes-sans-compte", texte: T("croissance.alertes.sans_compte") })); }
       var numero = el("input", { type: "tel", "data-dz-croissance": "alertes-numero", "aria-label": T("croissance.alertes.numero"),
         placeholder: T("croissance.alertes.numero_exemple"), value: String(a.destinataire || "").replace(/^tel:/, "") });
-      var caseBilan = el("input", { type: "checkbox", "data-dz-croissance": "alertes-bilan" });
-      var caseAlerte = el("input", { type: "checkbox", "data-dz-croissance": "alertes-alerte" });
+      var caseBilan = el("input", { type: "checkbox", "data-dz-croissance": "alertes-bilan", "aria-label": T("croissance.alertes.bilan") });
+      var caseAlerte = el("input", { type: "checkbox", "data-dz-croissance": "alertes-alerte", "aria-label": T("croissance.alertes.alerte") });
       caseBilan.checked = actif ? a.bilan !== false : true;
       caseAlerte.checked = actif ? a.alerte !== false : true;
       var selModele = el("select", { "data-dz-croissance": "alertes-modele", "aria-label": T("croissance.alertes.modele") },
@@ -643,7 +643,7 @@
       var btnModeles = el("button", { type: "button", "data-dz-croissance": "alertes-modeles", texte: T("croissance.alertes.lire_modeles") });
       var devisTxt = el("p", { "data-dz-croissance": "alertes-devis" });
       var btnDevis = el("button", { type: "button", "data-dz-croissance": "alertes-devis-bouton", texte: T("croissance.alertes.devis_bouton") });
-      var caseAccord = el("input", { type: "checkbox", "data-dz-croissance": "alertes-accord-case" });
+      var caseAccord = el("input", { type: "checkbox", "data-dz-croissance": "alertes-accord-case", "aria-label": T("croissance.alertes.accord_case") });
       var btnAccord = el("button", { type: "button", "data-dz-croissance": "alertes-accord", texte: T("croissance.alertes.accord") });
       btnAccord.setAttribute("disabled", "");
       var devisA = null;
