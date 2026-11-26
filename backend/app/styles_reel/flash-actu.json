@@ -1,0 +1,69 @@
+{
+  "id": "flash-actu",
+  "version": 1,
+  "famille": "actualite",
+  "titre": {
+    "fr": "Flash d'actu",
+    "en": "News flash"
+  },
+  "resume": {
+    "fr": "Les titres du jour s'animent en haut de l'image pendant qu'un avatar les lit en bas, comme un court journal.",
+    "en": "The day's headlines animate at the top of the frame while an avatar reads them at the bottom, like a short bulletin."
+  },
+  "gabarit": {
+    "id": "tpl_news_reel",
+    "emplacements": {
+      "reel": {
+        "source": "motion",
+        "page": "titres"
+      },
+      "avatar": {
+        "source": "avatar",
+        "part": 1.0
+      }
+    }
+  },
+  "motion": {
+    "titres": {
+      "style": "style-kinetic-type",
+      "champs": {
+        "mots_max": 4
+      },
+      "curseurs": {
+        "rythme": 2
+      }
+    }
+  },
+  "voix": {
+    "moteur": "avatar"
+  },
+  "musique": {
+    "humeur": "tension",
+    "modele": "stable-audio-25",
+    "volume_db": -24
+  },
+  "sous_titres": {
+    "prereglage": "prime"
+  },
+  "rythme": {
+    "plan_s": [
+      1.0,
+      2.5
+    ],
+    "duree_s": {
+      "min": 15,
+      "type": 30,
+      "max": 45
+    }
+  },
+  "a_fournir": [
+    {
+      "fr": "Les titres et le texte lu (News peut les fournir).",
+      "en": "The headlines and the read text (News can provide them)."
+    },
+    {
+      "fr": "Un avatar et sa voix, choisis dans Réglages › HeyGen.",
+      "en": "An avatar and its voice, picked in Settings › HeyGen."
+    }
+  ]
+}

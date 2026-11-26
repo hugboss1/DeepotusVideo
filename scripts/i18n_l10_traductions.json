@@ -14982,5 +14982,13 @@
  "La vidéo n'a pas pu être gardée.": {
   "fr": "La vidéo n'a pas pu être gardée.",
   "en": "The video could not be kept."
+ },
+ "Style de reel inconnu.": {
+  "fr": "Style de reel inconnu.",
+  "en": "Unknown reel style."
+ },
+ "Les styles de reel ne sont accessibles que depuis ce PC.": {
+  "fr": "Les styles de reel ne sont accessibles que depuis ce PC.",
+  "en": "Reel styles are only accessible from this PC."
  }
 }

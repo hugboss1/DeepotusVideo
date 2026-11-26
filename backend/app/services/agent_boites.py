@@ -124,6 +124,14 @@ BOITES: dict[str, dict] = {
                    "publicitaire", "artiste_2d", "artiste_3d", "editeur_illustre"],
         "mobile": False,
     },
+    # t503 (26/11/2026, lot G13) : les styles de reel nommés et leur devis gratuit (lecture) ; Claude Code (« mcp »)
+    # seulement ; Campagnes reste figé (fixture)
+    "styles_reel": {
+        "libelle": "agent.boites.styles_reel",
+        "outils": ["styles_reel_lire"],
+        "agents": ["mcp"],
+        "mobile": False,
+    },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
     # en lecture et gratuites ; Claude Code (« mcp ») les lit ; les agents métier des lots M2-M9 les déclareront
     "briques": {
