@@ -261,6 +261,11 @@ class Settings(BaseSettings):
     # « IG… ») + id du compte professionnel.
     IG_ACCESS_TOKEN: str = ""
     IG_BUSINESS_ID: str = ""
+    # t493 (26/11/2026) : « Relier par Instagram » (Instagram Login) — l'application Instagram de l'utilisateur (ID
+    # public, secret au coffre) et l'adresse de retour déclarée chez Meta (vide = rappel de ce backend)
+    IG_APP_ID: str = ""
+    IG_APP_SECRET: str = ""
+    IG_OAUTH_REDIRECT: str = ""
 
     @property
     def has_instagram(self) -> bool:

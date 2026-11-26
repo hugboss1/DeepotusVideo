@@ -558,6 +558,9 @@ app.include_router(agent_campagnes_router, prefix="/api/agent/campagnes")
 # t352 (27/10/2026) : /api/veille — la veille concurrentielle d'un espace (collecte niveau 1, rapport, import)
 from app.api.veille_routes import router as veille_router
 app.include_router(veille_router, prefix="/api/veille")
+# t493 (26/11/2026) : /api/oauth/instagram — « Relier par Instagram » (Instagram Login), inerte sans application Meta
+from app.api.instagram_oauth_routes import router as instagram_oauth_router
+app.include_router(instagram_oauth_router, prefix="/api/oauth/instagram")
 # t353 (27/10/2026) : /api/prospects — la fiche Prospects d'un espace (CRM léger, RGPD), local seulement
 from app.api.prospects_routes import router as prospects_router
 app.include_router(prospects_router, prefix="/api/prospects")

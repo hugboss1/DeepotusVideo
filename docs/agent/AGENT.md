@@ -89,7 +89,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   client » ; en « publié en son nom », une confirmation nomme le client. → [ALLER:scheduler] [GUIDE:clients-canaux]
 - **Kits de marque** (nom, logo, couleurs de l'application) : Réglages › Identité visuelle.
   → [POINT:reglages.marque] [GUIDE:reglages]
-- **Publier sur les réseaux** : brancher les comptes dans Réglages › Comptes connectés, puis programmer dans le
+- **Publier sur les réseaux** : brancher les comptes dans Réglages › Comptes connectés (Instagram : aussi « Relier
+  par Instagram »), puis programmer dans le
   Planificateur. → [POINT:reglages.comptes] [POINT:rail.planificateur] [GUIDE:comptes]
 - **Monter et livrer** : ouvrir le Montage, vérifier avec Preview (480p, gratuit), puis Rendre (master 1080) et
   Publier. → [POINT:montage.preview] [POINT:montage.rendre] [GUIDE:montage-livrer]

@@ -7778,6 +7778,8 @@ _ALLOWED_ENV_KEYS = {
     "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
     "YOUTUBE_REFRESH_TOKEN", "YOUTUBE_CHANNEL_ID",
     "IG_ACCESS_TOKEN", "IG_BUSINESS_ID",
+    # t493 (26/11/2026) : « Relier par Instagram » — application Instagram (ID, secret au coffre), adresse de retour
+    "IG_APP_ID", "IG_APP_SECRET", "IG_OAUTH_REDIRECT",
     # P1 #2 (28/09) : l'import Figma de la Bibliothèque le réclame (409 sans lui)
     "FIGMA_TOKEN",
     # plan scheduler T6 (tâche #28, 30/09) : TikTok Direct Post — client (Login Kit « Desktop »), refresh token écrit par
