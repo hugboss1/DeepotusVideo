@@ -2,6 +2,8 @@
 """t492 (09/11/2026) — l'écran « Croissance » (frontend/shared/dz-croissance.js, 5e onglet du tiroir F1) : copie dist
 identique, balise dans la SPA après dz-prospects.js, clés FR/EN complètes et employées, aucune chaîne en dur, aucun mot
 « publier », listes alignées sur le serveur, banc node du composant et du tiroir.
+t495 (26/11/2026) : la section « Gagnants de ma niche » — grille alignée sur le serveur, seules écritures permises
+(niche, enregistrer, devis gratuit, analyse sur accord), aucun POST d'analyse sans max_usd.
 Run : & $PY tests/test_croissance_ecran.py   (depuis backend/)"""
 import json, pathlib, re, shutil, subprocess, sys
 import pytest
@@ -42,6 +44,10 @@ def test_listes_suivent_le_serveur():
     cles = set(re.findall(r'"([a-z_]+)": None', src_ig[src_ig.index("async def fetch_compte"):]))
     assert set(_liste("TUILES_COMPTE")) <= cles, "tuiles hors du contrat de fetch_compte"
     assert set(_liste("TUILES_POSTS")) <= {"posts", *MS._CLES}
+    from app.services import croissance_gagnants as CG
+    assert tuple(_liste("GRILLE")) == CG.GRILLE, "la grille fixe de l'analyse"
+    src_cg = (RACINE / "backend" / "app" / "services" / "croissance_gagnants.py").read_text(encoding="utf-8")
+    assert set(_liste("MESURES")) == set(re.findall(r'"(vues|interactions)" if _nombre', src_cg)), "les mesures du serveur"
 
 
 def test_cles_fr_en():
@@ -55,6 +61,8 @@ def test_cles_fr_en():
     employees |= {f"croissance.posts.{t}" for t in _liste("TUILES_POSTS")}
     employees |= {f"croissance.jalon.{j}" for j in _liste("JALONS")}
     employees |= {f"croissance.raison.{r}" for r in _liste("RAISONS")}
+    employees |= {f"croissance.grille.{g}" for g in _liste("GRILLE")}                       # t495
+    employees |= {f"croissance.niche.{p}_{m}" for p in ("habituel", "valeur") for m in _liste("MESURES")}
     assert employees <= set(I18N), "clés employées sans traduction : " + str(sorted(employees - set(I18N)))
     assert set(I18N) <= employees, "clés orphelines : " + str(sorted(set(I18N) - employees))
 
@@ -89,6 +97,13 @@ def test_lecture_seule():
     assert not re.search(r"publi(er|sh)|/fire|/schedule/validate", sans, re.I)
     ecritures = re.findall(r'fetch\("([^"]+)",\s*\{\s*method:\s*"POST"', sans)
     assert ecritures == ["/api/schedule/analytics/refresh"], ecritures
+    # t495 : les autres écritures passent par envoyer(url, méthode, corps) — la niche, l'enregistrement (métadonnées),
+    # le devis GRATUIT et l'analyse, celle-ci avec max_usd = le montant du devis affiché sur le bouton
+    envois = re.findall(r'envoyer\(("[^"]+"(?:\s*\+[^,]+)?),\s*"([A-Z]+)"', sans)
+    assert sorted((u.split('"')[1] + u.split('"')[-2] if u.count('"') > 2 else u.split('"')[1], m) for u, m in envois) == sorted([
+        ("/api/croissance/niche", "PUT"), ("/api/croissance/enregistres", "POST"),
+        ("/api/croissance/gagnants//devis", "POST"), ("/api/croissance/gagnants//analyse", "POST")]), envois
+    assert sans.count('"/analyse", "POST", { max_usd: devisUsd') == 1, "l'analyse n'est envoyée qu'avec l'accord du devis"
     for k, v in I18N.items():
         assert not re.search(r"publi(er|sh)", v["fr"] + " " + v["en"], re.I), k
 

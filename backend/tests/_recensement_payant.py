@@ -35,6 +35,7 @@ MODULES = {
     "parallaxe": RACINE / "api" / "parallaxe_routes.py",   # t341 : décor en calques de parallaxe (Qwen-Image-Layered / Seedream Layerize, fal)
     "pose3d": RACINE / "api" / "pose3d_routes.py",   # t376 : la classification vision de la source 3D (Anthropic)
     "news_fils": RACINE / "api" / "news_fils_routes.py",   # t380 : le relevé payant d'un fil social suivi (Apify)
+    "croissance": RACINE / "api" / "croissance_routes.py",   # t495 : « pourquoi ça marche » d'un gagnant de la niche (Anthropic)
     "studio3d_texture": RACINE / "api" / "studio3d_texture_routes.py",   # t393 : écran Texture (image fal, retexture Meshy) ; t394 : texture auto (lot de N vues)
     "studio3d_animer": RACINE / "api" / "studio3d_animer_routes.py",   # t398-t399 : écran Animer (animation Meshy, texte → mouvement)
 }
@@ -72,6 +73,7 @@ PUITS = {
     "RV.noter",   # t337 : l'avis « directeur artistique » de la revue d'un plan (revue_plan.noter -> moteurs_texte.tirer_garde, Anthropic)
     "P.classer_image",   # t376 : personnage ou non pour la pose 3D (pose3d.classer_image -> moteurs_texte.tirer_garde, Anthropic)
     "NF.relever",   # t380 : le relevé d'un fil social suivi (news_fils.relever -> apify.lancer, sous accord du fil)
+    "CG.analyser_gagnant",   # t495 : « pourquoi ça marche » (croissance_gagnants.analyser_gagnant -> moteurs_texte.tirer_garde, Anthropic)
     "WD.lancer",   # t328 : le lancement d'une diffusion WhatsApp (whatsapp_diffusions.lancer -> kapso.envoyer_broadcast)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
@@ -113,6 +115,7 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
           "RV.noter",   # t337 : la garde vit DANS revue_plan.noter (tirer_garde après l'accord) ; test_plafonds_garde A2m
           "P.classer_image",   # t376 : la garde vit DANS pose3d.classer_image (tirer_garde après l'accord) ; test_plafonds_garde A2n
           "NF.relever",   # t380 : la garde vit DANS news_fils.relever (plafonds.verifier « news » avant apify.lancer) ; test_plafonds_garde A2o
+          "CG.analyser_gagnant",   # t495 : la garde vit DANS croissance_gagnants (tirer_garde « campagnes » après l'accord) ; test_plafonds_garde A2p
           "WD.lancer"}   # t328 : la garde vit DANS whatsapp_diffusions._lancer_sous_verrou (plafonds.verifier avant le send) ;
                          # test_plafonds_garde A2k le vérifie, A2l que lancer y mène (A2i/A2j de t328 renommés à la fusion t320)
 

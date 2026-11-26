@@ -35,6 +35,7 @@ PAYANTES = {
     ("audio_graph", "POST", "/apercu"), ("audio_graph", "POST", "/rendre"),   # t272 : nœuds IA de l'Atelier sonore
     ("scan", "POST", "/{scan_id}/vision"),   # t312 : le secours Claude vision du Scan (garde « atelier » avant chaque lot)
     ("news_fils", "POST", "/{fid}/lire"),   # t380 : le relevé d'un fil social suivi (Apify ; garde « news » dans NF.relever)
+    ("croissance", "POST", "/gagnants/{item_id}/analyse"),   # t495 : « pourquoi ça marche » (Claude ; garde « campagnes » dans CG.analyser_gagnant)
     ("pose3d", "POST", "/classer"),   # t376 : la classification vision de la source 3D (garde « moteurs3d » dans P.classer_image)
     ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
     ("schema", "POST", "/analyser"),   # t314 : détourage fal d'un schéma (garde « vectorlab » avant l'envoi)
@@ -221,6 +222,14 @@ _nr = _nf[_nf.find("async def relever("):_nf.find("def _du(")]
 check("A2o un fil payant : accord, devis sous son plafond, garde « news » AVANT AP.lancer, réel noté",
       0 < _nr.find('"devis_a_accepter", 409)') < _nr.find('"devis_depasse", 409') < _nr.find("plafonds.verifier(")
       < _nr.find("AP.lancer(") < _nr.find("noter_reel_lignes(") and _nf.count("AP.lancer(") == 1, "")
+# t495 : la route d'analyse d'un gagnant délègue sa garde à croissance_gagnants.analyser_gagnant — l'accord
+# (CoutChange) AVANT _appel, qui passe par MT.tirer_garde (catégorie « campagnes ») ; aucun appel nu au modèle
+_cg = (RP.RACINE / "services" / "croissance_gagnants.py").read_text(encoding="utf-8")
+_cga = _cg[_cg.find("async def analyser_gagnant("):]
+_cgp = _cg[_cg.find("async def _appel("):_cg.find("def _raisons(")]
+check("A2p un gagnant : coût hors accord refusé AVANT _appel, _appel passe par MT.tirer_garde « campagnes »",
+      0 < _cga.find("raise CoutChange(") < _cga.find("await _appel(") and "MT.tirer_garde(" in _cgp
+      and "categorie=CATEGORIE" in _cgp and "MT.tirer(" not in _cg, "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes
@@ -279,6 +288,9 @@ anciens["pose3d"] = _p3r.replace("P.classer_image(", "_sans_garde(") if "P.class
 # t380 : les fils sociaux suivis n'existaient pas en bfec23e — même témoin
 _nfr = (RP.MODULES["news_fils"]).read_text(encoding="utf-8")
 anciens["news_fils"] = _nfr.replace("NF.relever(", "_sans_garde(") if "NF.relever(" in _nfr else None
+# t495 : le fil des gagnants n'existait pas en bfec23e — même témoin
+_cgr = (RP.MODULES["croissance"]).read_text(encoding="utf-8")
+anciens["croissance"] = _cgr.replace("CG.analyser_gagnant(", "_sans_garde(") if "CG.analyser_gagnant(" in _cgr else None
 # t393 : l'écran Texture du 3D Studio n'existait pas en bfec23e — même témoin
 _s3a = (RP.MODULES["studio3d_animer"]).read_text(encoding="utf-8")   # t398-t399 : même témoin
 anciens["studio3d_animer"] = _s3a.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _s3a else None

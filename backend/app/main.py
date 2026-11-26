@@ -655,6 +655,9 @@ app.include_router(mcp_router, prefix="/api/mcp")
 # t380 (30/10/2026) : /api/news/fils — fils sociaux suivis de News (flux gratuits, Apify sous accord), suggestions des agents ; local seulement
 from app.api.news_fils_routes import router as news_fils_router
 app.include_router(news_fils_router, prefix="/api/news/fils")
+# t495 (26/11/2026) : /api/croissance — le fil des gagnants de la niche (lecture des fils déjà relevés) et « pourquoi ça marche » (Claude sur devis), local seulement
+from app.api.croissance_routes import router as croissance_router
+app.include_router(croissance_router, prefix="/api/croissance")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.

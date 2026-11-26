@@ -14982,5 +14982,45 @@
  "La vidéo n'a pas pu être gardée.": {
   "fr": "La vidéo n'a pas pu être gardée.",
   "en": "The video could not be kept."
+ },
+ "Gagnant non enregistré.": {
+  "fr": "Gagnant non enregistré.",
+  "en": "Winner not saved."
+ },
+ "Élément inconnu dans les fils de la niche de cet espace.": {
+  "fr": "Élément inconnu dans les fils de la niche de cet espace.",
+  "en": "Unknown item in the feeds of this space's niche."
+ },
+ "Espace inconnu.": {
+  "fr": "Espace inconnu.",
+  "en": "Unknown space."
+ },
+ "Liste de fils attendue (50 au plus).": {
+  "fr": "Liste de fils attendue (50 au plus).",
+  "en": "A list of feeds is expected (50 at most)."
+ },
+ "Seuil hors bornes : de 1 à 1000 fois l'habituel.": {
+  "fr": "Seuil hors bornes : de 1 à 1000 fois l'habituel.",
+  "en": "Threshold out of range: 1 to 1000 times the usual."
+ },
+ "Fenêtre hors bornes : de 1 à 365 jours.": {
+  "fr": "Fenêtre hors bornes : de 1 à 365 jours.",
+  "en": "Window out of range: 1 to 365 days."
+ },
+ "Transcription trop longue : 20 000 caractères au plus.": {
+  "fr": "Transcription trop longue : 20 000 caractères au plus.",
+  "en": "Transcript too long: 20,000 characters at most."
+ },
+ "Fil inconnu : choisis parmi les fils suivis de News.": {
+  "fr": "Fil inconnu : choisis parmi les fils suivis de News.",
+  "en": "Unknown feed: choose among the feeds followed in News."
+ },
+ "200 gagnants enregistrés au plus : retires-en un d'abord.": {
+  "fr": "200 gagnants enregistrés au plus : retires-en un d'abord.",
+  "en": "200 saved winners at most: remove one first."
+ },
+ "Une analyse est déjà en cours pour ce gagnant : attends sa réponse.": {
+  "fr": "Une analyse est déjà en cours pour ce gagnant : attends sa réponse.",
+  "en": "An analysis is already running for this winner: wait for its answer."
  }
 }
