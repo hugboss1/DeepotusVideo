@@ -444,7 +444,11 @@ _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST"
                                             ("POST", "/api/sync/whatsapp"),
                                             # t322 (Compagnon M5) : un contenu neuf du téléphone en brouillon (gardes
                                             # anti-copie rejouées par le PC, idempotent ; l'appareil du JETON)
-                                            ("POST", "/api/sync/post")})
+                                            ("POST", "/api/sync/post"),
+                                            # t323 (Compagnon M6) : écriture n° 5 — la capture du téléphone (session
+                                            # idempotente par empreinte, morceaux, clôture revérifiée ; l'appareil du JETON)
+                                            ("POST", "/api/sync/capture"), ("POST", "/api/sync/capture/{cid}/morceau/{n}"),
+                                            ("POST", "/api/sync/capture/{cid}/terminer")})
 
 
 def _ecriture_ouverte(methode: str, chemin: str) -> bool:
@@ -579,6 +583,9 @@ app.include_router(scan_router, prefix="/api/scan")
 # t315 (28/10/2026) : /api/capture — les sessions de capture de l'app (pistes brutes, piste des clics), local seulement
 from app.api.capture_routes import router as capture_router
 app.include_router(capture_router, prefix="/api/capture")
+# t323 (26/11/2026) : /api/sync/capture et /api/sync/skin — la capture faite sur le téléphone (écriture n° 5, jeton exigé)
+from app.api.sync_capture_routes import router as sync_capture_router
+app.include_router(sync_capture_router, prefix="/api")
 # t316 (28/10/2026) : /api/skins — les skins qui habillent la scène de la capture (cadre, bandeau, intro, alertes…), local seulement
 from app.api.skins_routes import router as skins_router
 app.include_router(skins_router, prefix="/api/skins")
