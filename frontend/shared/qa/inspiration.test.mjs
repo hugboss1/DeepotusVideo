@@ -226,6 +226,29 @@ async function jusquAuxAngles(opts = {}) {
     && !!marque(c, "recette-alertes"), marque(c, "recette") && marque(c, "recette").textContent);
 }
 
+// ---- t513 (RV3) : lien seul, mes recettes ------------------------------------------------------------------------------
+{
+  const RECL = { id: ID, espace_id: "lune", matiere: "lien", texte_capte: "", image: false, espace: LISTE.espace, projet: LISTE.projet,
+    source: { plateforme: "instagram", lien: "https://www.instagram.com/reel/A/" }, lien: { acces: "jeton", besoin_capture: true, soustitres: { etat: "non_ouvert" } } };
+  const m = monde({ routes: base({
+    "POST /api/inspiration/lien": () => rep(200, RECL),
+    "GET /api/inspiration/recettes": () => rep(200, { recettes: [{ id: "c".repeat(32), lu_le: "2026-11-25T10:00:00", plateforme: "instagram", libelle: "", tableaux: 17, mots_par_minute: 174.6 }] }),
+  }) });
+  m.I.ouvrir();
+  await ticks();
+  const c = m.corps();
+  ok("2.18 mes recettes listées à l'ouverture", marque(c, "ma-recette") && marque(c, "ma-recette").textContent === FR("inspiration.recettes.ligne",
+    { date: "2026-11-25", source: "Instagram", n: "17", mpm: "175" }), marque(c, "ma-recette") && marque(c, "ma-recette").textContent);
+  marque(c, "lien").value = "https://www.instagram.com/reel/A/";
+  marque(c, "lire").click();
+  await ticks();
+  const p = m.appels.find((a) => a.url === "/api/inspiration/lien");
+  ok("2.19 lien seul : POST /lien en JSON, jamais /capter", p && JSON.parse(p.corps).url === "https://www.instagram.com/reel/A/"
+    && !m.appels.some((a) => a.url === "/api/inspiration/capter"));
+  ok("2.20 Instagram : jeton requis dit, enregistrement d'écran demandé", !!marque(c, "lien-jeton")
+    && marque(c, "lien-capture").textContent === FR("inspiration.lien.capture") && !visible(marque(c, "section-analyse")));
+}
+
 // ---- analyse ----------------------------------------------------------------------------------------------------------
 {
   const { m, c } = await jusquAuxAngles();

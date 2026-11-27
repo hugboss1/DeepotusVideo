@@ -15042,5 +15042,13 @@
  "Rien à lire : la vidéo n'a ni son ni planche.": {
   "fr": "Rien à lire : la vidéo n'a ni son ni planche.",
   "en": "Nothing to read: the video has neither sound nor contact sheet."
+ },
+ "Lien trop long : 300 caractères au plus.": {
+  "fr": "Lien trop long : 300 caractères au plus.",
+  "en": "Link too long: 300 characters at most."
+ },
+ "Lien attendu : une adresse qui commence par https://": {
+  "fr": "Lien attendu : une adresse qui commence par https://",
+  "en": "Link expected: an address that starts with https://"
  }
 }
