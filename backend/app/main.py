@@ -441,7 +441,10 @@ _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST"
                                             ("POST", "/api/agent/campagnes/{cid}/depot"),
                                             # t321 (Compagnon M4) : écriture PC n° 7 — accords saisis, STOP et envois
                                             # WhatsApp du téléphone (idempotente par identifiant ; l'appareil du JETON)
-                                            ("POST", "/api/sync/whatsapp")})
+                                            ("POST", "/api/sync/whatsapp"),
+                                            # t322 (Compagnon M5) : un contenu neuf du téléphone en brouillon (gardes
+                                            # anti-copie rejouées par le PC, idempotent ; l'appareil du JETON)
+                                            ("POST", "/api/sync/post")})
 
 
 def _ecriture_ouverte(methode: str, chemin: str) -> bool:
