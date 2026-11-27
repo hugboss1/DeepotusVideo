@@ -79,6 +79,7 @@ PUITS = {
     "P.classer_image",   # t376 : personnage ou non pour la pose 3D (pose3d.classer_image -> moteurs_texte.tirer_garde, Anthropic)
     "NF.relever",   # t380 : le relevé d'un fil social suivi (news_fils.relever -> apify.lancer, sous accord du fil)
     "CG.analyser_gagnant",   # t495 : « pourquoi ça marche » (croissance_gagnants.analyser_gagnant -> moteurs_texte.tirer_garde, Anthropic)
+    "CX.relever",   # t500 : le relevé des posts X (croissance_x.relever -> l'API X, payante à l'usage)
     "WD.lancer",   # t328 : le lancement d'une diffusion WhatsApp (whatsapp_diffusions.lancer -> kapso.envoyer_broadcast)
     "generer_ia",   # t272 : les nœuds IA de l'Atelier sonore (prolonger, régénérer, variation, SFX sur une plage ; fal)
     # transcription
@@ -124,6 +125,7 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
           "RV.noter",   # t337 : la garde vit DANS revue_plan.noter (tirer_garde après l'accord) ; test_plafonds_garde A2m
           "P.classer_image",   # t376 : la garde vit DANS pose3d.classer_image (tirer_garde après l'accord) ; test_plafonds_garde A2n
           "NF.relever",   # t380 : la garde vit DANS news_fils.relever (plafonds.verifier « news » avant apify.lancer) ; test_plafonds_garde A2o
+          "CX.relever",   # t500 : la garde vit DANS croissance_x.relever (plafonds.verifier « x » avant le fetcher) ; test_plafonds_garde A2r
           "CG.analyser_gagnant",   # t495 : la garde vit DANS croissance_gagnants (tirer_garde « campagnes » après l'accord) ; test_plafonds_garde A2q
           "WD.lancer"}   # t328 : la garde vit DANS whatsapp_diffusions._lancer_sous_verrou (plafonds.verifier avant le send) ;
                          # test_plafonds_garde A2k le vérifie, A2l que lancer y mène (A2i/A2j de t328 renommés à la fusion t320)

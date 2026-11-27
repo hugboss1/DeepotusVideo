@@ -39,6 +39,7 @@ PAYANTES = {
     ("pose3d", "POST", "/classer"),   # t376 : la classification vision de la source 3D (garde « moteurs3d » dans P.classer_image)
     ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
     ("croissance", "POST", "/note/affiner"),   # t497 (G7) : étage 2 de la note (garde « campagnes » dans NR.affiner)
+    ("croissance", "POST", "/x/releve"),   # t500 (G10) : le relevé des posts X (API X à l'usage ; garde « x » dans CX.relever)
     ("inspiration", "POST", "/{iid}/lecture"), ("inspiration", "POST", "/{iid}/script"),   # t514 (RV4) : script sur recette (garde « campagnes » dans IS.ecrire)
       # t512 (RV2) : transcription + Claude vision (garde « campagnes » dans IR.lire_reference)
     ("recyclage", "POST", "/{post_id}/redaction"),   # t498 : le recyclage d'un gagnant (Claude, garde « campagnes » dans RC.rediger)
@@ -242,6 +243,16 @@ _cgp = _cg[_cg.find("async def _appel("):_cg.find("def _raisons(")]
 check("A2q un gagnant : coût hors accord refusé AVANT _appel, _appel passe par MT.tirer_garde « campagnes »",
       0 < _cga.find("raise CoutChange(") < _cga.find("await _appel(") and "MT.tirer_garde(" in _cgp
       and "categorie=CATEGORIE" in _cgp and "MT.tirer(" not in _cg, "")
+# t500 : le relevé X délègue sa garde à croissance_x.relever — l'accord (CoutChange) puis plafonds.verifier catégorie
+# « x » AVANT le fetcher de l'API X ; la passe quotidienne et le publieur X passent aussi la garde « x »
+_cx = (RP.RACINE / "services" / "croissance_x.py").read_text(encoding="utf-8")
+_cxr = _cx[_cx.find("async def relever("):]
+_ms = (RP.RACINE / "services" / "metrics_service.py").read_text(encoding="utf-8")
+_mk = (RP.RACINE / "services" / "marketing.py").read_text(encoding="utf-8")
+_mkx = _mk[_mk.find("async def _pub_x("):]
+check("A2r le relevé X : accord, plafonds.verifier « x » AVANT le fetcher ; passe auto et publieur gardés",
+      0 < _cxr.find("raise CoutChange(") < _cxr.find("plafonds.verifier(") < _cxr.find("FETCHERS")
+      and 'CATEGORIE = "x"' in _cx and _ms.count("_garde_x(") >= 3 and 0 < _mkx.find("garder_publication(") < _mkx.find("publish_x("), "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes
@@ -307,6 +318,7 @@ anciens["news_fils"] = _nfr.replace("NF.relever(", "_sans_garde(") if "NF.releve
 # t495 + t497 : le fil des gagnants et la note avant publication n'existaient pas en bfec23e — même témoin
 _cgr = (RP.MODULES["croissance"]).read_text(encoding="utf-8")
 anciens["croissance"] = (_cgr.replace("CG.analyser_gagnant(", "_sans_garde(").replace("NR.affiner(", "_sans_garde(")
+                         .replace("CX.relever(", "_sans_garde(")   # t500 : le relevé X, même témoin
                          if "CG.analyser_gagnant(" in _cgr and "NR.affiner(" in _cgr else None)
 # t393 : l'écran Texture du 3D Studio n'existait pas en bfec23e — même témoin
 _s3a = (RP.MODULES["studio3d_animer"]).read_text(encoding="utf-8")   # t398-t399 : même témoin

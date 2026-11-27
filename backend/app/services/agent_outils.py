@@ -2999,12 +2999,12 @@ OUTILS: dict[str, dict] = {
                                   "soustitres": {"type": "boolean", "description": "le rendu a-t-il des sous-titres"}})},
     "proposer_recyclage": {"nature": "carte", "fn": proposer_recyclage,
                            "description": "Propose de redire un gagnant de l'espace sous une autre forme : carrousel, "
-                                          "trois nouvelles accroches, fil X ou variante « branche » (mêmes plans, voix "
+                                          "trois nouvelles accroches, fil X, post vidéo X ou variante « branche » (mêmes plans, voix "
                                           "et textes refaits). Rend la carte de devis d'UN élément, que l'utilisateur "
                                           "accepte ou non : rien n'est rédigé ni payé avant son clic ; le tour "
                                           "s'arrête. Refusé sous 3× l'habituel.",
                            "schema": _o({"post_id": dict(_T, description="le post gagnant du Planificateur"),
-                                         "element": dict(_T, enum=["carrousel", "accroches", "fil_x", "branche"])},
+                                         "element": dict(_T, enum=["carrousel", "accroches", "fil_x", "branche", "x_video"])},
                                         ("post_id", "element"))},
     "ecrire_apprentissages": {"nature": "ecriture", "fn": ecrire_apprentissages,
                               "description": "Ajoute au fichier apprentissages.md de l'espace une section datée tirée "

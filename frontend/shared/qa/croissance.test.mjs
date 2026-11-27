@@ -51,7 +51,7 @@ const dzTde = (lang) => (cle, vars) => {
 };
 const reponse = (status, json) => ({ ok: status >= 200 && status < 300, status, json: async () => J(json === undefined ? {} : json) });
 
-function monde({ lang = "fr", tableau, releve = 200, panne = false, niche = null, recyclage = null } = {}) {
+function monde({ lang = "fr", tableau, releve = 200, panne = false, niche = null, recyclage = null, x = null } = {}) {
   const appels = [];
   const win = {
     dzT: dzTde(lang), dzLang: () => lang,
@@ -63,6 +63,12 @@ function monde({ lang = "fr", tableau, releve = 200, panne = false, niche = null
       if (String(url) === "/api/espaces") return reponse(200, { actif: "e1", espaces: [{ id: "e1", nom: "Marque" }, { id: "e2", nom: "Client <b>" }, { id: "e3", nom: "Vieux", archive: true }] });
       if (String(url).startsWith("/api/schedule/croissance")) return typeof tableau === "function" ? tableau(String(url)) : reponse(200, tableau);
       if (String(url) === "/api/schedule/analytics/refresh") return reponse(releve, {});
+      if (String(url).startsWith("/api/croissance/x/")) {   // t500 : la section « Mes posts X »
+        const corps = init.body ? JSON.parse(init.body) : null;
+        if (x) return x(String(url), m, corps);
+        return reponse(200, { n: 0, usd: 0, posts: [], tarifs: { lecture: 0.005, post: 0.015, post_lien: 0.2, media: 0.005 },
+          relu: { le: "2026-11-26" }, accord: { auto: false, plafond_usd: 0 } });
+      }
       if (String(url).startsWith("/api/croissance/")) {
         const N = niche || {};
         const u = String(url).split("?")[0];
@@ -232,7 +238,7 @@ const txt = (x) => (x ? x.textContent : "");
     && !!marque(lignes[0], "analyse-devis") && marque(lignes[0], "analyse-lancer").hasAttribute("hidden") && m.appels.length === avantA);
   marque(lignes[0], "analyse-transcription").value = "Arrête de payer.";
   marque(lignes[0], "analyse-devis").click(); await tick();
-  const dv = m.appels.find((a) => a.url.endsWith("/devis"));
+  const dv = m.appels.find((a) => a.url.endsWith("/devis") && a.url.includes("/gagnants/"));
   ok("4.8 devis gratuit : POST avec la transcription, montant sur le bouton", dv && dv.corps.transcription === "Arrête de payer."
     && !marque(lignes[0], "analyse-lancer").hasAttribute("hidden")
     && txt(marque(lignes[0], "analyse-lancer")) === FR("croissance.analyse.lancer", { usd: "0,0123" }) && !m.appels.some((a) => a.url.endsWith("/analyse")),
@@ -335,6 +341,64 @@ const txt = (x) => (x ? x.textContent : "");
   marque(g2, "recycler").click(); await tick(); await tick();
   ok("5.11 proposition refusée : le message du serveur, posé en texte", txt(marque(g2, "recyclage-etat")) === "Ce post n'est pas un gagnant"
     && !marque(g2, "recyclage-cartes"));
+}
+
+// ---- t500 : « Mes posts X » ------------------------------------------------------------------------------------------
+{
+  let devis = { n: 2, usd: 0.01, posts: [{}, {}], tarifs: { lecture: 0.005, post: 0.015, post_lien: 0.2, media: 0.005 },
+    relu: { le: "2026-11-26" }, accord: { auto: false, plafond_usd: 0 } };
+  const reps = [[409, { detail: { message: "coût", code: "cout", usd: 0.015 } }], [200, { releves: 3, usd: 0.015, lus: 3 }]];
+  const xs = (u, meth, corps) => {
+    if (u.endsWith("/x/devis")) return reponse(200, devis);
+    if (u.endsWith("/x/releve")) { const r = reps.shift(); return reponse(r[0], r[1]); }
+    if (u.endsWith("/x/accord")) return corps && corps.auto && !corps.plafond_usd ? reponse(400, { detail: "plafond" }) : reponse(200, { auto: corps.auto });
+    return reponse(404, {});
+  };
+  const m = monde({ tableau: TABLEAU, x: xs });
+  m.Dz.monter(m.hote); await tick(); await tick(); await tick();
+  const sx = marque(m.hote, "x");
+  ok("6.1 la section X lit son devis (GET), tarifs datés, aucun relevé parti", !!sx && m.appels.some((a) => a.url === "/api/croissance/x/devis" && a.methode === "GET")
+    && txt(marque(sx, "x-tarifs")).includes("2026-11-26") && txt(marque(sx, "x-tarifs")).includes("0,20 $")
+    && !m.appels.some((a) => a.url.endsWith("/x/releve")), txt(sx));
+  ok("6.2 deux posts dus : le montant est sur le bouton", txt(marque(sx, "x-devis")) === FR("croissance.x.devis", { n: 2, usd: "0,01 $" })
+    && txt(marque(sx, "x-relever")) === FR("croissance.x.relever", { usd: "0,01 $" }), txt(marque(sx, "x-relever")));
+  marque(sx, "x-relever").click(); await tick(); await tick();
+  const r1 = m.appels.filter((a) => a.url.endsWith("/x/releve"));
+  ok("6.3 relevé : POST au montant du devis ; coût changé : nouveau montant à accepter", r1.length === 1 && r1[0].methode === "POST"
+    && r1[0].corps.max_usd === 0.01 && txt(marque(sx, "x-relever")) === FR("croissance.x.relever", { usd: "0,015 $" }), JSON.stringify(r1));
+  marque(sx, "x-relever").click(); await tick(); await tick();
+  const r2 = m.appels.filter((a) => a.url.endsWith("/x/releve"));
+  ok("6.4 second clic au nouveau montant ; l'écran se relit", r2.length === 2 && r2[1].corps.max_usd === 0.015
+    && m.appels.filter((a) => a.url === "/api/croissance/x/devis").length >= 2);
+  const s2 = marque(m.hote, "x");
+  marque(s2, "x-auto").checked = true;
+  marque(s2, "x-plafond").value = "0";
+  marque(s2, "x-accord").click(); await tick(); await tick();
+  const acc = m.appels.filter((a) => a.url.endsWith("/x/accord"));
+  ok("6.5 accord auto sans plafond : refusé et dit", acc.length === 1 && acc[0].methode === "PUT" && acc[0].corps.auto === true
+    && txt(marque(s2, "x-etat")) === FR("croissance.x.accord_erreur"), txt(marque(s2, "x-etat")));
+  marque(s2, "x-plafond").value = "3";
+  marque(s2, "x-accord").click(); await tick(); await tick();
+  ok("6.6 accord avec plafond : enregistré", m.appels.filter((a) => a.url.endsWith("/x/accord")).pop().corps.plafond_usd === 3
+    && txt(marque(s2, "x-etat")) === FR("croissance.x.accord_ok"));
+  devis = Object.assign({}, devis, { n: 0, usd: 0 });
+  const m2 = monde({ tableau: TABLEAU, x: xs });
+  m2.Dz.monter(m2.hote); await tick(); await tick(); await tick();
+  ok("6.7 rien de dû : aucun bouton de relevé", txt(marque(marque(m2.hote, "x"), "x-devis")) === FR("croissance.x.rien")
+    && !marque(marque(m2.hote, "x"), "x-relever"));
+  const m3 = monde({ tableau: TABLEAU, x: () => reponse(500, {}) });
+  m3.Dz.monter(m3.hote); await tick(); await tick(); await tick();
+  ok("6.8 devis illisible : dit, le reste de l'écran tient", txt(marque(marque(m3.hote, "x"), "x-etat")) === FR("croissance.x.erreur") && !!marque(m3.hote, "posts"));
+}
+{ // t500 : la carte du fil X dit ce que coûtera la mise en ligne
+  const carteX = { type: "carte", genre: "devis", devis: 0.006, arguments: { element: "fil_x", redige: false,
+    texte: { usd: 0.006, disponible: true, raison: "" }, publication: { usd_max: 0.305, usd_post: 0.015, usd_post_lien: 0.2 } } };
+  const m = monde({ tableau: TABLEAU, recyclage: (u) => u.endsWith("/proposition") ? reponse(200, { cartes: [carteX] }) : reponse(404, {}) });
+  m.Dz.monter(m.hote); await tick(); await tick();
+  const gl = marque(marque(m.hote, "gagnants"), "post");
+  marque(gl, "recycler").click(); await tick(); await tick();
+  ok("6.9 la carte fil X : coût de mise en ligne X, lien compris", txt(marque(gl, "recyclage-publication-x"))
+    === FR("croissance.recyclage.publication_x", { usd: "0,305 $", post: "0,015 $", lien: "0,20 $" }), txt(gl));
 }
 
 if (echecs.length) { console.log("ÉCHECS (" + echecs.length + "/" + n + ") :\n- " + echecs.join("\n- ")); process.exit(1); }
