@@ -141,7 +141,7 @@ class Script:
     def __init__(self, reponses):
         self.reponses, self.appels, self.gardes_vues = list(reponses), [], []
 
-    def __call__(self, modele, systeme, messages, outils, max_tokens, timeout=120.0, sur_delta=None):
+    def __call__(self, modele, systeme, messages, outils, max_tokens, timeout=120.0, sur_delta=None, effort=None):
         self.appels.append({"modele": modele, "systeme": systeme, "messages": json.loads(json.dumps(messages)),
                             "outils": [o["name"] for o in outils], "max_tokens": max_tokens})
         self.gardes_vues.append(GARDES["n"])

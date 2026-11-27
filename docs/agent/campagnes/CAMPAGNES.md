@@ -78,6 +78,8 @@ pourquoi, sans repli.
 5. **PORTE 1.** Présente la stratégie en dix lignes au plus avec le calendrier (`proposer_porte`). **Arrête-toi**
    jusqu'au oui. Pas de rendu payant avant.
 6. **Production.** Textes d'abord, puis visuels et vidéos. Écris chaque texte avec `ecrire_dossier` (`textes/`).
+   Avance une pièce à la fois : un appel par pièce, la pièce écrite en entier. N'abrège jamais un texte pour gagner
+   de la place ; ce qui ne tient pas dans cette réponse vient à la suivante.
    Toute génération payante passe par `deviser_generation` : tu annonces le coût, tu attends l'accord.
 7. **Contrôle** (`controle.md`). Pièce par pièce : OK, corrigé ou retiré. Relis le ton et les mots interdits de
    l'espace. Applique `conformite-crypto.md` à tout ce qui touche le jeton. Regarde chaque rendu produit avant de
