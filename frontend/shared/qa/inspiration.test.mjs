@@ -194,6 +194,38 @@ async function jusquAuxAngles(opts = {}) {
     && !m.appels.some((a) => a.url.includes("/devis-analyse")));
 }
 
+// ---- t512 (RV2) : lecture sur devis et recette ------------------------------------------------------------------------
+{
+  const RECV = { id: ID, espace_id: "lune", matiere: "video", texte_capte: "", image: false, source: {}, espace: LISTE.espace, projet: LISTE.projet,
+    video: { planches: [], purge_le: "2026-12-03", purgee: false, fiche: { format: { duree_s: 6, cadre: "9:16", son: true }, rythme: { plans: 3 } } } };
+  const RECETTE = { rythme: { tableaux: 3, mots_par_minute: 240 }, structure: [{ debut: 0, fin: 2, role: "accroche", regle: "une question", visuel: "texte" }],
+    soustitres: { lignes: 2, mots_par_ligne: 4, apparition: "mot à mot" }, appel: { type: "commentaire" }, a_ne_pas_reprendre: ["le nom de la marque"] };
+  let lecture = 0;
+  const m = monde({ routes: base({
+    "POST /api/inspiration/video": () => rep(200, RECV),
+    ["GET /api/inspiration/" + ID + "/devis-lecture?langue=fr"]: () => rep(200, { usd: 0.05, disponible: true }),
+    ["POST /api/inspiration/" + ID + "/lecture"]: () => (++lecture === 1 ? rep(409, { detail: { code: "cout", usd: 0.07 } }) : rep(200, { recette: RECETTE, alertes: ["structure.regle"] })),
+  }) });
+  m.I.ouvrir();
+  await ticks();
+  const c = m.corps();
+  marque(c, "depot").fire("drop", { dataTransfer: { files: [new File(["x"], "ref.mp4", { type: "video/mp4" })] } });
+  marque(c, "lire").click();
+  await ticks();
+  ok("2.14 devis de lecture demandé, montant sur le bouton", marque(c, "lire-reference").textContent === FR("inspiration.recette.bouton", { usd: "0,05 $" }),
+    marque(c, "lire-reference") && marque(c, "lire-reference").textContent);
+  marque(c, "lire-reference").click();
+  await ticks();
+  const p1 = m.appels.find((a) => a.url.endsWith("/lecture"));
+  ok("2.15 confirmation puis POST lecture avec l'accord affiché", m.dialogues.length === 1 && p1 && JSON.parse(p1.corps).max_usd === 0.05);
+  ok("2.16 coût changé : nouveau montant sur le bouton", marque(c, "lire-reference").textContent === FR("inspiration.recette.bouton", { usd: "0,07 $" }));
+  marque(c, "lire-reference").click();
+  await ticks();
+  ok("2.17 recette montrée : briques, appel, alerte de copie", marques(c, "recette-briques")[0].children.length === 1
+    && marque(c, "recette-appel").textContent === FR("inspiration.recette.appel", { type: FR("inspiration.appel.commentaire") })
+    && !!marque(c, "recette-alertes"), marque(c, "recette") && marque(c, "recette").textContent);
+}
+
 // ---- analyse ----------------------------------------------------------------------------------------------------------
 {
   const { m, c } = await jusquAuxAngles();

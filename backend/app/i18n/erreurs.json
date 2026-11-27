@@ -2767,6 +2767,7 @@
   "erreur.b98add059f": {"fr": "Champ '{k}' manquant dans la région : {v}", "en": "Region missing field '{k}': {v}", "src": "en"},
   "erreur.b99e77536b": {"fr": "plan de plaque : version « {version} » — un entier à partir de 1", "en": "plate layout: version \"{version}\" — an integer from 1", "src": "fr"},
   "erreur.b9d587af36": {"fr": "Blender n'a pas pu être lancé.", "en": "Blender could not be started.", "src": "fr"},
+  "erreur.b9dec1e551": {"fr": "Rien à lire : la vidéo n'a ni son ni planche.", "en": "Nothing to read: the video has neither sound nor contact sheet.", "src": "fr"},
   "erreur.b9e6726610": {"fr": "Le générateur n'a renvoyé aucune image", "en": "The generator returned no image", "src": "fr"},
   "erreur.b9f0bc0e5b": {"fr": "Image du document introuvable", "en": "Document image not found", "src": "fr"},
   "erreur.b9f0fd201f": {"fr": "serveur injoignable : {name}", "en": "server unreachable: {name}", "src": "fr"},

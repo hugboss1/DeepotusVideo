@@ -425,11 +425,13 @@ def _rendre(iid: str) -> None:
         _EN_COURS.discard(iid)
 
 
-async def _appel(prompt: str, systeme: str, max_tokens: int, modele: str, delai: float, images=None):
-    """Le tir Claude sous la garde des plafonds ; les erreurs réseau deviennent AppelEchoue (504/502)."""
+async def _appel(prompt: str, systeme: str, max_tokens: int, modele: str, delai: float, images=None,
+                categorie: str = CATEGORIE):
+    """Le tir Claude sous la garde des plafonds ; les erreurs réseau deviennent AppelEchoue (504/502).
+    t512 : `categorie` = celle du lot appelant (« campagnes » pour la lecture d'une référence et son script)."""
     from app.services import moteurs_texte as MT
     try:
-        return await MT.tirer_garde(MOTEUR, modele, prompt, systeme, max_tokens, categorie=CATEGORIE,
+        return await MT.tirer_garde(MOTEUR, modele, prompt, systeme, max_tokens, categorie=categorie,
                                     timeout=delai, images=images)
     except Exception as e:  # noqa: BLE001
         import httpx

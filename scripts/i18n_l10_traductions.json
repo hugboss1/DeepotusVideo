@@ -15038,5 +15038,9 @@
  "La vidéo source a été effacée (7 jours après l'analyse) : seule la fiche reste.": {
   "fr": "La vidéo source a été effacée (7 jours après l'analyse) : seule la fiche reste.",
   "en": "The source video was deleted (7 days after the analysis): only the sheet remains."
+ },
+ "Rien à lire : la vidéo n'a ni son ni planche.": {
+  "fr": "Rien à lire : la vidéo n'a ni son ni planche.",
+  "en": "Nothing to read: the video has neither sound nor contact sheet."
  }
 }

@@ -69,6 +69,7 @@ PUITS = {
     "WV.envoyer_validation",   # t311 : la demande de validation au client (whatsapp_validation.envoyer_validation -> WE.envoyer)
     "SV.lire",   # t312 : le secours Claude vision du Scan (scan_vision.lire -> moteurs_texte.tirer_garde, Anthropic)
     "I.analyser", "I.rediger",   # t313 : l'inspiration (inspiration.analyser / rediger -> moteurs_texte.tirer_garde, Anthropic)
+    "IR.lire_reference",   # t512 (RV2) : la lecture d'une vidéo de référence (transcription + tirer_garde, Anthropic)
     "RV.noter",   # t337 : l'avis « directeur artistique » de la revue d'un plan (revue_plan.noter -> moteurs_texte.tirer_garde, Anthropic)
     "P.classer_image",   # t376 : personnage ou non pour la pose 3D (pose3d.classer_image -> moteurs_texte.tirer_garde, Anthropic)
     "NF.relever",   # t380 : le relevé d'un fil social suivi (news_fils.relever -> apify.lancer, sous accord du fil)
@@ -110,6 +111,7 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
           "WV.envoyer_validation",   # t311 tâche 6 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2h le vérifie
           "SV.lire",   # t312 : la garde vit DANS scan_vision.lire (tirer_garde avant CHAQUE lot) ; test_plafonds_garde A2i
           "I.analyser", "I.rediger",   # t313 : la garde vit DANS inspiration (tirer_garde après l'accord) ; test_plafonds_garde A2j
+          "IR.lire_reference",   # t512 : PLAF.verifier avant la transcription, tirer_garde avant Claude ; test_inspiration_recette
           "RV.noter",   # t337 : la garde vit DANS revue_plan.noter (tirer_garde après l'accord) ; test_plafonds_garde A2m
           "P.classer_image",   # t376 : la garde vit DANS pose3d.classer_image (tirer_garde après l'accord) ; test_plafonds_garde A2n
           "NF.relever",   # t380 : la garde vit DANS news_fils.relever (plafonds.verifier « news » avant apify.lancer) ; test_plafonds_garde A2o

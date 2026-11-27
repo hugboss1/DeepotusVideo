@@ -464,6 +464,75 @@
     bloc.appendChild(el("div", { style: S.note }, T("inspiration.video.suite")));
     E.lu.appendChild(bloc);
     montrer(E.s2, false); montrer(E.s3, false); montrer(E.s4, false); montrer(E.fait, false);
+    /* t512 (RV2) : la lecture sur devis, puis la recette */
+    E.recetteBloc = el("div", { "data-dz-insp": "recette", style: "display:flex;flex-direction:column;gap:4px;font-size:12px" });
+    E.lu.appendChild(E.recetteBloc);
+    if (j.recette) { montrerRecette(E, j.recette, j.recette_alertes || []); return; }
+    if (v.purgee) return;
+    E.lireRef = bouton("lire-reference", T("inspiration.recette.bouton", { usd: "…" }));
+    griser(E.lireRef, true);
+    E.lireRef.addEventListener("click", function () { lireReference(E); });
+    E.recetteBloc.appendChild(E.lireRef);
+    devisLecture(E);
+  }
+  async function devisLecture(E) {
+    var id = E.iid;
+    E.devisL = null;
+    try {
+      var r = await appel("GET", BASE + "/" + encodeURIComponent(id) + "/devis-lecture?langue=" + langue());
+      if (E.ferme || E.iid !== id) return;
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      if (!r.j.disponible) { dire(E, T("inspiration.recette.indispo", { raison: String(r.j.raison || "") }), true); return; }
+      E.devisL = r.j;
+      E.lireRef.textContent = T("inspiration.recette.bouton", { usd: usd(r.j.usd) });
+      if (!E.occupe) griser(E.lireRef, false);
+    } catch (e) { dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true); }
+  }
+  async function lireReference(E) {
+    if (E.occupe || !E.iid || !E.devisL) return;
+    var montant = E.devisL.usd;
+    if (!(await confirmer(T("inspiration.recette.confirmer", { usd: usd(montant) })))) return;
+    if (E.ferme) return;
+    verrouiller(E, true);
+    dire(E, T("inspiration.recette.lecture"));
+    try {
+      var r = await appel("POST", BASE + "/" + encodeURIComponent(E.iid) + "/lecture", { max_usd: montant, langue: langue() });
+      if (r.R.status === 409 && r.j && r.j.detail && r.j.detail.code === "cout") {
+        E.devisL = Object.assign({}, E.devisL, { usd: r.j.detail.usd });
+        E.lireRef.textContent = T("inspiration.recette.bouton", { usd: usd(r.j.detail.usd) });
+        dire(E, T("inspiration.cout.change", { usd: usd(r.j.detail.usd) }), true);
+        return;
+      }
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      dire(E, "");
+      montrerRecette(E, r.j.recette || {}, r.j.alertes || []);
+    } catch (e) {
+      dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true);
+    } finally { verrouiller(E, false); }
+  }
+  function montrerRecette(E, rc, alertes) {
+    vider(E.recetteBloc);
+    var b = E.recetteBloc;
+    b.appendChild(el("div", { style: S.titre }, T("inspiration.recette.titre")));
+    var ry = rc.rythme || {};
+    b.appendChild(el("div", { "data-dz-insp": "recette-rythme" }, T("inspiration.recette.rythme", {
+      n: nombre(ry.tableaux, 0), mpm: nombre(ry.mots_par_minute, 0) })));
+    var l = el("ol", { "data-dz-insp": "recette-briques", style: "margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px" });
+    (rc.structure || []).forEach(function (x) {
+      l.appendChild(el("li", null, T("inspiration.recette.brique", { debut: nombre(x.debut, 1), fin: nombre(x.fin, 1),
+        role: T("inspiration.role." + x.role), regle: String(x.regle || "—"), visuel: T("inspiration.visuel." + x.visuel) })));
+    });
+    b.appendChild(l);
+    var st = rc.soustitres || {};
+    b.appendChild(el("div", { "data-dz-insp": "recette-soustitres" }, T("inspiration.recette.soustitres", {
+      lignes: nombre(st.lignes, 0), mots: nombre(st.mots_par_ligne, 0), apparition: String(st.apparition || "—") })));
+    var ap = rc.appel || {};
+    b.appendChild(el("div", { "data-dz-insp": "recette-appel" }, T("inspiration.recette.appel", { type: T("inspiration.appel." + (ap.type || "autre")) })));
+    if ((rc.a_ne_pas_reprendre || []).length) b.appendChild(el("div", { "data-dz-insp": "recette-interdits", style: S.note },
+      T("inspiration.recette.ne_pas", { liste: rc.a_ne_pas_reprendre.join(" · ") })));
+    if ((alertes || []).length) b.appendChild(el("div", { "data-dz-insp": "recette-alertes", style: S.alerte },
+      T("inspiration.recette.alertes", { n: alertes.length })));
+    b.appendChild(el("div", { style: S.note }, T("inspiration.recette.rangee")));
   }
 
   /* ---- 2. analyse (payante) ---------------------------------------------------------------------------------------- */
