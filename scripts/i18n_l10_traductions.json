@@ -15010,5 +15010,33 @@
  "{moteur}.target_polycount : sans effet quand should_remesh est coupé (activer le remaillage, ou ne pas fixer de polycount)": {
   "fr": "{moteur}.target_polycount : sans effet quand should_remesh est coupé (activer le remaillage, ou ne pas fixer de polycount)",
   "en": "{moteur}.target_polycount: no effect when should_remesh is off (turn remeshing on, or do not set a polycount)"
+ },
+ "Vidéo attendue : MP4, MOV, M4V, WEBM ou MKV.": {
+  "fr": "Vidéo attendue : MP4, MOV, M4V, WEBM ou MKV.",
+  "en": "Video expected: MP4, MOV, M4V, WEBM or MKV."
+ },
+ "Vidéo trop lourde : 300 Mo au plus.": {
+  "fr": "Vidéo trop lourde : 300 Mo au plus.",
+  "en": "Video too large: 300 MB at most."
+ },
+ "Vidéo illisible : ffmpeg n'y trouve aucune image.": {
+  "fr": "Vidéo illisible : ffmpeg n'y trouve aucune image.",
+  "en": "Unreadable video: ffmpeg finds no frame in it."
+ },
+ "Vidéo trop longue : 10 minutes au plus.": {
+  "fr": "Vidéo trop longue : 10 minutes au plus.",
+  "en": "Video too long: 10 minutes at most."
+ },
+ "ffmpeg est introuvable : la vidéo ne peut pas être mesurée.": {
+  "fr": "ffmpeg est introuvable : la vidéo ne peut pas être mesurée.",
+  "en": "ffmpeg cannot be found: the video cannot be measured."
+ },
+ "Cette inspiration n'est pas une vidéo.": {
+  "fr": "Cette inspiration n'est pas une vidéo.",
+  "en": "This inspiration is not a video."
+ },
+ "La vidéo source a été effacée (7 jours après l'analyse) : seule la fiche reste.": {
+  "fr": "La vidéo source a été effacée (7 jours après l'analyse) : seule la fiche reste.",
+  "en": "The source video was deleted (7 days after the analysis): only the sheet remains."
  }
 }

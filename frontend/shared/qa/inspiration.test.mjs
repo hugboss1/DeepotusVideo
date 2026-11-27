@@ -168,6 +168,32 @@ async function jusquAuxAngles(opts = {}) {
   ok("2.8 fichier non image refusé", marque(m.corps(), "etat").textContent === FR("inspiration.capture.refus_type"));
 }
 
+// ---- t511 (RV1) : vidéo de référence ---------------------------------------------------------------------------------
+{
+  const RECV = { id: ID, espace_id: "lune", matiere: "video", texte_capte: "", image: false, source: { libelle: "Reel vu" },
+    espace: LISTE.espace, projet: LISTE.projet,
+    video: { planches: ["vues_01.jpg"], purge_le: "2026-12-03T10:00:00+00:00", purgee: false,
+      fiche: { format: { duree_s: 42.9, duree_fichier_s: 90, cadre: "9:16", images_par_s: 30, boucle: true, son: false },
+               rythme: { plans: 17, duree_moyenne_s: 2.5, duree_min_s: 1, duree_max_s: 4.2, plans_par_minute: 23.8 } } } };
+  const m = monde({ routes: base({ "POST /api/inspiration/video": () => rep(200, RECV) }) });
+  m.I.ouvrir();
+  await ticks();
+  const c = m.corps();
+  marque(c, "depot").fire("drop", { dataTransfer: { files: [new File(["x"], "ref.mp4", { type: "video/mp4" })] } });
+  marque(c, "lire").click();
+  await ticks();
+  const v = m.appels.find((a) => a.url === "/api/inspiration/video");
+  ok("2.9 vidéo : POST /video multipart (champ video), jamais /capter", v && v.corps.get("video") instanceof File
+    && !m.appels.some((a) => a.url === "/api/inspiration/capter"), v && [...v.corps.keys()]);
+  ok("2.10 fiche : format, boucle, rythme", marque(c, "fiche-format").textContent === FR("inspiration.video.format", { duree: "42.9", cadre: "9:16", ips: "30" })
+    && !!marque(c, "fiche-boucle") && marque(c, "fiche-rythme").textContent.includes("17"), marque(c, "fiche-format") && marque(c, "fiche-format").textContent);
+  ok("2.11 vidéo muette : alerte « aucun son »", marque(c, "fiche-son").textContent === FR("inspiration.video.son_non"));
+  ok("2.12 planches servies par la route, date de purge", marque(c, "planches").children.length === 1
+    && marque(c, "fiche-purge").textContent === FR("inspiration.video.purge", { date: "2026-12-03" }));
+  ok("2.13 pas d'analyse en angles pour une vidéo (RV2 : lecture sur devis)", !visible(marque(c, "section-analyse"))
+    && !m.appels.some((a) => a.url.includes("/devis-analyse")));
+}
+
 // ---- analyse ----------------------------------------------------------------------------------------------------------
 {
   const { m, c } = await jusquAuxAngles();
