@@ -101,7 +101,7 @@ def test_agent_md_structure():
         assert any(b.startswith("- ") and f"[ALLER:{v}]" in b for b in re.split(r"\n(?=- |\n|#)", t)), v
     for marqueur in ("5 étapes", "3 balises", "mot de passe"):
         assert marqueur in t, marqueur
-    assert len(t) < 25_300, "AGENT.md doit tenir dans un message système raisonnable"   # SVC, SVR : + le parcours du studio virtuel
+    assert len(t) < 26_000, "AGENT.md doit tenir dans un message système raisonnable"   # SVC, SVR : + le parcours du studio virtuel ; t504/t516 : + croissance et vidéo de référence
 
 
 def test_aucune_balise_dans_une_phrase():

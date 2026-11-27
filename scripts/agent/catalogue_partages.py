@@ -87,6 +87,12 @@ PARTAGES = {
     # t382 (30/10/2026) : la palette de Réglages › Apparence ; préréglages et six couleurs ont des clés COMPOSÉES
     # (apparence.preset.<id>, apparence.jeton.<id>) : la fiche « Palette » vient de _INDEX_FIXE ; seul « Réinitialiser » est lu ici
     "frontend/shared/dz-apparence.js": ("apparence.action.",),
+    # t504 (27/11/2026, clôture de la boucle de croissance) : l'écran Croissance (5e onglet du tiroir F1 : gagnants de
+    # la niche, analyse, recyclage, Mes posts X, bilan et alerte WhatsApp), ses commentaires au mot-clé (G11) et
+    # « Relier par Instagram » (G3, Réglages › Comptes connectés)
+    "frontend/shared/dz-croissance.js": ("croissance.",),
+    "frontend/shared/dz-ig-commentaires.js": ("igcomm.",),
+    "frontend/shared/dz-ig-relier.js": ("igrelier.",),
 }
 TYPE_DE_BALISE = {"button": "bouton", "a": "bouton", "select": "champ", "textarea": "champ", "input": "champ"}
 LIBELLE, INFOBULLE = "texte", ("title", "aria-label", "placeholder")

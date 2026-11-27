@@ -9,7 +9,8 @@ Spec 2026-11-13-reel-reference-design.md § 3.4 points 1-2, R5, R6, R8.
 - Contrôles déterministes (`script_court`) : les quatre du script court, vérité des chiffres (fiche d'offre, sinon
   « valeur d'illustration »), distance à la source (texte ou empreinte), mots interdits.
 - R6 : l'appel est « lien en description » par défaut ; « commentez un mot » seulement si l'offre l'autorise ET que
-  la réponse aux commentaires existe (G11) : `APPEL_COMMENTAIRE_OUVERT` reste faux tant que G11 n'est pas livrée.
+  la réponse aux commentaires existe (G11) : `APPEL_COMMENTAIRE_OUVERT` est vrai depuis la clôture t504 (G11 livrée,
+  réponses publiques en brouillons validés un par un).
 - PORTE 1 : le script naît `a_valider` ; seul `valider()` (geste de l'utilisateur) le passe `valide`, et seulement
   si tous les contrôles bloquants passent (verite, distance, interdits) ; un script valide alimente RV5.
 """
@@ -28,7 +29,7 @@ MAX_TOKENS = 2000
 DELAI = 90.0
 TOLERANCE = 0.10
 BLOQUANTS = ("verite", "distance", "interdits")
-APPEL_COMMENTAIRE_OUVERT = False       # R6 : passe à vrai avec G11 (t501), réponses en brouillons validés une par une
+APPEL_COMMENTAIRE_OUVERT = True        # R6 : ouvert à la clôture t504 (26/11/2026) : G11 (t501) répond aux commentaires en brouillons validés un par un
 
 SYSTEME = (
     "Tu écris le script NEUF d'une courte vidéo verticale pour une marque, en suivant une RECETTE (la structure d'une "

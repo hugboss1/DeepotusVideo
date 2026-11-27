@@ -1,0 +1,146 @@
+{
+  "titre": {
+    "fr": "Croissance › Bilan et alerte WhatsApp",
+    "en": "Growth › WhatsApp summary and alert"
+  },
+  "legende": {
+    "fr": "L'accord du bilan hebdo et de l'alerte : numéro, modèle, devis, case d'accord.",
+    "en": "The consent for the weekly summary and the alert: number, template, quote, consent box."
+  },
+  "captures": [
+    {
+      "fr": "accord.fr.webp",
+      "en": "accord.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        1133,
+        679,
+        179,
+        40
+      ],
+      "bulle": {
+        "fr": "Votre numéro, indicatif compris",
+        "en": "Your number, country code included"
+      },
+      "ancre": [
+        1222,
+        713
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1099,
+        785
+      ],
+      "clic": true,
+      "surligne": [
+        1047,
+        766,
+        104,
+        40
+      ],
+      "bulle": {
+        "fr": "Le prix d'un message, gratuit",
+        "en": "The price of one message, free"
+      },
+      "ancre": [
+        1099,
+        799
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1251,
+        793,
+        148,
+        40
+      ],
+      "bulle": {
+        "fr": "Rien ne part sans la case d'accord",
+        "en": "Nothing is sent without the consent box"
+      },
+      "ancre": [
+        1325,
+        827
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        1128,
+        680,
+        179,
+        40
+      ],
+      "bulle": {
+        "fr": "Votre numéro, indicatif compris",
+        "en": "Your number, country code included"
+      },
+      "ancre": [
+        1218,
+        713
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "curseur": [
+        1104,
+        786
+      ],
+      "clic": true,
+      "surligne": [
+        1047,
+        766,
+        115,
+        40
+      ],
+      "bulle": {
+        "fr": "Le prix d'un message, gratuit",
+        "en": "The price of one message, free"
+      },
+      "ancre": [
+        1104,
+        800
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "surligne": [
+        1249,
+        794,
+        130,
+        40
+      ],
+      "bulle": {
+        "fr": "Rien ne part sans la case d'accord",
+        "en": "Nothing is sent without the consent box"
+      },
+      "ancre": [
+        1314,
+        827
+      ]
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

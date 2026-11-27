@@ -114,7 +114,11 @@ def test_lecture_seule():
     assert sorted((u.split('"')[1] + u.split('"')[-2] if u.count('"') > 2 else u.split('"')[1], m) for u, m in envois) == sorted([
         ("/api/croissance/niche", "PUT"), ("/api/croissance/enregistres", "POST"),
         ("/api/croissance/gagnants//devis", "POST"), ("/api/croissance/gagnants//analyse", "POST"),
-        ("/api/croissance/x/releve", "POST"), ("/api/croissance/x/accord", "PUT")]), envois   # t500 : relevé X sur accord, accord
+        ("/api/croissance/x/releve", "POST"), ("/api/croissance/x/accord", "PUT"),   # t500 : relevé X sur accord, accord
+        ("/api/schedule/croissance/alertes", "PUT")]), envois   # t504 (G12) : l'accord du bilan et de l'alerte WhatsApp
+    # t504 : l'accord part au prix du devis affiché, seulement case cochée ; le retrait est un DELETE
+    assert "usd_accepte: devisA.usd_par_message" in sans and "if (!devisA || !caseAccord.checked) return;" in sans
+    assert sans.count('{ method: "DELETE" }') == 1
     assert sans.count('"/analyse", "POST", { max_usd: devisUsd') == 1, "l'analyse n'est envoyée qu'avec l'accord du devis"
     for k, v in I18N.items():
         assert not re.search(r"publi(er|sh)", v["fr"] + " " + v["en"], re.I), k

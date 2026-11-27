@@ -4,7 +4,7 @@ Généré par `scripts/guide/relever_manques.py` : ne pas éditer à la main.
 
 - 1148 fonctions visibles livrées depuis le 07/09/2026 (v2.8.0) ; 58 sont payantes.
 - 194 fonctions décrites par le guide v2.8.0 (22 chapitres c0-c21).
-- 55 chapitres dans le sommaire v3, en 6 familles.
+- 57 chapitres dans le sommaire v3, en 6 familles.
 
 Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger), puis les fonctions manquantes. Le lot coche une ligne quand le chapitre l'explique.
 
@@ -559,6 +559,12 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 - [x] **Générations sur devis et brouillons** **payant** : Images, vidéos et voix proposées en carte de devis, générées seulement au clic ; les posts arrivent en brouillons dans l'espace de la campagne, jamais publiés ni programmés par l'agent. — *Carte de devis → Générer ; carte des brouillons → Ouvrir le calendrier du Planificateur* (PR #443 · t285)
 - [x] **Mode Agent Campagnes du Planificateur** **payant** : Le dialogue « Générer un plan » garde le mode Rapide et gagne le mode Agent Campagnes : espace, brief, période, document joint, puis la conversation dans le dialogue. — *Planificateur → Générer un plan → Agent Campagnes → Ouvrir la conversation* (PR #443 · t285)
 - [x] **Campagnes depuis le téléphone** **payant** : Le compagnon appairé mène les mêmes conversations sur le Wi-Fi ; le travail se fait sur le PC, avec ses clés et son plafond. — *Compagnon mobile, sur le Wi-Fi* (PR #445 · t286)
+
+### Faire grandir ses posts (`croissance`, lot t504, reprend : nouveau) — 0 manques
+
+
+### Partir d'une vidéo de référence (`reference-recette`, lot t516, reprend : nouveau) — 0 manques
+
 
 ### Veille, prospects et prospection (`prospection`, lot t360, reprend : nouveau) — 9 manques
 
@@ -1595,5 +1601,7 @@ Chaque chapitre liste d'abord ce que l'ancien guide disait de FAUX (à corriger)
 | t360 | 9 | 9 |
 | t404 | 22 | 22 |
 | t443 | 0 | 0 |
+| t504 | 0 | 0 |
 | t508 | 0 | 0 |
+| t516 | 0 | 0 |
 | t521 | 0 | 0 |

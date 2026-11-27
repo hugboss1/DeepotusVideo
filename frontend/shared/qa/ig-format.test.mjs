@@ -161,5 +161,17 @@ const puts = (m) => m.appels.filter((a) => a.methode === "PUT" && a.url.endsWith
   ok("3.4 réseau coupé à la lecture : dit, le panneau reste", txt(marque(m4.hote, "erreur")) === FR("igformat.etat.erreur_lecture") && !!marque(m4.hote, "forme"));
 }
 
+// ---- t504 (clôture G7) : la note avant publication (« estimation ») dans le panneau ------------------------------------
+{
+  const m = monde();
+  m.Dz.monter(m.hote, "p1", { statut: "draft" }); await tick(); await tick();
+  ok("7.1 sans note : la ligne de note reste cachée", marque(m.hote, "note").hasAttribute("hidden") && txt(marque(m.hote, "note")) === "");
+  const texte = "Note avant publication (estimation) : 72/100\n- la voix part à 2.1 s";
+  const m2 = monde({ format: { note_rendu: texte } });
+  m2.Dz.monter(m2.hote, "p2", { statut: "draft" }); await tick(); await tick();
+  ok("7.2 avec note : texte du serveur affiché tel quel (en texte, pas en HTML)", !marque(m2.hote, "note").hasAttribute("hidden")
+    && txt(marque(m2.hote, "note")) === texte, txt(marque(m2.hote, "note")));
+}
+
 if (echecs.length) { console.log("ÉCHECS (" + echecs.length + "/" + n + ") :\n- " + echecs.join("\n- ")); process.exit(1); }
 console.log("ig-format : OK (" + n + " vérifications)");

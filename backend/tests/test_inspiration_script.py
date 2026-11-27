@@ -6,7 +6,7 @@ Sections :
      PUT complète ; un autre espace ne la voit pas ; hors machine -> 403 ;
   2. script : sans recette -> 409 sans_recette ; sans offre -> 409 sans_offre ; devis gratuit ; accord bas -> 409 cout ;
      écriture (faux Claude) : briques, faits, contrôles, statut a_valider ; recette et offre ENCADRÉES, source jamais
-     envoyée ; appel « commentaire » retiré tant que G11 n'existe pas (R6) ;
+     envoyée ; appel « commentaire » permis depuis G11 (R6, ouvert en t504) ;
   3. porte 1 : un chiffre non sourcé bloque la validation (409 bloquant) ; réécriture à la main (PUT) -> contrôles
      rejoués, validation 200, statut valide ;
   4. normaliser_recette relève les mots par brique (RV2 -> RV4).
@@ -41,6 +41,7 @@ from app.config import settings                                     # noqa: E402
 from app.services import moteurs_texte as MT                        # noqa: E402
 from app.services import inspiration as I                           # noqa: E402
 from app.services import inspiration_recette as IR                  # noqa: E402
+from app.services import inspiration_script as S                    # noqa: E402
 
 settings.ANTHROPIC_API_KEY = "cle-de-banc"
 settings.ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
@@ -131,8 +132,11 @@ def run():
         envoye = json.dumps(APPELS[-1], ensure_ascii=False)
         check("2h offre et recette ENCADRÉES", "<<<PREUVE offre" in envoye and "<<<PREUVE recette" in envoye)
         check("2i la source n'est jamais envoyée", "personne ne te le dit" not in envoye)
-        check("2j R6 : « commentaire » retiré des appels permis tant que G11 manque", s["appels_permis"] == ["lien"]
-              and '"commentaire"' not in envoye.split("appels_autorises")[1][:60], s["appels_permis"])
+        check("2j R6 : G11 livrée (t504) -> « commentaire » permis quand l'offre l'autorise, et envoyé au modèle",
+              S.APPEL_COMMENTAIRE_OUVERT is True and s["appels_permis"] == ["lien", "commentaire"]
+              and "commentaire" in envoye.split("appels_autorises")[1][:80], envoye.split("appels_autorises")[1][:80])
+        check("2j' R6 : une offre sans « commentaire » n'en reçoit pas", S.appels_permis({"appels": ["lien"]}) == ["lien"]
+              and S.appels_permis({"appels": []}) == ["lien"])
         c = s["controle"]["controles"]
         check("2k contrôles : 99 $ non sourcé -> vérité KO et bloquant", not c["verite"]["ok"] and s["controle"]["bloquant"], c["verite"])
         check("2l contrôles : appel, accroche, distance ok", c["appel"]["ok"] and c["accroche"]["ok"] and c["distance"]["ok"], c)
