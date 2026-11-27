@@ -284,6 +284,51 @@ async function jusquAuxAngles(opts = {}) {
     && !!marque(c, "controle-verite") && marque(c, "valider-script").attrs.disabled !== undefined, marque(c, "script") && marque(c, "script").textContent);
 }
 
+// ---- t515 (RV5) : Reel en tableaux, rendu local, brouillon assisté, mention publique décochée ------------------------
+{
+  const RECETTE = { rythme: {}, structure: [{ debut: 0, fin: 2, role: "accroche", regle: "q", visuel: "texte" }], soustitres: {}, appel: {} };
+  const SCRIPTV = { statut: "valide", briques: [{ texte: "Payé une fois.", ecran: "une fois" }], controle: { bloquant: false, controles: {} } };
+  const RECV = { id: ID, espace_id: "lune", matiere: "video", image: false, source: {}, espace: LISTE.espace, projet: LISTE.projet,
+    recette: RECETTE, script: SCRIPTV, video: { planches: [], purgee: false, fiche: { format: { son: true }, rythme: {} } } };
+  const REP = { tableaux: [{ n: 1 }, { n: 2 }], duree_s: 9.4, temps: "estimes", mention_illustration: true };
+  const m = monde({ routes: base({
+    "POST /api/inspiration/video": () => rep(200, RECV),
+    ["POST /api/inspiration/" + ID + "/reel/reperes"]: () => rep(200, REP),
+    ["POST /api/inspiration/" + ID + "/reel/rendu"]: () => rep(200, { job_id: "abcdef12-0000", usd: 0 }),
+    ["GET /api/inspiration/" + ID + "/reel"]: () => rep(200, { reperes: REP, proposition: { mention_publique: { texte: "Format inspiré d'un Reel de @voisin.", coche: false } } }),
+    ["POST /api/inspiration/" + ID + "/reel/brouillon"]: () => rep(200, { post: { id: "p1", status: "draft", mode: "assisted" } }),
+  }) });
+  m.I.ouvrir();
+  await ticks();
+  const c = m.corps();
+  marque(c, "depot").fire("drop", { dataTransfer: { files: [new File(["x"], "ref.mp4", { type: "video/mp4" })] } });
+  marque(c, "lire").click();
+  await ticks();
+  ok("2.31 script validé : le bloc Reel en tableaux et « Préparer les repères »", !!marque(c, "reel") && !!marque(c, "reel-preparer")
+    && !marque(c, "reel-rendre"), marque(c, "reel") && marque(c, "reel").textContent);
+  marque(c, "reel-preparer").click();
+  await ticks();
+  ok("2.32 repères : tableaux, durée, temps estimés dits, alerte d'illustration (R8)", marque(c, "reel-reperes").textContent === FR("inspiration.reel.reperes", { n: 2, s: "9.4" })
+    && marque(c, "reel-temps").textContent === FR("inspiration.reel.temps_estimes") && !!marque(c, "reel-illustration"), marque(c, "reel-reperes") && marque(c, "reel-reperes").textContent);
+  ok("2.33 rendu proposé gratuit (aucune confirmation de dépense)", marque(c, "reel-rendre").textContent === FR("inspiration.reel.rendre") && m.dialogues.length === 0);
+  marque(c, "reel-rendre").click();
+  await ticks();
+  ok("2.34 rendu lancé : job montré, case de mention publique DÉCOCHÉE (R12 c)", !!marque(c, "reel-rendu") && marque(c, "reel-mention").checked === false
+    && marque(c, "reel-mention-texte").textContent === FR("inspiration.reel.mention", { texte: "Format inspiré d'un Reel de @voisin." }),
+    marque(c, "reel-mention-texte") && marque(c, "reel-mention-texte").textContent);
+  marque(c, "reel-brouillon").click();
+  await ticks();
+  let br = m.appels.filter((a) => a.url.endsWith("/reel/brouillon"));
+  ok("2.35 brouillon sans mention par défaut, mode jamais demandé par l'écran", br.length === 1 && JSON.parse(br[0].corps).mention_publique === false
+    && !("mode" in JSON.parse(br[0].corps)) && m.evenements.includes("deepotus:schedule-recharger"), br[0] && br[0].corps);
+  ok("2.36 succès dit : mode assisté", c.textContent.includes(FR("inspiration.reel.brouillon_ok")));
+  marque(c, "reel-mention").checked = true;
+  marque(c, "reel-brouillon").click();
+  await ticks();
+  br = m.appels.filter((a) => a.url.endsWith("/reel/brouillon"));
+  ok("2.37 case cochée par l'utilisateur : mention_publique vraie", br.length === 2 && JSON.parse(br[1].corps).mention_publique === true);
+}
+
 // ---- analyse ----------------------------------------------------------------------------------------------------------
 {
   const { m, c } = await jusquAuxAngles();

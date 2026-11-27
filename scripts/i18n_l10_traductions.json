@@ -15198,5 +15198,25 @@
  "Élément inconnu : carrousel, accroches, fil_x, branche ou x_video.": {
   "fr": "Élément inconnu : carrousel, accroches, fil_x, branche ou x_video.",
   "en": "Unknown element: carrousel, accroches, fil_x, branche or x_video."
+ },
+ "Le script n'est pas validé : valide-le d'abord (porte 1).": {
+  "fr": "Le script n'est pas validé : valide-le d'abord (porte 1).",
+  "en": "The script is not approved: approve it first (gate 1)."
+ },
+ "Le script dure plus de 90 secondes : raccourcis-le pour un Reel.": {
+  "fr": "Le script dure plus de 90 secondes : raccourcis-le pour un Reel.",
+  "en": "The script runs longer than 90 seconds: shorten it for a Reel."
+ },
+ "Prépare d'abord les repères du Reel.": {
+  "fr": "Prépare d'abord les repères du Reel.",
+  "en": "Prepare the Reel's cue sheet first."
+ },
+ "Rends d'abord le Reel : le brouillon a besoin de sa vidéo.": {
+  "fr": "Rends d'abord le Reel : le brouillon a besoin de sa vidéo.",
+  "en": "Render the Reel first: the draft needs its video."
+ },
+ "L'encodage vidéo a échoué (ffmpeg).": {
+  "fr": "L'encodage vidéo a échoué (ffmpeg).",
+  "en": "Video encoding failed (ffmpeg)."
  }
 }
