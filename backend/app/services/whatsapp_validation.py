@@ -26,7 +26,10 @@ TOUJOURS par `whatsapp_echanges.envoyer` (règles, devis, `plafonds.verifier`). 
     SANS texte au journal de `whatsapp.json` — et le message est QUAND MÊME consommé (True) : un bouton de validation
     n'est jamais donné à l'agent (relecture finale I1) ;
   · texte d'un contact dont une validation est `a_corriger` depuis moins de 24 h : rangé en `note` (≤ MAX_NOTE), état
-    `corrige` ; la note se lit dans la fiche client (GET /api/schedule/{id}/client), elle n'est envoyée à aucun agent.
+    `corrige` ; la note se lit dans la fiche client (GET /api/schedule/{id}/client) ET revient à l'agent Campagnes
+    (26/11, cahier des charges §6.4) : une conversation Campagnes de l'espace du post, « Correction demandée : <titre> »,
+    reçoit la note comme message (aucun tour lancé, aucune dépense : l'utilisateur la reprend avec l'agent) ; son id est
+    rangé dans la validation (`conversation`). Une panne ici ne perd jamais la note (déjà rangée).
 Rend True quand le message est consommé (le relevé ne le donne alors pas à l'agent et note `traite_jusqu_a`). Aucun texte au journal (`logger`).
 """
 from __future__ import annotations
@@ -310,6 +313,9 @@ async def envoyer_validation(post_id: str) -> dict:
                        if m.get("nom") == choix.get("nom") and m.get("langue") == choix.get("langue")), None)
         if modele is None:
             raise ValueError("modèle de validation inconnu ou non approuvé pour cette langue")
+        if str(modele.get("categorie") or "").lower() != "utility":   # 26/11 : revérifié ici, pas seulement par l'écran
+            raise ValueError("le modèle de validation doit être de catégorie UTILITY (un modèle marketing ne sert pas à "
+                             "faire valider une publication)")
         rapides = {b.get("index") for b in (modele.get("composants") or {}).get("boutons") or []
                    if isinstance(b, dict) and b.get("type") == "quick_reply"}
         if not {0, 1} <= rapides:                 # avant tout téléversement : les payloads val:… partent aux places 0 et 1
@@ -398,8 +404,32 @@ async def traiter_reponse(cid: str, eid: str, msg: dict) -> bool:
         return await _bouton(cid, eid, msg, identite, m.group(1), m.group(2))
     texte = msg.get("texte")
     if b is None and msg.get("type") == "text" and isinstance(texte, str) and texte.strip():
-        return _note(cid, eid, identite, texte)
+        post_id = _note(cid, eid, identite, texte)
+        if post_id:
+            await _vers_campagnes(eid, post_id, texte.strip()[:MAX_NOTE])
+        return bool(post_id)
     return False
+
+
+async def _vers_campagnes(eid: str, post_id: str, note: str) -> str | None:
+    """La note « Corriger » du client remise à l'agent Campagnes : une conversation de l'espace du post (créée une fois par
+    post), un message de l'utilisateur qui la cite. Rend l'id de la conversation, ou None (journalisé par type)."""
+    from app.services import agent_format as fmt, agent_store
+    try:
+        post = await _post(post_id)
+        titre = str(getattr(post, "title", "") or post_id)[:120]
+        espace = getattr(post, "espace_id", None) or eid
+        conv_id = (validation_de(eid, post_id) or {}).get("conversation")
+        if not conv_id or await agent_store.lire(conv_id) is None:
+            conv_id = (await agent_store.creer("campagnes", espace, f"Correction demandée : {titre}"))["id"]
+            _poser(eid, post_id, "corrige", {"conversation": conv_id})
+        texte = (f"Le client demande une correction de la publication « {titre} » (post {post_id}), par WhatsApp. "
+                 f"Sa note :\n\n{note}\n\nPropose une version corrigée de ce post.")
+        await agent_store.ajouter(conv_id, [fmt.nouveau_message("utilisateur", [{"type": "texte", "texte": texte}])])
+        return conv_id
+    except Exception as e:  # noqa: BLE001 — la note reste dans la fiche client ; jamais de texte au journal
+        logger.warning(f"validation WhatsApp : note non remise à l'agent Campagnes ({type(e).__name__})")
+        return None
 
 
 async def _bouton(cid, eid, msg, identite, post_id, choix) -> bool:
@@ -452,4 +482,5 @@ def _note(cid: str, eid: str, identite: str, texte: str) -> bool:
     if not cands:
         return False
     _d, post_id = max(cands)
-    return _poser(eid, post_id, "a_corriger", {"etat": "corrige", "note": texte.strip()[:MAX_NOTE], "note_le": _iso(now)})
+    ok = _poser(eid, post_id, "a_corriger", {"etat": "corrige", "note": texte.strip()[:MAX_NOTE], "note_le": _iso(now)})
+    return post_id if ok else None
