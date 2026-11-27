@@ -438,7 +438,10 @@ _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST"
                                             ("POST", "/api/agent/campagnes/{cid}/devis"),
                                             ("POST", "/api/agent/campagnes/{cid}/message"),
                                             ("POST", "/api/agent/campagnes/{cid}/carte/{n}"),
-                                            ("POST", "/api/agent/campagnes/{cid}/depot")})
+                                            ("POST", "/api/agent/campagnes/{cid}/depot"),
+                                            # t321 (Compagnon M4) : écriture PC n° 7 — accords saisis, STOP et envois
+                                            # WhatsApp du téléphone (idempotente par identifiant ; l'appareil du JETON)
+                                            ("POST", "/api/sync/whatsapp")})
 
 
 def _ecriture_ouverte(methode: str, chemin: str) -> bool:
@@ -1020,6 +1023,9 @@ if _WHATSAPP_DIR.is_dir():
     async def _whatsapp_no_slash():
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/whatsapp/", status_code=307)
+else:   # 26/11 : jamais muet — une installation sans la page WhatsApp le dit au journal
+    from loguru import logger as _lg_wa
+    _lg_wa.error(f"WhatsApp : la page {_WHATSAPP_DIR} est absente de l'installation, /whatsapp n'est pas servi")
 
 # ── /lib3d : le canevas 3D PARTAGÉ (Établi aujourd'hui, Plateau le jour où) ──
 _lib3d = Path(__file__).resolve().parent.parent.parent / "frontend" / "lib3d"
