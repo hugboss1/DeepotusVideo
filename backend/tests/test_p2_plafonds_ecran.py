@@ -94,7 +94,7 @@ globalThis.__dzDialogue = { confirmer: async (m, o) => { ouverts++; maxOuverts =
   await new Promise(r => setImmediate(r)); ouverts--; return reponse; } };
 require(process.argv[2]);
 const D = { motif: 'global', moteur: '', categorie: 'cartes', deja_usd: 0, devis_usd: 0.006, plafond_usd: 0.001,
-  message: "Plafond mensuel atteint : toutes dépenses confondues a déjà coûté 0,00 $ ce mois-ci ; ce tir (écran « cartes ») ajouterait 0,006 $ et passerait au-dessus de 0,001 $. Confirmez pour tirer quand même, ou relevez le plafond dans Réglages → Pricing & budget." };
+  message: "Plafond mensuel atteint : toutes dépenses confondues a déjà coûté 0,00 $ ce mois-ci ; ce tir (écran « cartes ») ajouterait 0,006 $ et passerait au-dessus de 0,001 $. Confirmez pour tirer quand même, ou relevez le plafond dans Réglages → Tarifs et budget." };
 reponses['/api/images/generate'] = { statut: 402, corps: { detail: { dz_plafond: D } } };
 reponses['/api/dictation'] = { statut: 402, corps: { detail: "Coût recalculé 0,0200 $ supérieur au plafond accepté" } };
 (async () => {

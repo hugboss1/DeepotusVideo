@@ -439,8 +439,11 @@ sys.path.insert(0, str(_ICI))
 import _i18n_l1_aide as AIDE                                          # noqa: E402
 import patch_bundle_dziglogin as PM                                   # noqa: E402
 check("9.11 marqueur x2, une pose par paire", B.count(PM.MARKER) == PM.MARKER_ATTENDU == 2)
-check("9.12 avant_dziglogin == defaire, sans marqueur rendu tel quel",
-      AIDE.avant_dziglogin(B) == PM.defaire(B) and AIDE.avant_dziglogin(PM.defaire(B)) == PM.defaire(B))
+# fusion 27/11 : dzplanifaff (PR #572) est rejoué APRÈS dziglogin ; l'inverse le défait d'abord
+_sans_aval = AIDE.avant_dzplanifaff(B)
+check("9.12 avant_dziglogin == defaire (maillon aval défait d'abord), sans marqueur rendu tel quel",
+      AIDE.avant_dziglogin(B) == PM.defaire(_sans_aval)
+      and AIDE.avant_dziglogin(PM.defaire(_sans_aval)) == PM.defaire(_sans_aval))
 aide = (_ICI / "_i18n_l1_aide.py").read_text("utf-8")
 i = aide.index("def avant_dzlogiciels3d(")
 corps = aide[i:aide.index("\ndef ", i + 10)]

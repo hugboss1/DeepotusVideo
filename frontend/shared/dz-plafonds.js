@@ -112,7 +112,7 @@
     lignes.forEach(function (l) { var p = document.createElement("div"); p.textContent = l; b.appendChild(p); });
     var n = document.createElement("div");
     n.style.cssText = "margin-top:6px;color:var(--txt-mid,var(--ink-muted,#9aa4ae));font-size:11.5px";
-    n.textContent = "Réglages → Pricing & budget pour voir ou relever les plafonds.";
+    n.textContent = "Réglages → Tarifs et budget pour voir ou relever les plafonds.";
     b.appendChild(n);
     var x = document.createElement("button");
     x.type = "button";
