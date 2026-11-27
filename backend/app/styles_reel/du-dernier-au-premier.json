@@ -1,0 +1,99 @@
+{
+  "id": "du-dernier-au-premier",
+  "version": 1,
+  "famille": "classement",
+  "titre": {
+    "fr": "Du dernier au premier",
+    "en": "From last to first"
+  },
+  "resume": {
+    "fr": "Trois temps : une accroche en formes qui rebondissent, les rangs qui défilent avec leur raison, puis le premier révélé seul.",
+    "en": "Three beats: a hook of bouncing shapes, the ranks rolling by with their reason, then the number one revealed on its own."
+  },
+  "gabarit": {
+    "id": "tpl_three_act_sequential",
+    "emplacements": {
+      "hook_clip": {
+        "source": "motion",
+        "page": "accroche"
+      },
+      "develop_clip": {
+        "source": "motion",
+        "page": "rangs"
+      },
+      "payoff_clip": {
+        "source": "motion",
+        "page": "premier"
+      }
+    }
+  },
+  "motion": {
+    "accroche": {
+      "style": "style-shapes",
+      "champs": {
+        "couleurs_max": 3
+      },
+      "curseurs": {
+        "rythme": 4
+      },
+      "part": 0.25
+    },
+    "rangs": {
+      "style": "style-kinetic-type",
+      "champs": {
+        "mots_max": 3
+      },
+      "curseurs": {
+        "rythme": 3
+      },
+      "part": 0.45
+    },
+    "premier": {
+      "style": "style-kinetic-type",
+      "champs": {
+        "mots_max": 2
+      },
+      "curseurs": {
+        "creativite": 3
+      },
+      "part": 0.3
+    }
+  },
+  "voix": {
+    "moteur": "tts",
+    "modele": "eleven_v3",
+    "balises": [
+      "[curious]"
+    ],
+    "stabilite": 0.5
+  },
+  "musique": {
+    "humeur": "hype",
+    "modele": "stable-audio-25",
+    "volume_db": -18
+  },
+  "sous_titres": {
+    "prereglage": "beurre"
+  },
+  "rythme": {
+    "plan_s": [
+      0.5,
+      1.5
+    ],
+    "duree_s": {
+      "min": 15,
+      "type": 30,
+      "max": 45
+    }
+  },
+  "a_fournir": [
+    {
+      "fr": "Le script, mot pour mot (c'est lui qui donne la durée).",
+      "en": "The script, word for word (it sets the length)."
+    },
+    {
+      "fr": "Les éléments classés, du dernier au premier, avec une raison chacun.",
+      "en": "The ranked items, from last to first, each with a reason."
+    }
+  ]
+}

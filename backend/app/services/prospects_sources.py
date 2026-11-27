@@ -59,8 +59,17 @@ def _dicts(e: dict, k: str) -> dict:
     return e.get(k) if isinstance(e.get(k), dict) else {}
 
 
+def _post_du_code(eid, code):
+    from app.services import whatsapp_suivi as _ws
+    try:
+        return _ws.post_du_code(eid, code)
+    except KeyError:
+        return None
+
+
 def whatsapp_entrants(eid) -> list:
-    """[{identite, numero_masque, accord: {date, source}, dernier_entrant, compte}], les plus récents d'abord."""
+    """[{identite, numero_masque, accord: {date, source}, dernier_entrant, compte, origine_post}], les plus récents
+    d'abord ; `origine_post` = l'id du post dont le lien suivi a amené le contact (t502), sinon None."""
     from app.services import prospects as _p
     etat = _doc_whatsapp(eid).get("etat")
     if not isinstance(etat, dict):
@@ -87,7 +96,10 @@ def whatsapp_entrants(eid) -> list:
             if not formes or set(formes) & connus:
                 continue
             quand = max([derniers.get(i, "") for i in groupe] + [str(acc.get("date") or "")])
+            orig = next((o for o in (_dicts(e, "origines").get(i) for i in groupe) if isinstance(o, dict)), None)
             cands.append({"identite": ident, "numero_masque": _masque(ident), "groupe": groupe, "_quand": quand,
+                          # t502 (G12) : le post dont le lien suivi a amené ce contact (code de wa.me reconnu à l'entrant)
+                          "origine_post": _post_du_code(eid, orig.get("code")) if orig else None,
                           "accord": {"date": str(acc.get("date") or "")[:10], "source": str(acc.get("source") or "")[:60]},
                           "dernier_entrant": max(derniers.get(i, "") for i in groupe)[:10] or None, "compte": str(pid)})
     if not cands:

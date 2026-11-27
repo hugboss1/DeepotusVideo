@@ -1,0 +1,79 @@
+{
+  "id": "chiffre-qui-compte",
+  "version": 1,
+  "famille": "donnees",
+  "titre": {
+    "fr": "Le chiffre qui compte",
+    "en": "The number that matters"
+  },
+  "resume": {
+    "fr": "Une courbe se trace, une seule valeur prend la couleur d'accent et compte jusqu'à son chiffre ; la conclusion tient en une ligne.",
+    "en": "A line draws itself, a single value takes the accent colour and counts up to its figure; the takeaway fits in one line."
+  },
+  "gabarit": {
+    "id": "tpl_oracle_full_with_lower_third",
+    "emplacements": {
+      "animation": {
+        "source": "motion",
+        "page": "graphique"
+      },
+      "lower_third_text": {
+        "source": "texte",
+        "libelle": {
+          "fr": "La conclusion en une ligne",
+          "en": "The takeaway in one line"
+        }
+      }
+    }
+  },
+  "motion": {
+    "graphique": {
+      "style": "style-charts",
+      "champs": {
+        "forme": "courbe"
+      },
+      "curseurs": {
+        "rythme": 2
+      }
+    }
+  },
+  "voix": {
+    "moteur": "tts",
+    "modele": "eleven_multilingual_v2",
+    "balises": [],
+    "stabilite": 1.0
+  },
+  "musique": {
+    "humeur": "tension",
+    "modele": "stable-audio-25",
+    "volume_db": -22
+  },
+  "sous_titres": {
+    "prereglage": "sobre"
+  },
+  "rythme": {
+    "plan_s": [
+      1.5,
+      2.5
+    ],
+    "duree_s": {
+      "min": 15,
+      "type": 25,
+      "max": 40
+    }
+  },
+  "a_fournir": [
+    {
+      "fr": "Le script, mot pour mot (c'est lui qui donne la durée).",
+      "en": "The script, word for word (it sets the length)."
+    },
+    {
+      "fr": "Le chiffre à faire retenir et sa source.",
+      "en": "The number to remember and its source."
+    },
+    {
+      "fr": "La conclusion, 60 signes au plus.",
+      "en": "The takeaway, 60 characters at most."
+    }
+  ]
+}

@@ -17,7 +17,8 @@
      c'est dz-plafonds.js (il enveloppe window.fetch, lu ICI à chaque appel) qui montre son dialogue et rejoue ;
      409 : conversation occupée ;
    - les CARTES (POST /{cid}/carte/{n}, n = rang parmi les cartes des messages `agent`) : porte (Valider / Modifier),
-     devis (le bouton appelle LA route de génération de la carte, puis /carte avec job_id ou fichier), continuer
+     devis (le bouton appelle LA route de génération de la carte, puis /carte avec job_id ou fichier ; t499 : la note
+     affinée d'un rendu et la rédaction d'un recyclage, routes payantes de la boucle de croissance), continuer
      (nouveau message au devis de la carte), espace (liste), brouillons (lien vers le calendrier du Planificateur) ;
    - AUCUN bouton publier : la porte 2 reste le Planificateur ; l'espace de la campagne est écrit en clair et ne se
      modifie pas ici ; le coût cumulé de la conversation est affiché.
@@ -31,7 +32,14 @@
   var DELAI_DEVIS_MS = 450;     // pause de saisie avant de demander le plafond
   var SONDE_MS = 8000;          // relecture tant qu'un rendu vidéo n'est pas fini
   // la route de génération de chaque genre de devis : la carte ne peut en désigner aucune autre
-  var ROUTES = { video: "/api/generate", image: "/api/images/generate", voix: "/api/audio/voiceover" };
+  var ROUTES = { video: "/api/generate", image: "/api/images/generate", voix: "/api/audio/voiceover",
+    note: "/api/croissance/note/affiner" };                       // t499 : l'étage 2 de la note d'un rendu
+  var ROUTE_RECYCLAGE = /^\/api\/recyclage\/[A-Za-z0-9_-]{1,80}\/redaction$/;   // t499 : la rédaction d'UN élément
+  function routePermise(a) {
+    if (a.genre === "recyclage") return ROUTE_RECYCLAGE.test(String(a.route || ""));
+    return !!ROUTES[a.genre] && a.route === ROUTES[a.genre];
+  }
+  function genreConnu(g) { return !!ROUTES[g] || g === "recyclage"; }
   var JSON_H = { "Content-Type": "application/json" };
 
   function T(cle, vars) { return typeof window.dzT === "function" ? window.dzT(cle, vars) : cle; }
@@ -188,7 +196,10 @@
     "concurrents_pages", "concurrents_pubs", "concurrents_serp",
     "prospects_chercher", "prospects_qualifier", "entreprises_registre", "entreprises_rechercher", "entreprises_carte", "signaux_reddit",
     "sequence_proposer", "sequence_planifier", "whatsapp_modeles",
-    "reponses_lire", "relance_proposer"];
+    "reponses_lire", "relance_proposer",
+    "lire_recette", "proposer_fil",                                           // t346, t380
+    "ecrire_script_court", "lire_gagnants", "lire_mesures", "noter_rendu", "proposer_recyclage",   // t496, t499 : croissance
+    "ecrire_apprentissages"];
   function ligneOutil(nom, ok) {
     var lib = OUTILS.indexOf(String(nom)) >= 0 ? T("campagnes.outil." + nom) : T("campagnes.outil.inconnu");
     if (ok === true) return T("campagnes.fil.outil_ok", { outil: lib });
@@ -217,7 +228,7 @@
     switch (b.genre) {
       case "porte": return T("campagnes.carte.porte", { n: a.numero || 1 });
       case "devis": return T("campagnes.carte.devis", {
-        genre: ROUTES[a.genre] ? T("campagnes.genre." + a.genre) : String(a.genre || ""),
+        genre: genreConnu(a.genre) ? T("campagnes.genre." + a.genre) : String(a.genre || ""),
         usd: usd(a.usd != null ? a.usd : b.devis) });
       case "espace": return T("campagnes.carte.espace");
       case "continuer": return T("campagnes.carte.continuer", { usd: usd(montantContinuer(b), true) });
@@ -688,7 +699,7 @@
       var a = b.arguments || {};
       if (n === null || S.occ[n] || S.ferme) return;
       if (S.rendus[n]) { await enregistrerRendu(S.cid, n, S.rendus[n]); return; }   // déjà payé : on ne refait que /carte
-      if (!ROUTES[a.genre] || a.route !== ROUTES[a.genre]) { S.erreur = T("campagnes.erreur.generation", { msg: String(a.route || "") }); dessiner(); return; }
+      if (!routePermise(a)) { S.erreur = T("campagnes.erreur.generation", { msg: String(a.route || "") }); dessiner(); return; }
       S.occ[n] = true; S.erreur = ""; dessiner();
       var extra = null;
       try {
@@ -697,6 +708,7 @@
         var j = await r.json();
         if (a.genre === "video") { if (j && j.job_id) extra = { job_id: String(j.job_id) }; }
         else if (a.genre === "image") { var f = nomImage(j); if (f) extra = { fichier: f }; }
+        else if (a.genre === "note" || a.genre === "recyclage") extra = {};   // t499 : le résultat reste au serveur
         else if (j && typeof j.filename === "string" && j.filename) extra = { fichier: j.filename };
         if (!extra) throw new Error(T("campagnes.erreur.sans_resultat"));
       } catch (e) {
