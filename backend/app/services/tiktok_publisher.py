@@ -56,7 +56,9 @@ def _cache() -> dict:
 
 
 def redirect_uri() -> str:
-    return f"http://127.0.0.1:{settings.PORT}/api/oauth/tiktok/callback/"
+    # t534 : sur le VPS, https://<DEEPOTUS_HOSTNAME>/… (plateforme « Web » côté TikTok)
+    from app.config import url_rappel
+    return url_rappel("/api/oauth/tiktok/callback/")
 
 
 def _client(timeout: float = 60.0) -> httpx.AsyncClient:

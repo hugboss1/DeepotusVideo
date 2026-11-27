@@ -12,9 +12,21 @@ réglaient qu'en éditant le .env. Ce module donne à l'écran :
     sa console voisine), et pour Godot la vérification du dossier de projet (project.godot, nom lu).
 Une seule règle trouve Blender : celle de passes_blender (BLENDER_PATH, puis Program Files, puis PATH).
 Les messages sont des `app.i18n.Message` (logiciels3d.*), rendus dans la langue de l'écran par la route.
+
+Lot 2 (14/11/2026) : Unreal Engine, Unity et la carte Blender MCP.
+  - Unreal : UnrealEditor.exe ; version lue dans Engine/Build/Build.version (JSON), RIEN n'est lancé ; détection par le
+    lanceur Epic (%ProgramData%/Epic/UnrealEngineLauncher/LauncherInstalled.dat), puis Program Files/Epic Games/UE_* ;
+    projet = dossier qui contient un .uproject. Unreal 5 requis : l'import glTF natif (Interchange) date de la 5.x.
+  - Unity : Unity.exe ; version lue dans le dossier de l'éditeur Unity Hub (…/Hub/Editor/<version>/Editor/Unity.exe),
+    RIEN n'est lancé ; projet = dossier qui contient Assets/ (version de l'éditeur dans
+    ProjectSettings/ProjectVersion.txt) ; sans le paquet glTFast dans Packages/manifest.json, les .glb déposés restent
+    inertes : on le dit (comme mesh_export.deposer).
+  - Blender MCP : l'exécutable mcp-for-blender et le port de son add-on ; « Tester » = blender_mcp.sonder (lit les
+    outils et l'état de la scène, ne modifie rien).
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -26,9 +38,17 @@ from app.i18n import Message
 LOGICIELS: dict[str, dict] = {
     "blender": {"nom": "Blender", "min": (4, 2), "guide": "logiciels-3d",
                 "champs": [{"cle": "BLENDER_PATH", "genre": "exe"}]},
+    "blender_mcp": {"nom": "Blender MCP", "min": None, "guide": "logiciels-3d",
+                    "champs": [{"cle": "BLENDER_MCP_EXE", "genre": "exe"}, {"cle": "BLENDER_MCP_PORT", "genre": "port"}]},
     "godot": {"nom": "Godot", "min": (4, 0), "guide": "logiciels-3d",
               "champs": [{"cle": "GODOT_PATH", "genre": "exe"}, {"cle": "GODOT_PROJECT_DIR", "genre": "projet"}]},
+    "unreal": {"nom": "Unreal Engine", "min": (5, 0), "guide": "logiciels-3d",
+               "champs": [{"cle": "UNREAL_PATH", "genre": "exe"}, {"cle": "UNREAL_PROJECT_DIR", "genre": "projet"}]},
+    "unity": {"nom": "Unity", "min": None, "guide": "logiciels-3d",
+              "champs": [{"cle": "UNITY_PATH", "genre": "exe"}, {"cle": "UNITY_PROJECT_DIR", "genre": "projet"}]},
 }
+_V_UNITY = re.compile(r"^\d+\.\d+\.\d+[a-z]\d+$")
+_V_PROJET_UNITY = re.compile(r"m_EditorVersion:\s*(\S+)")
 _V_GODOT = re.compile(r"(\d+)\.(\d+)(?:\.(\d+))?\.(?:stable|beta|rc|dev|alpha)", re.I)
 _V_NOM_GODOT = re.compile(r"godot_v(\d+)\.(\d+)(?:\.(\d+))?", re.I)
 _NOM_PROJET = re.compile(r'^\s*config/name\s*=\s*"([^"]*)"', re.M)
@@ -106,11 +126,93 @@ def _candidats_godot() -> list[Path]:
     return out
 
 
+# ─────────────────────────────── Unreal, Unity : trouver (lot 2) ───────────────────────────────
+
+def _lanceur_epic() -> Path:            # couture : remplacée au banc
+    return Path(os.environ.get("ProgramData", r"C:\ProgramData")) / "Epic" / "UnrealEngineLauncher" / "LauncherInstalled.dat"
+
+
+def _racines_unreal() -> list[Path]:    # couture : remplacée au banc
+    return [Path(os.environ[v]) / "Epic Games" for v in ("ProgramFiles", "ProgramFiles(x86)") if os.environ.get(v)]
+
+
+def _racines_unity() -> list[Path]:     # couture : remplacée au banc
+    out = []
+    for v in ("ProgramFiles", "ProgramFiles(x86)"):
+        if os.environ.get(v):
+            out += [Path(os.environ[v]) / "Unity" / "Hub" / "Editor", Path(os.environ[v]) / "Unity"]
+    return out
+
+
+def _exe_unreal(racine: Path) -> Path:
+    return racine / "Engine" / "Binaries" / "Win64" / "UnrealEditor.exe"
+
+
+def _build_version(exe: Path) -> str | None:
+    """Engine/Build/Build.version, voisin de Engine/Binaries/Win64/UnrealEditor.exe : lu, jamais exécuté."""
+    try:
+        f = exe.parents[2] / "Build" / "Build.version"
+        d = json.loads(f.read_text("utf-8", errors="replace"))
+        return ".".join(str(int(d[k])) for k in ("MajorVersion", "MinorVersion", "PatchVersion"))
+    except (OSError, ValueError, KeyError, TypeError, IndexError):
+        return None
+
+
+def _candidats_unreal() -> list[Path]:
+    vus, out = set(), []
+    try:
+        d = json.loads(_lanceur_epic().read_text("utf-8", errors="replace"))
+        for x in d.get("InstallationList") or []:
+            if str(x.get("AppName", "")).startswith("UE_") and x.get("InstallLocation"):
+                p = _exe_unreal(Path(x["InstallLocation"]))
+                if p.is_file() and str(p) not in vus:
+                    vus.add(str(p)); out.append(p)
+    except (OSError, ValueError, AttributeError):
+        pass
+    for r in _racines_unreal():
+        try:
+            for d in sorted(r.glob("UE_*"), reverse=True):
+                p = _exe_unreal(d)
+                if p.is_file() and str(p) not in vus:
+                    vus.add(str(p)); out.append(p)
+        except OSError:
+            continue
+    return out
+
+
+def _version_unity(exe: Path) -> str | None:
+    """…/Hub/Editor/<version>/Editor/Unity.exe : la version est le nom du dossier ; rien n'est lancé."""
+    try:
+        n = exe.parents[1].name
+    except IndexError:
+        return None
+    return n if _V_UNITY.match(n) else None
+
+
+def _candidats_unity() -> list[Path]:
+    vus, out = set(), []
+    for r in _racines_unity():
+        try:
+            for p in sorted(r.glob("*/Editor/Unity.exe"), reverse=True):
+                if p.is_file() and str(p) not in vus:
+                    vus.add(str(p)); out.append(p)
+        except OSError:
+            continue
+    return out
+
+
 def detecter(lid: str) -> list[dict]:
     _connu(lid)
     if lid == "blender":
         from app.services import passes_blender as PB
         return [{"chemin": str(p)} for p in PB.candidats_auto() if Path(p).is_file()]
+    if lid == "blender_mcp":
+        from app.services import blender_mcp as BM
+        return [{"chemin": str(BM.EXE_DEFAUT)}] if Path(BM.EXE_DEFAUT).is_file() else []
+    if lid == "unreal":
+        return [{"chemin": str(p), "version": _build_version(p)} for p in _candidats_unreal()]
+    if lid == "unity":
+        return [{"chemin": str(p), "version": _version_unity(p)} for p in _candidats_unity()]
     return [{"chemin": str(p), "version": _version_nom(p)} for p in _candidats_godot()]
 
 
@@ -182,6 +284,76 @@ def _tester_godot() -> dict:
     return _res(True, _M("godot.ok", version=version), version, exe=str(exe))
 
 
+def _tester_unreal() -> dict:
+    brut = _val("UNREAL_PATH")
+    if not brut:
+        return _res(None, _M("unreal.sans_chemin"))
+    exe = Path(brut)
+    if not exe.is_file():
+        return _res(False, _M("godot.introuvable", chemin=str(exe)))
+    version = _build_version(exe)
+    if not version:
+        return _res(False, _M("unreal.version_illisible", chemin=str(exe)))
+    if tuple(int(x) for x in version.split(".")[:2]) < LOGICIELS["unreal"]["min"]:
+        return _res(False, _M("unreal.trop_ancien", version=version), version, exe=str(exe))
+    pb = _val("UNREAL_PROJECT_DIR")
+    if pb:
+        projets = sorted(Path(pb).glob("*.uproject")) if Path(pb).is_dir() else []
+        if not projets:
+            return _res(False, _M("unreal.projet_invalide", chemin=pb), version, exe=str(exe))
+        return _res(True, _M("unreal.ok_projet", version=version, projet=projets[0].stem), version, exe=str(exe),
+                    projet=projets[0].stem)
+    return _res(True, _M("unreal.ok", version=version), version, exe=str(exe))
+
+
+def _tester_unity() -> dict:
+    brut = _val("UNITY_PATH")
+    if not brut:
+        return _res(None, _M("unity.sans_chemin"))
+    exe = Path(brut)
+    if not exe.is_file():
+        return _res(False, _M("godot.introuvable", chemin=str(exe)))
+    version = _version_unity(exe)
+    pb = _val("UNITY_PROJECT_DIR")
+    if pb:
+        d = Path(pb)
+        if not (d / "Assets").is_dir():
+            return _res(False, _M("unity.projet_invalide", chemin=pb), version, exe=str(exe))
+        pv = d / "ProjectSettings" / "ProjectVersion.txt"
+        m = _V_PROJET_UNITY.search(pv.read_text("utf-8", errors="replace")) if pv.is_file() else None
+        vprojet = m.group(1) if m else "?"
+        man = d / "Packages" / "manifest.json"
+        if not (man.is_file() and "com.unity.cloud.gltfast" in man.read_text("utf-8", errors="replace")):
+            return _res(None, _M("unity.sans_gltfast", projet=d.name), version, exe=str(exe), projet=d.name)
+        return _res(True, _M("unity.ok_projet", projet=d.name, version_projet=vprojet), version, exe=str(exe),
+                    projet=d.name)
+    if not version:
+        return _res(None, _M("unity.version_inconnue", chemin=str(exe)), None, exe=str(exe))
+    return _res(True, _M("unity.ok", version=version), version, exe=str(exe))
+
+
+def _tester_blender_mcp() -> dict:
+    from app.services import blender_mcp as BM
+    brut_port = _val("BLENDER_MCP_PORT")
+    if brut_port and not (brut_port.isdigit() and 1024 <= int(brut_port) <= 65535):
+        return _res(False, _M("blender_mcp.port_invalide", port=brut_port))
+    e = BM.etat_exe()
+    if not e["trouve"]:
+        return _res(None, _M("blender_mcp.absent", chemin=e["chemin"]))
+    try:
+        s = BM.sonder()
+    except BM.RefusBlender as err:
+        return _res(False, Message(err.cle, **err.valeurs))
+    except Exception as err:  # noqa: BLE001 — un test ne casse jamais l'écran
+        return _res(False, _M("blender_mcp.erreur", detail=str(err)[:160]))
+    v = (s.get("serveur") or {}).get("version") or "?"
+    n = len(s.get("outils") or [])
+    if not s.get("connecte"):
+        return _res(None, _M("blender_mcp.blender_ferme", version=v, outils=n, port=BM.port()), v, exe=e["chemin"])
+    return _res(True, _M("blender_mcp.ok", version=v, outils=n), v, exe=e["chemin"])
+
+
 def tester(lid: str) -> dict:
     _connu(lid)
-    return _tester_blender() if lid == "blender" else _tester_godot()
+    return {"blender": _tester_blender, "blender_mcp": _tester_blender_mcp, "godot": _tester_godot,
+            "unreal": _tester_unreal, "unity": _tester_unity}[lid]()

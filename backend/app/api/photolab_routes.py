@@ -69,6 +69,8 @@ async def _appeler(methode, params=None, delai_s=None):
 async def _pool(choisir, *args):
     """`choisir(session)` rend la fonction à lancer sur le pool dédié avec `args`. Les erreurs du moteur deviennent
     des statuts HTTP (503 absent, 409 occupé, 504 délai, 422 refus du moteur, 400 valeur refusée)."""
+    from app.services import plateforme as PF
+    PF.exiger("photolab")                      # t535 : sur le VPS, 501 traduit avant toute session
     try:
         s = PM.session()
         return await asyncio.get_running_loop().run_in_executor(_POOL, choisir(s), *args)
@@ -120,7 +122,12 @@ def _entier(v, bas, haut, nom):
 
 
 @router.get("/etat")
-async def etat():
+async def etat(request: Request):
+    from app import i18n
+    from app.services import plateforme as PF
+    if not PF.disponible("photolab"):          # t535 : grisé sur le VPS, sans chercher de binaire
+        return {"version": PM.VERSION, "present": False, "chemin": None,
+                "raison": PF.message("photolab").dans(i18n.langue_requete(request)), **PM.etat_session()}
     try:
         chemin = str(PM.chemin_cli()) if PM.FABRIQUE is None else "(banc)"
         present = True
@@ -1175,6 +1182,9 @@ def _natif_libre(prefixe: str) -> str:
 
 async def _natif(fn, *args):
     from app.services import photolab_natif as PN
+    from app.services import plateforme as PF
+    if not PF.windows():                        # t535 : l'app native photocraft.exe est une fenêtre Windows
+        raise PF.ReserveWindows("photolab")
     try:
         return await asyncio.to_thread(fn, *args)
     except PN.NatifAbsent as e:
@@ -1188,8 +1198,13 @@ async def _natif(fn, *args):
 
 
 @router.get("/natif/etat")
-async def natif_etat():
+async def natif_etat(request: Request):
     from app.services import photolab_natif as PN
+    from app.services import plateforme as PF
+    if not PF.windows():                        # t535
+        from app import i18n
+        return {"present": False, "actif": False, "fichier": None,
+                "raison": PF.message("photolab").dans(i18n.langue_requete(request))}
     return PN.etat()
 
 

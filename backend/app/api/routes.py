@@ -4266,6 +4266,8 @@ async def library_recherche(q: str = "", moteur: str = "texte"):
     commentaires, noms) ; « clip » (sémantique, local) arrive en PR D — 503 dit d'ici là."""
     if moteur == "clip":   # tâche #82 PR D : par le SENS, en local
         from app.services import library_clip as LCLIP
+        from app.services import plateforme as PF
+        PF.exiger("clip")                      # t535 : roues win_amd64 seulement
         if not LCLIP.installe():
             raise HTTPException(503, "CLIP n'est pas installé (Recherche → Installer CLIP).")
         return await asyncio.to_thread(LCLIP.chercher, q[:200])
@@ -4276,10 +4278,15 @@ async def library_recherche(q: str = "", moteur: str = "texte"):
 
 
 @router.get("/library/clip/etat")
-async def library_clip_etat():
-    """Tâche #82 PR D : CLIP installé ? taille, avancement de l'installation et de l'index."""
+async def library_clip_etat(request: Request):
+    """Tâche #82 PR D : CLIP installé ? taille, avancement de l'installation et de l'index.
+    t535 : + disponible / raison (grisé hors Windows : l'installeur ne connaît que des roues win_amd64)."""
+    from app import i18n
     from app.services import library_clip as LCLIP
-    return await asyncio.to_thread(LCLIP.etat)
+    from app.services import plateforme as PF
+    e = await asyncio.to_thread(LCLIP.etat)
+    ok = PF.disponible("clip")
+    return {**e, "disponible": ok, "raison": "" if ok else PF.message("clip").dans(i18n.langue_requete(request))}
 
 
 @router.post("/library/clip/installer")
@@ -4288,6 +4295,8 @@ async def library_clip_installer(request: Request):
     dans <données>/clip, en tâche de fond. Gratuit ; réservé à la machine locale. 409 si déjà en cours."""
     _require_localhost(request)
     from app.services import library_clip as LCLIP
+    from app.services import plateforme as PF
+    PF.exiger("clip")                          # t535
     if not LCLIP.lancer_installation():
         raise HTTPException(409, "Une installation de CLIP est déjà en cours.")
     return {"lance": True, "octets": LCLIP.TOTAL_OCTETS}
@@ -4297,6 +4306,8 @@ async def library_clip_installer(request: Request):
 async def library_clip_indexer(request: Request):
     """Calcule les vecteurs des images nouvelles ou modifiées (local, gratuit), en tâche de fond."""
     _require_localhost(request)
+    from app.services import plateforme as PF
+    PF.exiger("clip")                          # t535
     from app.services import library_clip as LCLIP
     if not LCLIP.installe():
         raise HTTPException(503, "CLIP n'est pas installé.")
@@ -7780,6 +7791,8 @@ _ALLOWED_ENV_KEYS = {
     "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
     "YOUTUBE_REFRESH_TOKEN", "YOUTUBE_CHANNEL_ID",
     "IG_ACCESS_TOKEN", "IG_BUSINESS_ID",
+    # t493 (26/11/2026) : « Relier par Instagram » — application Instagram (ID, secret au coffre), adresse de retour
+    "IG_APP_ID", "IG_APP_SECRET", "IG_OAUTH_REDIRECT",
     # P1 #2 (28/09) : l'import Figma de la Bibliothèque le réclame (409 sans lui)
     "FIGMA_TOKEN",
     # plan scheduler T6 (tâche #28, 30/09) : TikTok Direct Post — client (Login Kit « Desktop »), refresh token écrit par
@@ -7791,6 +7804,8 @@ _ALLOWED_ENV_KEYS = {
     "TAVILY_API_KEY", "EXA_API_KEY", "SERPER_API_KEY",
     # t521 (13/11/2026) : Réglages › Moteurs et logiciels 3D (lot 1 : Blender et Godot), des chemins, pas des secrets
     "BLENDER_PATH", "GODOT_PATH", "GODOT_PROJECT_DIR",
+    # t521 lot 2 (14/11/2026) : Unreal Engine, Unity, Blender MCP
+    "UNREAL_PATH", "UNREAL_PROJECT_DIR", "UNITY_PATH", "UNITY_PROJECT_DIR", "BLENDER_MCP_EXE", "BLENDER_MCP_PORT",
 }
 
 
@@ -10086,6 +10101,81 @@ async def post_scheduled_post_validation_whatsapp(post_id: str, request: Request
         if isinstance(e, PermissionError) and not isinstance(e, _wa.WhatsappRefus):
             raise HTTPException(409, str(e))
         raise _wa_erreur(e)
+
+
+@router.post("/schedule/{post_id}/lien-whatsapp")
+async def post_scheduled_post_lien_whatsapp(post_id: str, request: Request):
+    """t502 (G12) : le lien wa.me SUIVI d'un post (appel à l'action « écris-nous sur WhatsApp ») : {numero, texte?,
+    langue?} -> {lien, code, message}. Gratuit, aucun envoi. L'entrant qui renvoie le code devient un prospect rattaché
+    au post (prospects_sources.whatsapp_entrants : origine_post). 400 numéro, 404 post ou espace."""
+    _require_localhost(request)
+    from app.services import whatsapp_suivi as WS
+    try:
+        corps = await request.json()
+    except Exception:  # noqa: BLE001
+        corps = {}
+    corps = corps if isinstance(corps, dict) else {}
+    async with async_session_factory() as session:
+        p = await session.get(ScheduledPost, post_id)
+    if not p:
+        raise HTTPException(404, "post inconnu")
+    from app.services import espaces as _es
+    try:
+        return WS.lien(p.espace_id or _es.espace_courant(), corps.get("numero") or "", p.id, corps.get("texte") or "",
+                       "en" if corps.get("langue") == "en" else "fr")
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/schedule/croissance/alertes")
+async def get_alertes_croissance(request: Request, espace_id: str = "", numero: str = ""):
+    """t502 (G12) : l'état du bilan et de l'alerte WhatsApp de l'espace et, avec `numero`, le DEVIS d'un message
+    utilitaire (gratuit). Rien ne part sans l'accord (PUT)."""
+    _require_localhost(request)
+    from app.services import espaces as _es, whatsapp_suivi as WS
+    eid = espace_id or _es.espace_courant()
+    try:
+        etat = WS.lire_alertes(eid)
+        devis = WS.devis_alertes(eid, numero) if numero else None
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"espace_id": eid, "alertes": etat, "devis": devis}
+
+
+@router.put("/schedule/croissance/alertes")
+async def put_alertes_croissance(request: Request):
+    """t502 (G12) : l'ACCORD de l'utilisateur {espace_id?, numero, modele: {nom, langue}, usd_accepte, bilan, alerte}.
+    400 modèle non utilitaire ou prix changé ; 404 espace."""
+    _require_localhost(request)
+    from app.services import espaces as _es, whatsapp_suivi as WS
+    try:
+        c = await request.json()
+    except Exception:  # noqa: BLE001
+        c = {}
+    c = c if isinstance(c, dict) else {}
+    eid = c.get("espace_id") or _es.espace_courant()
+    try:
+        return await WS.accorder(eid, numero=c.get("numero") or "", modele=c.get("modele") or {},
+                                 usd_accepte=c.get("usd_accepte"), bilan=c.get("bilan") is not False,
+                                 alerte=c.get("alerte") is not False)
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.delete("/schedule/croissance/alertes")
+async def delete_alertes_croissance(request: Request, espace_id: str = ""):
+    _require_localhost(request)
+    from app.services import espaces as _es, whatsapp_suivi as WS
+    try:
+        return WS.revoquer(espace_id or _es.espace_courant())
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
 
 
 # ---- t328 tâche 4 (27/10/2026) : la DIFFUSION WhatsApp d'un post (services/whatsapp_diffusions.py) ------------------
@@ -18764,6 +18854,8 @@ async def print3d_open(body: dict):
     """Ouvre le `.3mf` d'un export dans le slicer. Le nom de dossier est
     CONTENU dans assets/print3d — jamais de startfile arbitraire."""
     from app.services import print3d as P3
+    from app.services import plateforme as PF
+    PF.exiger("slicer")                        # t535 : un slicer lancé sur le serveur n'ouvre rien chez l'utilisateur
     nom = str(body.get("dossier") or "")
     safe = Path(nom).name
     if not safe or safe != nom or safe in (".", ".."):
@@ -20454,6 +20546,41 @@ async def sync_evenements_get(request: Request, depuis: str | None = None, limit
 
 # ── Plan mobile T18 (tâche #58, 02/10/2026) : les dépenses du téléphone, comptées par le PC (table Depense) ──────────
 # Écriture ouverte au réseau local (main._ECRITURES_OUVERTES, décision « une par une ») ; l'appareil est celui du JETON.
+
+# ── t321 (Compagnon M4, 26/11/2026) : WhatsApp sur le téléphone — l'état des numéros (lecture) et l'écriture PC n° 7
+# (accords saisis, STOP, envois du téléphone ; ouverte au réseau local par main._ECRITURES_OUVERTES). L'appareil est
+# celui du JETON ; aucune route ne rend un secret ni un texte de message.
+
+@router.get("/sync/whatsapp")
+async def sync_whatsapp_get(request: Request, langue: str = "fr"):
+    from app.services import sync_whatsapp as _sw
+    await _appareil_requis(request)
+    return await asyncio.to_thread(_sw.lecture, None, langue)
+
+
+@router.post("/sync/whatsapp")
+async def sync_whatsapp_post(request: Request, body: dict | None = None):
+    from app.services import sync_whatsapp as _sw
+    appareil = await _appareil_requis(request)
+    try:
+        return await asyncio.to_thread(_sw.deposer, appareil,
+                                       (body or {}).get("evenements") if isinstance(body, dict) else None)
+    except _sw.TropDEvenements as e:
+        raise HTTPException(413, str(e)) from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
+# ── t322 (Compagnon M5, 26/11/2026) : un contenu neuf rédigé sur le téléphone, remis en brouillon (gardes REJOUÉES ici) ─
+@router.post("/sync/post")
+async def sync_post_post(request: Request, body: dict | None = None):
+    from app.services import sync_post as _sp
+    appareil = await _appareil_requis(request)
+    try:
+        return await _sp.deposer(appareil, body)
+    except _sp.RefusPost as e:
+        raise HTTPException(e.statut, {"message": str(e), "code": e.code, "garde": e.garde}) from None
+
 
 @router.post("/sync/depenses")
 async def sync_depenses_post(request: Request, body: dict | None = None):

@@ -84,11 +84,15 @@ _HOTE_LOCAL = re.compile(r"^(127\.0\.0\.1|localhost|\[::1\])(:\d{1,5})?$")
 
 def _origine_sure(ws: WebSocket) -> bool:
     """Client local, en-tête Host local (revue finale M1 : un rebond DNS garde un Host étranger) et Origin absente ou
-    identique à Host."""
+    identique à Host. t530 (20/11/2026) : Host peut aussi être un nom de l'écran (deepotus.localhost, nom public du VPS
+    servi par Caddy depuis 127.0.0.1) ; le client TCP reste exigé local."""
     from app.api.routes import _HOTES_LOCAUX
+    from app.config import NOMS_ECRAN
     hote = (ws.client.host if ws.client else "") or ""
     entete = (ws.headers.get("host") or "").lower()
-    if hote not in _HOTES_LOCAUX or not _HOTE_LOCAL.match(entete):
+    nom, _, port = entete.partition(":")
+    nomme = nom in NOMS_ECRAN and (not port or (port.isdigit() and len(port) <= 5))
+    if hote not in _HOTES_LOCAUX or not (_HOTE_LOCAL.match(entete) or nomme):
         return False
     origine = ws.headers.get("origin")
     if not origine:

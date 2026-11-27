@@ -1,6 +1,6 @@
 {
   "base": "http://127.0.0.1:8811",
-  "preparation": "Backend de preuve t521 (scripts/guide/serve_guide.py, PORT=8811) : code du worktree, données jetables, aucune clé. La détection lit les vrais dossiers de Program Files du poste (lecture seule) ; aucun chemin d'utilisateur à l'écran (champs Godot vides). Chapitre « Brancher Blender et Godot ».",
+  "preparation": "Backend de preuve t521 (scripts/guide/serve_guide.py, PORT=8811) : code du worktree, données jetables, aucune clé. La détection lit les vrais dossiers de Program Files du poste (lecture seule) ; aucun chemin d'utilisateur à l'écran (champs Godot vides). Chapitre « Brancher ses logiciels 3D ».",
   "scenes": [
     {
       "scene": "logiciels-3d/reglages",

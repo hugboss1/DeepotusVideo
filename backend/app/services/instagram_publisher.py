@@ -47,10 +47,15 @@ def _client(timeout: float = 60.0) -> httpx.AsyncClient:
     return httpx.AsyncClient(verify=SSL_VERIFY, timeout=timeout)
 
 
+def hote_graph(tok: str) -> str:
+    """t493 (26/11/2026) : l'hôte de la Graph API suit le JETON. Un jeton « Instagram Login » (IGAA…, IGQW… : préfixe
+    IG) passe par graph.instagram.com ; un jeton de l'application « Unified login » / de Page (EAA…) par
+    graph.facebook.com. Les deux voies (liaison OAuth, collage manuel) publient donc par le même adaptateur."""
+    return "graph.instagram.com" if str(tok or "").strip().startswith("IG") else "graph.facebook.com"
+
+
 def _graph() -> str:
-    tok = cred.IG_ACCESS_TOKEN.strip()
-    hote = "graph.instagram.com" if tok.startswith("IG") else "graph.facebook.com"
-    return f"https://{hote}/{VERSION}"
+    return f"https://{hote_graph(cred.IG_ACCESS_TOKEN)}/{VERSION}"
 
 
 def _scrub(text: str) -> str:

@@ -217,6 +217,8 @@ async def coffre_etat(request: Request):
     _local(request)
     from app.services import coffre as C
     return {"pose": C.est_pose(), "ouvert": C.ouvert(), "retenu": C.retenu(),
+            # t532 : « retenir » n'existe que par DPAPI (Windows) ou par un fichier de clé (DEEPOTUS_COFFRE_CLE_FICHIER)
+            "retenir_possible": C.voie_retenir() is not None,
             "cles": sorted(C.cles_posees()) if C.ouvert() else []}
 
 
@@ -279,6 +281,12 @@ async def coffre_retenir(request: Request):
         C.retenir()
     except C.CoffreVerrouille as e:
         raise HTTPException(409, str(e))
+    except C.RetenirIndisponible as e:      # t532 : ni DPAPI ni fichier de clé
+        from app import i18n
+        raise HTTPException(501, i18n.msg(e.cle, i18n.langue_requete(request)))
+    except C.CleFichierExposee as e:        # t532 : clé lisible par d'autres comptes
+        from app import i18n
+        raise HTTPException(409, i18n.msg(e.cle, i18n.langue_requete(request), chemin=str(e)))
     return {"ok": True}
 
 
@@ -424,7 +432,7 @@ _INDEX_FIXE = [
                                          "réseau local host jeton perdu"),
     ("keys", "Clés API", "clé api jeton token fournisseur guide tester enregistrer"),
     # t521 (13/11/2026) : Moteurs et logiciels 3D (Blender, Godot)
-    ("moteurs", "Moteurs et logiciels 3D", "blender godot moteur de jeu logiciel 3d chemin exécutable projet "
+    ("moteurs", "Moteurs et logiciels 3D", "blender godot unreal unity mcp moteur de jeu logiciel 3d chemin exécutable projet port "
                                                "version détecter tester exporter ouvrir engine"),
     ("accounts", "Comptes connectés", "comptes réseaux sociaux publication x twitter telegram youtube instagram tester"),
     ("personas", "Personas", "persona ton voix audience personnage profil"),
@@ -482,6 +490,11 @@ RUBRIQUE_DE_CLE = {
     "TAVILY_API_KEY": "keys", "EXA_API_KEY": "keys", "SERPER_API_KEY": "keys",
     # t521 (13/11/2026) : Moteurs et logiciels 3D
     "BLENDER_PATH": "moteurs", "GODOT_PATH": "moteurs", "GODOT_PROJECT_DIR": "moteurs",
+    "UNREAL_PATH": "moteurs", "UNREAL_PROJECT_DIR": "moteurs", "UNITY_PATH": "moteurs", "UNITY_PROJECT_DIR": "moteurs",
+    "BLENDER_MCP_EXE": "moteurs", "BLENDER_MCP_PORT": "moteurs",                     # t521 lot 2
+    # t493 (26/11/2026) : « Relier par Instagram », champs du bloc Instagram posés par le maillon de queue dziglogin
+    # (hors de l'index de recherche, comme les autres lignes de maillon)
+    "IG_APP_ID": "accounts", "IG_APP_SECRET": "accounts", "IG_OAUTH_REDIRECT": "accounts",
     "ELEVENLABS_VOICE_ID_FR": "keys", "ELEVENLABS_VOICE_ID_EN": "keys",  # t221 : voix par défaut, champs texte
     "ANTHROPIC_MODEL": "defaults", "OPENAI_MODEL": "defaults", "GEMINI_MODEL": "defaults", "OLLAMA_MODEL": "defaults",
     "SUMMARIZER_PROVIDER": "defaults", "PLANNER_PROVIDER": "defaults", "AGENT_MODEL": "defaults",   # t285a

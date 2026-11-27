@@ -21,6 +21,10 @@
                                          Bibliothèque ; le dernier retour est relu au montage (GET …/retours) ;
        « Appliquer au Plateau »          POST …/retour/{rid}/appliquer {camera} (avant/après) puis, après confirmation,
                                          {camera, confirmer: true} — seule écriture au Plateau.
+     23/11/2026 — le VISAGE (même section, sous-bloc « Visage du personnage ») :
+       « Animer le visage »  POST /api/blender/visage {texte, expressions, clignements} — lèvres sur la réplique, une
+                             expression tenue toute la réplique ("fin": "parole"), clignements ; sur le personnage
+                             choisi par le serveur (clés de visage, sinon os du visage, sinon clés DZ_ procédurales).
      Gratuit : rien n'est généré ni acheté (dit avant le clic). Exe absent / Blender fermé : le 503 du serveur dit quoi
      faire, les boutons restent cliquables.
    CHARTE : celle de dz-passes-plan.js (aucun arrondi, IBM Plex Mono en capitales, jetons --srf-* / --brd-* / --txt-*).
@@ -31,6 +35,7 @@
 
   var ELEMENTS = ["camera", "eclairage", "blocking", "cles"];
   var MODES = ["camera", "viewport", "angles"];
+  var EXPRESSIONS = ["neutre", "joie", "sourire", "tristesse", "colere", "surprise", "peur", "degout", "malice"];
   var S = {
     section: "display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid var(--brd-soft,var(--stroke,#222830))",
     titre: "font:10px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--txt-mid,var(--ink-muted,#9aa4ae))",
@@ -57,6 +62,13 @@
   function bouton(marque, texte, style) {
     return el("button", { type: "button", "data-dz-blender": marque, style: S.btn + (style ? ";" + style : "") }, texte);
   }
+  // Les blocs cachés portent un style en ligne « display:flex » qui l'emporte sur [hidden] : une règle posée une fois
+  // les cache vraiment (sinon les images vides de la capture et du retour s'affichaient cassées).
+  function regleCacher() {
+    if (!document.head || document.getElementById("dz-blender-cacher")) return;
+    var st = el("style", { id: "dz-blender-cacher" }, "[data-dz-blender][hidden]{display:none!important}");
+    document.head.appendChild(st);
+  }
   function montrer(n, oui) { if (oui) n.removeAttribute("hidden"); else n.setAttribute("hidden", ""); }
   function griser(n, oui) { if (oui) n.setAttribute("disabled", ""); else n.removeAttribute("disabled"); }
   function detail(j, status) {
@@ -77,6 +89,7 @@
   function monter(hote, opts) {
     opts = opts || {};
     if (!hote || !opts.shot || !opts.shot.id) return null;
+    regleCacher();
     var E = { opts: opts, shot: opts.shot, regard: null, occupe: false };
     var s = E.racine = el("div", { style: S.section, "data-dz-blender": "section" });
     s.appendChild(el("div", { style: S.titre }, T("blenderscene.section.titre")));
@@ -127,6 +140,7 @@
     E.vue.appendChild(E.image); E.vue.appendChild(E.legende); E.vue.appendChild(E.licences); E.vue.appendChild(E.btnGarder);
     s.appendChild(E.vue);
     monterAllerRetour(E, s);
+    monterVisage(E, s);
     hote.appendChild(s);
     lireEtat(E);
     lireRetours(E);
@@ -163,6 +177,63 @@
     [E.retourImage, E.retourResume, E.retourAvantApres, l2].forEach(function (n) { E.retour.appendChild(n); });
     b.appendChild(E.retour);
     s.appendChild(b);
+  }
+
+  function monterVisage(E, s) {
+    var v = el("div", { style: "display:flex;flex-direction:column;gap:6px;padding-top:8px", "data-dz-blender": "visage-bloc" });
+    v.appendChild(el("div", { style: S.titre }, T("blenderscene.visage.titre")));
+    v.appendChild(el("div", { style: S.note }, T("blenderscene.visage.aide")));
+    E.visTexte = el("textarea", { rows: "2", "data-dz-blender": "visage-texte", placeholder: T("blenderscene.visage.texte_indice"),
+      style: S.choix + ";height:auto;min-height:44px;padding:4px 6px;resize:vertical" });
+    v.appendChild(E.visTexte);
+    var l = el("div", { style: S.ligne });
+    E.visExpr = el("select", { style: S.choix, "data-dz-blender": "visage-expression", title: T("blenderscene.visage.expression_titre") });
+    EXPRESSIONS.forEach(function (x) { E.visExpr.appendChild(el("option", { value: x }, T("blenderscene.expression." + x))); });
+    l.appendChild(E.visExpr);
+    var lab = el("label", { style: S.coche });
+    E.visCligne = el("input", { type: "checkbox", "data-dz-blender": "visage-clignements" });
+    E.visCligne.checked = true;
+    lab.appendChild(E.visCligne); lab.appendChild(document.createTextNode(T("blenderscene.visage.clignements")));
+    l.appendChild(lab);
+    E.btnVisage = bouton("visage", T("blenderscene.visage.animer"), S.primaire);
+    E.btnVisage.addEventListener("click", function () { animerVisage(E); });
+    l.appendChild(E.btnVisage);
+    v.appendChild(l);
+    v.appendChild(el("div", { style: S.prix, "data-dz-blender": "visage-prix" }, T("blenderscene.visage.gratuit")));
+    E.visStatut = el("div", { style: S.note, "data-dz-blender": "visage-statut", role: "status" });
+    E.visErreur = el("div", { style: S.erreur, hidden: "", "data-dz-blender": "visage-erreur", role: "alert" });
+    v.appendChild(E.visStatut); v.appendChild(E.visErreur);
+    s.appendChild(v);
+  }
+  function visEtat(E, texte, erreur) {
+    E.visStatut.textContent = texte || "";
+    E.visErreur.textContent = erreur || "";
+    montrer(E.visErreur, !!erreur);
+  }
+
+  async function animerVisage(E) {
+    if (E.occupe) return;
+    var texte = (E.visTexte.value || "").trim();
+    var expr = E.visExpr.value || "neutre";
+    if (!texte && expr === "neutre") { visEtat(E, "", T("blenderscene.visage.vide")); return; }
+    var corps = { clignements: !!E.visCligne.checked };
+    if (texte) corps.texte = texte;
+    if (expr !== "neutre") corps.expressions = [{ nom: expr, debut: 0, fin: "parole", intensite: 0.8 }];
+    occuper(E, true, "");
+    visEtat(E, T("blenderscene.visage.en_cours"));
+    try {
+      var j = await appel("/api/blender/visage", corps);
+      var r = j.resume || {}, im = j.images || [1, 1];
+      if (!r.mode) {
+        occuper(E, false, "");
+        visEtat(E, "", T("blenderscene.visage.rien", { msg: (r.erreurs || []).join(" ; ") || "—" }));
+        return;
+      }
+      var cle = r.objet ? "blenderscene.visage.fait" : "blenderscene.visage.fait_sans_objet";
+      occuper(E, false, "");
+      visEtat(E, T(cle, { a: im[0], b: im[1], mode: T("blenderscene.visage.mode." + r.mode), objet: r.objet || "" }));
+      if (E.opts.toast) E.opts.toast(T("blenderscene.visage.fait_toast"));
+    } catch (e) { occuper(E, false, ""); visEtat(E, "", T("blenderscene.section.ko", { msg: e.message })); }
   }
 
   function mm(v) { return v == null ? "?" : String(Math.round(v)); }
@@ -268,7 +339,7 @@
 
   function occuper(E, oui, texte) {
     E.occupe = oui;
-    [E.btnEnvoyer, E.btnRegarder, E.btnRetirer, E.btnGarder].forEach(function (b) { griser(b, oui); });
+    [E.btnEnvoyer, E.btnRegarder, E.btnRetirer, E.btnGarder, E.btnVisage].forEach(function (b) { if (b) griser(b, oui); });
     E.statut.textContent = texte || "";
     if (oui) montrer(E.erreur, false);
   }
@@ -330,5 +401,5 @@
     } catch (e) { echec(E, e); }
   }
 
-  window.__dzBlenderScene = { monter: monter, ELEMENTS: ELEMENTS.slice() };
+  window.__dzBlenderScene = { monter: monter, ELEMENTS: ELEMENTS.slice(), EXPRESSIONS: EXPRESSIONS.slice() };
 })();

@@ -1,0 +1,55 @@
+{
+  "id": "deux-voix",
+  "version": 1,
+  "famille": "comparaison",
+  "titre": {
+    "fr": "Deux voix, deux avis",
+    "en": "Two voices, two takes"
+  },
+  "resume": {
+    "fr": "Deux avatars face à face, l'un à gauche, l'autre à droite, se renvoient la parole sur une même question.",
+    "en": "Two avatars facing each other, one on the left, one on the right, trade lines on the same question."
+  },
+  "gabarit": {
+    "id": "tpl_hstack_left_right_dialogue",
+    "emplacements": {
+      "avatar_left": {
+        "source": "avatar",
+        "part": 0.5
+      },
+      "avatar_right": {
+        "source": "avatar",
+        "part": 0.5
+      }
+    }
+  },
+  "motion": {},
+  "voix": {
+    "moteur": "avatar"
+  },
+  "musique": null,
+  "sous_titres": {
+    "prereglage": "contour_sombre"
+  },
+  "rythme": {
+    "plan_s": [
+      2.0,
+      5.0
+    ],
+    "duree_s": {
+      "min": 20,
+      "type": 40,
+      "max": 60
+    }
+  },
+  "a_fournir": [
+    {
+      "fr": "Le dialogue, réplique par réplique (A puis B).",
+      "en": "The dialogue, line by line (A then B)."
+    },
+    {
+      "fr": "Deux avatars et leurs voix, choisis dans Réglages › HeyGen.",
+      "en": "Two avatars and their voices, picked in Settings › HeyGen."
+    }
+  ]
+}

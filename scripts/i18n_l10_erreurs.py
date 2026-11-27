@@ -34,6 +34,9 @@ APP = RACINE / "backend" / "app"
 SORTIE = APP / "i18n" / "erreurs.json"
 TRADUCTIONS = RACINE / "scripts" / "i18n_l10_traductions.json"
 ERREURS = {"RefusInspiration", "InspirationInconnue", "InspirationEnCours",   # t313 : refus du service inspiration
+           "MesureImpossible", "NoteImpossible",   # t497 : note avant publication (note_rendu) ; t511 : ffmpeg absent ou vidéo illisible (inspiration_video)
+           "RefusRecyclage", "RecyclageInconnu", "RecyclageEnCours",   # t498 : refus du recyclage d'un gagnant
+           "RefusX", "CoutChange",   # t500 : refus de la boucle X (croissance_x)
            "ValueError", "RuntimeError", "FileNotFoundError", "PermissionError", "LookupError", "TimeoutError",
            "ConflitClient", "FluxCoupe", "CoffreVerrouille", "RefusClient", "WhatsappRefus",
            "RefusValidation", "RefusProspect", "PlafondEspaces", "RegistreIndisponible",   # t353 : refus de la fiche Prospects, plafond d'espaces   # t311 : RefusValidation = refus de validation_client.valider_post (400/404/409)   # t306 : ConflitClient = ValueError dédié (409 de POST /espaces/{id}) ;
@@ -41,10 +44,17 @@ ERREURS = {"RefusInspiration", "InspirationInconnue", "InspirationEnCours",   # 
            "ScanIndisponible", "ScanErreur", "CoutChange",   # t312 : refus du pont Windows.Media.Ocr (scan_ocr)
            "RefusCapture",   # t315 : refus des sessions de capture (400/404/409/413/415)
            "RefusSkin", "RefusMontage", "RefusTutoriel",   # t317 : refus du montage des captures ; t316 : refus des skins de capture (400/404/409/413/415)
+           "RefusStudio",   # SV1 : refus du studio virtuel 3D (400/404/409)
+           "RefusHabillage",   # SVH : refus du catalogue d'habillage du studio virtuel (404)
+           "RefusObjet",   # SVO : refus de la bibliothèque d'objets importés du studio virtuel
+           "RefusImage",   # SVB : refus des images de la Bibliothèque posées dans le studio virtuel
+           "RefusCatalogue",   # SVC : refus du catalogue de produits réels du studio virtuel (400/404/409/502/503)
+           "RefusVideo",   # SVR : refus des vidéos de la Bibliothèque liées à la régie du studio virtuel
            "RefusLive",   # t318 : refus du direct multi-destinations (400/404/409)
            "RefusPages", "AppelEchoue", "VisionEnCours",
            "RefusAccord",   # t314 : devis du détourage d'un schéma non accepté (409 {message, usd})   # revue finale t312 : AppelEchoue = premier appel Claude en échec réseau   # t312 tâche 4 : dépôt refusé par scan_pages.charger (400/413/415/422)
            "RefusFil",   # t380 : refus des fils sociaux suivis de News (400/404/409/502/503)
+           "RefusGagnant",   # t495 : refus du fil des gagnants de la niche (400/404/409)
            "RefusExport", "BlenderIndisponible",   # t400 : refus de l'écran Exporter du 3D Studio (400/503)
            "RefusImport",   # t405 : refus de l'écran Importer du 3D Studio (FBX, VRM, Daz Genesis 8)
            "FichierIllisible"}   # t328 : FichierIllisible = ValueError de whatsapp_diffusions (fichier illisible)

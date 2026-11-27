@@ -55,6 +55,7 @@ SECRETES = {
     "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET",
     "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN",
     "IG_ACCESS_TOKEN",
+    "IG_APP_SECRET",                # t493 (26/11/2026) : secret de l'application Instagram (Instagram Login)
     # plan scheduler T6 (tâche #28, 30/09/2026) : le secret du client TikTok et son refresh token (renouvelé par TikTok,
     # regardé par coffre.enregistrer_cle) ; l'identifiant public du client et le drapeau d'audit restent au .env
     "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN",
@@ -72,6 +73,16 @@ class MotDePasseInvalide(Exception):
 
 class CoffreVerrouille(Exception):
     """Le coffre existe mais il est fermé : écrire un secret en clair à sa place annulerait son existence."""
+
+
+class RetenirIndisponible(Exception):
+    """t532 : ni DPAPI (Windows) ni fichier de clé (DEEPOTUS_COFFRE_CLE_FICHIER) — le coffre se rouvre à la main."""
+    cle = "coffre.retenir_indisponible"
+
+
+class CleFichierExposee(Exception):
+    """t532 : le fichier de clé est lisible par le groupe ou les autres (POSIX) : il ne sert pas tant qu'il l'est."""
+    cle = "coffre.cle_fichier_exposee"
 
 
 class CoffreIndisponible(Exception):
@@ -278,30 +289,122 @@ def changer_mot_de_passe(ancien: str, nouveau: str) -> None:
 
 # ── « retenir sur ce PC » : DPAPI scelle le MOT DE PASSE, pour cette session Windows ─────────────────────────────────
 
+# t532 (20/11/2026, couche hébergée ③) : sans DPAPI (Linux, VPS), une seconde voie, le FICHIER DE CLÉ. Une clé aléatoire
+# de 32 octets vit dans DEEPOTUS_COFFRE_CLE_FICHIER (créé 0600, à ranger hors du volume sauvegardé) ; coffre.pc reçoit
+# MAGIE_SCEAU_FICHIER + nonce + AES-256-GCM(mot de passe). Ni la clé seule ni le sceau seul ne livrent le mot de passe ;
+# le coffre DZKV1 n'est jamais réécrit. La voie se reconnaît au sceau lui-même (magie), pas à la plate-forme.
+
+MAGIE_SCEAU_FICHIER = b"DZRF1\n"
+CLE_FICHIER_N = 32
+
+
+def _dpapi_disponible() -> bool:
+    return os.name == "nt"
+
+
+def _chemin_cle_fichier():
+    from pathlib import Path
+    v = os.environ.get("DEEPOTUS_COFFRE_CLE_FICHIER", "").strip()
+    return Path(v) if v else None
+
+
+def voie_retenir():
+    """« dpapi », « fichier » ou None (rien pour retenir : le coffre se rouvre à la main à chaque démarrage)."""
+    if _dpapi_disponible():
+        return "dpapi"
+    return "fichier" if _chemin_cle_fichier() is not None else None
+
+
+def _expose(p) -> bool:
+    return os.name == "posix" and bool(p.stat().st_mode & 0o077)
+
+
+def _cle_du_fichier(creer: bool):
+    """Les 32 octets de la clé ; None si le fichier manque (et creer=False) ou est illisible. CleFichierExposee si ses
+    permissions laissent le groupe ou les autres le lire."""
+    p = _chemin_cle_fichier()
+    if p is None:
+        return None
+    if not p.is_file():
+        if not creer:
+            return None
+        p.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(p), os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(os.urandom(CLE_FICHIER_N))
+    if _expose(p):
+        raise CleFichierExposee(str(p))
+    cle = p.read_bytes()
+    return cle if len(cle) == CLE_FICHIER_N else None
+
+
 def retenir() -> None:
     if _mdp_courant is None:
         raise CoffreVerrouille("le coffre est fermé")
-    from app.services import dpapi
+    voie = voie_retenir()
+    if voie is None:
+        raise RetenirIndisponible("ni DPAPI ni DEEPOTUS_COFFRE_CLE_FICHIER")
     tmp = SCEAU_PC.with_name(SCEAU_PC.name + ".tmp")
-    tmp.write_bytes(dpapi.sceller(_mdp_courant.encode("utf-8"), ENTROPIE_DPAPI))
+    if voie == "dpapi":
+        from app.services import dpapi
+        tmp.write_bytes(dpapi.sceller(_mdp_courant.encode("utf-8"), ENTROPIE_DPAPI))
+    else:
+        cle = _cle_du_fichier(creer=True)
+        if cle is None:
+            raise RetenirIndisponible("fichier de clé illisible")
+        nonce = os.urandom(NONCE_N)
+        tmp.write_bytes(MAGIE_SCEAU_FICHIER + nonce
+                        + _aesgcm()(cle).encrypt(nonce, _mdp_courant.encode("utf-8"), ENTROPIE_DPAPI))
     tmp.replace(SCEAU_PC)
-    logger.info("coffre : ouverture automatique armée pour cette session Windows")
+    logger.info(f"coffre : ouverture automatique armée ({voie})")
 
 
 def oublier() -> None:
+    """Efface le sceau et, voie fichier, la clé (une prochaine « retenir » en tire une neuve)."""
     try:
         SCEAU_PC.unlink(missing_ok=True)
     except OSError:
         pass
+    p = _chemin_cle_fichier()
+    if p is not None and not _dpapi_disponible():
+        try:
+            p.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _desceller_fichier(sceau: bytes):
+    try:
+        cle = _cle_du_fichier(creer=False)
+    except CleFichierExposee as e:
+        logger.warning(f"coffre : fichier de clé lisible par d'autres, ignoré ({e}) — chmod 600")
+        return None
+    except OSError as e:
+        logger.info(f"coffre : fichier de clé illisible ({e})")
+        return None
+    if cle is None:
+        return None
+    n = len(MAGIE_SCEAU_FICHIER)
+    try:
+        return _aesgcm()(cle).decrypt(sceau[n:n + NONCE_N], sceau[n + NONCE_N:], ENTROPIE_DPAPI)
+    except Exception:  # noqa: BLE001 — InvalidTag : autre clé, sceau abîmé
+        return None
 
 
 def ouvrir_par_dpapi() -> bool:
     """Ouverture au lancement, sans rien demander. False (jamais d'exception) si le sceau manque, vient d'un autre
-    compte, ou n'ouvre plus le coffre (mot de passe changé ailleurs : le sceau périmé est alors effacé)."""
+    compte, ou n'ouvre plus le coffre (mot de passe changé ailleurs : le sceau périmé est alors effacé).
+    t532 : un sceau DZRF1 s'ouvre par le fichier de clé (Linux) ; les autres par DPAPI."""
     if not (retenu() and est_pose()):
         return False
-    from app.services import dpapi
-    brut = dpapi.desceller(SCEAU_PC.read_bytes(), ENTROPIE_DPAPI)
+    sceau = SCEAU_PC.read_bytes()
+    if sceau.startswith(MAGIE_SCEAU_FICHIER):
+        brut = _desceller_fichier(sceau)
+    elif _dpapi_disponible():
+        from app.services import dpapi
+        brut = dpapi.desceller(sceau, ENTROPIE_DPAPI)
+    else:
+        brut = None
     if not brut:
         return False
     try:

@@ -163,6 +163,35 @@ async def lire(cid: str, request: Request):
         raise _refus(e) from None
 
 
+# ── SVR : le texte d'une prise (pour le prompteur). Ces routes ne transcrivent rien et ne dépensent rien. ──
+
+@router.get("/textes")
+async def textes(request: Request):
+    _local(request)
+    return {"prises": await asyncio.to_thread(C.lister_textes)}
+
+
+@router.get("/sessions/{cid}/texte")
+async def lire_texte(cid: str, request: Request):
+    _local(request)
+    try:
+        return await asyncio.to_thread(C.lire_texte, cid)
+    except C.RefusCapture as e:
+        raise _refus(e) from None
+
+
+@router.put("/sessions/{cid}/texte")
+async def ecrire_texte(cid: str, request: Request):
+    _local(request)
+    d = await _json(request, 1024 * 1024)
+    try:
+        t = await asyncio.to_thread(C.ecrire_texte, cid, d)
+    except C.RefusCapture as e:
+        raise _refus(e) from None
+    logger.info(f"capture {cid} : texte gardé ({len(t['texte'].split())} mots, source {t['source']})")
+    return t
+
+
 @router.get("/sessions/{cid}/pistes/{piste}")
 async def lire_piste(cid: str, piste: str, request: Request):
     _local(request)

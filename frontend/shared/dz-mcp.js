@@ -294,10 +294,61 @@
     jo.appendChild(tab);
     p.appendChild(jo);
 
+    // 22/11/2026 : les serveurs MCP utiles à l'app, à brancher à Claude Code (lecture seule : rien n'est lancé)
+    var ut = cadre("utiles", T("mcp.utiles.titre"));
+    ut.appendChild(el("div", { style: S.note }, T("mcp.utiles.aide")));
+    var listeUt = el("div", { "data-dz-mcp": "liste-utiles", style: "display:flex;flex-direction:column;gap:10px" });
+    ut.appendChild(listeUt);
+    p.appendChild(ut);
+    chargerUtiles(listeUt);
+
     p.__dz = { cb: cb, statut: statut, code: code, listeDem: listeDem, listeOut: listeOut, tab: tab };
     hote.appendChild(p);
     panneau = p;
     sonder(true);
+  }
+
+  function copieur(texte) {
+    var b = bouton("copier-utile", T("mcp.brancher.copier"), "dz-action-copier");
+    b.addEventListener("click", function () {
+      var fini = function () { b.lastChild.textContent = T("mcp.brancher.copie"); setTimeout(function () { b.lastChild.textContent = T("mcp.brancher.copier"); }, 1800); };
+      try { navigator.clipboard.writeText(texte).then(fini, fini); } catch (e) { fini(); }
+    });
+    return b;
+  }
+  function etatUtile(e) {
+    var t = { actif: T("mcp.utiles.etat_actif"), inactif: T("mcp.utiles.etat_inactif"), trouve: T("mcp.utiles.etat_trouve"),
+              uvx: T("mcp.utiles.etat_uvx"), absent: T("mcp.utiles.etat_absent"), branche: T("mcp.utiles.etat_branche") };
+    return t[e] || T("mcp.utiles.etat_a_brancher");
+  }
+  async function chargerUtiles(liste) {
+    vider(liste);
+    var c;
+    try { c = await appel("/catalogue"); }
+    catch (e) { liste.appendChild(el("div", { style: S.erreur }, T("mcp.utiles.erreur") + " : " + String(e.message || e))); return; }
+    (c.serveurs || []).forEach(function (s) {
+      var bon = s.etat === "actif" || s.etat === "trouve" || s.etat === "branche";
+      var bloc = el("div", { "data-dz-mcp": "utile", "data-dz-mcp-id": s.id, style: "display:flex;flex-direction:column;gap:5px;padding:8px 0;border-top:1px solid var(--brd-soft,var(--stroke,#222830))" });
+      var t = el("div", { style: S.ligne });
+      t.appendChild(el("span", { style: "font-weight:600;color:var(--txt-hi,var(--ink-strong,#e6e9ee))" }, s.nom));
+      t.appendChild(el("span", { "data-dz-mcp": "etat-utile", style: S.note + ";" + (bon ? S.ok : S.ko) }, etatUtile(s.etat)));
+      bloc.appendChild(t);
+      bloc.appendChild(el("div", { style: S.note }, s.role));
+      var m = T("mcp.utiles.ecrans") + " " + (s.ecrans || []).join(" · ") + (s.licence && s.licence !== "—" ? " — " + T("mcp.utiles.licence") + " " + s.licence : "");
+      bloc.appendChild(el("div", { style: S.note + ";font-size:11.5px" }, m));
+      if (s.commande) {
+        var lc = el("div", { style: S.ligne });
+        lc.appendChild(el("code", { style: S.code, "data-dz-brut": "1" }, s.commande));
+        lc.appendChild(copieur(s.commande));
+        bloc.appendChild(lc);
+      }
+      if (s.apres) bloc.appendChild(el("div", { style: S.note }, s.apres));
+      if (s.doc) {
+        var a = el("a", { href: s.doc, target: "_blank", rel: "noopener noreferrer", style: "font-size:12px;color:var(--accent,#2b6fd6)" }, T("mcp.utiles.doc"));
+        bloc.appendChild(a);
+      }
+      liste.appendChild(bloc);
+    });
   }
 
   async function rafraichir(p, e) {

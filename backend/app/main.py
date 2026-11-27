@@ -85,7 +85,7 @@ def _migrate_legacy_data():
 _migrate_legacy_data()
 
 from app.api.routes import router
-from app.config import settings, APP_VERSION, APP_HOSTNAME
+from app.config import settings, APP_VERSION, NOMS_ECRAN
 from app.services.storage import init_db
 # Bibliothèque #78 (03/10/2026) : un job qui DEVIENT « done » se range dans le projet actif (un écouteur SQLAlchemy,
 # parce que l'état est posé depuis plus de vingt sites). Posé à l'import, pour toute session de l'application.
@@ -191,6 +191,8 @@ async def lifespan(app: FastAPI):
     empl_task = asyncio.create_task(_EC.boucle())    # t379 : sauvegardes, miroir des rendus, index des sources (45 s, puis 60 s)
     from app.services import news_fils as _NF
     fils_task = asyncio.create_task(_NF.boucle())   # t380 : fils sociaux suivis de News, chacun à sa fréquence (90 s, puis 10 min)
+    from app.services import whatsapp_suivi as _WSU
+    alertes_task = asyncio.create_task(_WSU.boucle())   # t502 : bilan et alerte de croissance WhatsApp, RIEN sans accord (2 min, puis 30 min)
 
     async def _maj_au_demarrage():
         """Tâche #18 : une fois par lancement, 20 s après le boot, et au plus une fois par jour (cache disque).
@@ -241,7 +243,7 @@ async def lifespan(app: FastAPI):
         if warm_task:
             from app.services.heygen_service import annuler_en_vol
             annuler_en_vol()
-        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, email_task, empl_task, fils_task, maj_task, warm_task) if t])
+        await _arreter_taches([t for t in (news_task, sched_task, releve_task, purge_task, email_task, empl_task, fils_task, alertes_task, maj_task, warm_task) if t])
         # t136 : le moteur du Photolab s'arrête avec le backend (fin de stdin = fin propre de photocraft-cli serve)
         try:
             from app.services import photolab_moteur
@@ -296,6 +298,26 @@ async def _http_exception_traduite(request, exc):
             logger.warning(f"traduction d'erreur ignorée : {e}")
     return await _http_exception_handler(request, exc)
 
+# t535 (20/11/2026, couche hébergée ⑥) : un outil réservé à Windows, demandé ailleurs (le VPS) -> 501 traduit.
+from app.services.plateforme import ReserveWindows as _ReserveWindows
+from starlette.requests import Request as _Request
+
+
+@app.exception_handler(_ReserveWindows)
+async def _reserve_windows(request, exc):
+    from app import i18n as _i18n
+    return _JSONResponse({"detail": _i18n.texte(exc, _i18n.langue_requete(request)), "code": "windows_seul",
+                          "outil": exc.outil}, status_code=501)
+
+
+@app.get("/api/plateforme")
+async def _plateforme(request: _Request):
+    """t535 : {windows, indisponibles: {outil: raison traduite}} — l'écran grise ces outils."""
+    from app import i18n as _i18n
+    from app.services import plateforme as _PF
+    return _PF.etat(_i18n.langue_requete(request))
+
+
 # CORS — the Vite dev server only. A shipped install serves the UI from this
 # same origin and needs no cross-origin grant, so leaving credentialed access
 # open to :5173/:3000 would just hand any local process that binds those ports
@@ -326,7 +348,8 @@ import urllib.parse as _urlparse
 from starlette.responses import JSONResponse as _JSONResponse
 
 # + l'origine nommée deepotus.localhost (finitions UI, 20/09/2026)
-_ALLOWED_ORIGIN_HOSTS = {"127.0.0.1", "localhost", "::1", "", APP_HOSTNAME}
+# + t530 (20/11/2026) : le nom public du VPS (DEEPOTUS_HOSTNAME), servi derrière Caddy
+_ALLOWED_ORIGIN_HOSTS = {"127.0.0.1", "localhost", "::1", ""} | set(NOMS_ECRAN)
 
 
 @app.middleware("http")
@@ -417,7 +440,17 @@ _ECRITURES_OUVERTES: frozenset = frozenset({("POST", "/api/pair/claim"), ("POST"
                                             ("POST", "/api/agent/campagnes/{cid}/devis"),
                                             ("POST", "/api/agent/campagnes/{cid}/message"),
                                             ("POST", "/api/agent/campagnes/{cid}/carte/{n}"),
-                                            ("POST", "/api/agent/campagnes/{cid}/depot")})
+                                            ("POST", "/api/agent/campagnes/{cid}/depot"),
+                                            # t321 (Compagnon M4) : écriture PC n° 7 — accords saisis, STOP et envois
+                                            # WhatsApp du téléphone (idempotente par identifiant ; l'appareil du JETON)
+                                            ("POST", "/api/sync/whatsapp"),
+                                            # t322 (Compagnon M5) : un contenu neuf du téléphone en brouillon (gardes
+                                            # anti-copie rejouées par le PC, idempotent ; l'appareil du JETON)
+                                            ("POST", "/api/sync/post"),
+                                            # t323 (Compagnon M6) : écriture n° 5 — la capture du téléphone (session
+                                            # idempotente par empreinte, morceaux, clôture revérifiée ; l'appareil du JETON)
+                                            ("POST", "/api/sync/capture"), ("POST", "/api/sync/capture/{cid}/morceau/{n}"),
+                                            ("POST", "/api/sync/capture/{cid}/terminer")})
 
 
 def _ecriture_ouverte(methode: str, chemin: str) -> bool:
@@ -537,6 +570,12 @@ app.include_router(agent_campagnes_router, prefix="/api/agent/campagnes")
 # t352 (27/10/2026) : /api/veille — la veille concurrentielle d'un espace (collecte niveau 1, rapport, import)
 from app.api.veille_routes import router as veille_router
 app.include_router(veille_router, prefix="/api/veille")
+# t493 (26/11/2026) : /api/oauth/instagram — « Relier par Instagram » (Instagram Login), inerte sans application Meta
+from app.api.instagram_oauth_routes import router as instagram_oauth_router
+app.include_router(instagram_oauth_router, prefix="/api/oauth/instagram")
+# t501 (26/11/2026) : /api/instagram/commentaires — mot-clé d'appel, brouillons de réponse PUBLIQUE validés un par un
+from app.api.instagram_commentaires_routes import router as instagram_commentaires_router
+app.include_router(instagram_commentaires_router, prefix="/api/instagram/commentaires")
 # t353 (27/10/2026) : /api/prospects — la fiche Prospects d'un espace (CRM léger, RGPD), local seulement
 from app.api.prospects_routes import router as prospects_router
 app.include_router(prospects_router, prefix="/api/prospects")
@@ -552,9 +591,15 @@ app.include_router(scan_router, prefix="/api/scan")
 # t315 (28/10/2026) : /api/capture — les sessions de capture de l'app (pistes brutes, piste des clics), local seulement
 from app.api.capture_routes import router as capture_router
 app.include_router(capture_router, prefix="/api/capture")
+# t323 (26/11/2026) : /api/sync/capture et /api/sync/skin — la capture faite sur le téléphone (écriture n° 5, jeton exigé)
+from app.api.sync_capture_routes import router as sync_capture_router
+app.include_router(sync_capture_router, prefix="/api")
 # t316 (28/10/2026) : /api/skins — les skins qui habillent la scène de la capture (cadre, bandeau, intro, alertes…), local seulement
 from app.api.skins_routes import router as skins_router
 app.include_router(skins_router, prefix="/api/skins")
+# SV1 (14/11/2026) : /api/studiov — le studio virtuel 3D (décors en volume de la capture et du live), local seulement
+from app.api.studiov_routes import router as studiov_router
+app.include_router(studiov_router, prefix="/api/studiov")
 # t317 (28/10/2026) : /api/capture-montage — le montage après coup des captures (zooms, coupes, chapitres, format), local seulement
 from app.api.capture_montage_routes import router as capture_montage_router
 app.include_router(capture_montage_router, prefix="/api/capture-montage")
@@ -564,6 +609,12 @@ app.include_router(live_router, prefix="/api/live")
 # t313 (28/10/2026) : /api/inspiration — d'une inspiration à un contenu NEUF (matière, angles, devis, brouillon), local seulement
 from app.api.inspiration_routes import router as inspiration_router
 app.include_router(inspiration_router, prefix="/api/inspiration")
+# t497 + t495 (26/11/2026) : /api/croissance — la note avant publication d'un rendu (estimation en deux étages), le fil des gagnants de la niche et « pourquoi ça marche » (Claude sur devis), local seulement
+from app.api.croissance_routes import router as croissance_router
+app.include_router(croissance_router, prefix="/api/croissance")
+# t498 (26/11/2026) : /api/recyclage — recycler un gagnant (carrousel, accroches, fil X, branche), local seulement
+from app.api.recyclage_routes import router as recyclage_router
+app.include_router(recyclage_router, prefix="/api/recyclage")
 # t314 (28/10/2026) : /api/schema — illustration ou schéma -> calques nommés (Vectorlab) -> base d'animation, local seulement
 from app.api.schema_routes import router as schema_router
 app.include_router(schema_router, prefix="/api/schema")
@@ -631,6 +682,9 @@ app.include_router(mcp_router, prefix="/api/mcp")
 # t380 (30/10/2026) : /api/news/fils — fils sociaux suivis de News (flux gratuits, Apify sous accord), suggestions des agents ; local seulement
 from app.api.news_fils_routes import router as news_fils_router
 app.include_router(news_fils_router, prefix="/api/news/fils")
+# t503 (26/11/2026) : /api/styles-reel — bibliothèque de styles de reel nommés, lecture et devis gratuit ; local seulement
+from app.api.styles_reel_routes import router as styles_reel_router
+app.include_router(styles_reel_router, prefix="/api/styles-reel")
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
@@ -993,6 +1047,9 @@ if _WHATSAPP_DIR.is_dir():
     async def _whatsapp_no_slash():
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/whatsapp/", status_code=307)
+else:   # 26/11 : jamais muet — une installation sans la page WhatsApp le dit au journal
+    from loguru import logger as _lg_wa
+    _lg_wa.error(f"WhatsApp : la page {_WHATSAPP_DIR} est absente de l'installation, /whatsapp n'est pas servi")
 
 # ── /lib3d : le canevas 3D PARTAGÉ (Établi aujourd'hui, Plateau le jour où) ──
 _lib3d = Path(__file__).resolve().parent.parent.parent / "frontend" / "lib3d"

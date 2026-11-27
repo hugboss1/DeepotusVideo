@@ -56,7 +56,8 @@
     "vectorlab.deformer.poignee_coin",
     "vectorlab.motifs.d_liste",
     "vectorlab.pinceaux.d_nouveau",
-    "vectorlab.recolorer.d_titre"
+    "vectorlab.recolorer.d_titre",
+    "studiov.cat.deja"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"

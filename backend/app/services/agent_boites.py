@@ -63,6 +63,16 @@ BOITES: dict[str, dict] = {
         "agents": ["campagnes"],
         "mobile": False,
     },
+    # t496 (G6, 26/11/2026) : la boucle de croissance de l'agent Campagnes (script court contrôlé) ; t499 (G9) : + les
+    # gagnants de la niche, les mesures (multiplicateur), la note d'un rendu, le recyclage d'un gagnant (cartes de devis)
+    # et les apprentissages de l'espace ; ouverte au téléphone. Aucun outil pour mettre en ligne.
+    "croissance": {
+        "libelle": "agent.boites.croissance",
+        "outils": ["ecrire_script_court", "lire_gagnants", "lire_mesures", "noter_rendu", "proposer_recyclage",
+                   "ecrire_apprentissages"],
+        "agents": ["campagnes"],
+        "mobile": True,
+    },
     # t312 : lire le texte d'une image de la Bibliothèque ; aucun agent ne la déclare encore (§11 bis)
     # t313 : + l'inspiration vers un contenu neuf (angles_inspiration en lecture, deviser_contenu_neuf en carte)
     # t314 : + calques_illustration (carte : schéma -> calques nommés du Vectorlab, devis du détourage)
@@ -124,6 +134,14 @@ BOITES: dict[str, dict] = {
                    "publicitaire", "artiste_2d", "artiste_3d", "editeur_illustre"],
         "mobile": False,
     },
+    # t503 (26/11/2026, lot G13) : les styles de reel nommés et leur devis gratuit (lecture) ; Claude Code (« mcp »)
+    # seulement ; Campagnes reste figé (fixture)
+    "styles_reel": {
+        "libelle": "agent.boites.styles_reel",
+        "outils": ["styles_reel_lire"],
+        "agents": ["mcp"],
+        "mobile": False,
+    },
     # t434 (08/11/2026, lot M1) : les briques transverses des agents métier (mesures, comparaison, ancres, registre),
     # en lecture et gratuites ; Claude Code (« mcp ») les lit ; les agents métier des lots M2-M9 les déclareront
     "briques": {
@@ -177,6 +195,13 @@ BOITES: dict[str, dict] = {
         "libelle": "agent.boites.web3d",
         "outils": ["rapport_web_glb"],
         "agents": ["artiste_3d"],
+        "mobile": False,
+    },
+    # 22/11/2026 : l'animation faciale (lecture, locale, gratuite : prépare, ne touche pas Blender)
+    "visage": {
+        "libelle": "agent.boites.visage",
+        "outils": ["visage_preparer"],
+        "agents": ["realisateur", "directeur_acteurs", "artiste_3d", "publicitaire"],
         "mobile": False,
     },
     # t442 (08/11/2026, lot M9) : B6, l'Arbitre — outil commun de TOUS les agents métier (lecture, gratuit)

@@ -921,6 +921,16 @@ async def _pub_telegram(caption, video_path, image_path, meta) -> PublishResult:
 
 
 async def _pub_x(caption, video_path, image_path, meta) -> PublishResult:
+    # t500 (G10) : l'API X est payante à l'usage (un post, plus cher avec un lien, et son média) : la garde « x » AVANT
+    # l'envoi ; au plafond X du mois, rien ne part et c'est dit
+    from fastapi import HTTPException
+    from app.services import croissance_x as CX
+    try:
+        await CX.garder_publication([caption or ""], 1 if (video_path or image_path) else 0,
+                                    (meta or {}).get("espace_id"))
+    except HTTPException as e:
+        d = e.detail.get("dz_plafond", {}) if isinstance(e.detail, dict) else {}
+        return PublishResult(False, "x: plafond de dépense atteint — " + str(d.get("message") or e.detail)[:300])
     ok, detail, tid = await publish_x(caption, video_path=video_path,
                                       image_path=image_path, reply_to=meta.get("reply_to"))
     return PublishResult(ok, f"x: {detail}", tid)
@@ -1184,6 +1194,11 @@ async def tick(marker: list[str | None] | None = None) -> None:
                 logger.info(f"metrics refreshed: {n}")
         except Exception as e:
             logger.warning(f"metrics pass failed: {e}")
+        try:                     # t493 (26/11/2026) : jetons « Instagram Login » à moins de 10 j de l'échéance
+            from app.services import instagram_oauth as _igo
+            await _igo.renouveler_dus()
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"renouvellement Instagram : {type(e).__name__}")
     async with async_session_factory() as session:
         res = await session.execute(
             select(ScheduledPost)

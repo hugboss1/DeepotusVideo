@@ -36,10 +36,12 @@ DEFAUTS = {"global_usd": 0.0, "par_moteur": {}, "alerte_pct": 80}
 # t285a (23/10/2026) : « campagnes » (l'agent interne : un tour de boucle, un rendu de campagne).
 # t310 (27/10/2026) : « whatsapp » (les messages livrés par Meta via Kapso, moteur « meta » du registre).
 # t311 (27/10/2026) : « whatsapp_agent » (les appels du modèle de l'agent WhatsApp d'un espace, Anthropic).
+# t500 (26/11/2026) : « x » (l'API X payante à l'usage : relevés de public_metrics et mises en ligne ; moteur « x »,
+# dont le plafond par moteur est le plafond X propre, posé depuis l'écran Croissance).
 CATEGORIES = ("quick", "studio", "chapitres", "son", "montage", "news", "scheduler", "bibliotheque", "sprites",
               "tuiles", "matieres", "cartes", "moteurs3d", "marketing", "atelier", "vectorlab", "reglages",
               "dictee", "direct", "photolab", "aide", "motion", "mobile", "campagnes", "whatsapp",
-              "whatsapp_agent")
+              "whatsapp_agent", "x")
 
 CONFIRME: ContextVar[bool] = ContextVar("dz_plafond_confirme", default=False)
 

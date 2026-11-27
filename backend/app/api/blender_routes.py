@@ -12,6 +12,9 @@ le compagnon mobile même appairé (sa garde de jeton n'ouvre que des GET ; ici 
   POST /regard/{id}/garder           → Bibliothèque (source « blender », recette + licences des assets importés)
   POST /plan/{shot}/envoyer {elements}  les GABARITS (caméra + focale, 3 points, blocking, clés) depuis la scène du
                                      Plateau du plan — aucun code dans le corps, seulement des éléments à cocher
+  POST /visage {texte|rhubarb|audio, expressions, mode…}   22/11/2026 — anime le VISAGE d'un personnage du Blender
+                                     ouvert (visage_blender : clés de forme, os du visage ou clés DZ_ sculptées)
+  POST /visage/fichier {source, …}   la même animation, Blender en arrière-plan → outputs/blender/visage/<id>.blend/.glb
   POST /nettoyer                     retire la collection DZ_Deepotus (les objets posés par l'app, rien d'autre)
   POST /assets/chercher {source, query…}   search_assets (licences gardées)
   POST /assets/importer {source, id…}      import_asset (provenance notée : licence, auteur, attribution, objets)
@@ -58,13 +61,13 @@ def _refus(request: Request, e: BM.RefusBlender) -> HTTPException:
 
 def _ecran(request: Request) -> None:
     """Un réglage qui choisit un exécutable vient du navigateur de l'app (Origin local), jamais d'un client natif."""
-    from app.config import APP_HOSTNAME
+    from app.config import NOMS_ECRAN  # t530 : + le nom public du VPS
     o = request.headers.get("origin") or ""
     try:
         h = (urllib.parse.urlparse(o).hostname or "").lower() if o else ""
     except ValueError:
         h = ""
-    if not h or h not in (_HOTES_ECRAN | {APP_HOSTNAME}):
+    if not h or h not in (_HOTES_ECRAN | NOMS_ECRAN):
         raise HTTPException(403, i18n.msg("blender.ecran_requis", _lang(request)))
 
 
@@ -437,6 +440,76 @@ async def appliquer(shot_id: str, rid: str, request: Request, body: dict | None 
         r.updated_at = datetime.utcnow()
         await s.commit()
     return {"applique": True, "proposition": prop, "scene": sc["id"]}
+
+
+# ── 22/11/2026 : animation FACIALE (services/visage_blender.py) ────────────────────────────────────────────────────
+_CLES_VISAGE = {"texte", "rhubarb", "audio", "expressions", "clignements", "mode", "objet", "armature", "face",
+                "reperes", "amplitude", "intensite_bouche", "os_reglages", "fps", "debut_image", "graine"}
+
+
+def _params_visage(request: Request, b: dict, **extra) -> dict:
+    """Le corps ne porte que des DONNÉES (texte, visèmes, réglages) : tout est re-vérifié par visage_blender ; un
+    audio est un .wav du dossier de données (briques.confiner)."""
+    from app.services import briques as BR
+    from app.services import visage_blender as VB
+    inconnues = set(b) - _CLES_VISAGE - {"source"}
+    if inconnues:
+        raise HTTPException(400, i18n.msg("blender.argument", _lang(request), nom=", ".join(sorted(inconnues))[:80]))
+    kw = {k: b[k] for k in _CLES_VISAGE if k in b and k != "audio"}
+    if b.get("audio"):
+        try:
+            w = BR.confiner(str(b["audio"]))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        if w.suffix.lower() != ".wav":
+            raise HTTPException(400, i18n.msg("blender.gabarit", _lang(request), msg="audio : un fichier .wav"))
+        kw["wav"] = str(w)
+    if not any(k in kw for k in ("texte", "rhubarb", "wav", "expressions")):
+        raise HTTPException(400, i18n.msg("blender.gabarit", _lang(request), msg="texte, rhubarb, audio ou expressions"))
+    try:
+        return VB.parametres(**kw, **extra)
+    except (VB.VisageRefuse, TypeError, ValueError) as e:
+        raise HTTPException(400, i18n.msg("blender.gabarit", _lang(request), msg=str(e)[:200]))
+
+
+@router.post("/visage")
+async def visage(request: Request, body: dict | None = None):
+    """Anime le visage d'un personnage du Blender OUVERT (pont MCP) : lèvres sur le texte / Rhubarb / audio,
+    expressions, clignements. Local, gratuit ; rien d'autre que le gabarit de visage_blender ne part."""
+    _require_localhost(request)
+    params = _params_visage(request, body if isinstance(body, dict) else {})
+    r = await _fil(request, BM.executer_visage, params)
+    return {"images": params["images"], "commandes": sorted(params["controles"]), "resume": r["resume"]}
+
+
+@router.post("/visage/fichier")
+async def visage_fichier(request: Request, body: dict | None = None):
+    """Même animation, Blender en ARRIÈRE-PLAN, sur un fichier du dossier de données (`source` : .blend, ou .glb /
+    .fbx d'un personnage généré) ; rend un .blend et un .glb (morphes animés) sous outputs/blender/visage/."""
+    _require_localhost(request)
+    import uuid
+    from app.services import briques as BR
+    from app.services import visage_blender as VB
+    b = body if isinstance(body, dict) else {}
+    try:
+        src = BR.confiner(str(b.get("source") or ""))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if src.suffix.lower() not in (".blend", ".glb", ".gltf", ".fbx"):
+        raise HTTPException(400, i18n.msg("blender.gabarit", _lang(request), msg="source : .blend, .glb ou .fbx"))
+    vid = uuid.uuid4().hex[:12]
+    d = settings.outputs_path / "blender" / "visage"
+    d.mkdir(parents=True, exist_ok=True)
+    sortie_blend, sortie_glb = d / f"{vid}.blend", d / f"{vid}.glb"
+    est_blend = src.suffix.lower() == ".blend"
+    params = _params_visage(request, b, sortie_blend=str(sortie_blend), sortie_glb=str(sortie_glb),
+                            source="" if est_blend else str(src))
+    try:
+        res = await asyncio.to_thread(VB.animer_fichier, params, str(src) if est_blend else None)
+    except VB.VisageRefuse as e:
+        raise HTTPException(503, i18n.msg("blender.gabarit", _lang(request), msg=str(e)[:200]))
+    return {"id": vid, "resume": res, "blend": f"outputs/blender/visage/{vid}.blend" if sortie_blend.exists() else None,
+            "glb": f"outputs/blender/visage/{vid}.glb" if sortie_glb.exists() else None}
 
 
 @router.post("/nettoyer")

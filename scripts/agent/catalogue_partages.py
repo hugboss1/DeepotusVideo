@@ -52,6 +52,14 @@ PARTAGES = {
     "frontend/shared/dz-capture.js": ("capture.",),
     # t316 (28/10/2026) : les skins de la capture (groupe « Habillage » de la boîte de départ, éditeur de skins)
     "frontend/shared/dz-skins.js": ("skins.",),
+    # SVC (15/11/2026) : le studio virtuel — son entrée dans la boîte de la capture (« Voir les décors »), « Personnaliser
+    # ce décor » et l'onglet « Catalogue » du panneau Décorer (produits réels). Les autres onglets du décorateur entrent
+    # avec le lot SV10.
+    # SVR (15/11/2026) : la régie de l'écran (onglet « Écran », barre de régie de la prise) et « Remplacer… »
+    "frontend/shared/dz-studiov.js": ("studiov.cat.", "studiov.deco.onglet.catalogue", "studiov.capture.apercu",
+                                      "studiov.deco.personnaliser", "studiov.regie.", "studiov.deco.remplacer"),
+    # SVR : le texte d'une prise et le prompteur (groupe de la boîte de la capture, prompteur, « Textes des prises »)
+    "frontend/shared/dz-prompteur.js": ("prompteur.",),
     # t317 (28/10/2026) : le montage après coup des captures (entrées des boîtes de la capture, liste, éditeur)
     "frontend/shared/dz-montage-capture.js": ("montagecap.",),
     # t318 (28/10/2026) : le direct (bouton de la barre, boîte « Passer en direct », panneau du direct)

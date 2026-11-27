@@ -106,7 +106,8 @@ def main():
     o = set(B.outils_pour("publicitaire"))
     attendu = {"verifier_format_pub", "temps_forts_musique", "caler_coupes", "poser_titre", "chaines_lire",
                "deviser_etape_chaine", "methodes_lire", "modeles_lister", "modele_fiche", "recommander_modele", "verifier_prompt", "mesurer_sortie", "comparer_sorties", "ancres_lire",
-               "ancre_verifier", "registre_lire", "arbitrer_sorties"}
+               "ancre_verifier", "registre_lire", "arbitrer_sorties",
+               "visage_preparer"}   # 22/11/2026 : boîte « visage »
     check("B1 formats + gestes du Monteur + méthodes + briques — exactement", o == attendu, sorted(o ^ attendu))
     check("B2 rien de Campagnes ; registre sain", not o & set(B.outils_pour("campagnes")) and B.verifier() == [],
           B.verifier())

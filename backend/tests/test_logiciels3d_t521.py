@@ -44,7 +44,7 @@ for k in CLES:
           k in _ALLOWED_ENV_KEYS and SR.rubrique_de(k) == "moteurs")
 check("1.2 la rubrique existe pour la recherche des Réglages", "moteurs" in SR._RUBRIQUES
       and any(s == "moteurs" for s, _l, _m in SR._INDEX_FIXE))
-check("1.3 deux logiciels dans ce lot, Blender puis Godot", list(L.LOGICIELS) == ["blender", "godot"])
+check("1.3 Blender puis Godot dans la liste (lot 2 : cinq cartes)", list(L.LOGICIELS)[:1] == ["blender"] and "godot" in L.LOGICIELS)
 check("1.4 Godot a un exécutable ET un dossier de projet",
       [c["cle"] for c in L.LOGICIELS["godot"]["champs"]] == ["GODOT_PATH", "GODOT_PROJECT_DIR"])
 
@@ -144,8 +144,8 @@ L._executer = faux_executer
 g = c.get("/api/reglages/logiciels3d")
 j = g.json() if g.status_code == 200 else {}
 check("5.1 GET : les deux logiciels, leurs champs et leurs valeurs", g.status_code == 200
-      and [x["id"] for x in j.get("logiciels", [])] == ["blender", "godot"]
-      and j["logiciels"][1]["champs"][0]["valeur"] == str(exe_g), g.text[:300])
+      and [x["id"] for x in j.get("logiciels", [])] == list(L.LOGICIELS)
+      and [x for x in j["logiciels"] if x["id"] == "godot"][0]["champs"][0]["valeur"] == str(exe_g), g.text[:300])
 t = c.post("/api/reglages/logiciels3d/tester", json={"id": "godot"}, headers={"Accept-Language": "en"})
 check("5.2 POST tester, EN", t.status_code == 200 and t.json()["ok"] is True and "Godot" in t.json()["message"]
       and "projet" not in t.json()["message"], t.text[:300])
@@ -186,8 +186,8 @@ sys.path.insert(0, str(RACINE / "scripts"))
 sys.path.insert(0, str(_ICI))
 import _i18n_l1_aide as AIDE                                          # noqa: E402
 import patch_bundle_dzlogiciels3d as PM                               # noqa: E402
-# fusion 14/11 : dzplanifaff est rejoué APRÈS dzlogiciels3d ; l'inverse le défait d'abord
-_sans_aval = AIDE.avant_dzplanifaff(B)
+# t493 (26/11) : dziglogin est posé APRÈS dzlogiciels3d ; l'inverse le défait d'abord
+_sans_aval = AIDE.avant_dziglogin(B)
 check("6.8 avant_dzlogiciels3d == defaire (maillon aval défait d'abord), sans marqueur rendu tel quel",
       AIDE.avant_dzlogiciels3d(B) == PM.defaire(_sans_aval)
       and AIDE.avant_dzlogiciels3d(PM.defaire(_sans_aval)) == PM.defaire(_sans_aval))

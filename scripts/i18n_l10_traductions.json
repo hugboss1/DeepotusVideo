@@ -13195,6 +13195,10 @@
   "fr": "dossier : chemin absolu requis (C:\\…, Z:\\… ou \\\\NAS\\partage\\…)",
   "en": "folder: absolute path required (C:\\…, Z:\\… or \\\\NAS\\share\\…)"
  },
+ "dossier : chemin absolu requis (/srv/…, /depot)": {
+  "fr": "dossier : chemin absolu requis (/srv/…, /depot)",
+  "en": "folder: absolute path required (/srv/…, /depot)"
+ },
  "dossier : chemin UNC incomplet (\\\\serveur\\partage\\…)": {
   "fr": "dossier : chemin UNC incomplet (\\\\serveur\\partage\\…)",
   "en": "folder: incomplete UNC path (\\\\server\\share\\…)"
@@ -14718,5 +14722,525 @@
  "logiciel inconnu": {
   "fr": "logiciel inconnu",
   "en": "unknown software"
+ },
+ "Identifiant de décor invalide.": {
+  "fr": "Identifiant de décor invalide.",
+  "en": "Invalid set identifier."
+ },
+ "Décor introuvable.": {
+  "fr": "Décor introuvable.",
+  "en": "Set not found."
+ },
+ "Décor illisible.": {
+  "fr": "Décor illisible.",
+  "en": "Unreadable set."
+ },
+ "Trop de décors : supprimez-en un d'abord.": {
+  "fr": "Trop de décors : supprimez-en un d'abord.",
+  "en": "Too many sets: delete one first."
+ },
+ "Ce décor appartient à un autre espace.": {
+  "fr": "Ce décor appartient à un autre espace.",
+  "en": "This set belongs to another space."
+ },
+ "Un décor livré ne se modifie pas : dupliquez-le d'abord.": {
+  "fr": "Un décor livré ne se modifie pas : dupliquez-le d'abord.",
+  "en": "A built-in set cannot be edited: duplicate it first."
+ },
+ "Décor illisible : un objet JSON est attendu.": {
+  "fr": "Décor illisible : un objet JSON est attendu.",
+  "en": "Unreadable set: a JSON object is expected."
+ },
+ "Un décor livré ne se supprime pas.": {
+  "fr": "Un décor livré ne se supprime pas.",
+  "en": "A built-in set cannot be deleted."
+ },
+ "Décor non fabriqué.": {
+  "fr": "Décor non fabriqué.",
+  "en": "This set has not been built."
+ },
+ "Matière ou carte inconnue.": {
+  "fr": "Matière ou carte inconnue.",
+  "en": "Unknown material or map."
+ },
+ "Blender est introuvable : indiquez son chemin dans Réglages › Moteurs et logiciels 3D.": {
+  "fr": "Blender est introuvable : indiquez son chemin dans Réglages › Moteurs et logiciels 3D.",
+  "en": "Blender was not found: set its path in Settings › 3D engines and software."
+ },
+ "Indiquez le chemin d'un fichier .blend.": {
+  "fr": "Indiquez le chemin d'un fichier .blend.",
+  "en": "Enter the path of a .blend file."
+ },
+ "Fichier .blend introuvable.": {
+  "fr": "Fichier .blend introuvable.",
+  "en": ".blend file not found."
+ },
+ "La cuisson a pris trop de temps : essayez une matière à la fois.": {
+  "fr": "La cuisson a pris trop de temps : essayez une matière à la fois.",
+  "en": "Baking took too long: try one material at a time."
+ },
+ "Blender n'a pas pu être lancé.": {
+  "fr": "Blender n'a pas pu être lancé.",
+  "en": "Blender could not be started."
+ },
+ "Blender n'a pas pu lire ce fichier.": {
+  "fr": "Blender n'a pas pu lire ce fichier.",
+  "en": "Blender could not read this file."
+ },
+ "La cuisson n'a rien produit : la matière existe-t-elle dans ce fichier ?": {
+  "fr": "La cuisson n'a rien produit : la matière existe-t-elle dans ce fichier ?",
+  "en": "Baking produced nothing: does the material exist in this file?"
+ },
+ "Module inconnu.": {
+  "fr": "Module inconnu.",
+  "en": "Unknown module."
+ },
+ "Choisissez l'objet à sortir de Blender.": {
+  "fr": "Choisissez l'objet à sortir de Blender.",
+  "en": "Pick the object to export from Blender."
+ },
+ "Blender n'a rien exporté : l'objet existe-t-il dans ce fichier ?": {
+  "fr": "Blender n'a rien exporté : l'objet existe-t-il dans ce fichier ?",
+  "en": "Blender exported nothing: does the object exist in this file?"
+ },
+ "Ce fichier n'est pas un modèle GLB.": {
+  "fr": "Ce fichier n'est pas un modèle GLB.",
+  "en": "This file is not a GLB model."
+ },
+ "Modèle trop lourd : 30 Mo au plus.": {
+  "fr": "Modèle trop lourd : 30 Mo au plus.",
+  "en": "Model too large: 30 MB at most."
+ },
+ "Modèle GLB illisible (version 2 attendue).": {
+  "fr": "Modèle GLB illisible (version 2 attendue).",
+  "en": "Unreadable GLB model (version 2 expected)."
+ },
+ "Ce modèle est compressé (Draco ou Basis) : exportez-le en GLB sans cette compression.": {
+  "fr": "Ce modèle est compressé (Draco ou Basis) : exportez-le en GLB sans cette compression.",
+  "en": "This model is compressed (Draco or Basis): export it as a GLB without that compression."
+ },
+ "Ce modèle ne contient aucune surface à afficher.": {
+  "fr": "Ce modèle ne contient aucune surface à afficher.",
+  "en": "This model has no surface to display."
+ },
+ "Modèle trop lourd pour un décor en direct : {triangles} triangles (plafond : {MAX_TRIANGLES}).": {
+  "fr": "Modèle trop lourd pour un décor en direct : {triangles} triangles (plafond : {MAX_TRIANGLES}).",
+  "en": "Model too heavy for a live set: {triangles} triangles (limit: {MAX_TRIANGLES})."
+ },
+ "Licence refusée : elle interdit l'usage commercial, donc une vidéo publiée sur une chaîne.": {
+  "fr": "Licence refusée : elle interdit l'usage commercial, donc une vidéo publiée sur une chaîne.",
+  "en": "Licence refused: it forbids commercial use, hence a video published on a channel."
+ },
+ "Licence refusée : elle interdit de modifier le modèle, donc de l'habiller.": {
+  "fr": "Licence refusée : elle interdit de modifier le modèle, donc de l'habiller.",
+  "en": "Licence refused: it forbids modifying the model, hence dressing it."
+ },
+ "Licence refusée : elle impose de publier la vidéo sous la même licence.": {
+  "fr": "Licence refusée : elle impose de publier la vidéo sous la même licence.",
+  "en": "Licence refused: it requires publishing the video under the same licence."
+ },
+ "Licence refusée : elle interdit de sortir le fichier du service d'origine.": {
+  "fr": "Licence refusée : elle interdit de sortir le fichier du service d'origine.",
+  "en": "Licence refused: it forbids taking the file out of its original service."
+ },
+ "Identifiant d'objet invalide.": {
+  "fr": "Identifiant d'objet invalide.",
+  "en": "Invalid object identifier."
+ },
+ "Objet illisible.": {
+  "fr": "Objet illisible.",
+  "en": "Unreadable object."
+ },
+ "Objet introuvable.": {
+  "fr": "Objet introuvable.",
+  "en": "Object not found."
+ },
+ "Ce GLB renvoie à des fichiers voisins : exportez un GLB autonome (tout dans un seul fichier).": {
+  "fr": "Ce GLB renvoie à des fichiers voisins : exportez un GLB autonome (tout dans un seul fichier).",
+  "en": "This GLB points to sibling files: export a self-contained GLB (everything in one file)."
+ },
+ "Bibliothèque d'objets pleine : supprimez-en un d'abord.": {
+  "fr": "Bibliothèque d'objets pleine : supprimez-en un d'abord.",
+  "en": "Object library full: delete one first."
+ },
+ "Cet objet est posé dans {emploi} décor(s) : retirez-le d'abord de « {v} ».": {
+  "fr": "Cet objet est posé dans {emploi} décor(s) : retirez-le d'abord de « {v} ».",
+  "en": "This object is placed in {emploi} set(s): remove it from \"{v}\" first."
+ },
+ "L'objet n'a pas pu être enregistré.": {
+  "fr": "L'objet n'a pas pu être enregistré.",
+  "en": "The object could not be saved."
+ },
+ "Nom de fichier invalide.": {
+  "fr": "Nom de fichier invalide.",
+  "en": "Invalid file name."
+ },
+ "Image introuvable dans la Bibliothèque.": {
+  "fr": "Image introuvable dans la Bibliothèque.",
+  "en": "Image not found in the Library."
+ },
+ "Identifiant d'image invalide.": {
+  "fr": "Identifiant d'image invalide.",
+  "en": "Invalid image identifier."
+ },
+ "Trop d'images dans le studio : retirez-en une d'abord.": {
+  "fr": "Trop d'images dans le studio : retirez-en une d'abord.",
+  "en": "Too many images in the studio: remove one first."
+ },
+ "L'image n'a pas pu être enregistrée.": {
+  "fr": "L'image n'a pas pu être enregistrée.",
+  "en": "The image could not be saved."
+ },
+ "Cette image est posée dans {noms} décor(s) : retirez-la d'abord de « {v} ».": {
+  "fr": "Cette image est posée dans {noms} décor(s) : retirez-la d'abord de « {v} ».",
+  "en": "This image is placed in {noms} set(s): remove it from \"{v}\" first."
+ },
+ "Modèle 3D introuvable dans la Bibliothèque.": {
+  "fr": "Modèle 3D introuvable dans la Bibliothèque.",
+  "en": "3D model not found in the Library."
+ },
+ "Le catalogue en ligne ne répond pas : réessayez plus tard.": {
+  "fr": "Le catalogue en ligne ne répond pas : réessayez plus tard.",
+  "en": "The online catalogue is not responding: try again later."
+ },
+ "Ce fichier n'est plus dans le catalogue en ligne.": {
+  "fr": "Ce fichier n'est plus dans le catalogue en ligne.",
+  "en": "This file is no longer in the online catalogue."
+ },
+ "Fichier du catalogue plus lourd qu'attendu : téléchargement arrêté.": {
+  "fr": "Fichier du catalogue plus lourd qu'attendu : téléchargement arrêté.",
+  "en": "Catalogue file heavier than expected: download stopped."
+ },
+ "Catalogue en ligne injoignable : vérifiez la connexion à Internet.": {
+  "fr": "Catalogue en ligne injoignable : vérifiez la connexion à Internet.",
+  "en": "Online catalogue unreachable: check the Internet connection."
+ },
+ "La liste reçue n'est pas le catalogue attendu : réessayez plus tard.": {
+  "fr": "La liste reçue n'est pas le catalogue attendu : réessayez plus tard.",
+  "en": "The list received is not the expected catalogue: try again later."
+ },
+ "Le catalogue n'a pas pu être enregistré.": {
+  "fr": "Le catalogue n'a pas pu être enregistré.",
+  "en": "The catalogue could not be saved."
+ },
+ "Le catalogue n'est pas encore chargé.": {
+  "fr": "Le catalogue n'est pas encore chargé.",
+  "en": "The catalogue is not loaded yet."
+ },
+ "Produit inconnu du catalogue.": {
+  "fr": "Produit inconnu du catalogue.",
+  "en": "Product not found in the catalogue."
+ },
+ "Vignette illisible.": {
+  "fr": "Vignette illisible.",
+  "en": "Unreadable thumbnail."
+ },
+ "Le modèle reçu n'est pas celui du catalogue : téléchargement abandonné.": {
+  "fr": "Le modèle reçu n'est pas celui du catalogue : téléchargement abandonné.",
+  "en": "The model received is not the one in the catalogue: download abandoned."
+ },
+ "Vidéo introuvable dans la Bibliothèque.": {
+  "fr": "Vidéo introuvable dans la Bibliothèque.",
+  "en": "Video not found in the Library."
+ },
+ "Le texte de la prise est vide.": {
+  "fr": "Le texte de la prise est vide.",
+  "en": "The take script is empty."
+ },
+ "Cette prise n'a pas de texte.": {
+  "fr": "Cette prise n'a pas de texte.",
+  "en": "This take has no script."
+ },
+ "Cette capture a été abandonnée.": {
+  "fr": "Cette capture a été abandonnée.",
+  "en": "This recording was abandoned."
+ },
+ "Aperçu de la vidéo indisponible.": {
+  "fr": "Aperçu de la vidéo indisponible.",
+  "en": "Video preview unavailable."
+ },
+ "Identifiant de vidéo invalide.": {
+  "fr": "Identifiant de vidéo invalide.",
+  "en": "Invalid video identifier."
+ },
+ "Cette vidéo n'est plus dans la Bibliothèque.": {
+  "fr": "Cette vidéo n'est plus dans la Bibliothèque.",
+  "en": "This video is no longer in the Library."
+ },
+ "Vidéo introuvable.": {
+  "fr": "Vidéo introuvable.",
+  "en": "Video not found."
+ },
+ "Trop de vidéos gardées pour la régie : retirez-en une d'abord.": {
+  "fr": "Trop de vidéos gardées pour la régie : retirez-en une d'abord.",
+  "en": "Too many videos kept for the control room: remove one first."
+ },
+ "Cette vidéo est dans la régie de {emploi} décor(s) : retirez-la d'abord de « {v} ».": {
+  "fr": "Cette vidéo est dans la régie de {emploi} décor(s) : retirez-la d'abord de « {v} ».",
+  "en": "This video is in the control room of {emploi} set(s): remove it from \"{v}\" first."
+ },
+ "La vidéo n'a pas pu être gardée.": {
+  "fr": "La vidéo n'a pas pu être gardée.",
+  "en": "The video could not be kept."
+ },
+ "le modèle de validation doit être de catégorie UTILITY (un modèle marketing ne sert pas à faire valider une publication)": {
+  "fr": "le modèle de validation doit être de catégorie UTILITY (un modèle marketing ne sert pas à faire valider une publication)",
+  "en": "the validation template must be in the UTILITY category (a marketing template cannot be used to approve a post)"
+ },
+ "methode inconnue : {methode} ({v})": {
+  "fr": "methode inconnue : {methode} ({v})",
+  "en": "unknown method: {methode} ({v})"
+ },
+ "la méthode {methode} ne vaut que pour une planche de personnage": {
+  "fr": "la méthode {methode} ne vaut que pour une planche de personnage",
+  "en": "the {methode} method only applies to a character sheet"
+ },
+ "face_maitre introuvable : {face_maitre}": {
+  "fr": "face_maitre introuvable : {face_maitre}",
+  "en": "face_maitre not found: {face_maitre}"
+ },
+ "face_maitre ne vaut que pour une planche de personnage": {
+  "fr": "face_maitre ne vaut que pour une planche de personnage",
+  "en": "face_maitre only applies to a character sheet"
+ },
+ "la méthode « ancre_multi » demande un générateur à références multiples (Nano Banana…) : {provider} n'en prend qu'une": {
+  "fr": "la méthode « ancre_multi » demande un générateur à références multiples (Nano Banana…) : {provider} n'en prend qu'une",
+  "en": "the “ancre_multi” method needs a multi-reference generator (Nano Banana…): {provider} only takes one"
+ },
+ "{moteur}.target_polycount : sans effet quand should_remesh est coupé (activer le remaillage, ou ne pas fixer de polycount)": {
+  "fr": "{moteur}.target_polycount : sans effet quand should_remesh est coupé (activer le remaillage, ou ne pas fixer de polycount)",
+  "en": "{moteur}.target_polycount: no effect when should_remesh is off (turn remeshing on, or do not set a polycount)"
+ },
+ "Vidéo attendue : MP4, MOV, M4V, WEBM ou MKV.": {
+  "fr": "Vidéo attendue : MP4, MOV, M4V, WEBM ou MKV.",
+  "en": "Video expected: MP4, MOV, M4V, WEBM or MKV."
+ },
+ "Vidéo trop lourde : 300 Mo au plus.": {
+  "fr": "Vidéo trop lourde : 300 Mo au plus.",
+  "en": "Video too large: 300 MB at most."
+ },
+ "Vidéo illisible : ffmpeg n'y trouve aucune image.": {
+  "fr": "Vidéo illisible : ffmpeg n'y trouve aucune image.",
+  "en": "Unreadable video: ffmpeg finds no frame in it."
+ },
+ "Vidéo trop longue : 10 minutes au plus.": {
+  "fr": "Vidéo trop longue : 10 minutes au plus.",
+  "en": "Video too long: 10 minutes at most."
+ },
+ "ffmpeg est introuvable : la vidéo ne peut pas être mesurée.": {
+  "fr": "ffmpeg est introuvable : la vidéo ne peut pas être mesurée.",
+  "en": "ffmpeg cannot be found: the video cannot be measured."
+ },
+ "Cette inspiration n'est pas une vidéo.": {
+  "fr": "Cette inspiration n'est pas une vidéo.",
+  "en": "This inspiration is not a video."
+ },
+ "La vidéo source a été effacée (7 jours après l'analyse) : seule la fiche reste.": {
+  "fr": "La vidéo source a été effacée (7 jours après l'analyse) : seule la fiche reste.",
+  "en": "The source video was deleted (7 days after the analysis): only the sheet remains."
+ },
+ "Rien à lire : la vidéo n'a ni son ni planche.": {
+  "fr": "Rien à lire : la vidéo n'a ni son ni planche.",
+  "en": "Nothing to read: the video has neither sound nor contact sheet."
+ },
+ "Lien trop long : 300 caractères au plus.": {
+  "fr": "Lien trop long : 300 caractères au plus.",
+  "en": "Link too long: 300 characters at most."
+ },
+ "Lien attendu : une adresse qui commence par https://": {
+  "fr": "Lien attendu : une adresse qui commence par https://",
+  "en": "Link expected: an address that starts with https://"
+ },
+ "Chaque chiffre publiable a besoin de sa source (où le vérifier).": {
+  "fr": "Chaque chiffre publiable a besoin de sa source (où le vérifier).",
+  "en": "Each publishable figure needs its source (where to check it)."
+ },
+ "Il faut d'abord lire la référence et obtenir sa recette.": {
+  "fr": "Il faut d'abord lire la référence et obtenir sa recette.",
+  "en": "First read the reference and get its recipe."
+ },
+ "Remplis d'abord la fiche d'offre de l'espace (produit, promesse, au moins une preuve).": {
+  "fr": "Remplis d'abord la fiche d'offre de l'espace (produit, promesse, au moins une preuve).",
+  "en": "First fill in the space's offer sheet (product, promise, at least one proof)."
+ },
+ "Aucun script à valider.": {
+  "fr": "Aucun script à valider.",
+  "en": "No script to approve."
+ },
+ "Un contrôle bloquant échoue (chiffre non sourcé, copie ou mot interdit) : réécris le script avant de le valider.": {
+  "fr": "Un contrôle bloquant échoue (chiffre non sourcé, copie ou mot interdit) : réécris le script avant de le valider.",
+  "en": "A blocking check fails (unsourced figure, copy or forbidden word): rewrite the script before approving it."
+ },
+ "HTTP {status_code}": {
+  "fr": "HTTP {status_code}",
+  "en": "HTTP {status_code}"
+ },
+ "yt-dlp": {
+  "fr": "yt-dlp",
+  "en": "yt-dlp"
+ },
+ "Rendu illisible : durée nulle.": {
+  "fr": "Rendu illisible : durée nulle.",
+  "en": "Unreadable render: zero length."
+ },
+ "Post introuvable.": {
+  "fr": "Post introuvable.",
+  "en": "Post not found."
+ },
+ "job_id ou post_id requis.": {
+  "fr": "job_id ou post_id requis.",
+  "en": "job_id or post_id required."
+ },
+ "Gagnant non enregistré.": {
+  "fr": "Gagnant non enregistré.",
+  "en": "Winner not saved."
+ },
+ "Élément inconnu dans les fils de la niche de cet espace.": {
+  "fr": "Élément inconnu dans les fils de la niche de cet espace.",
+  "en": "Unknown item in the feeds of this space's niche."
+ },
+ "Espace inconnu.": {
+  "fr": "Espace inconnu.",
+  "en": "Unknown space."
+ },
+ "Liste de fils attendue (50 au plus).": {
+  "fr": "Liste de fils attendue (50 au plus).",
+  "en": "A list of feeds is expected (50 at most)."
+ },
+ "Seuil hors bornes : de 1 à 1000 fois l'habituel.": {
+  "fr": "Seuil hors bornes : de 1 à 1000 fois l'habituel.",
+  "en": "Threshold out of range: 1 to 1000 times the usual."
+ },
+ "Fenêtre hors bornes : de 1 à 365 jours.": {
+  "fr": "Fenêtre hors bornes : de 1 à 365 jours.",
+  "en": "Window out of range: 1 to 365 days."
+ },
+ "Transcription trop longue : 20 000 caractères au plus.": {
+  "fr": "Transcription trop longue : 20 000 caractères au plus.",
+  "en": "Transcript too long: 20,000 characters at most."
+ },
+ "Fil inconnu : choisis parmi les fils suivis de News.": {
+  "fr": "Fil inconnu : choisis parmi les fils suivis de News.",
+  "en": "Unknown feed: choose among the feeds followed in News."
+ },
+ "200 gagnants enregistrés au plus : retires-en un d'abord.": {
+  "fr": "200 gagnants enregistrés au plus : retires-en un d'abord.",
+  "en": "200 saved winners at most: remove one first."
+ },
+ "Une analyse est déjà en cours pour ce gagnant : attends sa réponse.": {
+  "fr": "Une analyse est déjà en cours pour ce gagnant : attends sa réponse.",
+  "en": "An analysis is already running for this winner: wait for its answer."
+ },
+ "Post inconnu : rien à recycler.": {
+  "fr": "Post inconnu : rien à recycler.",
+  "en": "Unknown post: nothing to recycle."
+ },
+ "Ce post n'est pas un gagnant : ses vues restent sous le seuil face à l'habituel de son compte.": {
+  "fr": "Ce post n'est pas un gagnant : ses vues restent sous le seuil face à l'habituel de son compte.",
+  "en": "This post is not a winner: its views stay below the threshold compared with its account's usual."
+ },
+ "Ce post n'a pas de vidéo : la variante « branche » demande ses plans.": {
+  "fr": "Ce post n'a pas de vidéo : la variante « branche » demande ses plans.",
+  "en": "This post has no video: the \"branch\" variant needs its shots."
+ },
+ "Cet élément n'est pas encore rédigé : accepte d'abord son devis.": {
+  "fr": "Cet élément n'est pas encore rédigé : accepte d'abord son devis.",
+  "en": "This element is not written yet: accept its quote first."
+ },
+ "L'espace de ce post est inconnu ou archivé.": {
+  "fr": "L'espace de ce post est inconnu ou archivé.",
+  "en": "This post's space is unknown or archived."
+ },
+ "Une rédaction payante est déjà en cours pour ce post : attends sa réponse.": {
+  "fr": "Une rédaction payante est déjà en cours pour ce post : attends sa réponse.",
+  "en": "A paid writing request is already running for this post: wait for its answer."
+ },
+ "Aucun gabarit Templates avec une case de texte : crée-en un pour le carrousel.": {
+  "fr": "Aucun gabarit Templates avec une case de texte : crée-en un pour le carrousel.",
+  "en": "No Templates layout with a text slot: create one for the carousel."
+ },
+ "Carrousel impossible : {x}": {
+  "fr": "Carrousel impossible : {x}",
+  "en": "Carousel failed: {x}"
+ },
+ "Liste de messages attendue (25 au plus).": {
+  "fr": "Liste de messages attendue (25 au plus).",
+  "en": "A list of messages is expected (25 at most)."
+ },
+ "auto : vrai ou faux.": {
+  "fr": "auto : vrai ou faux.",
+  "en": "auto: true or false."
+ },
+ "Plafond X hors bornes : de 0 à 10 000 $.": {
+  "fr": "Plafond X hors bornes : de 0 à 10 000 $.",
+  "en": "X cap out of range: from $0 to $10,000."
+ },
+ "Le relevé automatique de X demande un plafond X du mois (en dollars).": {
+  "fr": "Le relevé automatique de X demande un plafond X du mois (en dollars).",
+  "en": "Automatic X reading needs a monthly X cap (in dollars)."
+ },
+ "Aucun accord enregistré pour relever X automatiquement.": {
+  "fr": "Aucun accord enregistré pour relever X automatiquement.",
+  "en": "No recorded consent to read X automatically."
+ },
+ "Accord manquant : max_usd (le montant du devis affiché) est requis.": {
+  "fr": "Accord manquant : max_usd (le montant du devis affiché) est requis.",
+  "en": "Missing consent: max_usd (the amount of the displayed quote) is required."
+ },
+ "Le relevé X n'est pas disponible (adaptateur absent).": {
+  "fr": "Le relevé X n'est pas disponible (adaptateur absent).",
+  "en": "X reading is not available (adapter missing)."
+ },
+ "quantité X invalide ({cle}) : un entier >= 0 est attendu": {
+  "fr": "quantité X invalide ({cle}) : un entier >= 0 est attendu",
+  "en": "invalid X quantity ({cle}): an integer >= 0 is expected"
+ },
+ "Élément inconnu : carrousel, accroches, fil_x, branche ou x_video.": {
+  "fr": "Élément inconnu : carrousel, accroches, fil_x, branche ou x_video.",
+  "en": "Unknown element: carrousel, accroches, fil_x, branche or x_video."
+ },
+ "Le script n'est pas validé : valide-le d'abord (porte 1).": {
+  "fr": "Le script n'est pas validé : valide-le d'abord (porte 1).",
+  "en": "The script is not approved: approve it first (gate 1)."
+ },
+ "Le script dure plus de 90 secondes : raccourcis-le pour un Reel.": {
+  "fr": "Le script dure plus de 90 secondes : raccourcis-le pour un Reel.",
+  "en": "The script runs longer than 90 seconds: shorten it for a Reel."
+ },
+ "Prépare d'abord les repères du Reel.": {
+  "fr": "Prépare d'abord les repères du Reel.",
+  "en": "Prepare the Reel's cue sheet first."
+ },
+ "Rends d'abord le Reel : le brouillon a besoin de sa vidéo.": {
+  "fr": "Rends d'abord le Reel : le brouillon a besoin de sa vidéo.",
+  "en": "Render the Reel first: the draft needs its video."
+ },
+ "L'encodage vidéo a échoué (ffmpeg).": {
+  "fr": "L'encodage vidéo a échoué (ffmpeg).",
+  "en": "Video encoding failed (ffmpeg)."
+ },
+ "Numéro WhatsApp de l'espace invalide : indicatif du pays compris, chiffres seulement.": {
+  "fr": "Numéro WhatsApp de l'espace invalide : indicatif du pays compris, chiffres seulement.",
+  "en": "Invalid WhatsApp number for the space: country code included, digits only."
+ },
+ "aucun numéro WhatsApp relié pour cet espace": {
+  "fr": "aucun numéro WhatsApp relié pour cet espace",
+  "en": "no WhatsApp number linked for this space"
+ },
+ "le modèle du bilan et de l'alerte doit être de catégorie « utilitaire »": {
+  "fr": "le modèle du bilan et de l'alerte doit être de catégorie « utilitaire »",
+  "en": "the report and alert template must be in the “utility” category"
+ },
+ "le modèle du bilan et de l'alerte doit avoir au plus un paramètre (le texte)": {
+  "fr": "le modèle du bilan et de l'alerte doit avoir au plus un paramètre (le texte)",
+  "en": "the report and alert template must have at most one parameter (the text)"
+ },
+ "Style de reel inconnu.": {
+  "fr": "Style de reel inconnu.",
+  "en": "Unknown reel style."
+ },
+ "Les styles de reel ne sont accessibles que depuis ce PC.": {
+  "fr": "Les styles de reel ne sont accessibles que depuis ce PC.",
+  "en": "Reel styles are only accessible from this PC."
  }
 }

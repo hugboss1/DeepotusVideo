@@ -34,13 +34,13 @@ def _refus(request: Request, e: P.RefusPont) -> HTTPException:
 def _ecran(request: Request) -> None:
     """Les gestes de l'UTILISATEUR viennent du navigateur de l'app : un Origin local est exigé (le client MCP, natif,
     n'en envoie pas ; la garde CSRF de main.py refuse déjà tout Origin étranger)."""
-    from app.config import APP_HOSTNAME
+    from app.config import NOMS_ECRAN  # t530 : + le nom public du VPS
     o = request.headers.get("origin") or ""
     try:
         h = (urllib.parse.urlparse(o).hostname or "").lower() if o else ""
     except ValueError:
         h = ""
-    if not h or h not in (_HOTES_ECRAN | {APP_HOSTNAME}):
+    if not h or h not in (_HOTES_ECRAN | NOMS_ECRAN):
         raise HTTPException(403, i18n.msg("mcp.ecran_requis", i18n.langue_requete(request)))
 
 
@@ -50,6 +50,15 @@ async def etat(request: Request):
     return {"actif": P.actif(), "commande": P.commande(),
             "outils": [{"nom": o["name"], "nature": o["nature"], "titre": o["annotations"]["title"]} for o in P.outils()],
             "en_attente": len(P.demandes("en_attente"))}
+
+
+@router.get("/catalogue")
+async def catalogue(request: Request):
+    """22/11/2026 — les serveurs MCP utiles à l'app (Blender, ElevenLabs, Figma, Canva, Notion, GitHub…) : rôle, écrans
+    aidés, commande à copier, état local. Lecture seule : rien n'est installé ni lancé (services/mcp_catalogue.py)."""
+    _require_localhost(request)
+    from app.services import mcp_catalogue as MC
+    return MC.liste(i18n.langue_requete(request))
 
 
 @router.put("/reglages")

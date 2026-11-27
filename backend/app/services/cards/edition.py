@@ -187,7 +187,10 @@ async def post_tts_poser(did: str):
     """Copie le dernier objet exporté (JSON + vignette) dans les Saved Objects
     de Tabletop Simulator, sous-dossier « Deepotus » : il apparaît dans le jeu,
     Objects > Saved Objects. Écrit HORS des données de l'appli — décision de
-    l'utilisateur (04/10), et seulement quand on le demande."""
+    l'utilisateur (04/10), et seulement quand on le demande.
+    t535 : réservé à Windows (sur le VPS, ces Documents ne sont pas ceux de l'utilisateur)."""
+    from app.services import plateforme as PF
+    PF.exiger("tts")
     doc = _deck(did)
     hexa.refuser_si_hex(_geom(doc), "L'export Tabletop Simulator")
     s = VTT.slug(str(doc.get("name") or "Jeu"))

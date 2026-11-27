@@ -13,6 +13,7 @@ HeyGen, X).
 
 _VU = "2026-09-29"
 _VU520 = "2026-11-13"          # t520 : relevé du 13/11/2026
+_VU493 = "2026-11-26"          # t493 : doc « Business Login for Instagram » relue le 26/11/2026
 
 GUIDES = {
     "FAL_KEY": {
@@ -261,6 +262,28 @@ GUIDES = {
               "and the business account ID (1784…). Step by step and troubleshooting: the « Link an Instagram "
               "account » chapter of the guide.",
     },
+    "IG_APP_ID": {
+        "nom": "Instagram Login (Meta for Developers)",
+        "console": "https://developers.facebook.com/apps",
+        "verifie_le": _VU493,
+        "doc_fr": "/guide/fr.html#instagram",
+        "doc_en": "/guide/en.html#instagram",
+        "fr": "« Relier par Instagram » (facultatif, le collage du jeton reste possible). Dans votre application Meta, "
+              "cas d'usage Instagram, « API setup with Instagram login » : copiez l'ID et la clé secrète de "
+              "l'application INSTAGRAM (pas ceux de l'application Meta) dans IG_APP_ID et IG_APP_SECRET. Section "
+              "« Set up Instagram business login » › Business login settings › OAuth redirect URIs : déclarez "
+              "{uri} ; si Meta refuse une adresse http, déclarez https://localhost/ et mettez-la dans IG_OAUTH_REDIRECT "
+              "(vous collerez alors l'adresse où Instagram vous renvoie). Autorisations demandées : {scopes}. En mode "
+              "développement, ajoutez votre compte Instagram comme testeur (Rôles de l'application) : aucune revue "
+              "d'application tant que seul votre compte est relié. Jeton valable 60 jours, renouvelé seul.",
+        "en": "« Link with Instagram » (optional, pasting the token still works). In your Meta app, Instagram use "
+              "case, « API setup with Instagram login »: copy the INSTAGRAM app ID and app secret (not the Meta app's) "
+              "into IG_APP_ID and IG_APP_SECRET. « Set up Instagram business login » › Business login settings › "
+              "OAuth redirect URIs: add {uri}; if Meta refuses an http address, add https://localhost/ and put it in "
+              "IG_OAUTH_REDIRECT (you will then paste the address Instagram sends you back to). Permissions "
+              "requested: {scopes}. In development mode, add your Instagram account as a tester (App roles): no app "
+              "review while only your own account is linked. Token valid 60 days, renewed automatically.",
+    },
     "TIKTOK_CLIENT_KEY": {
         "nom": "TikTok for Developers",
         "console": "https://developers.tiktok.com/portal/apps",
@@ -272,13 +295,47 @@ GUIDES = {
     },
 }
 # Les quatre clés X partagent le guide de X_API_KEY.
+# t493 : les trois réglages de « Relier par Instagram » partagent le guide de IG_APP_ID.
+for _k in ("IG_APP_SECRET", "IG_OAUTH_REDIRECT"):
+    GUIDES[_k] = GUIDES["IG_APP_ID"]
 for _k in ("X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET"):
     GUIDES[_k] = GUIDES["X_API_KEY"]
 
 
+# t534 (20/11/2026, couche hébergée ⑤) : sur le VPS, le retour d'autorisation n'est plus la boucle locale — Google
+# et TikTok exigent alors un client WEB qui déclare l'adresse https exacte.
+_HEBERGE = {
+    "YOUTUBE_CLIENT_ID": ("/api/oauth/youtube/callback",
+                          "Version hébergée : créez plutôt un ID client de type « Application Web » et déclarez "
+                          "l'URI de redirection autorisée {uri}",
+                          "Hosted version: create a « Web application » OAuth client ID instead and add the "
+                          "authorized redirect URI {uri}"),
+    "TIKTOK_CLIENT_KEY": ("/api/oauth/tiktok/callback/",
+                          "Version hébergée : choisissez la plateforme « Web » et déclarez l'URI de redirection {uri}",
+                          "Hosted version: pick the « Web » platform and add the redirect URI {uri}"),
+}
+
+
+def _avec_heberge(nom: str, g: dict) -> dict:
+    from app.config import APP_HOSTNAME_PUBLIC, url_rappel
+    g = dict(g)
+    if g.get("nom") == GUIDES["IG_APP_ID"]["nom"]:
+        # t493 : l'adresse de retour du moment (boucle locale, VPS ou réglée) et les scopes, lus à l'appel
+        from app.services import instagram_oauth as _io
+        g["fr"] = g["fr"].format(uri=_io.redirect_uri(), scopes=", ".join(_io.SCOPES))
+        g["en"] = g["en"].format(uri=_io.redirect_uri(), scopes=", ".join(_io.SCOPES))
+    if nom in _HEBERGE and APP_HOSTNAME_PUBLIC and not APP_HOSTNAME_PUBLIC.endswith(".localhost"):
+        chemin, fr, en = _HEBERGE[nom]
+        uri = url_rappel(chemin)
+        g["fr"] = f"{g['fr']} {fr.format(uri=uri)}."
+        g["en"] = f"{g['en']} {en.format(uri=uri)}."
+    return g
+
+
 def guide(nom: str) -> dict | None:
-    return GUIDES.get(nom)
+    g = GUIDES.get(nom)
+    return None if g is None else _avec_heberge(nom, g)
 
 
 def tous() -> dict:
-    return {k: dict(v) for k, v in GUIDES.items()}
+    return {k: _avec_heberge(k, v) for k, v in GUIDES.items()}

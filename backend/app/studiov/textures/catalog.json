@@ -1,0 +1,744 @@
+{
+ "version": 1,
+ "source": {
+  "nom": "Poly Haven",
+  "url": "https://polyhaven.com",
+  "licence": "CC0-1.0",
+  "licence_url": "https://polyhaven.com/license"
+ },
+ "familles": [
+  {
+   "id": "sols",
+   "nom": "Sols",
+   "nom_en": "Floors"
+  },
+  {
+   "id": "murs",
+   "nom": "Murs",
+   "nom_en": "Walls"
+  },
+  {
+   "id": "bois",
+   "nom": "Bois et placages",
+   "nom_en": "Wood and veneers"
+  },
+  {
+   "id": "tissus",
+   "nom": "Tissus et cuirs",
+   "nom_en": "Fabrics and leathers"
+  },
+  {
+   "id": "metaux",
+   "nom": "Métaux",
+   "nom_en": "Metals"
+  }
+ ],
+ "textures": [
+  {
+   "id": "laminate_floor_02",
+   "nom": "Stratifié chêne",
+   "nom_en": "Oak laminate",
+   "famille": "sols",
+   "usages": [
+    "sol",
+    "bois"
+   ],
+   "taille_m": 1.7,
+   "moyenne": "#9b8063",
+   "auteurs": [
+    "Charlotte Baglioni",
+    "Dario Barresi"
+   ],
+   "url": "https://polyhaven.com/a/laminate_floor_02",
+   "octets": 193836
+  },
+  {
+   "id": "herringbone_parquet",
+   "nom": "Parquet à chevrons",
+   "nom_en": "Herringbone parquet",
+   "famille": "sols",
+   "usages": [
+    "sol"
+   ],
+   "taille_m": 3.4,
+   "moyenne": "#93704d",
+   "auteurs": [
+    "Jenelle van Heerden",
+    "Sergej Majboroda"
+   ],
+   "url": "https://polyhaven.com/a/herringbone_parquet",
+   "octets": 215395
+  },
+  {
+   "id": "diagonal_parquet",
+   "nom": "Parquet en diagonale",
+   "nom_en": "Diagonal parquet",
+   "famille": "sols",
+   "usages": [
+    "sol"
+   ],
+   "taille_m": 2.36,
+   "moyenne": "#a46636",
+   "auteurs": [
+    "Jenelle van Heerden",
+    "Sergej Majboroda"
+   ],
+   "url": "https://polyhaven.com/a/diagonal_parquet",
+   "octets": 175191
+  },
+  {
+   "id": "wood_floor",
+   "nom": "Plancher sombre",
+   "nom_en": "Dark plank floor",
+   "famille": "sols",
+   "usages": [
+    "sol",
+    "bois"
+   ],
+   "taille_m": 1.7,
+   "moyenne": "#806042",
+   "auteurs": [
+    "Dimitrios Savva"
+   ],
+   "url": "https://polyhaven.com/a/wood_floor",
+   "octets": 191269
+  },
+  {
+   "id": "plank_flooring_02",
+   "nom": "Plancher de pin",
+   "nom_en": "Pine plank floor",
+   "famille": "sols",
+   "usages": [
+    "sol",
+    "bois"
+   ],
+   "taille_m": 1.98,
+   "moyenne": "#9a6414",
+   "auteurs": [
+    "Dario Barresi",
+    "Dimitrios Savva"
+   ],
+   "url": "https://polyhaven.com/a/plank_flooring_02",
+   "octets": 190311
+  },
+  {
+   "id": "concrete_floor_worn_001",
+   "nom": "Béton ciré",
+   "nom_en": "Polished concrete",
+   "famille": "sols",
+   "usages": [
+    "sol",
+    "mur"
+   ],
+   "taille_m": 3.0,
+   "moyenne": "#565654",
+   "auteurs": [
+    "Dimitrios Savva",
+    "Rico Cilliers"
+   ],
+   "url": "https://polyhaven.com/a/concrete_floor_worn_001",
+   "octets": 152805
+  },
+  {
+   "id": "painted_concrete",
+   "nom": "Béton peint vert, usé",
+   "nom_en": "Worn green painted concrete",
+   "famille": "sols",
+   "usages": [
+    "sol"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#486a4f",
+   "auteurs": [
+    "Dario Barresi",
+    "Dimitrios Savva"
+   ],
+   "url": "https://polyhaven.com/a/painted_concrete",
+   "octets": 303591
+  },
+  {
+   "id": "interior_tiles",
+   "nom": "Carrelage d'intérieur",
+   "nom_en": "Interior tiles",
+   "famille": "sols",
+   "usages": [
+    "sol"
+   ],
+   "taille_m": 1.9,
+   "moyenne": "#aa9884",
+   "auteurs": [
+    "Charlotte Baglioni"
+   ],
+   "url": "https://polyhaven.com/a/interior_tiles",
+   "octets": 189739
+  },
+  {
+   "id": "terrazzo_tiles",
+   "nom": "Terrazzo brun",
+   "nom_en": "Brown terrazzo",
+   "famille": "sols",
+   "usages": [
+    "sol",
+    "pierre"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#896d57",
+   "auteurs": [
+    "Amal Kumar"
+   ],
+   "url": "https://polyhaven.com/a/terrazzo_tiles",
+   "octets": 355825
+  },
+  {
+   "id": "marble_01",
+   "nom": "Dalles de pierre beige",
+   "nom_en": "Beige stone slabs",
+   "famille": "sols",
+   "usages": [
+    "sol",
+    "mur",
+    "pierre"
+   ],
+   "taille_m": 1.5,
+   "moyenne": "#b19d7a",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/marble_01",
+   "octets": 122767
+  },
+  {
+   "id": "checkered_pavement_tiles",
+   "nom": "Dallage en damier",
+   "nom_en": "Checkered tiles",
+   "famille": "sols",
+   "usages": [
+    "sol"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#574b3f",
+   "auteurs": [
+    "Amal Kumar"
+   ],
+   "url": "https://polyhaven.com/a/checkered_pavement_tiles",
+   "octets": 153090
+  },
+  {
+   "id": "rubber_tiles",
+   "nom": "Dalles de caoutchouc noir",
+   "nom_en": "Black rubber tiles",
+   "famille": "sols",
+   "usages": [
+    "sol"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#202125",
+   "auteurs": [
+    "Amal Kumar"
+   ],
+   "url": "https://polyhaven.com/a/rubber_tiles",
+   "octets": 73396
+  },
+  {
+   "id": "rubberized_track",
+   "nom": "Piste de sport",
+   "nom_en": "Running track",
+   "famille": "sols",
+   "usages": [
+    "sol"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#743d35",
+   "auteurs": [
+    "Charlotte Baglioni"
+   ],
+   "url": "https://polyhaven.com/a/rubberized_track",
+   "octets": 194017
+  },
+  {
+   "id": "dirty_carpet",
+   "nom": "Moquette sombre",
+   "nom_en": "Dark carpet",
+   "famille": "sols",
+   "usages": [
+    "sol",
+    "tissu"
+   ],
+   "taille_m": 0.6,
+   "moyenne": "#352f25",
+   "auteurs": [
+    "Rohit Seervi"
+   ],
+   "url": "https://polyhaven.com/a/dirty_carpet",
+   "octets": 393626
+  },
+  {
+   "id": "leafy_grass",
+   "nom": "Pelouse",
+   "nom_en": "Grass",
+   "famille": "sols",
+   "usages": [
+    "sol"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#978359",
+   "auteurs": [
+    "Charlotte Baglioni"
+   ],
+   "url": "https://polyhaven.com/a/leafy_grass",
+   "octets": 502772
+  },
+  {
+   "id": "white_plaster_02",
+   "nom": "Enduit gris nuagé",
+   "nom_en": "Cloudy grey plaster",
+   "famille": "murs",
+   "usages": [
+    "mur",
+    "plafond"
+   ],
+   "taille_m": 1.0,
+   "moyenne": "#8e877a",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/white_plaster_02",
+   "octets": 260825
+  },
+  {
+   "id": "plastered_wall",
+   "nom": "Plâtre lissé",
+   "nom_en": "Smooth plaster",
+   "famille": "murs",
+   "usages": [
+    "mur",
+    "plafond"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#b0a89c",
+   "auteurs": [
+    "Amal Kumar"
+   ],
+   "url": "https://polyhaven.com/a/plastered_wall",
+   "octets": 186231
+  },
+  {
+   "id": "white_rough_plaster",
+   "nom": "Peinture écaillée",
+   "nom_en": "Peeling paint",
+   "famille": "murs",
+   "usages": [
+    "mur",
+    "plafond"
+   ],
+   "taille_m": 1.0,
+   "moyenne": "#b7b5ae",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/white_rough_plaster",
+   "octets": 440882
+  },
+  {
+   "id": "grey_plaster",
+   "nom": "Enduit patiné",
+   "nom_en": "Weathered plaster",
+   "famille": "murs",
+   "usages": [
+    "mur"
+   ],
+   "taille_m": 1.0,
+   "moyenne": "#8c8675",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/grey_plaster",
+   "octets": 428421
+  },
+  {
+   "id": "plaster_grey_04",
+   "nom": "Plâtre gris clair",
+   "nom_en": "Light grey plaster",
+   "famille": "murs",
+   "usages": [
+    "mur",
+    "plafond"
+   ],
+   "taille_m": 1.5,
+   "moyenne": "#948f81",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/plaster_grey_04",
+   "octets": 269901
+  },
+  {
+   "id": "concrete_wall_008",
+   "nom": "Béton lisse",
+   "nom_en": "Smooth concrete",
+   "famille": "murs",
+   "usages": [
+    "mur"
+   ],
+   "taille_m": 2.71,
+   "moyenne": "#8d8570",
+   "auteurs": [
+    "Charlotte Baglioni",
+    "Dario Barresi"
+   ],
+   "url": "https://polyhaven.com/a/concrete_wall_008",
+   "octets": 131950
+  },
+  {
+   "id": "patterned_concrete_wall",
+   "nom": "Béton à motifs",
+   "nom_en": "Patterned concrete",
+   "famille": "murs",
+   "usages": [
+    "mur"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#897b6a",
+   "auteurs": [
+    "Dimitrios Savva"
+   ],
+   "url": "https://polyhaven.com/a/patterned_concrete_wall",
+   "octets": 222441
+  },
+  {
+   "id": "painted_brick",
+   "nom": "Brique peinte en bleu",
+   "nom_en": "Blue painted brick",
+   "famille": "murs",
+   "usages": [
+    "mur"
+   ],
+   "taille_m": 1.8,
+   "moyenne": "#789faa",
+   "auteurs": [
+    "Amal Kumar"
+   ],
+   "url": "https://polyhaven.com/a/painted_brick",
+   "octets": 323503
+  },
+  {
+   "id": "factory_brick",
+   "nom": "Brique d'usine",
+   "nom_en": "Factory brick",
+   "famille": "murs",
+   "usages": [
+    "mur"
+   ],
+   "taille_m": 1.5,
+   "moyenne": "#876c56",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/factory_brick",
+   "octets": 424512
+  },
+  {
+   "id": "oak_veneer_01",
+   "nom": "Placage de chêne",
+   "nom_en": "Oak veneer",
+   "famille": "bois",
+   "usages": [
+    "bois",
+    "mur"
+   ],
+   "taille_m": 1.83,
+   "moyenne": "#a17e57",
+   "auteurs": [
+    "Jenelle van Heerden"
+   ],
+   "url": "https://polyhaven.com/a/oak_veneer_01",
+   "octets": 216002
+  },
+  {
+   "id": "rosewood_veneer1",
+   "nom": "Placage de palissandre",
+   "nom_en": "Rosewood veneer",
+   "famille": "bois",
+   "usages": [
+    "bois"
+   ],
+   "taille_m": 2.43,
+   "moyenne": "#6d3210",
+   "auteurs": [
+    "Jenelle van Heerden"
+   ],
+   "url": "https://polyhaven.com/a/rosewood_veneer1",
+   "octets": 211399
+  },
+  {
+   "id": "dark_wood",
+   "nom": "Bois exotique veiné",
+   "nom_en": "Veined exotic wood",
+   "famille": "bois",
+   "usages": [
+    "bois",
+    "sol"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#5d2a18",
+   "auteurs": [
+    "Dario Barresi",
+    "Dimitrios Savva",
+    "Rico Cilliers"
+   ],
+   "url": "https://polyhaven.com/a/dark_wood",
+   "octets": 209696
+  },
+  {
+   "id": "plywood",
+   "nom": "Contreplaqué",
+   "nom_en": "Plywood",
+   "famille": "bois",
+   "usages": [
+    "bois",
+    "mur"
+   ],
+   "taille_m": 0.5,
+   "moyenne": "#7e6140",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/plywood",
+   "octets": 284999
+  },
+  {
+   "id": "wood_table_001",
+   "nom": "Bois foncé verni",
+   "nom_en": "Dark varnished wood",
+   "famille": "bois",
+   "usages": [
+    "bois"
+   ],
+   "taille_m": 1.5,
+   "moyenne": "#3e190a",
+   "auteurs": [
+    "Dimitrios Savva",
+    "Rico Cilliers"
+   ],
+   "url": "https://polyhaven.com/a/wood_table_001",
+   "octets": 250029
+  },
+  {
+   "id": "wood_cabinet_worn_long",
+   "nom": "Bois patiné",
+   "nom_en": "Worn wood",
+   "famille": "bois",
+   "usages": [
+    "bois"
+   ],
+   "taille_m": 1.0,
+   "moyenne": "#582f0b",
+   "auteurs": [
+    "Dimitrios Savva",
+    "Rico Cilliers"
+   ],
+   "url": "https://polyhaven.com/a/wood_cabinet_worn_long",
+   "octets": 276086
+  },
+  {
+   "id": "leather_white",
+   "nom": "Cuir clair",
+   "nom_en": "Light leather",
+   "famille": "tissus",
+   "usages": [
+    "cuir"
+   ],
+   "taille_m": 0.3,
+   "moyenne": "#969380",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/leather_white",
+   "octets": 197003
+  },
+  {
+   "id": "leather_red_02",
+   "nom": "Cuir brun foncé",
+   "nom_en": "Dark brown leather",
+   "famille": "tissus",
+   "usages": [
+    "cuir"
+   ],
+   "taille_m": 0.6,
+   "moyenne": "#4f2c1a",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/leather_red_02",
+   "octets": 384438
+  },
+  {
+   "id": "fabric_leather_02",
+   "nom": "Cuir cognac",
+   "nom_en": "Cognac leather",
+   "famille": "tissus",
+   "usages": [
+    "cuir"
+   ],
+   "taille_m": 0.5,
+   "moyenne": "#814e1a",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/fabric_leather_02",
+   "octets": 359006
+  },
+  {
+   "id": "velour_velvet",
+   "nom": "Velours framboise",
+   "nom_en": "Raspberry velvet",
+   "famille": "tissus",
+   "usages": [
+    "tissu"
+   ],
+   "taille_m": 0.284,
+   "moyenne": "#ae2d47",
+   "auteurs": [
+    "Rico Cilliers",
+    "colormass"
+   ],
+   "url": "https://polyhaven.com/a/velour_velvet",
+   "octets": 256123
+  },
+  {
+   "id": "poly_wool_herringbone",
+   "nom": "Laine grise à chevrons",
+   "nom_en": "Grey herringbone wool",
+   "famille": "tissus",
+   "usages": [
+    "tissu"
+   ],
+   "taille_m": 0.27,
+   "moyenne": "#797571",
+   "auteurs": [
+    "Rico Cilliers",
+    "colormass"
+   ],
+   "url": "https://polyhaven.com/a/poly_wool_herringbone",
+   "octets": 323067
+  },
+  {
+   "id": "fabric_pattern_07",
+   "nom": "Vichy vert",
+   "nom_en": "Green gingham",
+   "famille": "tissus",
+   "usages": [
+    "tissu"
+   ],
+   "taille_m": 0.4,
+   "moyenne": "#718861",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/fabric_pattern_07",
+   "octets": 523450
+  },
+  {
+   "id": "cotton_jersey",
+   "nom": "Jersey rosé",
+   "nom_en": "Blush jersey",
+   "famille": "tissus",
+   "usages": [
+    "tissu"
+   ],
+   "taille_m": 0.264,
+   "moyenne": "#c2ab9d",
+   "auteurs": [
+    "Rico Cilliers",
+    "colormass"
+   ],
+   "url": "https://polyhaven.com/a/cotton_jersey",
+   "octets": 137411
+  },
+  {
+   "id": "quatrefoil_jacquard_fabric",
+   "nom": "Jacquard rouge",
+   "nom_en": "Red jacquard",
+   "famille": "tissus",
+   "usages": [
+    "tissu"
+   ],
+   "taille_m": 0.28,
+   "moyenne": "#930320",
+   "auteurs": [
+    "Rico Cilliers",
+    "colormass"
+   ],
+   "url": "https://polyhaven.com/a/quatrefoil_jacquard_fabric",
+   "octets": 170611
+  },
+  {
+   "id": "curly_teddy_natural",
+   "nom": "Bouclette crème",
+   "nom_en": "Cream teddy fleece",
+   "famille": "tissus",
+   "usages": [
+    "tissu"
+   ],
+   "taille_m": 0.336,
+   "moyenne": "#e9d3bb",
+   "auteurs": [
+    "Rico Cilliers",
+    "colormass"
+   ],
+   "url": "https://polyhaven.com/a/curly_teddy_natural",
+   "octets": 312150
+  },
+  {
+   "id": "book_pattern",
+   "nom": "Toile olive",
+   "nom_en": "Olive bookcloth",
+   "famille": "tissus",
+   "usages": [
+    "tissu"
+   ],
+   "taille_m": 0.3,
+   "moyenne": "#444016",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/book_pattern",
+   "octets": 457265
+  },
+  {
+   "id": "metal_plate_02",
+   "nom": "Tôle sombre",
+   "nom_en": "Dark sheet metal",
+   "famille": "metaux",
+   "usages": [
+    "metal"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#54493e",
+   "auteurs": [
+    "Rob Tuytel"
+   ],
+   "url": "https://polyhaven.com/a/metal_plate_02",
+   "octets": 216240
+  },
+  {
+   "id": "painted_metal_shutter",
+   "nom": "Rideau métallique",
+   "nom_en": "Metal shutter",
+   "famille": "metaux",
+   "usages": [
+    "metal",
+    "mur"
+   ],
+   "taille_m": 2.0,
+   "moyenne": "#808386",
+   "auteurs": [
+    "Charlotte Baglioni",
+    "Dario Barresi",
+    "Rico Cilliers"
+   ],
+   "url": "https://polyhaven.com/a/painted_metal_shutter",
+   "octets": 215643
+  }
+ ]
+}

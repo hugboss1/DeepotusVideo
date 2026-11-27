@@ -89,7 +89,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   client » ; en « publié en son nom », une confirmation nomme le client. → [ALLER:scheduler] [GUIDE:clients-canaux]
 - **Kits de marque** (nom, logo, couleurs de l'application) : Réglages › Identité visuelle.
   → [POINT:reglages.marque] [GUIDE:reglages]
-- **Publier sur les réseaux** : brancher les comptes dans Réglages › Comptes connectés, puis programmer dans le
+- **Publier sur les réseaux** : brancher les comptes dans Réglages › Comptes connectés (Instagram : aussi « Relier
+  par Instagram »), puis programmer dans le
   Planificateur. → [POINT:reglages.comptes] [POINT:rail.planificateur] [GUIDE:comptes]
 - **Monter et livrer** : ouvrir le Montage, vérifier avec Preview (480p, gratuit), puis Rendre (master 1080) et
   Publier. → [POINT:montage.preview] [POINT:montage.rendre] [GUIDE:montage-livrer]
@@ -117,6 +118,11 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Filmer l'app, l'habiller, la monter** (t315-t319) : barre du haut, « Filmer l'app » (gratuit, secrets masqués) ;
   « Monter une capture… » (zooms, chapitres, sous-titres payants sur devis) ; « Tutoriel… » et « Parcours… » ;
   « Direct » (Twitch, YouTube, Kick, RTMP). → [GUIDE:capture-live]
+- **Tourner dans un studio virtuel** (SVC, SVR) : capture › « Voir les décors » › « Personnaliser ce décor ». Onglet
+  Catalogue : vrais produits, « Télécharger et poser » (gratuit, crédit Amazon.com automatique) ; « Remplacer… » change
+  un meuble en place. Onglet Écran : la suite des médias de l'écran ; pendant la prise, Ctrl+Alt+Droite / Gauche change
+  de média, Ctrl+Alt+Espace lance la vidéo, Ctrl+Alt+1 à 6 la caméra. Boîte de capture › « Texte et prompteur » : garder
+  le texte de la voix (gratuit), le relire au prompteur ; « Textes des prises… » transcrit sur devis. → [GUIDE:studio-virtuel]
 - **Ajouter des effets de finition à une vidéo** : Son & VFX › Post-traitement, choisir un rendu, cliquer des
   presets, puis Rendre la vidéo (gratuit sans maillon IA). → [POINT:sonvfx.post] [GUIDE:son-vfx]
 - **Écrire et synthétiser la narration** : Montage › panneau Narration. → [POINT:montage.narration] [GUIDE:montage]
