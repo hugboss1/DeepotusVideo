@@ -20556,6 +20556,17 @@ async def sync_whatsapp_post(request: Request, body: dict | None = None):
         raise HTTPException(400, str(e)) from None
 
 
+# ── t322 (Compagnon M5, 26/11/2026) : un contenu neuf rédigé sur le téléphone, remis en brouillon (gardes REJOUÉES ici) ─
+@router.post("/sync/post")
+async def sync_post_post(request: Request, body: dict | None = None):
+    from app.services import sync_post as _sp
+    appareil = await _appareil_requis(request)
+    try:
+        return await _sp.deposer(appareil, body)
+    except _sp.RefusPost as e:
+        raise HTTPException(e.statut, {"message": str(e), "code": e.code, "garde": e.garde}) from None
+
+
 @router.post("/sync/depenses")
 async def sync_depenses_post(request: Request, body: dict | None = None):
     from app.services import sync_depenses as _sd

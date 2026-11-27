@@ -311,7 +311,16 @@ DEFAULTS = {
     # Depuis le 01/10/2026, les messages de service (texte libre dans la fenêtre de 24 h) sont gratuits jusqu'à 1 000
     # par numéro et par mois, payants au-delà (spec §6.1 « Coûts Meta »).
     "whatsapp_service_gratuits_mois": 1000,
+    # t500 (G10, 26/11/2026) : l'API X, PAYANTE À L'USAGE (décision de l'utilisateur du 26/11 : acceptée, coût par post au
+    # devis, plafond propre = le plafond du moteur « x » dans plafonds.json). Relue sur
+    # https://docs.x.com/x-api/getting-started/pricing le 26/11/2026 : « Posts: Read » 0,005 $ par ressource, « Post:
+    # Create » 0,015 $ par requête, « Post: Create (with URL) » 0,200 $ par requête, « Media Metadata » 0,005 $. Les
+    # « Owned Reads » (0,001 $) ne sont pas retenus : le devis prend le tarif le plus haut d'une lecture (sens sûr). Une
+    # ressource relue dans la même journée UTC n'est pas refacturée chez X : le registre peut donc sur-compter, jamais
+    # sous-compter. À corriger ici (ou dans pricing.json, fusionné clé par clé) quand X change sa grille.
+    "x_api_usd": {"lecture": 0.005, "post": 0.015, "post_lien": 0.200, "media": 0.005},
 }
+X_API_RELU = {"source": "https://docs.x.com/x-api/getting-started/pricing", "le": "2026-11-26"}
 
 # t310 : les quatre colonnes de la grille Meta
 WHATSAPP_CATEGORIES = ("marketing", "utility", "authentication", "service")
@@ -487,6 +496,11 @@ def load() -> dict:
                         # résolutions : aucune colonne par défaut ne le masque
                         fus[m] = r if (not isinstance(r, dict) or "*" in r) else {**fus.get(m, {}), **r}
                     data["video_usd_per_s"] = fus
+                # t500 : la grille X se FUSIONNE par opération (une grille partielle garde les autres tarifs)
+                tx = override.get("x_api_usd")
+                data["x_api_usd"] = dict(DEFAULTS["x_api_usd"], **{k: float(v) for k, v in tx.items()
+                                                                     if k in DEFAULTS["x_api_usd"] and _taux_valide(v)}) \
+                    if isinstance(tx, dict) else dict(DEFAULTS["x_api_usd"])
     except Exception:
         pass
     return data
@@ -1159,6 +1173,19 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         # t364 (28/10/2026) : un run d'Actor Apify, au devis lu dans ses prix (apify.devis) ; plafonné chez Apify
         usd = max(0.0, float(op.get("usd") or 0.0))
         lines.append(_line("apify", f"Collecte Apify ({str(op.get('acteur') or '')[:60]})", 1, "run", round(usd, 6)))
+    elif kind == "x_api":
+        # t500 (G10) : l'API X à l'usage — lectures (public_metrics, par post), posts (sans / avec lien), médias
+        tx = p.get("x_api_usd") if isinstance(p.get("x_api_usd"), dict) else DEFAULTS["x_api_usd"]
+        for cle, libelle, unite in (("lectures", "lecture", "post"), ("posts", "post", "post"),
+                                    ("liens", "post_lien", "post"), ("medias", "media", "media")):
+            n = op.get(cle) or 0
+            if isinstance(n, bool) or not isinstance(n, int) or n < 0:
+                raise ValueError(f"quantité X invalide ({cle}) : un entier >= 0 est attendu")
+            if n:
+                nom = {"lecture": "API X : lecture", "post": "API X : post", "post_lien": "API X : post avec lien",
+                       "media": "API X : média"}[libelle]
+                lines.append(_line("x", f"{nom} × {n}", n, unite,
+                                   n * float(tx.get(libelle, DEFAULTS["x_api_usd"][libelle]))))
     elif kind == "whatsapp":
         lines.append(_ligne_whatsapp(op, p))   # t310 : un message livré par Meta (grille saisie, ValueError si inconnu)
     elif kind == "llm":

@@ -7,7 +7,7 @@
 - Un **gagnant** : au moins 3× l'habituel à 7 jours. Un post sous 0,5× mérite une ligne d'explication, pas plus.
 - Les signaux, du plus fort au plus faible : partages et enregistrements, temps de visionnage, commentaires,
   mentions j'aime. Les vues seules ne disent pas si le message est passé.
-- Ne cite que les chiffres rendus par `lire_planificateur`, avec leur date de relevé. Aucun chiffre estimé, aucune
-  prévision de vues : tu peux dire ce qui a marché, pas ce qui marchera.
+- Ne cite que les chiffres rendus par `lire_planificateur` ou `lire_mesures` (le multiplicateur), avec leur date
+  de relevé. Aucun chiffre estimé, aucune prévision de vues : tu peux dire ce qui a marché, pas ce qui marchera.
 - Au bilan, une ligne d'`apprentissages.md` = un fait mesuré + ce qu'on en fait (« accroche chiffrée : 3,1× sur 2
   Reels → la garder pour la preuve »).
