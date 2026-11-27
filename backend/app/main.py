@@ -1017,6 +1017,9 @@ if _WHATSAPP_DIR.is_dir():
     async def _whatsapp_no_slash():
         from fastapi.responses import RedirectResponse
         return RedirectResponse(url="/whatsapp/", status_code=307)
+else:   # 26/11 : jamais muet — une installation sans la page WhatsApp le dit au journal
+    from loguru import logger as _lg_wa
+    _lg_wa.error(f"WhatsApp : la page {_WHATSAPP_DIR} est absente de l'installation, /whatsapp n'est pas servi")
 
 # ── /lib3d : le canevas 3D PARTAGÉ (Établi aujourd'hui, Plateau le jour où) ──
 _lib3d = Path(__file__).resolve().parent.parent.parent / "frontend" / "lib3d"
