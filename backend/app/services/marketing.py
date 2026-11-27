@@ -921,6 +921,16 @@ async def _pub_telegram(caption, video_path, image_path, meta) -> PublishResult:
 
 
 async def _pub_x(caption, video_path, image_path, meta) -> PublishResult:
+    # t500 (G10) : l'API X est payante à l'usage (un post, plus cher avec un lien, et son média) : la garde « x » AVANT
+    # l'envoi ; au plafond X du mois, rien ne part et c'est dit
+    from fastapi import HTTPException
+    from app.services import croissance_x as CX
+    try:
+        await CX.garder_publication([caption or ""], 1 if (video_path or image_path) else 0,
+                                    (meta or {}).get("espace_id"))
+    except HTTPException as e:
+        d = e.detail.get("dz_plafond", {}) if isinstance(e.detail, dict) else {}
+        return PublishResult(False, "x: plafond de dépense atteint — " + str(d.get("message") or e.detail)[:300])
     ok, detail, tid = await publish_x(caption, video_path=video_path,
                                       image_path=image_path, reply_to=meta.get("reply_to"))
     return PublishResult(ok, f"x: {detail}", tid)

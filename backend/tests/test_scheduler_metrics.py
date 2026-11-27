@@ -87,6 +87,17 @@ async def main():
     await seed()
     print("\n[1] une passe")
     check("1.0 l'application enregistre un fetcher X (patron des adaptateurs)", callable(FETCH_APP.get("x")), str(FETCH_APP))
+    # t500 (G10) : l'API X est payante à l'usage — SANS accord enregistré, la passe ne lit rien sur X
+    c0 = await ms.refresh_all(max_per_channel=10)
+    check("1.0b sans accord enregistré : X n'est pas lu (API payante)", "x" not in c0 and not X_IDS, str((c0, X_IDS)))
+    from app.services import croissance_x as CX
+    CX.regler_accord(True, 50.0)                     # l'accord du relevé automatique, avec son plafond X
+    TICK["n"] = 0
+    async with async_session_factory() as s:          # la passe témoin a lu YouTube : on repart de zéro
+        from sqlalchemy import delete
+        from app.services.storage import PostMetric
+        await s.execute(delete(PostMetric))
+        await s.commit()
     counts = await ms.refresh_all(max_per_channel=10)
     check("1.1 X rationné à 10 posts par passe, YouTube 1", counts == {"youtube": 1, "x": 10}, str(counts))
     check("1.2 X : les 10 PLUS RÉCENTS, anciens posts (x_post_id sans remote_ids) compris, brouillon exclu",

@@ -14983,6 +14983,34 @@
   "fr": "La vidéo n'a pas pu être gardée.",
   "en": "The video could not be kept."
  },
+ "le modèle de validation doit être de catégorie UTILITY (un modèle marketing ne sert pas à faire valider une publication)": {
+  "fr": "le modèle de validation doit être de catégorie UTILITY (un modèle marketing ne sert pas à faire valider une publication)",
+  "en": "the validation template must be in the UTILITY category (a marketing template cannot be used to approve a post)"
+ },
+ "methode inconnue : {methode} ({v})": {
+  "fr": "methode inconnue : {methode} ({v})",
+  "en": "unknown method: {methode} ({v})"
+ },
+ "la méthode {methode} ne vaut que pour une planche de personnage": {
+  "fr": "la méthode {methode} ne vaut que pour une planche de personnage",
+  "en": "the {methode} method only applies to a character sheet"
+ },
+ "face_maitre introuvable : {face_maitre}": {
+  "fr": "face_maitre introuvable : {face_maitre}",
+  "en": "face_maitre not found: {face_maitre}"
+ },
+ "face_maitre ne vaut que pour une planche de personnage": {
+  "fr": "face_maitre ne vaut que pour une planche de personnage",
+  "en": "face_maitre only applies to a character sheet"
+ },
+ "la méthode « ancre_multi » demande un générateur à références multiples (Nano Banana…) : {provider} n'en prend qu'une": {
+  "fr": "la méthode « ancre_multi » demande un générateur à références multiples (Nano Banana…) : {provider} n'en prend qu'une",
+  "en": "the “ancre_multi” method needs a multi-reference generator (Nano Banana…): {provider} only takes one"
+ },
+ "{moteur}.target_polycount : sans effet quand should_remesh est coupé (activer le remaillage, ou ne pas fixer de polycount)": {
+  "fr": "{moteur}.target_polycount : sans effet quand should_remesh est coupé (activer le remaillage, ou ne pas fixer de polycount)",
+  "en": "{moteur}.target_polycount: no effect when should_remesh is off (turn remeshing on, or do not set a polycount)"
+ },
  "Vidéo attendue : MP4, MOV, M4V, WEBM ou MKV.": {
   "fr": "Vidéo attendue : MP4, MOV, M4V, WEBM ou MKV.",
   "en": "Video expected: MP4, MOV, M4V, WEBM or MKV."
@@ -15050,6 +15078,126 @@
  "yt-dlp": {
   "fr": "yt-dlp",
   "en": "yt-dlp"
+ },
+ "Rendu illisible : durée nulle.": {
+  "fr": "Rendu illisible : durée nulle.",
+  "en": "Unreadable render: zero length."
+ },
+ "Post introuvable.": {
+  "fr": "Post introuvable.",
+  "en": "Post not found."
+ },
+ "job_id ou post_id requis.": {
+  "fr": "job_id ou post_id requis.",
+  "en": "job_id or post_id required."
+ },
+ "Gagnant non enregistré.": {
+  "fr": "Gagnant non enregistré.",
+  "en": "Winner not saved."
+ },
+ "Élément inconnu dans les fils de la niche de cet espace.": {
+  "fr": "Élément inconnu dans les fils de la niche de cet espace.",
+  "en": "Unknown item in the feeds of this space's niche."
+ },
+ "Espace inconnu.": {
+  "fr": "Espace inconnu.",
+  "en": "Unknown space."
+ },
+ "Liste de fils attendue (50 au plus).": {
+  "fr": "Liste de fils attendue (50 au plus).",
+  "en": "A list of feeds is expected (50 at most)."
+ },
+ "Seuil hors bornes : de 1 à 1000 fois l'habituel.": {
+  "fr": "Seuil hors bornes : de 1 à 1000 fois l'habituel.",
+  "en": "Threshold out of range: 1 to 1000 times the usual."
+ },
+ "Fenêtre hors bornes : de 1 à 365 jours.": {
+  "fr": "Fenêtre hors bornes : de 1 à 365 jours.",
+  "en": "Window out of range: 1 to 365 days."
+ },
+ "Transcription trop longue : 20 000 caractères au plus.": {
+  "fr": "Transcription trop longue : 20 000 caractères au plus.",
+  "en": "Transcript too long: 20,000 characters at most."
+ },
+ "Fil inconnu : choisis parmi les fils suivis de News.": {
+  "fr": "Fil inconnu : choisis parmi les fils suivis de News.",
+  "en": "Unknown feed: choose among the feeds followed in News."
+ },
+ "200 gagnants enregistrés au plus : retires-en un d'abord.": {
+  "fr": "200 gagnants enregistrés au plus : retires-en un d'abord.",
+  "en": "200 saved winners at most: remove one first."
+ },
+ "Une analyse est déjà en cours pour ce gagnant : attends sa réponse.": {
+  "fr": "Une analyse est déjà en cours pour ce gagnant : attends sa réponse.",
+  "en": "An analysis is already running for this winner: wait for its answer."
+ },
+ "Post inconnu : rien à recycler.": {
+  "fr": "Post inconnu : rien à recycler.",
+  "en": "Unknown post: nothing to recycle."
+ },
+ "Ce post n'est pas un gagnant : ses vues restent sous le seuil face à l'habituel de son compte.": {
+  "fr": "Ce post n'est pas un gagnant : ses vues restent sous le seuil face à l'habituel de son compte.",
+  "en": "This post is not a winner: its views stay below the threshold compared with its account's usual."
+ },
+ "Ce post n'a pas de vidéo : la variante « branche » demande ses plans.": {
+  "fr": "Ce post n'a pas de vidéo : la variante « branche » demande ses plans.",
+  "en": "This post has no video: the \"branch\" variant needs its shots."
+ },
+ "Cet élément n'est pas encore rédigé : accepte d'abord son devis.": {
+  "fr": "Cet élément n'est pas encore rédigé : accepte d'abord son devis.",
+  "en": "This element is not written yet: accept its quote first."
+ },
+ "L'espace de ce post est inconnu ou archivé.": {
+  "fr": "L'espace de ce post est inconnu ou archivé.",
+  "en": "This post's space is unknown or archived."
+ },
+ "Une rédaction payante est déjà en cours pour ce post : attends sa réponse.": {
+  "fr": "Une rédaction payante est déjà en cours pour ce post : attends sa réponse.",
+  "en": "A paid writing request is already running for this post: wait for its answer."
+ },
+ "Aucun gabarit Templates avec une case de texte : crée-en un pour le carrousel.": {
+  "fr": "Aucun gabarit Templates avec une case de texte : crée-en un pour le carrousel.",
+  "en": "No Templates layout with a text slot: create one for the carousel."
+ },
+ "Carrousel impossible : {x}": {
+  "fr": "Carrousel impossible : {x}",
+  "en": "Carousel failed: {x}"
+ },
+ "Liste de messages attendue (25 au plus).": {
+  "fr": "Liste de messages attendue (25 au plus).",
+  "en": "A list of messages is expected (25 at most)."
+ },
+ "auto : vrai ou faux.": {
+  "fr": "auto : vrai ou faux.",
+  "en": "auto: true or false."
+ },
+ "Plafond X hors bornes : de 0 à 10 000 $.": {
+  "fr": "Plafond X hors bornes : de 0 à 10 000 $.",
+  "en": "X cap out of range: from $0 to $10,000."
+ },
+ "Le relevé automatique de X demande un plafond X du mois (en dollars).": {
+  "fr": "Le relevé automatique de X demande un plafond X du mois (en dollars).",
+  "en": "Automatic X reading needs a monthly X cap (in dollars)."
+ },
+ "Aucun accord enregistré pour relever X automatiquement.": {
+  "fr": "Aucun accord enregistré pour relever X automatiquement.",
+  "en": "No recorded consent to read X automatically."
+ },
+ "Accord manquant : max_usd (le montant du devis affiché) est requis.": {
+  "fr": "Accord manquant : max_usd (le montant du devis affiché) est requis.",
+  "en": "Missing consent: max_usd (the amount of the displayed quote) is required."
+ },
+ "Le relevé X n'est pas disponible (adaptateur absent).": {
+  "fr": "Le relevé X n'est pas disponible (adaptateur absent).",
+  "en": "X reading is not available (adapter missing)."
+ },
+ "quantité X invalide ({cle}) : un entier >= 0 est attendu": {
+  "fr": "quantité X invalide ({cle}) : un entier >= 0 est attendu",
+  "en": "invalid X quantity ({cle}): an integer >= 0 is expected"
+ },
+ "Élément inconnu : carrousel, accroches, fil_x, branche ou x_video.": {
+  "fr": "Élément inconnu : carrousel, accroches, fil_x, branche ou x_video.",
+  "en": "Unknown element: carrousel, accroches, fil_x, branche or x_video."
  },
  "Le script n'est pas validé : valide-le d'abord (porte 1).": {
   "fr": "Le script n'est pas validé : valide-le d'abord (porte 1).",
