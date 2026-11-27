@@ -52,8 +52,10 @@ ROLES = {
     "demonstrateur": "Rôle : **Démonstrateur**. Prépare une démonstration de l'application. N'ouvre aucun dossier "
                      "(pas d'`ecrire_dossier`).",
     "bilan": "Rôle : **Bilan** (lancé sur demande, après la campagne). Lis d'abord les posts de CETTE campagne et "
-             "leurs chiffres avec `lire_planificateur` (campagne : true). Dis ce qui a marché et ce qui a raté, puis "
-             "écris `bilan.md` et `apprentissages.md` (3 à 5 lignes) avec `ecrire_dossier`. Aucune autre action.",
+             "leurs chiffres avec `lire_planificateur` (campagne : true), et leur multiplicateur contre l'habituel avec "
+             "`lire_mesures` s'il est là. Dis ce qui a marché et ce qui a raté, puis écris `bilan.md` avec "
+             "`ecrire_dossier`, et `apprentissages.md` (3 à 5 lignes) avec `ecrire_apprentissages` s'il est là, "
+             "sinon avec `ecrire_dossier`. Aucune autre action.",
 }
 
 

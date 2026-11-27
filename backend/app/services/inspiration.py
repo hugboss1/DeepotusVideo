@@ -159,7 +159,7 @@ def _capture(rec: dict) -> bytes | None:
 
 def vue(rec: dict) -> dict:
     """Ce que l'écran voit : tout sauf les empreintes et le nom interne du fichier capté."""
-    src = {k: v for k, v in (rec.get("source") or {}).items() if k not in ("sha256", "ahash", "capture")}
+    src = {k: v for k, v in (rec.get("source") or {}).items() if k not in ("sha256", "ahash", "capture", "video")}
     return {**{k: v for k, v in rec.items() if k != "source"}, "source": src,
             "image": bool((rec.get("source") or {}).get("capture"))}
 
@@ -183,7 +183,11 @@ def lister(espace_id: str) -> list[dict]:
         out.append({"id": rec["id"], "cree": rec.get("cree"), "source": vue(rec)["source"],
                     "image": vue(rec)["image"], "mots": len(str(rec.get("texte_capte") or "").split()),
                     "angles": [x.get("titre") for x in a.get("angles") or []],
-                    "brouillons": rec.get("brouillons") or []})
+                    "brouillons": rec.get("brouillons") or [],
+                    # t511 (RV1) : une référence vidéo montre sa fiche (format, rythme) et si sa source est effacée
+                    "matiere": rec.get("matiere") or "capture",
+                    "fiche": (rec.get("video") or {}).get("fiche"),
+                    "purgee": bool((rec.get("video") or {}).get("purgee"))})
     out.sort(key=lambda x: str(x.get("cree") or ""), reverse=True)
     return out[:MAX_LISTE]
 
@@ -421,11 +425,13 @@ def _rendre(iid: str) -> None:
         _EN_COURS.discard(iid)
 
 
-async def _appel(prompt: str, systeme: str, max_tokens: int, modele: str, delai: float, images=None):
-    """Le tir Claude sous la garde des plafonds ; les erreurs réseau deviennent AppelEchoue (504/502)."""
+async def _appel(prompt: str, systeme: str, max_tokens: int, modele: str, delai: float, images=None,
+                categorie: str = CATEGORIE):
+    """Le tir Claude sous la garde des plafonds ; les erreurs réseau deviennent AppelEchoue (504/502).
+    t512 : `categorie` = celle du lot appelant (« campagnes » pour la lecture d'une référence et son script)."""
     from app.services import moteurs_texte as MT
     try:
-        return await MT.tirer_garde(MOTEUR, modele, prompt, systeme, max_tokens, categorie=CATEGORIE,
+        return await MT.tirer_garde(MOTEUR, modele, prompt, systeme, max_tokens, categorie=categorie,
                                     timeout=delai, images=images)
     except Exception as e:  # noqa: BLE001
         import httpx

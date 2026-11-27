@@ -13,7 +13,8 @@ corps envoyés : aucun réseau, aucune clé réelle) :
   V5  réponses : « Valider » -> post `draft` + `valide_client_le` + journal de la fiche `validation` (qui client) ;
       deuxième réponse -> ignorée ; autre contact -> ignorée ; post supprimé -> ignorée ; chaque ignorée notée au journal
       de whatsapp.json `validation_ignoree` SANS texte.
-  V6  « Corriger » (bouton de modèle) -> `a_corriger`, puis le texte suivant du contact -> `note` (≤ 2000), `corrige` ;
+  V6  « Corriger » (bouton de modèle) -> `a_corriger`, puis le texte suivant du contact -> `note` (≤ 2000), `corrige`,
+      et la note remise à l'agent Campagnes (conversation de l'espace du post, 26/11) ;
       GET /api/schedule/{id}/client rend `validation_whatsapp.note` ; un texte sans correction en attente -> False ;
       au-delà de 24 h -> rien.
   V7  la route t309 `validation-client` répond comme avant (400 réponse inconnue, 200 valide) ; la logique vit dans
@@ -393,6 +394,13 @@ r7 = run(WV.traiter_reponse(cW, C1, plat(texte_in(TEL, NOTE))))
 v = AW.validations(C1).get(P2) or {}
 check("V6.3 le texte suivant du contact : note rangée (≤ 2000), état corrige", r7 is True and v.get("etat") == "corrige"
       and v.get("note") == NOTE[:2000] and v.get("note_le"), v)
+from app.services import agent_store as _AST                         # noqa: E402  (26/11 : §6.4, la note va à Campagnes)
+_conv = run(_AST.lire(v.get("conversation") or "")) if v.get("conversation") else None
+_txt = " ".join(b.get("texte", "") for m in (_conv or {}).get("messages", []) for b in m.get("blocs", []))
+check("V6.3b la note revient à l'agent Campagnes : conversation de l'espace du post, message qui cite la note, aucun tour",
+      _conv is not None and _conv.get("role") == "campagnes" and _conv.get("titre", "").startswith("Correction demandée")
+      and NOTE[:2000] in _txt and len(_conv.get("messages", [])) == 1 and _conv["messages"][0]["role"] == "utilisateur"
+      and float(_conv.get("cout_usd") or 0) == 0.0, (v.get("conversation"), str(_conv)[:300]))
 g = client_http.get(f"/api/schedule/{P2}/client")
 vw = (g.json() or {}).get("validation_whatsapp") if g.status_code == 200 else None
 check("V6.4 GET /schedule/{id}/client : validation_whatsapp.note, sans identité ni compte",
@@ -547,6 +555,16 @@ check("V10.2 modèle sans boutons de réponse rapide aux places 0 et 1 : 400 (me
       (r.status_code, r.text[:200], len(FK.medias) - m0))
 r = client_http.post(f"/api/schedule/{poser(C7)}/validation-whatsapp", headers={"Accept-Language": "en"})
 check("V10.3 le refus est traduit (L10, en)", r.status_code == 400 and "quick" in str(detail(r)).lower(), r.text[:200])
+# 26/11 : la catégorie UTILITY du modèle de validation est revérifiée par le SERVEUR (pas seulement par l'écran)
+FK.modeles.append({"name": "validation_pub", "language": "fr", "category": "MARKETING", "status": "APPROVED", "components": [
+    {"type": "BODY", "text": "À valider : {{1}}"},
+    {"type": "BUTTONS", "buttons": [{"type": "QUICK_REPLY", "text": "Valider"}, {"type": "QUICK_REPLY", "text": "Corriger"}]}]})
+WA.regler_espace(C7, {"agent": {"modele_validation": {"nom": "validation_pub", "langue": "fr"}}})
+n0, m0 = len(FK.envois), len(FK.medias)
+r = envoyer(poser(C7))
+check("V10.4b modèle MARKETING comme modèle de validation : 400, rien n'est parti ni téléversé",
+      r.status_code == 400 and "UTILITY" in str(detail(r)) and len(FK.envois) == n0 and len(FK.medias) == m0,
+      (r.status_code, r.text[:200]))
 # t311 (restes) : un modèle à DEUX paramètres (ou plus) ne peut recevoir que le titre : refusé AVANT le téléversement de
 # l'aperçu (il partait chez Kapso, puis l'envoi échouait sur le nombre de paramètres)
 FK.modeles.append({"name": "validation_deux", "language": "fr", "category": "UTILITY", "status": "APPROVED", "components": [

@@ -65,7 +65,7 @@ check("1d schema image requise, langue fr|en|auto",
 check("1e boite_de", B.boite_de("lire_texte_image") == "scan")
 check("1f aucun agent existant ne le voit",
       all("lire_texte_image" not in [d["name"] for d in B.definitions_pour(a)] for a in ("campagnes", "whatsapp", "scan")))
-check("1g paquet mobile sans scan", [x["id"] for x in B.paquet_mobile()] == ["campagnes"])
+check("1g paquet mobile sans scan", "scan" not in [x["id"] for x in B.paquet_mobile()])
 b["agents"].append("demo")
 try:
     check("1h rendu par definitions_pour a une boite qui le contient",

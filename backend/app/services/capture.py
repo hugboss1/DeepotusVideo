@@ -36,7 +36,7 @@ MAX_EVENEMENTS = 20000
 MAX_LIBELLE = 40                         # comme le relevé de « Demander » (dz-agent-logique.js)
 MAX_INFOBULLE = 80
 MAX_ECRAN = 40
-MODES = ("app", "onglet")
+MODES = ("app", "onglet", "telephone")   # t323 : « telephone » = déposée par le compagnon (sync_capture_routes)
 FORMES = ("cercle", "carre", "vif")
 ID = re.compile(r"^[a-f0-9]{16}$")
 ECRAN_SUR = re.compile(r"^[a-z0-9_-]{1,40}$")
@@ -45,6 +45,7 @@ FICHIER = re.compile(r"(?i)\.(png|jpe?g|webp|gif|svg|mp4|mov|webm|mkv|wav|mp3|og
                      r"|fbx|obj|stl|blend|zip|txt|docx?|xlsx?|csv)\b|[\\/][A-Za-z]|^[A-Za-z]:")
 BALISES = re.compile(r"^[a-z][a-z0-9-]{0,20}$")
 ROLES = re.compile(r"^[a-z]{1,20}$")
+TEST_ID = re.compile(r"^[A-Za-z0-9_.-]{1,60}$")
 
 _VERROU = threading.Lock()
 
@@ -209,6 +210,9 @@ def nettoyer_clics(doc, duree_ms: int) -> list[dict]:
                 c["secret"] = True              # dans une zone masquée : ni libellé ni infobulle
             else:
                 cible["t"], cible["i"] = _texte(src.get("t"), MAX_LIBELLE), _texte(src.get("i"), MAX_INFOBULLE)
+                tid = src.get("test_id")                # t323 : le testID d'un bouton du téléphone (jamais d'un clic secret)
+                if isinstance(tid, str) and TEST_ID.match(tid):
+                    cible["test_id"] = tid
             c["cible"] = cible
             out.append(c)
     out.sort(key=lambda x: x["t"])

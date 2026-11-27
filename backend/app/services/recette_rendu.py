@@ -83,6 +83,13 @@ def _graphe_studio(job_id: str) -> bool:
     return bool(nom) and (settings.outputs_path / "_graphs" / f"{nom}.json").is_file()
 
 
+def _fabrication(job_id: str) -> dict | None:
+    nom = Path(str(job_id or "")).name
+    if not nom or nom in (".", ".."):
+        return None
+    return _json_fichier(settings.outputs_path / "_recipes" / f"{nom}.fabrication.json")
+
+
 def _vide(v):
     return None if v in (None, "") else v
 
@@ -112,6 +119,9 @@ def recette(job) -> dict:
         "studio": _graphe_studio(job.id),
         "quick": q,
         "import": imp,
+        # t515 (RV5) : la recette de FABRICATION d'un rendu fabriqué par l'app (Reel en tableaux) et sa provenance
+        # `inspire_de` (R12 a), écrite par inspiration_reel.rendre dans _recipes/<job>.fabrication.json
+        "fabrication": _fabrication(job.id),
     }
     if out["source"] in ("import", "aucune"):
         # un import n'a ni prompt propre ni modèle : seulement ce que sa recette jointe dit (affichée telle quelle)
