@@ -26,7 +26,8 @@ MODULES = {
     "post": RACINE / "api" / "post_routes.py",   # t277 : les générateurs IA de la pile de post-traitement
     "agent_campagnes": RACINE / "api" / "agent_campagnes_routes.py",   # t285a : le message de l'agent Campagnes (Anthropic)
     "scan": RACINE / "api" / "scan_routes.py",   # t312 : le secours Claude vision de la boîte Scan (Anthropic)
-    "inspiration": RACINE / "api" / "inspiration_routes.py",   # t313 : matière, angles et rédaction d'une inspiration (Anthropic)
+    "inspiration": RACINE / "api" / "inspiration_routes.py",
+    "croissance": RACINE / "api" / "croissance_routes.py",   # t497 : la note avant publication (étage 2 : Claude vision)   # t313 : matière, angles et rédaction d'une inspiration (Anthropic)
     "schema": RACINE / "api" / "schema_routes.py",   # t314 : le détourage fal d'un schéma (calques du Vectorlab)
     "comparatif3d": RACINE / "api" / "comparatif3d_routes.py",   # t344 : N moteurs image → 3D en un clic (fal)
     "studio3d": RACINE / "api" / "studio3d_routes.py",   # t389 : l'écran Créer — N modèles × images × exemplaires (fal)
@@ -69,6 +70,7 @@ PUITS = {
     "WV.envoyer_validation",   # t311 : la demande de validation au client (whatsapp_validation.envoyer_validation -> WE.envoyer)
     "SV.lire",   # t312 : le secours Claude vision du Scan (scan_vision.lire -> moteurs_texte.tirer_garde, Anthropic)
     "I.analyser", "I.rediger",   # t313 : l'inspiration (inspiration.analyser / rediger -> moteurs_texte.tirer_garde, Anthropic)
+    "NR.affiner",   # t497 (G7) : l'étage 2 de la note (note_rendu.affiner -> tirer_garde, Anthropic)
     "IS.ecrire",   # t514 (RV4) : le script sur recette (inspiration_script.ecrire -> tirer_garde, Anthropic)
     "IR.lire_reference",   # t512 (RV2) : la lecture d'une vidéo de référence (transcription + tirer_garde, Anthropic)
     "RV.noter",   # t337 : l'avis « directeur artistique » de la revue d'un plan (revue_plan.noter -> moteurs_texte.tirer_garde, Anthropic)
@@ -112,6 +114,7 @@ GARDES = {"_plafond", "_PLAF.verifier",   # `verifier` nu est ambigu (cards/face
           "WV.envoyer_validation",   # t311 tâche 6 : délègue à WE.envoyer (garde A2e) ; test_plafonds_garde A2h le vérifie
           "SV.lire",   # t312 : la garde vit DANS scan_vision.lire (tirer_garde avant CHAQUE lot) ; test_plafonds_garde A2i
           "I.analyser", "I.rediger",   # t313 : la garde vit DANS inspiration (tirer_garde après l'accord) ; test_plafonds_garde A2j
+          "NR.affiner",   # t497 : l'accord puis tirer_garde « campagnes » dans note_rendu.affiner ; test_note_rendu
           "IS.ecrire",   # t514 : l'accord puis tirer_garde dans inspiration_script.ecrire ; test_inspiration_script
           "IR.lire_reference",   # t512 : PLAF.verifier avant la transcription, tirer_garde avant Claude ; test_inspiration_recette
           "RV.noter",   # t337 : la garde vit DANS revue_plan.noter (tirer_garde après l'accord) ; test_plafonds_garde A2m

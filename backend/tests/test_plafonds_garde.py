@@ -37,6 +37,7 @@ PAYANTES = {
     ("news_fils", "POST", "/{fid}/lire"),   # t380 : le relevé d'un fil social suivi (Apify ; garde « news » dans NF.relever)
     ("pose3d", "POST", "/classer"),   # t376 : la classification vision de la source 3D (garde « moteurs3d » dans P.classer_image)
     ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
+    ("croissance", "POST", "/note/affiner"),   # t497 (G7) : étage 2 de la note (garde « campagnes » dans NR.affiner)
     ("inspiration", "POST", "/{iid}/lecture"), ("inspiration", "POST", "/{iid}/script"),   # t514 (RV4) : script sur recette (garde « campagnes » dans IS.ecrire)
       # t512 (RV2) : transcription + Claude vision (garde « campagnes » dans IR.lire_reference)
     ("schema", "POST", "/analyser"),   # t314 : détourage fal d'un schéma (garde « vectorlab » avant l'envoi)
@@ -256,6 +257,9 @@ _inr = (RP.MODULES["inspiration"]).read_text(encoding="utf-8")
 anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I.rediger(", "_sans_garde(")
                           .replace("IR.lire_reference(", "_sans_garde(").replace("IS.ecrire(", "_sans_garde(")
                           if "I.analyser(" in _inr else None)
+# t497 : la note avant publication n'existait pas en bfec23e — même témoin
+_crr = (RP.MODULES["croissance"]).read_text(encoding="utf-8")
+anciens["croissance"] = _crr.replace("NR.affiner(", "_sans_garde(") if "NR.affiner(" in _crr else None
 # t314 : la boîte « schéma » n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
 _shr = (RP.MODULES["schema"]).read_text(encoding="utf-8")
 anciens["schema"] = _shr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _shr else None

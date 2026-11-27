@@ -15078,5 +15078,17 @@
  "yt-dlp": {
   "fr": "yt-dlp",
   "en": "yt-dlp"
+ },
+ "Rendu illisible : durée nulle.": {
+  "fr": "Rendu illisible : durée nulle.",
+  "en": "Unreadable render: zero length."
+ },
+ "Post introuvable.": {
+  "fr": "Post introuvable.",
+  "en": "Post not found."
+ },
+ "job_id ou post_id requis.": {
+  "fr": "job_id ou post_id requis.",
+  "en": "job_id or post_id required."
  }
 }
