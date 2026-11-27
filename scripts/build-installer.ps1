@@ -122,6 +122,23 @@ if ($leaks) {
     Write-Warning "Personal paths found in staged files:"
     $leaks | ForEach-Object { Write-Warning "  $($_.Path)" }
 }
+# WhatsApp (26/11/2026) : la page, la consigne de l'agent et le maillon du bundle sont REQUIS chez le client. Sans
+# eux l'app demarre quand meme (main.py ne monte /whatsapp que si le dossier existe ; l'agent tourne sans consigne) :
+# le defaut serait muet. La construction s'arrete donc ici. Les bancs de la page (qa\) ne partent pas.
+$waQa = Join-Path $stageApp "frontend\whatsapp\qa"
+if (Test-Path $waQa) { Remove-Item $waQa -Recurse -Force; Write-Host "  removed frontend\whatsapp\qa" -ForegroundColor Green }
+foreach ($f in @("frontend\whatsapp\index.html", "frontend\whatsapp\whatsapp.js",
+                 "frontend\whatsapp\onglets-conversations.js", "frontend\whatsapp\onglets-gestion.js",
+                 "frontend\whatsapp\whatsapp.css", "docs\agent\whatsapp\WHATSAPP.md",
+                 "docs\agent\whatsapp\competence-validation.md", "docs\agent\catalogue\whatsapp.json",
+                 "backend\app\services\kapso.py", "backend\app\services\whatsapp_releve.py")) {
+    if (-not (Test-Path (Join-Path $stageApp $f))) { throw "WhatsApp incomplet : $f manque dans l'arbre a empaqueter" }
+}
+$bundle = Get-ChildItem (Join-Path $stageApp "frontend\dist\assets") -Filter "index-*.js" -File | Select-Object -First 1
+if (-not $bundle -or -not (Select-String -Path $bundle.FullName -SimpleMatch "/*dzwhatsapp*/" -Quiet)) {
+    throw "WhatsApp incomplet : le bundle frontend\dist ne porte pas le maillon dzwhatsapp"
+}
+Write-Host "  WhatsApp : page, consigne de l'agent et maillon du bundle presents" -ForegroundColor Green
 if (-not (Test-Path (Join-Path $stageApp "frontend\dist\index.html"))) {
     throw "frontend\dist missing -- run 'npm run build' in frontend\ first"
 }
