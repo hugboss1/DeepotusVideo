@@ -61,6 +61,7 @@
   "agent.boites.capture": {"fr": "Capture de l'app", "en": "App recording"},
   "agent.boites.recette": {"fr": "Recette exportable", "en": "Exportable recipe"},
   "agent.boites.fils": {"fr": "Fils suivis de News", "en": "Followed News feeds"},
+  "agent.boites.croissance": {"fr": "Boucle de croissance", "en": "Growth loop"},
   "agent.boites.chapitres": {"fr": "Chapitres", "en": "Chapters"},
   "agent.boites.assets3d": {"fr": "Pièces, budgets et comparatifs 3D", "en": "3D parts, budgets and comparisons"},
   "agent.boites.methodes": {"fr": "Méthodes (lecture)", "en": "Methods (read-only)"},

@@ -160,6 +160,58 @@
   "name": "proposer_fil"
  },
  {
+  "description": "Écrit un script court de vidéo verticale (accroche, corps une idée par ligne, appel) dans textes/<nom>.md du dossier de la campagne, et le CONTRÔLE sans dépense : durée lue estimée (2,5 mots/s), accroche en 3 s, une idée par ligne (12 mots au plus), fin sur un appel, mêmes mots à l'écran, mots interdits de l'espace. Le verdict va dans controle.md. Réécris les lignes signalées puis rappelle l'outil.",
+  "input_schema": {
+   "additionalProperties": false,
+   "properties": {
+    "accroche": {
+     "description": "la première ligne, dite en 3 s",
+     "type": "string"
+    },
+    "appel": {
+     "description": "la dernière ligne : une seule action",
+     "type": "string"
+    },
+    "corps": {
+     "description": "une idée par ligne",
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "ecran": {
+     "description": "texte à l'écran ligne par ligne (accroche, corps, appel), mots dits seulement",
+     "items": {
+      "type": "string"
+     },
+     "type": "array"
+    },
+    "gagnant": {
+     "description": "le gagnant enregistré dont part le script (facultatif)",
+     "type": "string"
+    },
+    "langue": {
+     "enum": [
+      "fr",
+      "en"
+     ],
+     "type": "string"
+    },
+    "nom": {
+     "description": "nom du fichier, ex. reel-prix",
+     "type": "string"
+    }
+   },
+   "required": [
+    "accroche",
+    "corps",
+    "appel"
+   ],
+   "type": "object"
+  },
+  "name": "ecrire_script_court"
+ },
+ {
   "description": "Écrit un fichier .md, .json ou .txt dans le dossier de la campagne.",
   "input_schema": {
    "additionalProperties": false,

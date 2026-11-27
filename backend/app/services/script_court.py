@@ -24,8 +24,8 @@ import re
 from app.services import inspiration_garde as G
 
 ACCROCHE_S = 3.0
-MOTS_PAR_LIGNE = 16
-MOTS_PAR_MINUTE = 160.0              # débit d'une voix off de Reel : 150 à 180 mots par minute
+MOTS_PAR_LIGNE = 12                   # competence-script-court.md : « une ligne de plus de 12 mots se coupe en deux »
+MOTS_PAR_MINUTE = 150.0              # competence-script-court.md : 2,5 mots par seconde
 APPELS = {
     "fr": ("commente", "commentez", "clique", "cliquez", "abonne", "abonnez", "écris", "écrivez", "écris-nous",
            "lien", "bio", "découvre", "découvrez", "essaie", "essayez", "télécharge", "téléchargez", "réserve",
