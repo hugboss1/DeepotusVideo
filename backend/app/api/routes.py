@@ -20540,6 +20540,41 @@ async def sync_evenements_get(request: Request, depuis: str | None = None, limit
 # ── Plan mobile T18 (tâche #58, 02/10/2026) : les dépenses du téléphone, comptées par le PC (table Depense) ──────────
 # Écriture ouverte au réseau local (main._ECRITURES_OUVERTES, décision « une par une ») ; l'appareil est celui du JETON.
 
+# ── t321 (Compagnon M4, 26/11/2026) : WhatsApp sur le téléphone — l'état des numéros (lecture) et l'écriture PC n° 7
+# (accords saisis, STOP, envois du téléphone ; ouverte au réseau local par main._ECRITURES_OUVERTES). L'appareil est
+# celui du JETON ; aucune route ne rend un secret ni un texte de message.
+
+@router.get("/sync/whatsapp")
+async def sync_whatsapp_get(request: Request, langue: str = "fr"):
+    from app.services import sync_whatsapp as _sw
+    await _appareil_requis(request)
+    return await asyncio.to_thread(_sw.lecture, None, langue)
+
+
+@router.post("/sync/whatsapp")
+async def sync_whatsapp_post(request: Request, body: dict | None = None):
+    from app.services import sync_whatsapp as _sw
+    appareil = await _appareil_requis(request)
+    try:
+        return await asyncio.to_thread(_sw.deposer, appareil,
+                                       (body or {}).get("evenements") if isinstance(body, dict) else None)
+    except _sw.TropDEvenements as e:
+        raise HTTPException(413, str(e)) from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+
+
+# ── t322 (Compagnon M5, 26/11/2026) : un contenu neuf rédigé sur le téléphone, remis en brouillon (gardes REJOUÉES ici) ─
+@router.post("/sync/post")
+async def sync_post_post(request: Request, body: dict | None = None):
+    from app.services import sync_post as _sp
+    appareil = await _appareil_requis(request)
+    try:
+        return await _sp.deposer(appareil, body)
+    except _sp.RefusPost as e:
+        raise HTTPException(e.statut, {"message": str(e), "code": e.code, "garde": e.garde}) from None
+
+
 @router.post("/sync/depenses")
 async def sync_depenses_post(request: Request, body: dict | None = None):
     from app.services import sync_depenses as _sd
