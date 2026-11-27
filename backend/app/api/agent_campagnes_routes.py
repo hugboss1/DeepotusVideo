@@ -569,6 +569,9 @@ async def carte(cid: str, n: int, request: Request):
                 extra["fichier"] = _fichier_rendu(g, corps.get("fichier"))
                 faits.append(fmt.nouveau_message("fait", [_bloc_etat(orig, n, "terminee", {
                     "fichier": extra["fichier"], "statut": "done"}, action="continuer")], **_trace(appareil)))
+            elif g in ("note", "recyclage"):              # t499 : l'écran a appelé la route payante ; le résultat
+                faits.append(fmt.nouveau_message("fait", [_bloc_etat(orig, n, "terminee", {   # reste au serveur
+                    "statut": "done"}, action="continuer")], **_trace(appareil)))
             elif job_id:                                  # vidéo : le fait viendra au GET, job fini
                 extra["job_id"] = job_id
         elif acceptee and genre == "recherche":

@@ -805,6 +805,34 @@ ok("10.30 M9 : l'en-tête dit que le script classique s'exécute AVANT le module
   ok("10.9 M3 : démonter l'annule", signal.aborted === true);
   ok("10.10 M3 : aucun POST /carte après le démontage", !w.appels.some((a) => a.url.endsWith("/carte/0")), JSON.stringify(w.appels.map((a) => a.url)));
 }
+{ // t499 (G9) : la note affinée et la rédaction d'un recyclage — LA route payante de la carte, à son montant, puis /carte
+  const NOTE = carte("devis", { devis: 0.0123, action: "affiner_note", arguments: { genre: "note", route: "/api/croissance/note/affiner",
+    corps: { post_id: "p1", max_usd: 0.0123, langue: "fr" }, usd: 0.0123, espace_id: "e1" } });
+  const RECY = carte("devis", { devis: 0.006, action: "recycler_gagnant", arguments: { genre: "recyclage", element: "fil_x", post_id: "p1",
+    route: "/api/recyclage/p1/redaction", corps: { element: "fil_x", max_usd: 0.006, langue: "fr" }, usd: 0.006, espace_id: "e1" } });
+  for (const [c, route] of [[NOTE, "/api/croissance/note/affiner"], [RECY, "/api/recyclage/p1/redaction"]]) {
+    const faits = [];
+    const routes = avec(() => conv([msg("agent", [c])]), {
+      ["POST " + route]: async () => reponse(200, { ok: true }),
+      "POST /api/agent/campagnes/c1/carte/0": async (b) => { faits.push(b); return reponse(200, conv([msg("agent", [c])])); }
+    });
+    const w = await monterAvec(routes);
+    ok("11.1 " + c.arguments.genre + " : le genre est nommé sur la carte", texte(w.racine).includes(c.arguments.genre === "note" ? "note affinée" : "recyclage"), texte(w.racine));
+    parTexte(w.racine, /Générer/)[0].click();
+    await attendre(() => faits.length);
+    const gen = w.appels.filter((a) => a.url === route);
+    ok("11.2 " + c.arguments.genre + " : LA route, UNE fois, au montant de la carte", gen.length === 1 && gen[0].corps.max_usd === c.arguments.usd
+      && JSON.stringify(gen[0].corps) === JSON.stringify(c.arguments.corps), JSON.stringify(gen));
+    ok("11.3 " + c.arguments.genre + " : puis /carte acceptée", JSON.stringify(faits[0]) === '{"decision":"acceptee"}', JSON.stringify(faits));
+    w.c.demonter();
+  }
+  const louche = carte("devis", { devis: 1, arguments: { genre: "recyclage", route: "/api/recyclage/p1/brouillons", corps: {}, usd: 1 } });
+  const w = await monterAvec(avec(() => conv([msg("agent", [louche])])));
+  parTexte(w.racine, /Générer/)[0].click();
+  await tick();
+  ok("11.4 recyclage hors de la route de rédaction : rien ne part", !w.appels.some((a) => a.url.startsWith("/api/recyclage/") || a.url.includes("/carte/")));
+  w.c.demonter();
+}
 { // M4/M6 : plus de ponctuation collée hors dzT, plus de chaîne nue
   const w = await monterAvec(avec(() => conv([])), {}, "en");
   ok("10.11 M4 : l'en-tête EN est « Campaign space: Marque A » (ponctuation du gabarit)", /Campaign space: Marque A/.test(texte(marque(w.racine, "espace"))), texte(marque(w.racine, "espace")));

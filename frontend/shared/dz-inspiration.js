@@ -100,9 +100,14 @@
     var R = await window.fetch(chemin, init);
     return { R: R, j: await lireJson(R) };
   }
+  function estVideo(f) {
+    /* t511 (RV1) : une vidéo de référence (enregistrement d'écran) part vers POST /video */
+    var type = String((f && f.type) || "").toLowerCase(), nom = String((f && f.name) || "").toLowerCase();
+    return type.indexOf("video/") === 0 || /\.(mp4|mov|m4v|webm|mkv)$/.test(nom);
+  }
   function accepte(f) {
     var type = String((f && f.type) || "").toLowerCase(), nom = String((f && f.name) || "").toLowerCase();
-    return (type.indexOf("image/") === 0 && type !== "image/svg+xml") || (!type && /\.(png|jpe?g|webp|bmp|tiff?)$/.test(nom));
+    return (type.indexOf("image/") === 0 && type !== "image/svg+xml") || (!type && /\.(png|jpe?g|webp|bmp|tiff?)$/.test(nom)) || estVideo(f);
   }
   function nomImage(j) {
     var i = j && j.images && j.images[0];
@@ -150,6 +155,8 @@
     E.corps.appendChild(el("div", { "data-dz-insp": "regle", style: S.note }, T("inspiration.boite.regle")));
     E.recents = el("div", { "data-dz-insp": "recents", style: "display:flex;flex-direction:column;gap:3px", hidden: "" });
     E.corps.appendChild(E.recents);
+    E.mesRecettes = el("div", { "data-dz-insp": "mes-recettes", style: "display:flex;flex-direction:column;gap:3px;font-size:12px", hidden: "" });
+    E.corps.appendChild(E.mesRecettes);
 
     /* 1. capture */
     var s1 = section(E, "capture");
@@ -157,7 +164,7 @@
     depot.appendChild(el("div", { style: S.note }, T("inspiration.capture.depot")));
     var ligne = el("div", { style: S.ligne });
     E.choisir = bouton("choisir", T("inspiration.capture.choisir"));
-    E.entree = el("input", { type: "file", accept: "image/*", "data-dz-insp": "fichier", hidden: "" });
+    E.entree = el("input", { type: "file", accept: "image/*,video/*", "data-dz-insp": "fichier", hidden: "" });
     E.nomFichier = el("span", { "data-dz-insp": "nom-fichier", style: S.note });
     E.retirer = bouton("retirer", T("inspiration.capture.retirer"), "min-width:0");
     montrer(E.retirer, false);
@@ -356,12 +363,28 @@
       E.recents.appendChild(l);
     });
   }
+  function mesRecettes(E, liste) {
+    /* t513 (RV3) : « mes recettes » de l'espace (rangées par la lecture d'une vidéo, RV2) */
+    liste = (liste || []).slice(0, 5);
+    if (!liste.length) return;
+    var b = E.mesRecettes;
+    vider(b);
+    montrer(b, true);
+    b.appendChild(el("div", { style: S.titre }, T("inspiration.recettes.titre")));
+    liste.forEach(function (x) {
+      b.appendChild(el("div", { "data-dz-insp": "ma-recette" }, T("inspiration.recettes.ligne", { date: String(x.lu_le || "").slice(0, 10),
+        source: String(x.libelle || T("inspiration.plateforme." + (x.plateforme || "inconnue"))), n: x.tableaux == null ? "—" : String(x.tableaux),
+        mpm: x.mots_par_minute == null ? "—" : String(Math.round(x.mots_par_minute)) })));
+    });
+  }
   async function entete(E) {
     try {
       var r = await appel("GET", BASE);
       if (E.ferme || !r.R.ok) return;
       pourQui(E, r.j);
       recents(E, r.j && r.j.inspirations);
+      var m = await appel("GET", BASE + "/recettes");
+      if (!E.ferme && m.R.ok) mesRecettes(E, m.j && m.j.recettes);
     } catch (e) { /* l'en-tête n'empêche rien */ }
   }
   async function reprendre(E, id) {
@@ -379,17 +402,21 @@
   async function capter(E) {
     if (E.occupe) return;
     var texte = String(E.texte.value || "");
+    /* t513 (RV3) : un lien seul -> métadonnées publiques (et sous-titres YouTube), jamais la vidéo */
+    if (!E.image && !texte.trim() && String(E.lien.value || "").trim()) { capterLien(E); return; }
     if (!E.image && !texte.trim()) { dire(E, T("inspiration.capture.vide"), true); return; }
     var fd = new FormData();
-    if (E.image) fd.append("image", E.image, E.image.name || "capture");
+    var video = !!E.image && estVideo(E.image);
+    if (video) fd.append("video", E.image, E.image.name || "reference.mp4");
+    else if (E.image) fd.append("image", E.image, E.image.name || "capture");
     fd.append("texte", texte);
     fd.append("source_libelle", String(E.source.value || ""));
     fd.append("source_lien", String(E.lien.value || ""));
     fd.append("langue", E.langue.value || "auto");
     verrouiller(E, true, false);
-    dire(E, T("inspiration.capture.lecture"));
+    dire(E, T(video ? "inspiration.video.mesure" : "inspiration.capture.lecture"));
     try {
-      var r = await appel("POST", BASE + "/capter", fd);
+      var r = await appel("POST", BASE + (video ? "/video" : "/capter"), fd);
       if (E.ferme) return;
       if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
       dire(E, "");
@@ -397,6 +424,35 @@
     } catch (e) {
       dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true);
     } finally { verrouiller(E, false); }
+  }
+  async function capterLien(E) {
+    verrouiller(E, true, false);
+    dire(E, T("inspiration.lien.lecture"));
+    try {
+      var r = await appel("POST", BASE + "/lien", { url: String(E.lien.value || "").trim(), source_libelle: String(E.source.value || ""), langue: langue() });
+      if (E.ferme) return;
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      dire(E, "");
+      montrerCapture(E, r.j);
+    } catch (e) {
+      dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true);
+    } finally { verrouiller(E, false); }
+  }
+  var ETATS_ST = { lus: "inspiration.lien.st_lus", aucun: "inspiration.lien.st_aucun", sans_outil: "inspiration.lien.st_sans_outil",
+    echec: "inspiration.lien.st_echec" };
+  function montrerLien(E, j) {
+    var s = j.source || {}, l = j.lien || {}, st = l.soustitres || {};
+    var bloc = el("div", { "data-dz-insp": "fiche-lien", style: "display:flex;flex-direction:column;gap:4px;font-size:12px" });
+    bloc.appendChild(el("div", { style: S.titre }, T("inspiration.lien.titre")));
+    bloc.appendChild(el("div", { "data-dz-insp": "lien-plateforme" }, T("inspiration.lien.plateforme", {
+      plateforme: T("inspiration.plateforme." + (s.plateforme || "inconnue")) })));
+    if (s.titre || s.auteur) bloc.appendChild(el("div", { "data-dz-insp": "lien-meta" }, T("inspiration.lien.meta", {
+      titre: String(s.titre || "—"), auteur: String(s.auteur || "—") })));
+    if (l.acces === "jeton") bloc.appendChild(el("div", { "data-dz-insp": "lien-jeton", style: S.note }, T("inspiration.lien.jeton")));
+    if (s.plateforme === "youtube") bloc.appendChild(el("div", { "data-dz-insp": "lien-soustitres", style: st.etat === "lus" ? "" : S.note },
+      T(ETATS_ST[st.etat] || "inspiration.lien.st_aucun", { n: String(String(j.texte_capte || "").split(/\s+/).filter(Boolean).length) })));
+    bloc.appendChild(el("div", { "data-dz-insp": "lien-capture", style: S.alerte }, T("inspiration.lien.capture")));
+    E.lu.appendChild(bloc);
   }
   function montrerCapture(E, j) {
     E.rec = j;
@@ -419,12 +475,285 @@
       });
       E.lu.appendChild(l);
     }
+    if (j.matiere === "video") { E.rec = j; montrerFiche(E, j); return; }
+    if (j.matiere === "lien") { montrerLien(E, j); if (!j.texte_capte) { montrer(E.s2, false); return; } }
     montrer(E.s2, true);
     montrer(E.ligneImage, !!j.image);
     E.avecImage.checked = false;
     vider(E.matiere); vider(E.angles);
     montrer(E.s3, false); montrer(E.s4, false); montrer(E.fait, false);
     devisAnalyse(E);
+  }
+
+  /* ---- 1 bis. fiche d'une vidéo de référence (t511, RV1 : étages 0 et 1 gratuits) ---------------------------------- */
+  function nombre(v, n) { return v == null ? "—" : String(Math.round(Number(v) * Math.pow(10, n || 0)) / Math.pow(10, n || 0)); }
+  function montrerFiche(E, j) {
+    var v = j.video || {}, f = v.fiche || {}, fo = f.format || {}, ry = f.rythme || {};
+    var bloc = el("div", { "data-dz-insp": "fiche-video", style: "display:flex;flex-direction:column;gap:4px;font-size:12px" });
+    bloc.appendChild(el("div", { style: S.titre }, T("inspiration.video.titre")));
+    bloc.appendChild(el("div", { "data-dz-insp": "fiche-format" }, T("inspiration.video.format", {
+      duree: nombre(fo.duree_s, 1), cadre: String(fo.cadre || "—"), ips: nombre(fo.images_par_s, 0) })));
+    if (fo.boucle) bloc.appendChild(el("div", { "data-dz-insp": "fiche-boucle", style: S.note }, T("inspiration.video.boucle", {
+      fichier: nombre(fo.duree_fichier_s, 1), duree: nombre(fo.duree_s, 1) })));
+    bloc.appendChild(el("div", { "data-dz-insp": "fiche-son", style: fo.son ? "" : S.alerte },
+      T(fo.son ? "inspiration.video.son_oui" : "inspiration.video.son_non")));
+    bloc.appendChild(el("div", { "data-dz-insp": "fiche-rythme" }, T("inspiration.video.rythme", {
+      n: nombre(ry.plans, 0), moy: nombre(ry.duree_moyenne_s, 1), min: nombre(ry.duree_min_s, 1), max: nombre(ry.duree_max_s, 1),
+      ppm: nombre(ry.plans_par_minute, 1) })));
+    var planches = v.purgee ? [] : (v.planches || []);
+    if (planches.length) {
+      var l = el("div", { "data-dz-insp": "planches", style: "display:flex;flex-wrap:wrap;gap:4px" });
+      planches.slice(0, 12).forEach(function (nom) {
+        l.appendChild(el("img", { src: BASE + "/" + encodeURIComponent(j.id) + "/planches/" + encodeURIComponent(nom),
+          alt: "", loading: "lazy", style: "height:96px;border:1px solid var(--brd-soft,var(--stroke,#222830))" }));
+      });
+      bloc.appendChild(l);
+    }
+    bloc.appendChild(el("div", { "data-dz-insp": "fiche-purge", style: S.note }, v.purgee ? T("inspiration.video.purgee")
+      : T("inspiration.video.purge", { date: String(v.purge_le || "").slice(0, 10) })));
+    bloc.appendChild(el("div", { style: S.note }, T("inspiration.video.suite")));
+    E.lu.appendChild(bloc);
+    montrer(E.s2, false); montrer(E.s3, false); montrer(E.s4, false); montrer(E.fait, false);
+    /* t512 (RV2) : la lecture sur devis, puis la recette */
+    E.recetteBloc = el("div", { "data-dz-insp": "recette", style: "display:flex;flex-direction:column;gap:4px;font-size:12px" });
+    E.lu.appendChild(E.recetteBloc);
+    if (j.recette) { montrerRecette(E, j.recette, j.recette_alertes || []); return; }
+    if (v.purgee) return;
+    E.lireRef = bouton("lire-reference", T("inspiration.recette.bouton", { usd: "…" }));
+    griser(E.lireRef, true);
+    E.lireRef.addEventListener("click", function () { lireReference(E); });
+    E.recetteBloc.appendChild(E.lireRef);
+    devisLecture(E);
+  }
+  async function devisLecture(E) {
+    var id = E.iid;
+    E.devisL = null;
+    try {
+      var r = await appel("GET", BASE + "/" + encodeURIComponent(id) + "/devis-lecture?langue=" + langue());
+      if (E.ferme || E.iid !== id) return;
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      if (!r.j.disponible) { dire(E, T("inspiration.recette.indispo", { raison: String(r.j.raison || "") }), true); return; }
+      E.devisL = r.j;
+      E.lireRef.textContent = T("inspiration.recette.bouton", { usd: usd(r.j.usd) });
+      if (!E.occupe) griser(E.lireRef, false);
+    } catch (e) { dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true); }
+  }
+  async function lireReference(E) {
+    if (E.occupe || !E.iid || !E.devisL) return;
+    var montant = E.devisL.usd;
+    if (!(await confirmer(T("inspiration.recette.confirmer", { usd: usd(montant) })))) return;
+    if (E.ferme) return;
+    verrouiller(E, true);
+    dire(E, T("inspiration.recette.lecture"));
+    try {
+      var r = await appel("POST", BASE + "/" + encodeURIComponent(E.iid) + "/lecture", { max_usd: montant, langue: langue() });
+      if (r.R.status === 409 && r.j && r.j.detail && r.j.detail.code === "cout") {
+        E.devisL = Object.assign({}, E.devisL, { usd: r.j.detail.usd });
+        E.lireRef.textContent = T("inspiration.recette.bouton", { usd: usd(r.j.detail.usd) });
+        dire(E, T("inspiration.cout.change", { usd: usd(r.j.detail.usd) }), true);
+        return;
+      }
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      dire(E, "");
+      montrerRecette(E, r.j.recette || {}, r.j.alertes || []);
+    } catch (e) {
+      dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true);
+    } finally { verrouiller(E, false); }
+  }
+  function montrerRecette(E, rc, alertes) {
+    vider(E.recetteBloc);
+    var b = E.recetteBloc;
+    b.appendChild(el("div", { style: S.titre }, T("inspiration.recette.titre")));
+    var ry = rc.rythme || {};
+    b.appendChild(el("div", { "data-dz-insp": "recette-rythme" }, T("inspiration.recette.rythme", {
+      n: nombre(ry.tableaux, 0), mpm: nombre(ry.mots_par_minute, 0) })));
+    var l = el("ol", { "data-dz-insp": "recette-briques", style: "margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px" });
+    (rc.structure || []).forEach(function (x) {
+      l.appendChild(el("li", null, T("inspiration.recette.brique", { debut: nombre(x.debut, 1), fin: nombre(x.fin, 1),
+        role: T("inspiration.role." + x.role), regle: String(x.regle || "—"), visuel: T("inspiration.visuel." + x.visuel) })));
+    });
+    b.appendChild(l);
+    var st = rc.soustitres || {};
+    b.appendChild(el("div", { "data-dz-insp": "recette-soustitres" }, T("inspiration.recette.soustitres", {
+      lignes: nombre(st.lignes, 0), mots: nombre(st.mots_par_ligne, 0), apparition: String(st.apparition || "—") })));
+    var ap = rc.appel || {};
+    b.appendChild(el("div", { "data-dz-insp": "recette-appel" }, T("inspiration.recette.appel", { type: T("inspiration.appel." + (ap.type || "autre")) })));
+    if ((rc.a_ne_pas_reprendre || []).length) b.appendChild(el("div", { "data-dz-insp": "recette-interdits", style: S.note },
+      T("inspiration.recette.ne_pas", { liste: rc.a_ne_pas_reprendre.join(" · ") })));
+    if ((alertes || []).length) b.appendChild(el("div", { "data-dz-insp": "recette-alertes", style: S.alerte },
+      T("inspiration.recette.alertes", { n: alertes.length })));
+    b.appendChild(el("div", { style: S.note }, T("inspiration.recette.rangee")));
+    /* t514 (RV4) : le script sur recette avec la fiche d'offre, ses contrôles, la porte 1 */
+    E.scriptBloc = el("div", { "data-dz-insp": "script", style: "display:flex;flex-direction:column;gap:4px" });
+    b.appendChild(E.scriptBloc);
+    if (E.rec && E.rec.script) { montrerScript(E, E.rec.script); return; }
+    E.ecrireScript = bouton("ecrire-script", T("inspiration.script.bouton", { usd: "…" }));
+    griser(E.ecrireScript, true);
+    E.ecrireScript.addEventListener("click", function () { ecrireScript(E); });
+    E.scriptBloc.appendChild(E.ecrireScript);
+    devisScript(E);
+  }
+  async function devisScript(E) {
+    var id = E.iid;
+    E.devisS = null;
+    try {
+      var r = await appel("GET", BASE + "/" + encodeURIComponent(id) + "/devis-script?langue=" + langue());
+      if (E.ferme || E.iid !== id) return;
+      if (r.R.status === 409 && r.j && r.j.detail && r.j.detail.code === "sans_offre") { formulaireOffre(E); return; }
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      if (!r.j.disponible) { dire(E, T("inspiration.analyse.indispo", { raison: String(r.j.raison || "") }), true); return; }
+      E.devisS = r.j;
+      E.ecrireScript.textContent = T("inspiration.script.bouton", { usd: usd(r.j.usd) });
+      if (!E.occupe) griser(E.ecrireScript, false);
+    } catch (e) { dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true); }
+  }
+  function formulaireOffre(E) {
+    var f = el("div", { "data-dz-insp": "offre", style: "display:flex;flex-direction:column;gap:4px" });
+    f.appendChild(el("div", { style: S.alerte }, T("inspiration.offre.manque")));
+    var champs = {};
+    [["produit", "input"], ["pour_qui", "input"], ["promesse", "input"], ["preuves", "textarea"], ["frein_leve", "input"],
+      ["chiffres", "textarea"]].forEach(function (x) {
+      var c = champ(x[1], "offre-" + x[0], T("inspiration.offre." + x[0]), x[1] === "input" ? { type: "text", maxlength: "400" } : { rows: "2" });
+      champs[x[0]] = c.c; f.appendChild(c.l);
+    });
+    var go = bouton("offre-enregistrer", T("inspiration.offre.enregistrer"));
+    go.addEventListener("click", async function () {
+      var corps = { produit: champs.produit.value, pour_qui: champs.pour_qui.value, promesse: champs.promesse.value,
+        frein_leve: champs.frein_leve.value, appels: ["lien"],
+        preuves: String(champs.preuves.value || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean),
+        chiffres: String(champs.chiffres.value || "").split("\n").map(function (x) { var p = x.split("|"); return { valeur: (p[0] || "").trim(), libelle: (p[1] || "").trim(), source: (p[2] || "").trim() }; }).filter(function (x) { return x.valeur; }) };
+      var r = await appel("PUT", BASE + "/offre", corps);
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      if (!r.j.complete) { dire(E, T("inspiration.offre.manque"), true); return; }
+      dire(E, "");
+      f.parentNode && f.parentNode.removeChild ? f.parentNode.removeChild(f) : montrer(f, false);
+      devisScript(E);
+    });
+    f.appendChild(go);
+    E.scriptBloc.appendChild(f);
+  }
+  async function ecrireScript(E) {
+    if (E.occupe || !E.iid || !E.devisS) return;
+    var montant = E.devisS.usd;
+    if (!(await confirmer(T("inspiration.script.confirmer", { usd: usd(montant) })))) return;
+    if (E.ferme) return;
+    verrouiller(E, true);
+    try {
+      var r = await appel("POST", BASE + "/" + encodeURIComponent(E.iid) + "/script", { max_usd: montant, langue: langue() });
+      if (r.R.status === 409 && r.j && r.j.detail && r.j.detail.code === "cout") {
+        E.devisS = Object.assign({}, E.devisS, { usd: r.j.detail.usd });
+        E.ecrireScript.textContent = T("inspiration.script.bouton", { usd: usd(r.j.detail.usd) });
+        dire(E, T("inspiration.cout.change", { usd: usd(r.j.detail.usd) }), true);
+        return;
+      }
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      dire(E, "");
+      montrerScript(E, r.j);
+    } catch (e) {
+      dire(E, T("inspiration.boite.erreur", { msg: String((e && e.message) || e) }), true);
+    } finally { verrouiller(E, false); }
+  }
+  var CONTROLES = { accroche: "inspiration.controle.accroche", une_idee: "inspiration.controle.une_idee", appel: "inspiration.controle.appel",
+    ecran: "inspiration.controle.ecran", verite: "inspiration.controle.verite", distance: "inspiration.controle.distance",
+    interdits: "inspiration.controle.interdits", longueur: "inspiration.controle.longueur" };
+  function montrerScript(E, s) {
+    vider(E.scriptBloc);
+    var b = E.scriptBloc;
+    b.appendChild(el("div", { style: S.titre }, T("inspiration.script.titre")));
+    var l = el("ol", { "data-dz-insp": "script-briques", style: "margin:0;padding-left:18px;display:flex;flex-direction:column;gap:2px" });
+    (s.briques || []).forEach(function (x) {
+      l.appendChild(el("li", null, T("inspiration.script.brique", { texte: String(x.texte || ""), ecran: String(x.ecran || "—") })));
+    });
+    b.appendChild(l);
+    var c = (s.controle && s.controle.controles) || {};
+    var cl = el("div", { "data-dz-insp": "script-controles", style: "display:flex;flex-direction:column;gap:1px;font-size:12px" });
+    Object.keys(CONTROLES).forEach(function (k) {
+      if (!c[k]) return;
+      cl.appendChild(el("div", { "data-dz-insp": "controle-" + k, style: c[k].ok ? "" : S.alerte },
+        T(c[k].ok ? "inspiration.controle.ok" : "inspiration.controle.ko", { nom: T(CONTROLES[k]) })));
+    });
+    b.appendChild(cl);
+    if (s.statut === "valide") {
+      b.appendChild(el("div", { "data-dz-insp": "script-valide" }, T("inspiration.script.valide")));
+      E.reelBloc = el("div", { "data-dz-insp": "reel", style: "display:flex;flex-direction:column;gap:4px" });
+      b.appendChild(E.reelBloc);
+      peindreReel(E, (E.rec && E.rec.reel) || {});
+      return;
+    }
+    var v = bouton("valider-script", T("inspiration.script.valider"));
+    if (s.controle && s.controle.bloquant) { griser(v, true); b.appendChild(el("div", { style: S.note }, T("inspiration.script.bloquant"))); }
+    v.addEventListener("click", async function () {
+      var r = await appel("POST", BASE + "/" + encodeURIComponent(E.iid) + "/script/valider", {});
+      if (!r.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(r.j, r.R.status) }), true); return; }
+      montrerScript(E, r.j);
+    });
+    b.appendChild(v);
+  }
+
+  /* t515 (RV5) : le Reel en tableaux — repères (temps des mots ou estimés), rendu LOCAL et gratuit par le motion code,
+     brouillon au Planificateur toujours en mode assisté (R8) ; la ligne publique « Format inspiré de… » est proposée
+     DÉCOCHÉE (R12 c), la provenance interne et le commentaire du MP4 sont posés d'office par le serveur (R12 a, b). */
+  function memoReel(E, r) {
+    if (!E.rec) E.rec = {};
+    E.rec.reel = r;
+    peindreReel(E, r);
+  }
+  function peindreReel(E, r) {
+    vider(E.reelBloc);
+    var b = E.reelBloc, id = encodeURIComponent(E.iid), rp = r.reperes;
+    b.appendChild(el("div", { style: S.titre }, T("inspiration.reel.titre")));
+    b.appendChild(el("div", { style: S.note }, T("inspiration.reel.aide")));
+    if (rp) {
+      b.appendChild(el("div", { "data-dz-insp": "reel-reperes" }, T("inspiration.reel.reperes", {
+        n: (rp.tableaux || []).length, s: nombre(rp.duree_s, 1) })));
+      b.appendChild(el("div", { "data-dz-insp": "reel-temps", style: S.note },
+        T(rp.temps === "mots" ? "inspiration.reel.temps_mots" : "inspiration.reel.temps_estimes")));
+      if (rp.mention_illustration) b.appendChild(el("div", { "data-dz-insp": "reel-illustration", style: S.alerte }, T("inspiration.reel.illustration")));
+    }
+    var prep = bouton("reel-preparer", T(rp ? "inspiration.reel.refaire" : "inspiration.reel.preparer"), rp ? "" : S.ok);
+    prep.addEventListener("click", async function () {
+      if (E.occupe) return;
+      var x = await appel("POST", BASE + "/" + id + "/reel/reperes", {});
+      if (!x.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(x.j, x.R.status) }), true); return; }
+      dire(E, "");
+      memoReel(E, { reperes: x.j });
+    });
+    b.appendChild(prep);
+    if (!rp) return;
+    var rendre = bouton("reel-rendre", T(r.rendu ? "inspiration.reel.rerendre" : "inspiration.reel.rendre"), r.rendu ? "" : S.ok);
+    rendre.addEventListener("click", async function () {
+      if (E.occupe) return;
+      var x = await appel("POST", BASE + "/" + id + "/reel/rendu", {});
+      if (!x.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(x.j, x.R.status) }), true); return; }
+      dire(E, T("inspiration.reel.rendu_lance"));
+      memoReel(E, { reperes: rp, rendu: { job_id: x.j.job_id } });
+    });
+    b.appendChild(rendre);
+    if (!r.rendu || !r.rendu.job_id) return;
+    b.appendChild(el("div", { "data-dz-insp": "reel-rendu", style: S.note }, T("inspiration.reel.rendu", { job: String(r.rendu.job_id).slice(0, 8) })));
+    var l = el("label", { "data-dz-insp": "ligne-mention", style: S.ligne + ";font-size:12px" });
+    var coche = el("input", { type: "checkbox", "data-dz-insp": "reel-mention" });
+    coche.checked = false;
+    var lib = el("span", { "data-dz-insp": "reel-mention-texte" }, T("inspiration.reel.mention", { texte: "…" }));
+    l.appendChild(coche); l.appendChild(lib);
+    b.appendChild(l);
+    b.appendChild(el("div", { style: S.note }, T("inspiration.reel.mention_aide")));
+    (async function () {
+      var p = await appel("GET", BASE + "/" + id + "/reel");
+      var m = p.R.ok && p.j && p.j.proposition && p.j.proposition.mention_publique;
+      if (m && m.texte) { lib.textContent = T("inspiration.reel.mention", { texte: String(m.texte) }); coche.checked = m.coche === true; }
+      else montrer(l, false);
+    })();
+    var go = bouton("reel-brouillon", T("inspiration.reel.brouillon"), S.ok);
+    go.addEventListener("click", async function () {
+      if (E.occupe) return;
+      var x = await appel("POST", BASE + "/" + id + "/reel/brouillon", { mention_publique: !!coche.checked });
+      if (!x.R.ok) { dire(E, T("inspiration.boite.erreur", { msg: detail(x.j, x.R.status) }), true); return; }
+      var post = x.j.post || {};
+      dire(E, post.status === "a_valider" ? T("inspiration.brouillon.a_valider") : T("inspiration.reel.brouillon_ok"));
+      try { window.dispatchEvent(new CustomEvent("deepotus:schedule-recharger")); } catch (e) { /* l'écran se rechargera seul */ }
+    });
+    b.appendChild(go);
   }
 
   /* ---- 2. analyse (payante) ---------------------------------------------------------------------------------------- */
