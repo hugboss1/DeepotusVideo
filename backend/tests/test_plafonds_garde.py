@@ -35,11 +35,13 @@ PAYANTES = {
     ("audio_graph", "POST", "/apercu"), ("audio_graph", "POST", "/rendre"),   # t272 : nœuds IA de l'Atelier sonore
     ("scan", "POST", "/{scan_id}/vision"),   # t312 : le secours Claude vision du Scan (garde « atelier » avant chaque lot)
     ("news_fils", "POST", "/{fid}/lire"),   # t380 : le relevé d'un fil social suivi (Apify ; garde « news » dans NF.relever)
+    ("croissance", "POST", "/gagnants/{item_id}/analyse"),   # t495 : « pourquoi ça marche » (Claude ; garde « campagnes » dans CG.analyser_gagnant)
     ("pose3d", "POST", "/classer"),   # t376 : la classification vision de la source 3D (garde « moteurs3d » dans P.classer_image)
     ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
     ("croissance", "POST", "/note/affiner"),   # t497 (G7) : étage 2 de la note (garde « campagnes » dans NR.affiner)
     ("inspiration", "POST", "/{iid}/lecture"), ("inspiration", "POST", "/{iid}/script"),   # t514 (RV4) : script sur recette (garde « campagnes » dans IS.ecrire)
       # t512 (RV2) : transcription + Claude vision (garde « campagnes » dans IR.lire_reference)
+    ("recyclage", "POST", "/{post_id}/redaction"),   # t498 : le recyclage d'un gagnant (Claude, garde « campagnes » dans RC.rediger)
     ("schema", "POST", "/analyser"),   # t314 : détourage fal d'un schéma (garde « vectorlab » avant l'envoi)
     ("agent_campagnes", "POST", "/{cid}/message"),   # t285a : le message de l'agent Campagnes (garde « campagnes » à chaque tour)
     ("post", "POST", "/rendre"),   # t277 : maillons IA de la pile de post-traitement (garde « son », avant le job)
@@ -191,6 +193,14 @@ _ap = _ins[_ins.find("async def _appel("):_ins.find("def _json(")]
 check("A2j l'inspiration refuse un coût hors accord AVANT d'appeler, et _appel passe par MT.tirer_garde",
       0 < _ia.find("raise CoutChange(") < _ia.find("await _appel(") and 0 < _ir.find("raise CoutChange(") < _ir.find("await _appel(")
       and "MT.tirer_garde(" in _ap and "MT.tirer(" not in _ins, "")
+# t498 : la route payante du recyclage délègue sa garde à recyclage.rediger — l'accord (CoutChange) avant _appel, qui
+# appelle MT.tirer_garde catégorie « campagnes » ; aucun appel nu au modèle
+_rcy = (RP.RACINE / "services" / "recyclage.py").read_text(encoding="utf-8")
+_rr = _rcy[_rcy.find("async def rediger("):_rcy.find("# ---- brouillons")]
+_ra = _rcy[_rcy.find("async def _appel("):_rcy.find("async def _interdits(")]
+check("A2p le recyclage refuse un coût hors accord AVANT d'appeler, et _appel passe par MT.tirer_garde",
+      0 < _rr.find("raise CoutChange(") < _rr.find("await _appel(") and "MT.tirer_garde(" in _ra
+      and "categorie=CATEGORIE" in _ra and 'CATEGORIE = "campagnes"' in _rcy and "MT.tirer(" not in _rcy, "")
 # t328 tâche 3 : une diffusion WhatsApp réserve son devis (plafonds.verifier) AVANT le send Kapso, dans `lancer`
 _wd = (RP.RACINE / "services" / "whatsapp_diffusions.py").read_text(encoding="utf-8")
 _ld = _wd[_wd.find("async def _lancer_sous_verrou("):]
@@ -224,6 +234,14 @@ _nr = _nf[_nf.find("async def relever("):_nf.find("def _du(")]
 check("A2o un fil payant : accord, devis sous son plafond, garde « news » AVANT AP.lancer, réel noté",
       0 < _nr.find('"devis_a_accepter", 409)') < _nr.find('"devis_depasse", 409') < _nr.find("plafonds.verifier(")
       < _nr.find("AP.lancer(") < _nr.find("noter_reel_lignes(") and _nf.count("AP.lancer(") == 1, "")
+# t495 : la route d'analyse d'un gagnant délègue sa garde à croissance_gagnants.analyser_gagnant — l'accord
+# (CoutChange) AVANT _appel, qui passe par MT.tirer_garde (catégorie « campagnes ») ; aucun appel nu au modèle
+_cg = (RP.RACINE / "services" / "croissance_gagnants.py").read_text(encoding="utf-8")
+_cga = _cg[_cg.find("async def analyser_gagnant("):]
+_cgp = _cg[_cg.find("async def _appel("):_cg.find("def _raisons(")]
+check("A2q un gagnant : coût hors accord refusé AVANT _appel, _appel passe par MT.tirer_garde « campagnes »",
+      0 < _cga.find("raise CoutChange(") < _cga.find("await _appel(") and "MT.tirer_garde(" in _cgp
+      and "categorie=CATEGORIE" in _cgp and "MT.tirer(" not in _cg, "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes
@@ -257,9 +275,9 @@ _inr = (RP.MODULES["inspiration"]).read_text(encoding="utf-8")
 anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I.rediger(", "_sans_garde(")
                           .replace("IR.lire_reference(", "_sans_garde(").replace("IS.ecrire(", "_sans_garde(")
                           if "I.analyser(" in _inr else None)
-# t497 : la note avant publication n'existait pas en bfec23e — même témoin
-_crr = (RP.MODULES["croissance"]).read_text(encoding="utf-8")
-anciens["croissance"] = _crr.replace("NR.affiner(", "_sans_garde(") if "NR.affiner(" in _crr else None
+# t498 : le recyclage d'un gagnant n'existait pas en bfec23e — même témoin
+_rcr = (RP.MODULES["recyclage"]).read_text(encoding="utf-8")
+anciens["recyclage"] = _rcr.replace("RC.rediger(", "_sans_garde(") if "RC.rediger(" in _rcr else None
 # t314 : la boîte « schéma » n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
 _shr = (RP.MODULES["schema"]).read_text(encoding="utf-8")
 anciens["schema"] = _shr.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _shr else None
@@ -286,6 +304,10 @@ anciens["pose3d"] = _p3r.replace("P.classer_image(", "_sans_garde(") if "P.class
 # t380 : les fils sociaux suivis n'existaient pas en bfec23e — même témoin
 _nfr = (RP.MODULES["news_fils"]).read_text(encoding="utf-8")
 anciens["news_fils"] = _nfr.replace("NF.relever(", "_sans_garde(") if "NF.relever(" in _nfr else None
+# t495 + t497 : le fil des gagnants et la note avant publication n'existaient pas en bfec23e — même témoin
+_cgr = (RP.MODULES["croissance"]).read_text(encoding="utf-8")
+anciens["croissance"] = (_cgr.replace("CG.analyser_gagnant(", "_sans_garde(").replace("NR.affiner(", "_sans_garde(")
+                         if "CG.analyser_gagnant(" in _cgr and "NR.affiner(" in _cgr else None)
 # t393 : l'écran Texture du 3D Studio n'existait pas en bfec23e — même témoin
 _s3a = (RP.MODULES["studio3d_animer"]).read_text(encoding="utf-8")   # t398-t399 : même témoin
 anciens["studio3d_animer"] = _s3a.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _s3a else None

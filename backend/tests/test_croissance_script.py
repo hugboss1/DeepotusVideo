@@ -77,8 +77,8 @@ async def main():
     check("3b nom assaini (aucune sortie du dossier)", r["ok"] and r["donnees"]["chemin"] == "textes/evasion.md", r)
     check("3c aucune dépense, aucun réseau", not RESEAU)
     print("[4] boîte")
-    check("4a boîte croissance : agent Campagnes, pas sur le téléphone avant G9", B.boite_de("ecrire_script_court") == "croissance"
-          and B.BOITES["croissance"]["agents"] == ["campagnes"] and B.BOITES["croissance"]["mobile"] is False)
+    check("4a boîte croissance : agent Campagnes, sur le téléphone depuis G9 (t499)", B.boite_de("ecrire_script_court") == "croissance"
+          and B.BOITES["croissance"]["agents"] == ["campagnes"] and B.BOITES["croissance"]["mobile"] is True)
     r = await ao.executer("ecrire_script_court", {"accroche": "a", "corps": ["b"], "appel": "c"}, ao.Ctx(cid=conv["id"], agent="whatsapp"))
     check("4b refusé à l'agent WhatsApp", r["ok"] is False and "boîte" in r["resume"], r)
 
