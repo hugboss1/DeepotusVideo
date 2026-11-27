@@ -18,6 +18,10 @@ Boucle locale SEULEMENT (`routes._require_localhost`) ; les deux routes payantes
 - `POST /lien`                    t513 (RV3) : {url, source_libelle?, langue?} -> l'inspiration « lien » (plateforme,
                                   métadonnées publiques, sous-titres YouTube) ; jamais la vidéo (R2). Gratuit.
 - `GET  /recettes`                t513 : « mes recettes » de l'espace de la requête.
+- `GET|PUT /offre`                t514 (RV4) : la fiche d'offre de l'espace de la requête (R5).
+- `GET  /{id}/devis-script`       t514 : devis GRATUIT du script sur recette ; 409 `sans_offre` / `sans_recette`.
+- `POST /{id}/script`             t514 : {max_usd, langue?} PAYANT ; `PUT /{id}/script` {briques} réécriture à la main ;
+                                  `POST /{id}/script/valider` = PORTE 1 (409 `bloquant` si un contrôle bloquant échoue).
 - `GET  /{id}/devis-lecture`      t512 (RV2) : le devis GRATUIT de la lecture (transcription + Claude sur les planches).
 - `POST /{id}/lecture`            t512 : {max_usd, langue?, nouvelle?} : PAYANTE ; la RECETTE (rangée dans l'espace).
 Codes : 400 corps ou refus de forme, 404 inconnue, 409 {message, code, …} (coût changé `cout` + usd, `en_cours`,
@@ -37,7 +41,8 @@ from app.services import scan_pages as SP
 router = APIRouter()
 
 MAX_CORPS = 64 * 1024
-CODES_400 = ("vide", "texte", "format", "sans_image", "titre", "visuel", "illisible", "longue", "matiere", "lien")
+CODES_400 = ("vide", "texte", "format", "sans_image", "titre", "visuel", "illisible", "longue", "matiere", "lien",
+             "sans_script")
 
 
 def _local(request: Request) -> None:
@@ -187,6 +192,33 @@ async def mes_recettes(request: Request):
     return {**await _pour_qui(eid), "recettes": await asyncio.to_thread(IL.recettes, eid)}
 
 
+@router.get("/offre", dependencies=[Depends(_local)])
+async def lire_offre(request: Request):
+    from app.services import espaces
+    from app.services import offre as OF
+    eid = espaces.espace_courant()
+    try:
+        fiche = OF.lire(eid)
+    except KeyError:
+        raise HTTPException(404, I.M_ESPACE) from None
+    return {**await _pour_qui(eid), "offre": fiche, "complete": OF.complete(fiche)}
+
+
+@router.put("/offre", dependencies=[Depends(_local)])
+async def ecrire_offre(request: Request):
+    from app.services import espaces
+    from app.services import offre as OF
+    c = await _corps(request)
+    eid = espaces.espace_courant()
+    try:
+        fiche = OF.ecrire(eid, c)
+    except KeyError:
+        raise HTTPException(404, I.M_ESPACE) from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return {"offre": fiche, "complete": OF.complete(fiche)}
+
+
 @router.post("/video", dependencies=[Depends(_local)])
 async def deposer_video(request: Request, video: UploadFile = File(...), source_libelle: str = Form(""),
                         source_lien: str = Form(""), langue: str = Form("fr")):
@@ -253,6 +285,48 @@ async def lecture(iid: str, request: Request):
         raise
     except Exception as e:  # noqa: BLE001
         logger.warning(f"inspiration : lecture refusée ou en échec ({type(e).__name__})")
+        raise _http(e) from None
+
+
+@router.get("/{iid}/devis-script", dependencies=[Depends(_local)])
+async def devis_script(iid: str, request: Request, langue: str = ""):
+    from app.services import inspiration_script as IS
+    try:
+        d = await IS.devis_script(iid, _langue(request, {"langue": langue}))
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    return {**d, "raison": _traduire(d.get("raison") or "", request)}
+
+
+@router.post("/{iid}/script", dependencies=[Depends(_local), Depends(_depense_locale)])
+async def script(iid: str, request: Request):
+    from app.services import inspiration_script as IS
+    c = await _corps(request)
+    try:
+        return await IS.ecrire(iid, max_usd=c.get("max_usd"), langue=_langue(request, c))
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"inspiration : script refusé ou en échec ({type(e).__name__})")
+        raise _http(e) from None
+
+
+@router.put("/{iid}/script", dependencies=[Depends(_local)])
+async def script_modifier(iid: str, request: Request):
+    from app.services import inspiration_script as IS
+    c = await _corps(request)
+    try:
+        return await IS.modifier(iid, c.get("briques"))
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+
+
+@router.post("/{iid}/script/valider", dependencies=[Depends(_local)])
+async def script_valider(iid: str):
+    from app.services import inspiration_script as IS
+    try:
+        return await asyncio.to_thread(IS.valider, iid)
+    except Exception as e:  # noqa: BLE001
         raise _http(e) from None
 
 

@@ -37,7 +37,8 @@ PAYANTES = {
     ("news_fils", "POST", "/{fid}/lire"),   # t380 : le relevé d'un fil social suivi (Apify ; garde « news » dans NF.relever)
     ("pose3d", "POST", "/classer"),   # t376 : la classification vision de la source 3D (garde « moteurs3d » dans P.classer_image)
     ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
-    ("inspiration", "POST", "/{iid}/lecture"),   # t512 (RV2) : transcription + Claude vision (garde « campagnes » dans IR.lire_reference)
+    ("inspiration", "POST", "/{iid}/lecture"), ("inspiration", "POST", "/{iid}/script"),   # t514 (RV4) : script sur recette (garde « campagnes » dans IS.ecrire)
+      # t512 (RV2) : transcription + Claude vision (garde « campagnes » dans IR.lire_reference)
     ("schema", "POST", "/analyser"),   # t314 : détourage fal d'un schéma (garde « vectorlab » avant l'envoi)
     ("agent_campagnes", "POST", "/{cid}/message"),   # t285a : le message de l'agent Campagnes (garde « campagnes » à chaque tour)
     ("post", "POST", "/rendre"),   # t277 : maillons IA de la pile de post-traitement (garde « son », avant le job)
@@ -253,7 +254,7 @@ anciens["scan"] = _scr.replace("SV.lire(", "_sans_garde(") if "SV.lire(" in _scr
 # t313 : l'inspiration n'existait pas en bfec23e — même témoin
 _inr = (RP.MODULES["inspiration"]).read_text(encoding="utf-8")
 anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I.rediger(", "_sans_garde(")
-                          .replace("IR.lire_reference(", "_sans_garde(")
+                          .replace("IR.lire_reference(", "_sans_garde(").replace("IS.ecrire(", "_sans_garde(")
                           if "I.analyser(" in _inr else None)
 # t314 : la boîte « schéma » n'existait pas en bfec23e — même témoin : le source actuel privé de sa garde
 _shr = (RP.MODULES["schema"]).read_text(encoding="utf-8")

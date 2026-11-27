@@ -115,6 +115,8 @@ def normaliser_recette(j: dict, rec: dict, mots: list) -> dict:
         briques.append({"role": _choix(b.get("role"), ROLES), "debut": debut, "fin": fin,
                         "regle": I._texte(b.get("regle"), 300), "visuel": _choix(b.get("visuel"), VISUELS)})
     briques.sort(key=lambda b: b["debut"])
+    for b in briques:      # t514 (RV4) : la longueur de chaque brique, pour écrire « au même nombre de mots »
+        b["mots"] = len([m for m in mots or [] if b["debut"] <= float(m.get("start") or 0) < b["fin"]]) or None
     st = j.get("soustitres") if isinstance(j.get("soustitres"), dict) else {}
     im = j.get("image") if isinstance(j.get("image"), dict) else {}
     ap = j.get("appel") if isinstance(j.get("appel"), dict) else {}

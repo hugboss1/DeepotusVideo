@@ -249,6 +249,41 @@ async function jusquAuxAngles(opts = {}) {
     && marque(c, "lien-capture").textContent === FR("inspiration.lien.capture") && !visible(marque(c, "section-analyse")));
 }
 
+// ---- t514 (RV4) : fiche d'offre, script, porte 1 ----------------------------------------------------------------------
+{
+  const RECETTE = { rythme: {}, structure: [{ debut: 0, fin: 2, role: "accroche", regle: "q", visuel: "texte" }], soustitres: {}, appel: {} };
+  const RECV = { id: ID, espace_id: "lune", matiere: "video", image: false, source: {}, espace: LISTE.espace, projet: LISTE.projet, recette: RECETTE,
+    video: { planches: [], purgee: false, fiche: { format: { son: true }, rythme: {} } } };
+  let devis = 0;
+  const SCRIPT = { statut: "a_valider", briques: [{ texte: "Tu paies encore ?", ecran: "encore ?" }],
+    controle: { bloquant: true, controles: { accroche: { ok: true }, verite: { ok: false } } } };
+  const m = monde({ routes: base({
+    "POST /api/inspiration/video": () => rep(200, RECV),
+    ["GET /api/inspiration/" + ID + "/devis-script?langue=fr"]: () => (++devis === 1 ? rep(409, { detail: { code: "sans_offre" } }) : rep(200, { usd: 0.01, disponible: true })),
+    "PUT /api/inspiration/offre": () => rep(200, { complete: true, offre: {} }),
+    ["POST /api/inspiration/" + ID + "/script"]: () => rep(200, SCRIPT),
+  }) });
+  m.I.ouvrir();
+  await ticks();
+  const c = m.corps();
+  marque(c, "depot").fire("drop", { dataTransfer: { files: [new File(["x"], "ref.mp4", { type: "video/mp4" })] } });
+  marque(c, "lire").click();
+  await ticks();
+  ok("2.21 sans offre : le formulaire de la fiche d'offre s'ouvre", !!marque(c, "offre") && !!marque(c, "offre-promesse"));
+  marque(c, "offre-produit").value = "VideoGen"; marque(c, "offre-promesse").value = "à vie"; marque(c, "offre-preuves").value = "mises à jour\n";
+  marque(c, "offre-chiffres").value = "45 € | prix | page d'achat";
+  marque(c, "offre-enregistrer").click();
+  await ticks();
+  const put = m.appels.find((a) => a.url === "/api/inspiration/offre");
+  const corps = put && JSON.parse(put.corps);
+  ok("2.22 PUT offre : preuves en liste, chiffres découpés", corps && corps.preuves.length === 1 && corps.chiffres[0].source === "page d'achat", corps);
+  ok("2.23 devis du script redemandé, montant sur le bouton", marque(c, "ecrire-script").textContent === FR("inspiration.script.bouton", { usd: "0,01 $" }));
+  marque(c, "ecrire-script").click();
+  await ticks();
+  ok("2.24 script montré, contrôle vérité en alerte, validation grisée (porte 1)", marques(c, "script-briques")[0].children.length === 1
+    && !!marque(c, "controle-verite") && marque(c, "valider-script").attrs.disabled !== undefined, marque(c, "script") && marque(c, "script").textContent);
+}
+
 // ---- analyse ----------------------------------------------------------------------------------------------------------
 {
   const { m, c } = await jusquAuxAngles();
