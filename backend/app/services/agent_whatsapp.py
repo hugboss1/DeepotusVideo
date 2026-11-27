@@ -29,6 +29,7 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException
+from loguru import logger
 
 from app.services import (agent_aide, agent_boites, agent_outils as ao, espaces, espaces_brut,
                           moteurs_texte as MT, plafonds, pricing)
@@ -114,6 +115,7 @@ def _doc() -> str:
     try:
         return DOC.read_text(encoding="utf-8").replace("\r\n", "\n").strip()
     except OSError:
+        logger.error("agent WhatsApp : WHATSAPP.md absent de l'installation, l'agent rédige sans sa consigne")   # 26/11
         return ""
 
 

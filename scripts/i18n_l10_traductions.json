@@ -14983,6 +14983,34 @@
   "fr": "La vidéo n'a pas pu être gardée.",
   "en": "The video could not be kept."
  },
+ "le modèle de validation doit être de catégorie UTILITY (un modèle marketing ne sert pas à faire valider une publication)": {
+  "fr": "le modèle de validation doit être de catégorie UTILITY (un modèle marketing ne sert pas à faire valider une publication)",
+  "en": "the validation template must be in the UTILITY category (a marketing template cannot be used to approve a post)"
+ },
+ "methode inconnue : {methode} ({v})": {
+  "fr": "methode inconnue : {methode} ({v})",
+  "en": "unknown method: {methode} ({v})"
+ },
+ "la méthode {methode} ne vaut que pour une planche de personnage": {
+  "fr": "la méthode {methode} ne vaut que pour une planche de personnage",
+  "en": "the {methode} method only applies to a character sheet"
+ },
+ "face_maitre introuvable : {face_maitre}": {
+  "fr": "face_maitre introuvable : {face_maitre}",
+  "en": "face_maitre not found: {face_maitre}"
+ },
+ "face_maitre ne vaut que pour une planche de personnage": {
+  "fr": "face_maitre ne vaut que pour une planche de personnage",
+  "en": "face_maitre only applies to a character sheet"
+ },
+ "la méthode « ancre_multi » demande un générateur à références multiples (Nano Banana…) : {provider} n'en prend qu'une": {
+  "fr": "la méthode « ancre_multi » demande un générateur à références multiples (Nano Banana…) : {provider} n'en prend qu'une",
+  "en": "the “ancre_multi” method needs a multi-reference generator (Nano Banana…): {provider} only takes one"
+ },
+ "{moteur}.target_polycount : sans effet quand should_remesh est coupé (activer le remaillage, ou ne pas fixer de polycount)": {
+  "fr": "{moteur}.target_polycount : sans effet quand should_remesh est coupé (activer le remaillage, ou ne pas fixer de polycount)",
+  "en": "{moteur}.target_polycount: no effect when should_remesh is off (turn remeshing on, or do not set a polycount)"
+ },
  "Gagnant non enregistré.": {
   "fr": "Gagnant non enregistré.",
   "en": "Winner not saved."
