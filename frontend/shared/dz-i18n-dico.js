@@ -37,6 +37,7 @@ window.DZ_I18N = Object.assign(window.DZ_I18N || {}, {
   "agent.boites.retouche": {"fr": "Carte des différences", "en": "Difference map"},
   "agent.boites.scan": {"fr": "Scan", "en": "Scan"},
   "agent.boites.sprites_qc": {"fr": "Contrôle des sprites", "en": "Sprite checks"},
+  "agent.boites.styles_reel": {"fr": "Styles de reel (lecture)", "en": "Reel styles (read-only)"},
   "agent.boites.veille": {"fr": "Veille", "en": "Watch"},
   "agent.boites.visage": {"fr": "Animation faciale", "en": "Facial animation"},
   "agent.boites.web3d": {"fr": "Poids web des modèles 3D", "en": "Web weight of 3D models"},

@@ -1,0 +1,69 @@
+{
+  "id": "presentateur-incruste",
+  "version": 1,
+  "famille": "presentateur",
+  "titre": {
+    "fr": "Présentateur incrusté",
+    "en": "Presenter in the corner"
+  },
+  "resume": {
+    "fr": "Un avatar parle dans un coin de l'image pendant que les mots clés de son texte s'animent en plein écran derrière lui.",
+    "en": "An avatar talks from a corner of the frame while the key words of the script animate full screen behind it."
+  },
+  "gabarit": {
+    "id": "tpl_pip_corner_avatar",
+    "emplacements": {
+      "main_animation": {
+        "source": "motion",
+        "page": "fond"
+      },
+      "avatar_pip": {
+        "source": "avatar",
+        "part": 1.0
+      }
+    }
+  },
+  "motion": {
+    "fond": {
+      "style": "style-kinetic-type",
+      "champs": {
+        "mots_max": 3
+      },
+      "curseurs": {
+        "rythme": 3
+      }
+    }
+  },
+  "voix": {
+    "moteur": "avatar"
+  },
+  "musique": {
+    "humeur": "corporate",
+    "modele": "stable-audio-25",
+    "volume_db": -22
+  },
+  "sous_titres": {
+    "prereglage": "prime"
+  },
+  "rythme": {
+    "plan_s": [
+      0.6,
+      1.5
+    ],
+    "duree_s": {
+      "min": 15,
+      "type": 30,
+      "max": 45
+    }
+  },
+  "a_fournir": [
+    {
+      "fr": "Le script, mot pour mot (c'est lui qui donne la durée).",
+      "en": "The script, word for word (it sets the length)."
+    },
+    {
+      "fr": "Un avatar et sa voix, choisis dans Réglages › HeyGen.",
+      "en": "An avatar and its voice, picked in Settings › HeyGen."
+    }
+  ]
+}

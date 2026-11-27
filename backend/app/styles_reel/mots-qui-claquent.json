@@ -1,0 +1,78 @@
+{
+  "id": "mots-qui-claquent",
+  "version": 1,
+  "famille": "motion",
+  "titre": {
+    "fr": "Mots qui claquent",
+    "en": "Punchy words"
+  },
+  "resume": {
+    "fr": "Sans visage : deux mots à la fois entrent sur le temps de la voix, une respiration, puis la phrase à retenir s'écrit en bas de l'image.",
+    "en": "Faceless: two words at a time land on the beat of the voice, one breath, then the line to remember is written at the bottom of the frame."
+  },
+  "gabarit": {
+    "id": "tpl_oracle_full_with_lower_third",
+    "emplacements": {
+      "animation": {
+        "source": "motion",
+        "page": "typo"
+      },
+      "lower_third_text": {
+        "source": "texte",
+        "libelle": {
+          "fr": "La phrase à retenir",
+          "en": "The line to remember"
+        }
+      }
+    }
+  },
+  "motion": {
+    "typo": {
+      "style": "style-kinetic-type",
+      "champs": {
+        "mots_max": 2
+      },
+      "curseurs": {
+        "rythme": 4,
+        "creativite": 3
+      }
+    }
+  },
+  "voix": {
+    "moteur": "tts",
+    "modele": "eleven_v3",
+    "balises": [
+      "[excited]"
+    ],
+    "stabilite": 0.5
+  },
+  "musique": {
+    "humeur": "synthwave",
+    "modele": "stable-audio-25",
+    "volume_db": -18
+  },
+  "sous_titres": {
+    "prereglage": "pop"
+  },
+  "rythme": {
+    "plan_s": [
+      0.4,
+      0.8
+    ],
+    "duree_s": {
+      "min": 10,
+      "type": 20,
+      "max": 30
+    }
+  },
+  "a_fournir": [
+    {
+      "fr": "Le script, mot pour mot (c'est lui qui donne la durée).",
+      "en": "The script, word for word (it sets the length)."
+    },
+    {
+      "fr": "La phrase à retenir, 60 signes au plus.",
+      "en": "The line to remember, 60 characters at most."
+    }
+  ]
+}
