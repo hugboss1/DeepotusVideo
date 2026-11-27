@@ -209,7 +209,7 @@ def _seuil(v) -> float:
 
 
 def lire_gagnants(espace_id: str, jours: int = FENETRE_JOURS, seuil: float = SEUIL_GAGNANT, tous: bool = False,
-                  maintenant: datetime | None = None) -> dict:
+                  maintenant: datetime | None = None, plateforme: str | None = None) -> dict:
     """Le fil des gagnants de la niche : les éléments publiés dans les `jours` derniers jours à au moins `seuil` fois
     l'habituel de leur créateur, du plus fort multiplicateur au plus faible. `tous` ajoute les autres éléments de la
     fenêtre (`autres`, les sans habituel en dernier). Lecture seule, aucun relevé."""
@@ -222,6 +222,8 @@ def lire_gagnants(espace_id: str, jours: int = FENETRE_JOURS, seuil: float = SEU
     analyses = _analyses()
     fen = []
     for l in _lignes_niche(eid, seuil):
+        if plateforme and l.get("plateforme") != plateforme:     # t500 : les fils X suivis (relevés par Apify)
+            continue
         d = _date(l.get("published"))
         if d is None or d < debut:
             continue
@@ -230,7 +232,8 @@ def lire_gagnants(espace_id: str, jours: int = FENETRE_JOURS, seuil: float = SEU
     rang = lambda l: (l["multiplicateur"] is None, -(l["multiplicateur"] or 0), str(l.get("published") or ""))
     gagnants = sorted((l for l in fen if l["gagnant"]), key=rang)
     rep = {"espace_id": eid, "jours": jours, "seuil": seuil, "niche": niche(eid), "elements": len(fen),
-           "sans_habituel": sum(1 for l in fen if l["multiplicateur"] is None), "gagnants": gagnants}
+           "sans_habituel": sum(1 for l in fen if l["multiplicateur"] is None), "gagnants": gagnants,
+           "plateforme": plateforme or None}
     if tous:
         rep["autres"] = sorted((l for l in fen if not l["gagnant"]), key=rang)
     return rep

@@ -4,6 +4,8 @@ identique, balise dans la SPA après dz-prospects.js, clés FR/EN complètes et 
 « publier », listes alignées sur le serveur, banc node du composant et du tiroir.
 t495 (26/11/2026) : la section « Gagnants de ma niche » — grille alignée sur le serveur, seules écritures permises
 (niche, enregistrer, devis gratuit, analyse sur accord), aucun POST d'analyse sans max_usd.
+t498 (26/11/2026) : « Recycler ce gagnant » — ses éléments et raisons suivent recyclage.py, ses seules écritures sont
+les routes /api/recyclage/{id}/redaction et /brouillons (en plus du relevé).
 Run : & $PY tests/test_croissance_ecran.py   (depuis backend/)"""
 import json, pathlib, re, shutil, subprocess, sys
 import pytest
@@ -48,6 +50,10 @@ def test_listes_suivent_le_serveur():
     assert tuple(_liste("GRILLE")) == CG.GRILLE, "la grille fixe de l'analyse"
     src_cg = (RACINE / "backend" / "app" / "services" / "croissance_gagnants.py").read_text(encoding="utf-8")
     assert set(_liste("MESURES")) == set(re.findall(r'"(vues|interactions)" if _nombre', src_cg)), "les mesures du serveur"
+    from app.services import recyclage as RC                      # t498
+    assert _liste("ELEMENTS_RECYCLAGE") == list(RC.ELEMENTS)
+    src_rc = (RACINE / "backend" / "app" / "services" / "recyclage.py").read_text(encoding="utf-8")
+    assert set(_liste("RAISONS_RECYCLAGE")) == {"cle", *re.findall(r'\("(sans_[a-z]+)" if el (?:==|in)', src_rc)}, "raisons des cartes"
 
 
 def test_cles_fr_en():
@@ -63,6 +69,8 @@ def test_cles_fr_en():
     employees |= {f"croissance.raison.{r}" for r in _liste("RAISONS")}
     employees |= {f"croissance.grille.{g}" for g in _liste("GRILLE")}                       # t495
     employees |= {f"croissance.niche.{p}_{m}" for p in ("habituel", "valeur") for m in _liste("MESURES")}
+    employees |= {f"croissance.recyclage.{e}" for e in _liste("ELEMENTS_RECYCLAGE")}           # t498
+    employees |= {f"croissance.raison_recyclage.{r}" for r in _liste("RAISONS_RECYCLAGE")}
     assert employees <= set(I18N), "clés employées sans traduction : " + str(sorted(employees - set(I18N)))
     assert set(I18N) <= employees, "clés orphelines : " + str(sorted(set(I18N) - employees))
 
@@ -95,14 +103,22 @@ def test_aucune_chaine_visible_en_dur():
 def test_lecture_seule():
     sans = re.sub(r"/\*.*?\*/", "", SRC, flags=re.S)
     assert not re.search(r"publi(er|sh)|/fire|/schedule/validate", sans, re.I)
-    ecritures = re.findall(r'fetch\("([^"]+)",\s*\{\s*method:\s*"POST"', sans)
-    assert ecritures == ["/api/schedule/analytics/refresh"], ecritures
+    ecritures = re.findall(r'fetch\(([^,]+),\s*\{\s*method:\s*"POST"', sans)
+    # t498 : le relevé, puis la rédaction d'UNE carte acceptée et les brouillons du recyclage (adresse sous `base`)
+    assert ecritures == ['"/api/schedule/analytics/refresh"', 'base + "/redaction"', 'base + "/brouillons"'], ecritures
+    assert 'var base = "/api/recyclage/" + encodeURIComponent(String(p.id));' in sans
+    assert "max_usd: usd" in sans, "la rédaction part au montant de la carte affichée"
     # t495 : les autres écritures passent par envoyer(url, méthode, corps) — la niche, l'enregistrement (métadonnées),
     # le devis GRATUIT et l'analyse, celle-ci avec max_usd = le montant du devis affiché sur le bouton
     envois = re.findall(r'envoyer\(("[^"]+"(?:\s*\+[^,]+)?),\s*"([A-Z]+)"', sans)
     assert sorted((u.split('"')[1] + u.split('"')[-2] if u.count('"') > 2 else u.split('"')[1], m) for u, m in envois) == sorted([
         ("/api/croissance/niche", "PUT"), ("/api/croissance/enregistres", "POST"),
-        ("/api/croissance/gagnants//devis", "POST"), ("/api/croissance/gagnants//analyse", "POST")]), envois
+        ("/api/croissance/gagnants//devis", "POST"), ("/api/croissance/gagnants//analyse", "POST"),
+        ("/api/croissance/x/releve", "POST"), ("/api/croissance/x/accord", "PUT"),   # t500 : relevé X sur accord, accord
+        ("/api/schedule/croissance/alertes", "PUT")]), envois   # t504 (G12) : l'accord du bilan et de l'alerte WhatsApp
+    # t504 : l'accord part au prix du devis affiché, seulement case cochée ; le retrait est un DELETE
+    assert "usd_accepte: devisA.usd_par_message" in sans and "if (!devisA || !caseAccord.checked) return;" in sans
+    assert sans.count('{ method: "DELETE" }') == 1
     assert sans.count('"/analyse", "POST", { max_usd: devisUsd') == 1, "l'analyse n'est envoyée qu'avec l'accord du devis"
     for k, v in I18N.items():
         assert not re.search(r"publi(er|sh)", v["fr"] + " " + v["en"], re.I), k

@@ -410,7 +410,7 @@ c.__exit__(None, None, None)
 print("\n[6] les boîtes")
 fige = json.loads((_ICI / "agent_definitions_campagnes.json").read_text(encoding="utf-8"))
 check("6.1 Campagnes inchangé à l'octet (fixture)", ao.definitions() == fige)
-check("6.2 paquet mobile inchangé (dix outils de campagnes)", [b["id"] for b in B.paquet_mobile()] == ["campagnes"]
+check("6.2 paquet mobile inchangé (dix outils de campagnes ; t499 : + la boîte « croissance »)", [b["id"] for b in B.paquet_mobile()] == ["campagnes", "croissance"]
       and len(B.paquet_mobile()[0]["outils"]) == 10)
 m = B.outils_pour("mcp")
 check("6.3 l'agent mcp ne voit que des lectures et le devis",

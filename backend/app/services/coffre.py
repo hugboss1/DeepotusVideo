@@ -55,6 +55,7 @@ SECRETES = {
     "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET",
     "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "YOUTUBE_REFRESH_TOKEN",
     "IG_ACCESS_TOKEN",
+    "IG_APP_SECRET",                # t493 (26/11/2026) : secret de l'application Instagram (Instagram Login)
     # plan scheduler T6 (tâche #28, 30/09/2026) : le secret du client TikTok et son refresh token (renouvelé par TikTok,
     # regardé par coffre.enregistrer_cle) ; l'identifiant public du client et le drapeau d'audit restent au .env
     "TIKTOK_CLIENT_SECRET", "TIKTOK_REFRESH_TOKEN",

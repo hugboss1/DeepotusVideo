@@ -337,8 +337,9 @@ import _recensement_payant as RP                                     # noqa: E40
 rec = RP.recenser()
 k = ("croissance", "POST", "/gagnants/{item_id}/analyse")
 check("G1 la route d'analyse atteint un puits et est gardée", k in rec and rec[k]["puits"] and rec[k]["garde"], str(rec.get(k)))
-autres = [x for x in rec if x[0] == "croissance" and x != k and rec[x]["puits"]]
-check("G2 aucune autre route de croissance ne dépense", autres == [], str(autres))
+_ailleurs = {("croissance", "POST", "/note/affiner"), ("croissance", "POST", "/x/releve")}   # t497 (G7) : la note ; t500 : le relevé X (test_croissance_x)
+autres = [x for x in rec if x[0] == "croissance" and x != k and x not in _ailleurs and rec[x]["puits"]]
+check("G2 aucune autre route de croissance ne dépense (hors note G7, gardée)", autres == [] and all(rec[x]["garde"] for x in _ailleurs if x in rec), str(autres))
 pg = (_ICI / "test_plafonds_garde.py").read_text(encoding="utf-8")
 check("G3 inscrite dans PAYANTES de test_plafonds_garde", '("croissance", "POST", "/gagnants/{item_id}/analyse")' in pg)
 

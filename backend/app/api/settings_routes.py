@@ -492,6 +492,9 @@ RUBRIQUE_DE_CLE = {
     "BLENDER_PATH": "moteurs", "GODOT_PATH": "moteurs", "GODOT_PROJECT_DIR": "moteurs",
     "UNREAL_PATH": "moteurs", "UNREAL_PROJECT_DIR": "moteurs", "UNITY_PATH": "moteurs", "UNITY_PROJECT_DIR": "moteurs",
     "BLENDER_MCP_EXE": "moteurs", "BLENDER_MCP_PORT": "moteurs",                     # t521 lot 2
+    # t493 (26/11/2026) : « Relier par Instagram », champs du bloc Instagram posés par le maillon de queue dziglogin
+    # (hors de l'index de recherche, comme les autres lignes de maillon)
+    "IG_APP_ID": "accounts", "IG_APP_SECRET": "accounts", "IG_OAUTH_REDIRECT": "accounts",
     "ELEVENLABS_VOICE_ID_FR": "keys", "ELEVENLABS_VOICE_ID_EN": "keys",  # t221 : voix par défaut, champs texte
     "ANTHROPIC_MODEL": "defaults", "OPENAI_MODEL": "defaults", "GEMINI_MODEL": "defaults", "OLLAMA_MODEL": "defaults",
     "SUMMARIZER_PROVIDER": "defaults", "PLANNER_PROVIDER": "defaults", "AGENT_MODEL": "defaults",   # t285a

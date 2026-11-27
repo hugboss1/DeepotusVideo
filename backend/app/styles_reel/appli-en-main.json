@@ -1,0 +1,79 @@
+{
+  "id": "appli-en-main",
+  "version": 1,
+  "famille": "demo",
+  "titre": {
+    "fr": "L'appli en main",
+    "en": "App in hand"
+  },
+  "resume": {
+    "fr": "Un téléphone à l'écran : chaque geste (un tap) montre une fonction, l'accroche dans la première seconde, l'appel à l'action en bas.",
+    "en": "A phone on screen: each gesture (a tap) shows a feature, the hook in the first second, the call to action at the bottom."
+  },
+  "gabarit": {
+    "id": "tpl_oracle_full_with_lower_third",
+    "emplacements": {
+      "animation": {
+        "source": "motion",
+        "page": "telephone"
+      },
+      "lower_third_text": {
+        "source": "texte",
+        "libelle": {
+          "fr": "L'appel à l'action",
+          "en": "The call to action"
+        }
+      }
+    }
+  },
+  "motion": {
+    "telephone": {
+      "style": "style-phone",
+      "champs": {
+        "geste": "taper"
+      },
+      "curseurs": {
+        "rythme": 3
+      }
+    }
+  },
+  "voix": {
+    "moteur": "tts",
+    "modele": "eleven_flash_v2_5",
+    "balises": [],
+    "stabilite": 0.5
+  },
+  "musique": {
+    "humeur": "corporate",
+    "modele": "stable-audio-25",
+    "volume_db": -20
+  },
+  "sous_titres": {
+    "prereglage": "surligneur"
+  },
+  "rythme": {
+    "plan_s": [
+      1.0,
+      2.0
+    ],
+    "duree_s": {
+      "min": 10,
+      "type": 20,
+      "max": 30
+    }
+  },
+  "a_fournir": [
+    {
+      "fr": "Le script, mot pour mot (c'est lui qui donne la durée).",
+      "en": "The script, word for word (it sets the length)."
+    },
+    {
+      "fr": "Les fonctions à montrer, une par geste.",
+      "en": "The features to show, one per gesture."
+    },
+    {
+      "fr": "L'appel à l'action, 60 signes au plus.",
+      "en": "The call to action, 60 characters at most."
+    }
+  ]
+}

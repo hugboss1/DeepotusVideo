@@ -1,0 +1,110 @@
+{
+  "titre": {
+    "fr": "Planificateur › Depuis une inspiration",
+    "en": "Scheduler › From an inspiration"
+  },
+  "legende": {
+    "fr": "La boîte Inspiration : déposer l'enregistrement d'écran ou coller un lien, puis lire la capture.",
+    "en": "The Inspiration box: drop the screen recording or paste a link, then read the capture."
+  },
+  "captures": [
+    {
+      "fr": "boite.fr.webp",
+      "en": "boite.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        349,
+        340,
+        742,
+        85
+      ],
+      "bulle": {
+        "fr": "Glissez l'enregistrement ici",
+        "en": "Drop the recording here"
+      },
+      "ancre": [
+        720,
+        418
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        616,
+        591
+      ],
+      "clic": true,
+      "surligne": [
+        532,
+        571,
+        168,
+        40
+      ],
+      "bulle": {
+        "fr": "Mesures gratuites, sur ce PC",
+        "en": "Free measurements, on this PC"
+      },
+      "ancre": [
+        616,
+        605
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.4,
+      "surligne": [
+        349,
+        340,
+        742,
+        85
+      ],
+      "bulle": {
+        "fr": "Glissez l'enregistrement ici",
+        "en": "Drop the recording here"
+      },
+      "ancre": [
+        720,
+        418
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        599,
+        591
+      ],
+      "clic": true,
+      "surligne": [
+        514,
+        571,
+        169,
+        40
+      ],
+      "bulle": {
+        "fr": "Mesures gratuites, sur ce PC",
+        "en": "Free measurements, on this PC"
+      },
+      "ancre": [
+        599,
+        605
+      ]
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

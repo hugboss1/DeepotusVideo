@@ -1,0 +1,75 @@
+{
+  "id": "au-tableau",
+  "version": 1,
+  "famille": "explication",
+  "titre": {
+    "fr": "Au tableau",
+    "en": "At the board"
+  },
+  "resume": {
+    "fr": "Un schéma se construit bloc par bloc, de haut en bas, au rythme de l'explication ; le mot clé reste écrit à la fin.",
+    "en": "A diagram builds block by block, top to bottom, at the pace of the explanation; the key word stays written at the end."
+  },
+  "gabarit": {
+    "id": "tpl_oracle_full_with_lower_third",
+    "emplacements": {
+      "animation": {
+        "source": "motion",
+        "page": "schema"
+      },
+      "lower_third_text": {
+        "source": "texte",
+        "libelle": {
+          "fr": "Le mot clé",
+          "en": "The key word"
+        }
+      }
+    }
+  },
+  "motion": {
+    "schema": {
+      "style": "style-diagrams",
+      "champs": {
+        "sens": "vertical"
+      },
+      "curseurs": {
+        "rythme": 1
+      }
+    }
+  },
+  "voix": {
+    "moteur": "tts",
+    "modele": "eleven_multilingual_v2",
+    "balises": [],
+    "stabilite": 1.0
+  },
+  "musique": {
+    "humeur": "lofi",
+    "modele": "stable-audio-25",
+    "volume_db": -24
+  },
+  "sous_titres": {
+    "prereglage": "standard"
+  },
+  "rythme": {
+    "plan_s": [
+      1.0,
+      2.0
+    ],
+    "duree_s": {
+      "min": 20,
+      "type": 35,
+      "max": 60
+    }
+  },
+  "a_fournir": [
+    {
+      "fr": "Le script, mot pour mot (c'est lui qui donne la durée).",
+      "en": "The script, word for word (it sets the length)."
+    },
+    {
+      "fr": "Les étapes de l'explication (3 à 6 blocs).",
+      "en": "The steps of the explanation (3 to 6 blocks)."
+    }
+  ]
+}

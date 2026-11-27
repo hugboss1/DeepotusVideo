@@ -6,6 +6,10 @@ tableau de bord.
   (clés posées, `publishers`) sont interrogés : un canal déconnecté ne coûte ni appel ni erreur.
 - X : 10 posts par passe ET le budget MENSUEL de lectures du palier gratuit (quota « x_lecture », 100/mois — docs.x.com,
   03/09/2026). Le plan du 03/09 ne rationnait que la passe : 10 par jour = ~300 lectures pour un budget de 100.
+- t500 (G10, 26/11/2026) : l'API X est PAYANTE À L'USAGE (0,005 $ par post lu, docs.x.com relu le 26/11/2026). La
+  passe ne lit X que sous l'accord ENREGISTRÉ du relevé automatique (croissance_x.accord_auto, qui exige un plafond X)
+  et après la garde `plafonds.verifier` catégorie « x » (croissance_x.garder_auto, jamais confirmée) ; au plafond ou
+  sans accord, X est sauté. Le relevé à la demande, par jalons, est croissance_x.relever.
 - X encore : les posts publiés AVANT le socle (#24) n'ont que `x_post_id` ; ils sont relus. La colonne `metrics` garde
   le format BRUT de X (impression_count, like_count…) que `performance_context` injecte dans le prompt des plans — le
   plan y écrivait la forme normalisée, les plans générés auraient perdu leurs chiffres.
@@ -57,6 +61,21 @@ def _disponible(ch: str) -> bool:
     return bool(entree and entree[0]())
 
 
+async def _garde_x(n: int) -> bool:
+    """t500 : une lecture X n'est permise qu'avec l'accord enregistré ET sous le plafond (402 = sautée)."""
+    from fastapi import HTTPException
+    from app.services import croissance_x as CX
+    if not CX.accord_auto():
+        logger.info("metrics x : aucun accord enregistré pour le relevé automatique (API payante), passe sautée")
+        return False
+    try:
+        await CX.garder_auto(n)
+    except HTTPException:
+        logger.info("metrics x : plafond X du mois atteint, passe sautée")
+        return False
+    return True
+
+
 async def refresh_all(max_per_channel: int = 10) -> dict[str, int]:
     """Une passe : pour chaque canal disponible, les `max_per_channel` derniers posts publiés portant un id distant
     (X : aussi borné par le reste du budget mensuel). Retourne {canal: n mis à jour}."""
@@ -78,6 +97,8 @@ async def refresh_all(max_per_channel: int = 10) -> dict[str, int]:
                     continue
             pairs = [(p, _remote(p, ch)) for p in posts if _remote(p, ch)][:borne]
             if not pairs:
+                continue
+            if ch == "x" and not await _garde_x(len(pairs)):
                 continue
             try:
                 got = await fetch([rid for _p, rid in pairs])
@@ -126,6 +147,8 @@ async def refresh_all(max_per_channel: int = 10) -> dict[str, int]:
                     if borne <= 0:
                         continue
                 pairs = pairs[:borne]
+                if ch == "x" and not await _garde_x(len(pairs)):
+                    continue
                 try:
                     got = await FETCHERS[ch]([rid for _p, rid in pairs])
                 except Exception as e:

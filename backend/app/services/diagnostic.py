@@ -244,6 +244,10 @@ async def tester_cle(nom: str, valeur: str) -> dict:
             _c, corps, r = await _simple("https://api.tavily.com/usage", {"Authorization": f"Bearer {v}"})
             r["message"] = _sans(r.get("message") or "", v)
             return r
+        if nom in ("IG_APP_ID", "IG_APP_SECRET"):
+            # t493 (26/11/2026) : aucun appel documenté ne vérifie seuls l'ID et le secret d'une application Instagram
+            # (l'échange exige un code d'autorisation) : « Relier par Instagram » les vérifie, rien n'est appelé ici
+            return _res(None, _M("diag.cle.ig_app_par_liaison"))
         if nom in SANS_TEST_GRATUIT:
             # Exa et Serper : aucun appel documenté qui vérifie une clé sans lancer une recherche facturée (relevé du
             # 13/11/2026) ; on ne dépense rien pour un test, on le dit.
@@ -292,6 +296,7 @@ TESTABLES = {
     # n'ont pas d'appel gratuit : leur « Tester » le dit sans rien appeler (SANS_TEST_GRATUIT)
     "DECART_API_KEY", "KAPSO_API_KEY", "TAVILY_API_KEY", "EXA_API_KEY", "SERPER_API_KEY",
     "X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_SECRET",
+    "IG_APP_ID", "IG_APP_SECRET",                   # t493 : « Tester » dit qu'ils se vérifient en reliant
 }
 
 

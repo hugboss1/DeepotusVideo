@@ -1,0 +1,77 @@
+{
+  "id": "barres-qui-grimpent",
+  "version": 1,
+  "famille": "donnees",
+  "titre": {
+    "fr": "Barres qui grimpent",
+    "en": "Climbing bars"
+  },
+  "resume": {
+    "fr": "Des barres poussent l'une après l'autre et se dépassent au fil de la voix, jusqu'à la gagnante qui reste à l'écran.",
+    "en": "Bars grow one after another and overtake each other as the voice goes on, up to the winner that stays on screen."
+  },
+  "gabarit": {
+    "id": "tpl_oracle_full_with_lower_third",
+    "emplacements": {
+      "animation": {
+        "source": "motion",
+        "page": "barres"
+      },
+      "lower_third_text": {
+        "source": "texte",
+        "libelle": {
+          "fr": "La gagnante",
+          "en": "The winner"
+        }
+      }
+    }
+  },
+  "motion": {
+    "barres": {
+      "style": "style-charts",
+      "champs": {
+        "forme": "barres"
+      },
+      "curseurs": {
+        "rythme": 4
+      }
+    }
+  },
+  "voix": {
+    "moteur": "tts",
+    "modele": "eleven_v3",
+    "balises": [
+      "[excited]"
+    ],
+    "stabilite": 0.5
+  },
+  "musique": {
+    "humeur": "hype",
+    "modele": "stable-audio-25",
+    "volume_db": -16
+  },
+  "sous_titres": {
+    "prereglage": "contour_sombre"
+  },
+  "rythme": {
+    "plan_s": [
+      0.8,
+      1.5
+    ],
+    "duree_s": {
+      "min": 12,
+      "type": 20,
+      "max": 30
+    }
+  },
+  "a_fournir": [
+    {
+      "fr": "Le script, mot pour mot (c'est lui qui donne la durée).",
+      "en": "The script, word for word (it sets the length)."
+    },
+    {
+      "fr": "Les valeurs à comparer (5 à 8), dans l'ordre.",
+      "en": "The values to compare (5 to 8), in order."
+    }
+  ]
+}
