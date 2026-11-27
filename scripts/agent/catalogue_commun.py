@@ -29,6 +29,8 @@ ECRAN_DE_ZONE = {
     "apparence": "settings",             # t382 (30/10/2026) : la palette de Réglages › Apparence (dz-apparence.js)
     "creer3d": "assets3d",               # t389/t404 (31/10/2026) : l'onglet 3D = « Créer » de Game Assets (dz-creer3d.js)
     "studio3decrans": "assets3d",        # t388-t403/t404 : les écrans du 3D Studio (frontend/studio3d/ecrans/)
+    "igrelier": "settings",              # t493/t504 : « Relier par Instagram » de Réglages › Comptes connectés
+    "inspiration": "scheduler",          # t504/t516 : la boîte « Depuis une inspiration » du Planificateur
 }
 # préfixe « zone.objet » rattaché à un autre écran que sa zone (consulté AVANT ECRAN_DE_ZONE)
 ECRAN_DE_PREFIXE = {"avatar.noeud": "studio",           # titres des nœuds avatar du graphe du Studio

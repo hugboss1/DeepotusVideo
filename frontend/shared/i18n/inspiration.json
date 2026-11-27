@@ -163,6 +163,7 @@
   "inspiration.offre.preuves": {"fr": "Preuves vraies (une par ligne)", "en": "True proofs (one per line)"},
   "inspiration.offre.frein_leve": {"fr": "Frein levé (essai, garantie…)", "en": "Objection removed (trial, guarantee…)"},
   "inspiration.offre.chiffres": {"fr": "Chiffres publiables : valeur | libellé | source (une ligne chacun)", "en": "Publishable figures: value | label | source (one per line)"},
+  "inspiration.offre.commentaire": {"fr": "Autoriser l'appel « commentez un mot » (réponses publiques validées une par une)", "en": "Allow the \"comment a word\" call to action (public replies approved one by one)"},
   "inspiration.offre.enregistrer": {"fr": "Enregistrer la fiche d'offre", "en": "Save the offer sheet"},
   "inspiration.reel.titre": {"fr": "Reel en tableaux", "en": "Reel in panels"},
   "inspiration.reel.aide": {"fr": "Un tableau par brique, animé sur le temps des mots, aux couleurs de l'espace. Rendu local et gratuit.", "en": "One panel per brick, animated on the word timings, in the workspace's colours. Rendered locally, free."},
