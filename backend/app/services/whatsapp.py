@@ -839,8 +839,14 @@ def noter_entrant(cid: str, msg: dict, maintenant: datetime | None = None, heure
     autre = f"tel:{chiffres}" if bsuid and chiffres else None
     q = _quand(maintenant)
     stop = _est_stop(_texte_entrant(msg))
+    from app.services import whatsapp_suivi as _WS          # t502 (G12) : le code d'un lien suivi, jamais le texte
+    code = _WS.extraire_code(_texte_entrant(msg))
 
     def geste(e):
+        if code and not stop:
+            if not isinstance(e.get("origines"), dict):
+                e["origines"] = {}
+            e["origines"].setdefault(ident, {"code": code, "quand": q})
         if autre:
             e["alias"][ident] = autre
             e["alias"][autre] = ident

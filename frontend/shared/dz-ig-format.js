@@ -74,7 +74,10 @@
     var zoneCarrousel = el("div", { "data-dz-igformat": "carrousel" });
     var zoneDepot = el("div", { "data-dz-igformat": "depot" });
     var erreur = el("p", { class: "dzIgfErreur", "data-dz-igformat": "erreur", role: "alert" });
+    // t504 (clôture G7) : la note avant publication du rendu (« estimation », texte composé et traduit par le serveur)
+    var note = el("p", { class: "dzIgfNote", "data-dz-igformat": "note", style: "white-space:pre-line", hidden: "" });
     racine.appendChild(el("h4", { texte: T("igformat.panneau.titre") }));
+    racine.appendChild(note);
     racine.appendChild(el("div", { class: "dzIgfRang" }, [selForme, selGrad]));
     [aide, zoneCarrousel, zoneDepot, erreur].forEach(function (x) { racine.appendChild(x); });
     noeud.appendChild(racine);
@@ -150,6 +153,8 @@
         E.graduation = GRADUATIONS.indexOf(f.graduation) >= 0 ? f.graduation : "MANUAL";
         E.images = Array.isArray(f.images) ? f.images.slice() : [];
         E.exige = f.exige_depot === true;
+        if (typeof f.note_rendu === "string" && f.note_rendu) { note.textContent = f.note_rendu; note.removeAttribute("hidden"); }
+        else { note.textContent = ""; note.setAttribute("hidden", ""); }
         if (!gardeErreur) dire("");
       } catch (e) {
         if (!vivant || moi !== tour) return;

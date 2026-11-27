@@ -147,6 +147,8 @@ async def faux_fetch(rids):
     vus_m.append((CP.cred.X_ACCESS_TOKEN, list(rids)))
     return {rid: {"views": 5, "likes": 1, "comments": 0, "shares": 0, "saves": 0} for rid in rids}
 MS.FETCHERS["x"] = faux_fetch
+from app.services import croissance_x as _CX                         # noqa: E402
+_CX.regler_accord(True, 50.0)   # t500 : l'API X est payante à l'usage — la passe ne lit X que sous l'accord enregistré
 asyncio.run(MS.refresh_all())
 check("K1 la publication du compte x1 est relue avec SES jetons ; le post Deepotus avec les clés plates",
       ("r1-t", ["t1"]) in vus_m and any(t == "plat-t" and "t3" in r for t, r in vus_m), str(vus_m))

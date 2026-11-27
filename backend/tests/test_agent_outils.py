@@ -103,6 +103,8 @@ DIX = {"chercher_app", "lire_espace", "lire_bibliotheque", "lire_planificateur",
        "reponses_lire", "relance_proposer",   # t358
        "entreprises_carte",   # t365 : leads Google Maps (Apify)
        "veille_sources", "veille_apify",   # t366 : veille enrichie (Apify)
+       "ecrire_script_court",   # t496 (G6) : boîte « croissance »
+       "lire_gagnants", "lire_mesures", "noter_rendu", "proposer_recyclage", "ecrire_apprentissages",   # t499 (G9)
        "lire_recette",   # t346 : la recette exportable (boîte « recette »)
        "signaux_reddit",   # t367
        "concurrents_pages", "concurrents_pubs", "concurrents_serp",   # t368
@@ -145,11 +147,11 @@ async def main():
           - set(_B.BOITES["assets3d"]["outils"]) - set(_B.BOITES["chapitres"]["outils"])
           - set(_B.BOITES["plateau"]["outils"]) - set(_B.BOITES["blender"]["outils"])
           - set(_B.BOITES["methodes"]["outils"]) - set(_B.BOITES["modeles"]["outils"]) - set(_B.BOITES["briques"]["outils"]) - set(_B.BOITES["monteur"]["outils"]) - set(_B.BOITES["retouche"]["outils"]) - set(_B.BOITES["acteurs"]["outils"]) - set(_B.BOITES["publicite"]["outils"]) - set(_B.BOITES["sprites_qc"]["outils"]) - set(_B.BOITES["web3d"]["outils"]) - set(_B.BOITES["arbitre"]["outils"])
-          - set(_B.BOITES["edition"]["outils"]) - set(_B.BOITES["visage"]["outils"]) == DIX   # 22/11 : « visage »   # t433 : « methodes » ; t434 : « briques » ; t435 : « monteur »
+          - set(_B.BOITES["edition"]["outils"]) - set(_B.BOITES["visage"]["outils"]) - set(_B.BOITES["styles_reel"]["outils"]) == DIX   # t503 : « styles_reel » (fusion t504) ; 22/11 : « visage »   # t433 : « methodes » ; t434 : « briques » ; t435 : « monteur »
              # t319 : boîte « capture » ; t342 : boîte « assets3d » ; t337 : boîte « chapitres » ; t333 : boîte « plateau »
           and set(_B.outils_pour("campagnes")) == DIX, str(sorted(ao.OUTILS)))
     defs = ao.definitions()
-    check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 30)   # t365 : + entreprises_carte ; t366 : + veille_sources, veille_apify
+    check("test_seulement_dix_outils : definitions", {d["name"] for d in defs} == DIX and len(defs) == 36)   # t499 : + cinq outils de croissance   # t496 : + ecrire_script_court   # t365 : + entreprises_carte ; t366 : + veille_sources, veille_apify
     check("definitions : forme de l'API", all(set(d) == {"name", "description", "input_schema"}
                                               and d["input_schema"].get("type") == "object" for d in defs))
     check("OUTILS : nature connue, fn appelable", all(o["nature"] in ("lecture", "ecriture", "carte")

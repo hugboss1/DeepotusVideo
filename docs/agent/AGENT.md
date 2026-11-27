@@ -89,7 +89,8 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   client » ; en « publié en son nom », une confirmation nomme le client. → [ALLER:scheduler] [GUIDE:clients-canaux]
 - **Kits de marque** (nom, logo, couleurs de l'application) : Réglages › Identité visuelle.
   → [POINT:reglages.marque] [GUIDE:reglages]
-- **Publier sur les réseaux** : brancher les comptes dans Réglages › Comptes connectés, puis programmer dans le
+- **Publier sur les réseaux** : brancher les comptes dans Réglages › Comptes connectés (Instagram : aussi « Relier
+  par Instagram »), puis programmer dans le
   Planificateur. → [POINT:reglages.comptes] [POINT:rail.planificateur] [GUIDE:comptes]
 - **Monter et livrer** : ouvrir le Montage, vérifier avec Preview (480p, gratuit), puis Rendre (master 1080) et
   Publier. → [POINT:montage.preview] [POINT:montage.rendre] [GUIDE:montage-livrer]
@@ -114,6 +115,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
   « Envoyer le plan vers Blender » / « Reprendre depuis Blender » (copie .blend, « Appliquer au Plateau » confirmé). Gratuit. → [ALLER:episodes]
 - **S'inspirer d'un post sans le republier** (t313) : Planificateur › « Depuis une inspiration » (capture, angles
   payants, devis, brouillon ; 12 mots repris = refus, image captée jamais visuel). → [ALLER:scheduler] [GUIDE:scan]
+- **Partir d'une vidéo de référence** (t516) : même boîte, déposer un ENREGISTREMENT D'ÉCRAN (un lien ne suffit
+  pas) ; mesures gratuites, recette puis script sur devis, « Valider le script (porte 1) », « Reel en tableaux » (rendu
+  local gratuit, brouillon assisté). → [ALLER:scheduler] [GUIDE:reference-recette]
 - **Filmer l'app, l'habiller, la monter** (t315-t319) : barre du haut, « Filmer l'app » (gratuit, secrets masqués) ;
   « Monter une capture… » (zooms, chapitres, sous-titres payants sur devis) ; « Tutoriel… » et « Parcours… » ;
   « Direct » (Twitch, YouTube, Kick, RTMP). → [GUIDE:capture-live]
@@ -153,7 +157,7 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Piloter l'app depuis Claude Code** (t345) : Réglages › Serveur MCP, l'activer puis « Copier la commande ». Claude
   Code lit et chiffre ; tout lancement payant attend votre « Lancer » sur la carte en bas à droite. → [POINT:reglages.mcp]
 - **Se faire aider** : F1 ou « Demander » ouvre ce tiroir (onglets « Demander », « Campagnes », « Veille »,
-  « Prospects ») ; la réponse peut montrer un bouton, ouvrir l'écran ou le guide, ou proposer de regarder l'écran
+  « Prospects », « Croissance ») ; la réponse peut montrer un bouton, ouvrir l'écran ou le guide, ou proposer de regarder l'écran
   (accord et coût d'abord). Ce qui est dans le tiroir ne se pointe pas : nomme l'onglet. → [GUIDE:demander]
 - **Suivre ses prospects** (t353-t360) : onglet « Prospects » du tiroir ; source et base légale exigées ; rien n'est
   envoyé d'ici (« Noter un contact », « Copier et ouvrir », « Marquer envoyé ») ; démo « Démo · <entreprise> » qui ne
@@ -161,6 +165,9 @@ Une ligne par écran : ce qu'on y fait, puis les balises (ouvrir l'écran, chapi
 - **Mener une campagne avec l'agent Campagnes** : onglet « Campagnes » du tiroir (clé Anthropic). Choisir l'espace
   (figé ensuite) ; un devis par message ; porte 1 Valider/Modifier ; médias au clic « Générer » ; brouillons dans
   l'espace de la campagne ; porte 2 : l'utilisateur programme. Ne publie ni ne supprime rien. → [GUIDE:agent-campagnes]
+- **Faire grandir ses posts** (t504) : onglet « Croissance » du tiroir : gagnants de la niche, « Recycler ce
+  gagnant », « Mes posts X » (payant), commentaires au mot-clé (réponses publiques une par une), « Bilan et alerte
+  WhatsApp » (accord). Script court et note : par l'agent Campagnes. → [GUIDE:croissance]
 - **Pièces mobiles et budgets 3D** (t342) : Établi, Parties › « Pièces mobiles » (« Chercher les pièces », gratuit ;
   IA Tripo payante, catégorie « moteurs3d ») ; Export › « Budgets de triangles » (rôle, 3 densités, gratuit).
   → [ALLER:assets3d] [GUIDE:etabli]

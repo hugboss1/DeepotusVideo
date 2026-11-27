@@ -287,6 +287,52 @@ def _source_nom(f: dict) -> str:
     return f"{PLATEFORMES[f['plateforme']]['libelle']} · {f['nom']}"
 
 
+# t495 (G5, 26/11/2026) : les MESURES d'une publication, lues dans le MÊME relevé (aucune collecte nouvelle, décision D2)
+# pour le fil des gagnants (croissance_gagnants) : vues, interactions (somme des champs présents), format, durée.
+_MESURES = {
+    "instagram_posts": {"vues": ["videoViewCount", "videoPlayCount", "igPlayCount"],
+                        "interactions": ["likesCount", "commentsCount"], "duree": ["videoDuration"]},
+    "x": {"vues": ["viewCount", "views.count"], "interactions": ["likeCount", "retweetCount", "replyCount", "quoteCount"],
+          "duree": []},
+    "tiktok": {"vues": ["playCount"], "interactions": ["diggCount", "commentCount", "shareCount"],
+               "duree": ["videoMeta.duration"]},
+}
+
+
+def _compte(v):
+    """Un compteur lisible (entier ≥ 0, ou chaîne de chiffres) ; None sinon (un -1 d'Instagram = masqué)."""
+    if isinstance(v, str) and v.strip().isdigit():
+        v = int(v.strip())
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v or v < 0:
+        return None
+    return int(v)
+
+
+def _format(cle: str, it: dict):
+    if cle == "tiktok":
+        return "video"
+    if cle == "instagram_posts":
+        t = str(it.get("type") or "").lower()
+        if str(it.get("productType") or "").lower() == "clips" or t == "video":
+            return "video"
+        return {"sidecar": "carrousel", "image": "image"}.get(t)
+    return None
+
+
+def mesures(cle: str, it: dict) -> dict:
+    """{vues, interactions, format, duree_s} d'un élément brut Apify ; chaque mesure absente vaut None."""
+    from app.services import apify_suite as SU
+    m = _MESURES.get(cle)
+    if not m:
+        return {"vues": None, "interactions": None, "format": None, "duree_s": None}
+    vues = _compte(SU._champ(it, m["vues"]))
+    parts = [_compte(SU._champ(it, [c])) for c in m["interactions"]]
+    lues = [p for p in parts if p is not None]
+    d = SU._champ(it, m["duree"]) if m["duree"] else None
+    duree = round(float(d), 1) if isinstance(d, (int, float)) and not isinstance(d, bool) and 0 < d < 86400 else None
+    return {"vues": vues, "interactions": sum(lues) if lues else None, "format": _format(cle, it), "duree_s": duree}
+
+
 def _items_apify(f: dict, cle: str, bruts: list) -> list[dict]:
     from app.services import apify_suite as SU
     champs = SU.CHAMPS[cle]
@@ -306,7 +352,7 @@ def _items_apify(f: dict, cle: str, bruts: list) -> list[dict]:
                     "title": titre, "summary": _clean(texte), "link": lien,
                     "published": _date_iso(SU._champ(it, champs["date"])),
                     "image": image if isinstance(image, str) and image.startswith("https://") else None,
-                    "plateforme": f["plateforme"]})
+                    "plateforme": f["plateforme"], **mesures(cle, it)})
     return out
 
 

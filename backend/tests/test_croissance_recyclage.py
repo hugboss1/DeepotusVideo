@@ -77,7 +77,7 @@ check("A4 sans image : aucun échantillon (la mire du gabarit)", "samples" not i
 D0 = datetime(2026, 12, 1, 9, 0)
 check("A5 deux pièces tirées du même gagnant : 7 jours d'écart au moins",
       [RC._quand(D0, k) for k in range(3)] == [D0, D0 + timedelta(days=7), D0 + timedelta(days=14)])
-check("A6 quatre éléments, dans l'ordre de la spec", RC.ELEMENTS == ("carrousel", "accroches", "fil_x", "branche"))
+check("A6 cinq éléments, dans l'ordre de la spec (t500 : + x_video)", RC.ELEMENTS == ("carrousel", "accroches", "fil_x", "branche", "x_video"))
 
 # ---- données ---------------------------------------------------------------------------------------------------------
 APPELS = []
@@ -311,7 +311,7 @@ try:
     from app.api import routes as R
     c = TestClient(app, client=("127.0.0.1", 50000))
     rr = c.get("/api/recyclage/ag/proposition")
-    check("E1 GET proposition : 200, quatre cartes", rr.status_code == 200 and len(rr.json()["cartes"]) == 4, rr.text[:300])
+    check("E1 GET proposition : 200, cinq cartes (t500 : + x_video)", rr.status_code == 200 and len(rr.json()["cartes"]) == 5, rr.text[:300])
     check("E2 post inconnu : 404", c.get("/api/recyclage/nulle-part/proposition").status_code == 404)
     rr = c.get("/api/recyclage/moyen/proposition")
     check("E3 sous le seuil : 409 code sous_seuil", rr.status_code == 409 and rr.json()["detail"]["code"] == "sous_seuil", rr.text[:300])

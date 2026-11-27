@@ -1,0 +1,160 @@
+{
+  "titre": {
+    "fr": "F1 › Croissance",
+    "en": "F1 › Growth"
+  },
+  "legende": {
+    "fr": "L'onglet Croissance : période, espace, Relever maintenant, puis les gagnants de la niche.",
+    "en": "The Growth tab: period, space, Read now, then the niche's winners."
+  },
+  "captures": [
+    {
+      "fr": "onglet.fr.webp",
+      "en": "onglet.en.webp"
+    },
+    {
+      "fr": "niche.fr.webp",
+      "en": "niche.en.webp"
+    }
+  ],
+  "taille": [
+    1440,
+    900
+  ],
+  "temps": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1381,
+        76
+      ],
+      "clic": true,
+      "surligne": [
+        1335,
+        55,
+        92,
+        43
+      ],
+      "bulle": {
+        "fr": "Onglet Croissance",
+        "en": "Growth tab"
+      },
+      "ancre": [
+        1381,
+        91
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        1121,
+        147
+      ],
+      "clic": true,
+      "surligne": [
+        1047,
+        127,
+        148,
+        40
+      ],
+      "bulle": {
+        "fr": "Relève les mesures, gratuit",
+        "en": "Reads the metrics, free"
+      },
+      "ancre": [
+        1121,
+        161
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1047,
+        462,
+        387,
+        152
+      ],
+      "bulle": {
+        "fr": "Les gagnants de votre niche",
+        "en": "Your niche's winners"
+      },
+      "ancre": [
+        1241,
+        608
+      ]
+    }
+  ],
+  "temps_en": [
+    {
+      "capture": 0,
+      "duree": 2.2,
+      "curseur": [
+        1332,
+        76
+      ],
+      "clic": true,
+      "surligne": [
+        1296,
+        55,
+        71,
+        43
+      ],
+      "bulle": {
+        "fr": "Onglet Croissance",
+        "en": "Growth tab"
+      },
+      "ancre": [
+        1332,
+        91
+      ]
+    },
+    {
+      "capture": 0,
+      "duree": 2.6,
+      "curseur": [
+        1327,
+        114
+      ],
+      "clic": true,
+      "surligne": [
+        1281,
+        94,
+        91,
+        40
+      ],
+      "bulle": {
+        "fr": "Relève les mesures, gratuit",
+        "en": "Reads the metrics, free"
+      },
+      "ancre": [
+        1327,
+        128
+      ]
+    },
+    {
+      "capture": 1,
+      "duree": 2.6,
+      "surligne": [
+        1047,
+        445,
+        387,
+        152
+      ],
+      "bulle": {
+        "fr": "Les gagnants de votre niche",
+        "en": "Your niche's winners"
+      },
+      "ancre": [
+        1241,
+        591
+      ]
+    }
+  ],
+  "taille_en": [
+    1440,
+    900
+  ]
+}

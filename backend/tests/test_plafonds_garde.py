@@ -35,8 +35,13 @@ PAYANTES = {
     ("audio_graph", "POST", "/apercu"), ("audio_graph", "POST", "/rendre"),   # t272 : nœuds IA de l'Atelier sonore
     ("scan", "POST", "/{scan_id}/vision"),   # t312 : le secours Claude vision du Scan (garde « atelier » avant chaque lot)
     ("news_fils", "POST", "/{fid}/lire"),   # t380 : le relevé d'un fil social suivi (Apify ; garde « news » dans NF.relever)
+    ("croissance", "POST", "/gagnants/{item_id}/analyse"),   # t495 : « pourquoi ça marche » (Claude ; garde « campagnes » dans CG.analyser_gagnant)
     ("pose3d", "POST", "/classer"),   # t376 : la classification vision de la source 3D (garde « moteurs3d » dans P.classer_image)
     ("inspiration", "POST", "/{iid}/analyse"), ("inspiration", "POST", "/{iid}/redaction"),   # t313 : Claude (garde « scheduler »)
+    ("croissance", "POST", "/note/affiner"),   # t497 (G7) : étage 2 de la note (garde « campagnes » dans NR.affiner)
+    ("croissance", "POST", "/x/releve"),   # t500 (G10) : le relevé des posts X (API X à l'usage ; garde « x » dans CX.relever)
+    ("inspiration", "POST", "/{iid}/lecture"), ("inspiration", "POST", "/{iid}/script"),   # t514 (RV4) : script sur recette (garde « campagnes » dans IS.ecrire)
+      # t512 (RV2) : transcription + Claude vision (garde « campagnes » dans IR.lire_reference)
     ("recyclage", "POST", "/{post_id}/redaction"),   # t498 : le recyclage d'un gagnant (Claude, garde « campagnes » dans RC.rediger)
     ("schema", "POST", "/analyser"),   # t314 : détourage fal d'un schéma (garde « vectorlab » avant l'envoi)
     ("agent_campagnes", "POST", "/{cid}/message"),   # t285a : le message de l'agent Campagnes (garde « campagnes » à chaque tour)
@@ -101,6 +106,8 @@ PAYANTES = {
     ("studio3d_texture", "POST", "/{job}/generer-lot"),   # t394 : texture auto, N vues (modèle d'image), UNE garde « moteurs3d » sur le total
     ("studio3d_animer", "POST", "/appliquer"),   # t398 : une animation du catalogue Meshy sur le rig, garde « moteurs3d »
     ("studio3d_animer", "POST", "/texte"),       # t399 : texte → mouvement Meshy (BVH), garde « moteurs3d »
+    ("instagram_commentaires", "POST", "/posts/{post_id}/brouillons/claude"),   # t501 : brouillons Claude, garde « campagnes »
+    ("instagram_commentaires", "POST", "/posts/{post_id}/brouillons/{bid}/envoyer"),   # t501 : UNE réponse publique (quota Meta)
     ("routes", "POST", "/assets/3d/{job}/convert"),   # T105 : fbx/usdz/blend par Meshy convert   # T104 : rig + animations Meshy d'un job fal (crédits)
     ("routes", "POST", "/audio/sfx-video"),   # t187 (G5) : le bruitage d'une vidéo (Sonilo, Mirelo, Kling, Hunyuan, ThinkSound)
     ("routes", "POST", "/vfx-ia"),   # t188 (G6) : les 12 VFX IA vidéo -> vidéo (MiniMax H3, LTX 2.3, VOID, Kling O3, FLUX 3, Topaz, PixVerse)
@@ -230,6 +237,34 @@ _nr = _nf[_nf.find("async def relever("):_nf.find("def _du(")]
 check("A2o un fil payant : accord, devis sous son plafond, garde « news » AVANT AP.lancer, réel noté",
       0 < _nr.find('"devis_a_accepter", 409)') < _nr.find('"devis_depasse", 409') < _nr.find("plafonds.verifier(")
       < _nr.find("AP.lancer(") < _nr.find("noter_reel_lignes(") and _nf.count("AP.lancer(") == 1, "")
+# t495 : la route d'analyse d'un gagnant délègue sa garde à croissance_gagnants.analyser_gagnant — l'accord
+# (CoutChange) AVANT _appel, qui passe par MT.tirer_garde (catégorie « campagnes ») ; aucun appel nu au modèle
+_cg = (RP.RACINE / "services" / "croissance_gagnants.py").read_text(encoding="utf-8")
+_cga = _cg[_cg.find("async def analyser_gagnant("):]
+_cgp = _cg[_cg.find("async def _appel("):_cg.find("def _raisons(")]
+check("A2q un gagnant : coût hors accord refusé AVANT _appel, _appel passe par MT.tirer_garde « campagnes »",
+      0 < _cga.find("raise CoutChange(") < _cga.find("await _appel(") and "MT.tirer_garde(" in _cgp
+      and "categorie=CATEGORIE" in _cgp and "MT.tirer(" not in _cg, "")
+# t500 : le relevé X délègue sa garde à croissance_x.relever — l'accord (CoutChange) puis plafonds.verifier catégorie
+# « x » AVANT le fetcher de l'API X ; la passe quotidienne et le publieur X passent aussi la garde « x »
+_cx = (RP.RACINE / "services" / "croissance_x.py").read_text(encoding="utf-8")
+_cxr = _cx[_cx.find("async def relever("):]
+_ms = (RP.RACINE / "services" / "metrics_service.py").read_text(encoding="utf-8")
+_mk = (RP.RACINE / "services" / "marketing.py").read_text(encoding="utf-8")
+_mkx = _mk[_mk.find("async def _pub_x("):]
+check("A2r le relevé X : accord, plafonds.verifier « x » AVANT le fetcher ; passe auto et publieur gardés",
+      0 < _cxr.find("raise CoutChange(") < _cxr.find("plafonds.verifier(") < _cxr.find("FETCHERS")
+      and 'CATEGORIE = "x"' in _cx and _ms.count("_garde_x(") >= 3 and 0 < _mkx.find("garder_publication(") < _mkx.find("publish_x("), "")
+# t501 : les deux routes payantes des commentaires Instagram délèguent leur garde au service — l'accord (refus `cout`)
+# AVANT _tirer_garde (qui appelle MT.tirer_garde) ; l'envoi exige validé, texte validé et garde-fou du jour AVANT le POST
+_icm = (RP.RACINE / "services" / "instagram_commentaires.py").read_text(encoding="utf-8")
+_icr = _icm[_icm.find("async def rediger_claude("):_icm.find("def _brouillon(")]
+check("A2s commentaires Instagram : coût hors accord refusé AVANT _tirer_garde, lui-même MT.tirer_garde, sans appel nu",
+      0 < _icr.find('"cout"') < _icr.find("await _tirer_garde(") and "MT.tirer_garde(" in _icm and "MT.tirer(" not in _icm, "")
+_ice = _icm[_icm.find("async def envoyer("):_icm.find("# ---- 4. la file")]
+check("A2t réponse publique : non validé, texte changé et garde-fou du jour refusés AVANT le seul POST /replies",
+      0 < _ice.find('"non_valide"') < _ice.find('"texte_change"') < _ice.find("_garde_quota()") < _ice.find("c.post(")
+      and _icm.count("c.post(") == 1, "")
 check("A3 la liste couvre au moins 48 routes (recensement du 29/09)", len(PAYANTES) >= 48, str(len(PAYANTES)))
 
 # témoin positif : l'ANCIEN code (avant la tâche) doit faire rougir A1 sur presque toutes les routes
@@ -261,6 +296,7 @@ anciens["scan"] = _scr.replace("SV.lire(", "_sans_garde(") if "SV.lire(" in _scr
 # t313 : l'inspiration n'existait pas en bfec23e — même témoin
 _inr = (RP.MODULES["inspiration"]).read_text(encoding="utf-8")
 anciens["inspiration"] = (_inr.replace("I.analyser(", "_sans_garde(").replace("I.rediger(", "_sans_garde(")
+                          .replace("IR.lire_reference(", "_sans_garde(").replace("IS.ecrire(", "_sans_garde(")
                           if "I.analyser(" in _inr else None)
 # t498 : le recyclage d'un gagnant n'existait pas en bfec23e — même témoin
 _rcr = (RP.MODULES["recyclage"]).read_text(encoding="utf-8")
@@ -291,11 +327,20 @@ anciens["pose3d"] = _p3r.replace("P.classer_image(", "_sans_garde(") if "P.class
 # t380 : les fils sociaux suivis n'existaient pas en bfec23e — même témoin
 _nfr = (RP.MODULES["news_fils"]).read_text(encoding="utf-8")
 anciens["news_fils"] = _nfr.replace("NF.relever(", "_sans_garde(") if "NF.relever(" in _nfr else None
+# t495 + t497 : le fil des gagnants et la note avant publication n'existaient pas en bfec23e — même témoin
+_cgr = (RP.MODULES["croissance"]).read_text(encoding="utf-8")
+anciens["croissance"] = (_cgr.replace("CG.analyser_gagnant(", "_sans_garde(").replace("NR.affiner(", "_sans_garde(")
+                         .replace("CX.relever(", "_sans_garde(")   # t500 : le relevé X, même témoin
+                         if "CG.analyser_gagnant(" in _cgr and "NR.affiner(" in _cgr else None)
 # t393 : l'écran Texture du 3D Studio n'existait pas en bfec23e — même témoin
 _s3a = (RP.MODULES["studio3d_animer"]).read_text(encoding="utf-8")   # t398-t399 : même témoin
 anciens["studio3d_animer"] = _s3a.replace("R._plafond(", "_sans_garde(") if "R._plafond(" in _s3a else None
 _s3t = (RP.MODULES["studio3d_texture"]).read_text(encoding="utf-8")
 anciens["studio3d_texture"] = _s3t.replace("_R._plafond(", "_sans_garde(") if "_R._plafond(" in _s3t else None
+# t501 : les commentaires Instagram n'existaient pas en bfec23e — même témoin : ses DEUX gardes retirées
+_icx = (RP.MODULES["instagram_commentaires"]).read_text(encoding="utf-8")
+anciens["instagram_commentaires"] = (_icx.replace("IC.rediger_claude(", "_sans_garde(").replace("IC.envoyer(", "_sans_garde(")
+                                     if "IC.envoyer(" in _icx else None)
 if all(anciens.values()):
     rec0 = RP.recenser(anciens)
     gardees0 = [k for k in PAYANTES if k in rec0 and rec0[k]["garde"]]

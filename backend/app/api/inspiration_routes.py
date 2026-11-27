@@ -12,6 +12,22 @@ Boucle locale SEULEMENT (`routes._require_localhost`) ; les deux routes payantes
 - `POST /{id}/devis`              {angle, image?} : la carte de devis du contenu neuf (gratuit).
 - `POST /{id}/redaction`          {angle, max_usd, langue?, nouvelle?} : PAYANTE (Claude).
 - `POST /{id}/brouillon`          {titre, accroche?, legende?, visuel?} : le brouillon au Planificateur, après les gardes.
+- `POST /video`                   t511 (RV1) : multipart `video` (≤ 300 Mo, ≤ 10 min), `source_libelle?`, `source_lien?`
+                                  -> l'inspiration « vidéo » avec sa FICHE (étages 0 et 1, gratuits, locaux).
+- `GET  /{id}/planches/{nom}`     t511 : une planche d'images (JPEG) tant que la source n'est pas effacée (R4).
+- `POST /lien`                    t513 (RV3) : {url, source_libelle?, langue?} -> l'inspiration « lien » (plateforme,
+                                  métadonnées publiques, sous-titres YouTube) ; jamais la vidéo (R2). Gratuit.
+- `GET  /recettes`                t513 : « mes recettes » de l'espace de la requête.
+- `GET|PUT /offre`                t514 (RV4) : la fiche d'offre de l'espace de la requête (R5).
+- `GET  /{id}/devis-script`       t514 : devis GRATUIT du script sur recette ; 409 `sans_offre` / `sans_recette`.
+- `POST /{id}/script`             t514 : {max_usd, langue?} PAYANT ; `PUT /{id}/script` {briques} réécriture à la main ;
+                                  `POST /{id}/script/valider` = PORTE 1 (409 `bloquant` si un contrôle bloquant échoue).
+- `GET  /{id}/reel`               t515 (RV5) : repères, rendu, proposition de brouillon (mention publique décochée, R12 c).
+- `POST /{id}/reel/reperes`       t515 : {temps?} -> le fichier de repères (409 `script_non_valide` avant la porte 1).
+- `POST /{id}/reel/rendu`         t515 : le gabarit rendu par le motion code (local, GRATUIT) en job ; MP4 commenté (R12 b).
+- `POST /{id}/reel/brouillon`     t515 : {titre?, legende?, mention_publique?} -> brouillon, mode TOUJOURS assisté (R8).
+- `GET  /{id}/devis-lecture`      t512 (RV2) : le devis GRATUIT de la lecture (transcription + Claude sur les planches).
+- `POST /{id}/lecture`            t512 : {max_usd, langue?, nouvelle?} : PAYANTE ; la RECETTE (rangée dans l'espace).
 Codes : 400 corps ou refus de forme, 404 inconnue, 409 {message, code, …} (coût changé `cout` + usd, `en_cours`,
 gardes `copie` / `interdits` / `visuel_capte`, `angle`, `sans_analyse`, `espace`), 413, 415, 402 (plafond), 502/504
 (appel peut-être facturé), 503 (Claude non configuré ou sans vision). Messages fixes : L10.
@@ -20,7 +36,7 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from loguru import logger
 
 from app.services import inspiration as I
@@ -29,7 +45,8 @@ from app.services import scan_pages as SP
 router = APIRouter()
 
 MAX_CORPS = 64 * 1024
-CODES_400 = ("vide", "texte", "format", "sans_image", "titre", "visuel")
+CODES_400 = ("vide", "texte", "format", "sans_image", "titre", "visuel", "illisible", "longue", "matiere", "lien",
+             "sans_script")
 
 
 def _local(request: Request) -> None:
@@ -84,6 +101,10 @@ def _http(e: Exception) -> HTTPException:
     if isinstance(e, I.EnCours):
         return HTTPException(409, {"message": str(e), "code": "en_cours"})
     if isinstance(e, I.Refus):
+        if e.code == "lourde":
+            return HTTPException(413, {"message": str(e), "code": e.code})
+        if e.code == "purgee":
+            return HTTPException(410, {"message": str(e), "code": e.code})
         if e.code in CODES_400:
             return HTTPException(400, {"message": str(e), "code": e.code})
         d = {"message": str(e), "code": e.code}
@@ -96,8 +117,12 @@ def _http(e: Exception) -> HTTPException:
         return HTTPException(e.statut, str(e))
     if isinstance(e, ValueError):
         return HTTPException(400, str(e))
+    from app.services import inspiration_video as IV
+    if isinstance(e, IV.MesureImpossible):
+        return HTTPException(503 if str(e) == IV.M_FFMPEG else 415, str(e))
     if isinstance(e, RuntimeError):
-        return HTTPException(503 if str(e) in I.RAISONS.values() else 502, str(e))
+        sans_cle = str(e) in I.RAISONS.values() or str(e).startswith("Aucune clé de transcription")
+        return HTTPException(503 if sans_cle else 502, str(e))
     raise e
 
 
@@ -124,7 +149,9 @@ async def _pour_qui(eid: str) -> dict:
 @router.get("/", dependencies=[Depends(_local)])
 async def liste(request: Request):
     from app.services import espaces
+    from app.services import inspiration_video as IV
     eid = espaces.espace_courant()
+    await asyncio.to_thread(IV.purger)          # t511 (R4) : sources vidéo effacées à 7 jours, la fiche reste
     return {**await _pour_qui(eid), "inspirations": await asyncio.to_thread(I.lister, eid)}
 
 
@@ -145,6 +172,259 @@ async def capter(request: Request, image: UploadFile | None = File(None), texte:
     if v.get("ocr", {}).get("raison"):
         v["ocr"] = {**v["ocr"], "raison": _traduire(v["ocr"]["raison"], request)}
     return {**v, **await _pour_qui(rec["espace_id"])}
+
+
+@router.post("/lien", dependencies=[Depends(_local)])
+async def capter_lien(request: Request):
+    from app.services import espaces
+    from app.services import inspiration_lien as IL
+    c = await _corps(request)
+    eid = espaces.espace_courant()
+    try:
+        rec = await IL.capter_lien(url=c.get("url") or "", espace_id=eid, source_libelle=c.get("source_libelle") or "",
+                                   langue=_langue(request, c))
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    return {**I.vue(rec), **await _pour_qui(eid)}
+
+
+@router.get("/recettes", dependencies=[Depends(_local)])
+async def mes_recettes(request: Request):
+    from app.services import espaces
+    from app.services import inspiration_lien as IL
+    eid = espaces.espace_courant()
+    return {**await _pour_qui(eid), "recettes": await asyncio.to_thread(IL.recettes, eid)}
+
+
+@router.get("/offre", dependencies=[Depends(_local)])
+async def lire_offre(request: Request):
+    from app.services import espaces
+    from app.services import offre as OF
+    eid = espaces.espace_courant()
+    try:
+        fiche = OF.lire(eid)
+    except KeyError:
+        raise HTTPException(404, I.M_ESPACE) from None
+    return {**await _pour_qui(eid), "offre": fiche, "complete": OF.complete(fiche)}
+
+
+@router.put("/offre", dependencies=[Depends(_local)])
+async def ecrire_offre(request: Request):
+    from app.services import espaces
+    from app.services import offre as OF
+    c = await _corps(request)
+    eid = espaces.espace_courant()
+    try:
+        fiche = OF.ecrire(eid, c)
+    except KeyError:
+        raise HTTPException(404, I.M_ESPACE) from None
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return {"offre": fiche, "complete": OF.complete(fiche)}
+
+
+@router.post("/video", dependencies=[Depends(_local)])
+async def deposer_video(request: Request, video: UploadFile = File(...), source_libelle: str = Form(""),
+                        source_lien: str = Form(""), langue: str = Form("fr")):
+    """t511 (RV1) : le fichier est écrit par morceaux dans le dossier de l'inspiration (jamais en mémoire entier),
+    refusé au-delà de 300 Mo, puis mesuré dans un fil (ffmpeg, gratuit)."""
+    from app.services import espaces
+    from app.services import inspiration_video as IV
+    eid = espaces.espace_courant()
+    try:
+        iid, chemin = IV.nouvelle(nom=video.filename or "", espace_id=eid)
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    taille = 0
+    try:
+        with open(chemin, "wb") as f:
+            while True:
+                bloc = await video.read(1024 * 1024)
+                if not bloc:
+                    break
+                taille += len(bloc)
+                if taille > IV.OCTETS_MAX:
+                    raise I.Refus(IV.M_LOURDE, "lourde")
+                f.write(bloc)
+        rec = await asyncio.to_thread(lambda: IV.mesurer(iid, chemin=chemin, espace_id=eid,
+                                                         source_libelle=source_libelle, source_lien=source_lien,
+                                                         langue=langue))
+    except Exception as e:  # noqa: BLE001
+        IV.abandonner(iid)
+        raise _http(e) from None
+    return {**I.vue(rec), **await _pour_qui(eid)}
+
+
+@router.get("/{iid}/planches/{nom}", dependencies=[Depends(_local)])
+async def planche(iid: str, nom: str):
+    from fastapi.responses import FileResponse
+    from app.services import inspiration_video as IV
+    try:
+        f = IV.chemin_planche(iid, nom)
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    if not f.is_file():
+        raise HTTPException(404, I.M_INCONNUE)
+    return FileResponse(f, media_type="image/jpeg")
+
+
+@router.get("/{iid}/devis-lecture", dependencies=[Depends(_local)])
+async def devis_lecture(iid: str, request: Request, langue: str = ""):
+    from app.services import inspiration_recette as IR
+    try:
+        d = await IR.devis_lecture(iid, _langue(request, {"langue": langue}))
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    return {**d, "raison": _traduire(d.get("raison") or "", request)}
+
+
+@router.post("/{iid}/lecture", dependencies=[Depends(_local), Depends(_depense_locale)])
+async def lecture(iid: str, request: Request):
+    from app.services import inspiration_recette as IR
+    c = await _corps(request)
+    try:
+        return await IR.lire_reference(iid, max_usd=c.get("max_usd"), langue=_langue(request, c),
+                                       nouvelle=c.get("nouvelle") is True)
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"inspiration : lecture refusée ou en échec ({type(e).__name__})")
+        raise _http(e) from None
+
+
+@router.get("/{iid}/devis-script", dependencies=[Depends(_local)])
+async def devis_script(iid: str, request: Request, langue: str = ""):
+    from app.services import inspiration_script as IS
+    try:
+        d = await IS.devis_script(iid, _langue(request, {"langue": langue}))
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    return {**d, "raison": _traduire(d.get("raison") or "", request)}
+
+
+@router.post("/{iid}/script", dependencies=[Depends(_local), Depends(_depense_locale)])
+async def script(iid: str, request: Request):
+    from app.services import inspiration_script as IS
+    c = await _corps(request)
+    try:
+        return await IS.ecrire(iid, max_usd=c.get("max_usd"), langue=_langue(request, c))
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"inspiration : script refusé ou en échec ({type(e).__name__})")
+        raise _http(e) from None
+
+
+@router.put("/{iid}/script", dependencies=[Depends(_local)])
+async def script_modifier(iid: str, request: Request):
+    from app.services import inspiration_script as IS
+    c = await _corps(request)
+    try:
+        return await IS.modifier(iid, c.get("briques"))
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+
+
+@router.post("/{iid}/script/valider", dependencies=[Depends(_local)])
+async def script_valider(iid: str):
+    from app.services import inspiration_script as IS
+    try:
+        return await asyncio.to_thread(IS.valider, iid)
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+
+
+# ---- t515 (RV5) : le Reel en tableaux et son brouillon (tout est LOCAL et GRATUIT : aucun modèle, aucun devis) ----------
+
+@router.get("/{iid}/reel", dependencies=[Depends(_local)])
+async def reel_etat(iid: str):
+    """Les repères, le rendu et la proposition de brouillon (ligne publique « Format inspiré… » décochée, R12 c)."""
+    from app.services import inspiration_reel as IRL
+    try:
+        rec = I.lire(iid)
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    return {**(rec.get("reel") or {}), "proposition": IRL.proposition(rec)}
+
+
+@router.post("/{iid}/reel/reperes", dependencies=[Depends(_local)])
+async def reel_reperes(iid: str, request: Request):
+    """{temps?} : les temps des mots de la voix s'ils existent ; sinon estimés à 2,5 mots/s. 409 avant la porte 1."""
+    from app.services import inspiration_reel as IRL
+    c = await _corps(request)
+    try:
+        return await asyncio.to_thread(IRL.fabriquer_reperes, iid, c.get("temps"))
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+
+
+@router.post("/{iid}/reel/rendu", dependencies=[Depends(_local)])
+async def reel_rendu(iid: str, request: Request, background_tasks: BackgroundTasks):
+    """Le gabarit rendu par le moteur motion code (local, gratuit), en tâche de fond : un job comme /api/motion/code/rendre
+    (Job Dock, Bibliothèque), sous le provider `animation`. Le MP4 porte le commentaire de provenance (R12 b)."""
+    from datetime import datetime
+    from uuid import uuid4
+    from app.config import settings
+    from app.i18n import langue_requete
+    from app.models.schemas import JobStatus
+    from app.services import inspiration_reel as IRL
+    from app.services.storage import JobRecord, async_session_factory
+    c = await _corps(request)
+    try:
+        rec = I.lire(iid)
+        if not ((rec.get("reel") or {}).get("reperes") or {}).get("tableaux"):
+            raise I.RefusInspiration("Prépare d'abord les repères du Reel.", "sans_reperes")
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
+    langue = langue_requete(request)
+    fps = c.get("fps") if isinstance(c.get("fps"), int) and not isinstance(c.get("fps"), bool) else IRL.FPS_DEFAUT
+    job_id = str(uuid4())
+    sortie = settings.outputs_path / f"reel_{job_id[:8]}.mp4"
+    titre = str((IRL.proposition(rec).get("titre") or "Reel")).strip()[:200] or "Reel"
+    async with async_session_factory() as session:
+        session.add(JobRecord(id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10, title=titre,
+                              image_filename=sortie.name, aspect_ratio="9:16", provider="animation",
+                              current_step="Rendering", espace_id=rec.get("espace_id")))
+        await session.commit()
+
+    async def _run():
+        try:
+            r = await asyncio.to_thread(IRL.rendre, iid, sortie, job_id=job_id, fps=fps, langue=langue)
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                jr.status = JobStatus.DONE.value
+                jr.progress = 100
+                jr.final_video_path = jr.video_path = str(sortie)
+                jr.duration_s = int(round(float(r.get("duree_s") or 0)))
+                jr.current_step = "Complete"
+                jr.completed_at = datetime.utcnow()
+                await session.commit()
+        except Exception as e:  # noqa: BLE001 — refus, arrêt du bac à sable, encodage : le job le dit
+            logger.warning(f"inspiration {iid[:8]} : rendu du Reel en échec ({type(e).__name__})")
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.FAILED.value
+                    jr.error = str(e)[:500]
+                    jr.current_step = "Failed"
+                    await session.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued", "usd": 0, "fps": fps}
+
+
+@router.post("/{iid}/reel/brouillon", dependencies=[Depends(_local)])
+async def reel_brouillon(iid: str, request: Request):
+    """{titre?, legende?, mention_publique?} : le brouillon au Planificateur, mode ASSISTÉ quoi que dise le corps (R8)."""
+    from app.services import inspiration_reel as IRL
+    c = await _corps(request)
+    try:
+        return await IRL.brouillon(iid, titre=c.get("titre") or "", legende=c.get("legende"),
+                                   mention=c.get("mention_publique") is True)
+    except HTTPException:
+        raise
+    except Exception as e:  # noqa: BLE001
+        raise _http(e) from None
 
 
 @router.get("/{iid}", dependencies=[Depends(_local)])

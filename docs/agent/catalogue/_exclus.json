@@ -57,7 +57,9 @@
     "vectorlab.motifs.d_liste",
     "vectorlab.pinceaux.d_nouveau",
     "vectorlab.recolorer.d_titre",
-    "studiov.cat.deja"
+    "studiov.cat.deja",
+    "croissance.alertes.numero_exemple",
+    "igcomm.mot.exemple"
   ],
   "prefixes": [
     "vectorlab.flyout.titre_"

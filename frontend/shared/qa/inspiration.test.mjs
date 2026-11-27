@@ -168,6 +168,170 @@ async function jusquAuxAngles(opts = {}) {
   ok("2.8 fichier non image refusé", marque(m.corps(), "etat").textContent === FR("inspiration.capture.refus_type"));
 }
 
+// ---- t511 (RV1) : vidéo de référence ---------------------------------------------------------------------------------
+{
+  const RECV = { id: ID, espace_id: "lune", matiere: "video", texte_capte: "", image: false, source: { libelle: "Reel vu" },
+    espace: LISTE.espace, projet: LISTE.projet,
+    video: { planches: ["vues_01.jpg"], purge_le: "2026-12-03T10:00:00+00:00", purgee: false,
+      fiche: { format: { duree_s: 42.9, duree_fichier_s: 90, cadre: "9:16", images_par_s: 30, boucle: true, son: false },
+               rythme: { plans: 17, duree_moyenne_s: 2.5, duree_min_s: 1, duree_max_s: 4.2, plans_par_minute: 23.8 } } } };
+  const m = monde({ routes: base({ "POST /api/inspiration/video": () => rep(200, RECV) }) });
+  m.I.ouvrir();
+  await ticks();
+  const c = m.corps();
+  marque(c, "depot").fire("drop", { dataTransfer: { files: [new File(["x"], "ref.mp4", { type: "video/mp4" })] } });
+  marque(c, "lire").click();
+  await ticks();
+  const v = m.appels.find((a) => a.url === "/api/inspiration/video");
+  ok("2.9 vidéo : POST /video multipart (champ video), jamais /capter", v && v.corps.get("video") instanceof File
+    && !m.appels.some((a) => a.url === "/api/inspiration/capter"), v && [...v.corps.keys()]);
+  ok("2.10 fiche : format, boucle, rythme", marque(c, "fiche-format").textContent === FR("inspiration.video.format", { duree: "42.9", cadre: "9:16", ips: "30" })
+    && !!marque(c, "fiche-boucle") && marque(c, "fiche-rythme").textContent.includes("17"), marque(c, "fiche-format") && marque(c, "fiche-format").textContent);
+  ok("2.11 vidéo muette : alerte « aucun son »", marque(c, "fiche-son").textContent === FR("inspiration.video.son_non"));
+  ok("2.12 planches servies par la route, date de purge", marque(c, "planches").children.length === 1
+    && marque(c, "fiche-purge").textContent === FR("inspiration.video.purge", { date: "2026-12-03" }));
+  ok("2.13 pas d'analyse en angles pour une vidéo (RV2 : lecture sur devis)", !visible(marque(c, "section-analyse"))
+    && !m.appels.some((a) => a.url.includes("/devis-analyse")));
+}
+
+// ---- t512 (RV2) : lecture sur devis et recette ------------------------------------------------------------------------
+{
+  const RECV = { id: ID, espace_id: "lune", matiere: "video", texte_capte: "", image: false, source: {}, espace: LISTE.espace, projet: LISTE.projet,
+    video: { planches: [], purge_le: "2026-12-03", purgee: false, fiche: { format: { duree_s: 6, cadre: "9:16", son: true }, rythme: { plans: 3 } } } };
+  const RECETTE = { rythme: { tableaux: 3, mots_par_minute: 240 }, structure: [{ debut: 0, fin: 2, role: "accroche", regle: "une question", visuel: "texte" }],
+    soustitres: { lignes: 2, mots_par_ligne: 4, apparition: "mot à mot" }, appel: { type: "commentaire" }, a_ne_pas_reprendre: ["le nom de la marque"] };
+  let lecture = 0;
+  const m = monde({ routes: base({
+    "POST /api/inspiration/video": () => rep(200, RECV),
+    ["GET /api/inspiration/" + ID + "/devis-lecture?langue=fr"]: () => rep(200, { usd: 0.05, disponible: true }),
+    ["POST /api/inspiration/" + ID + "/lecture"]: () => (++lecture === 1 ? rep(409, { detail: { code: "cout", usd: 0.07 } }) : rep(200, { recette: RECETTE, alertes: ["structure.regle"] })),
+  }) });
+  m.I.ouvrir();
+  await ticks();
+  const c = m.corps();
+  marque(c, "depot").fire("drop", { dataTransfer: { files: [new File(["x"], "ref.mp4", { type: "video/mp4" })] } });
+  marque(c, "lire").click();
+  await ticks();
+  ok("2.14 devis de lecture demandé, montant sur le bouton", marque(c, "lire-reference").textContent === FR("inspiration.recette.bouton", { usd: "0,05 $" }),
+    marque(c, "lire-reference") && marque(c, "lire-reference").textContent);
+  marque(c, "lire-reference").click();
+  await ticks();
+  const p1 = m.appels.find((a) => a.url.endsWith("/lecture"));
+  ok("2.15 confirmation puis POST lecture avec l'accord affiché", m.dialogues.length === 1 && p1 && JSON.parse(p1.corps).max_usd === 0.05);
+  ok("2.16 coût changé : nouveau montant sur le bouton", marque(c, "lire-reference").textContent === FR("inspiration.recette.bouton", { usd: "0,07 $" }));
+  marque(c, "lire-reference").click();
+  await ticks();
+  ok("2.17 recette montrée : briques, appel, alerte de copie", marques(c, "recette-briques")[0].children.length === 1
+    && marque(c, "recette-appel").textContent === FR("inspiration.recette.appel", { type: FR("inspiration.appel.commentaire") })
+    && !!marque(c, "recette-alertes"), marque(c, "recette") && marque(c, "recette").textContent);
+}
+
+// ---- t513 (RV3) : lien seul, mes recettes ------------------------------------------------------------------------------
+{
+  const RECL = { id: ID, espace_id: "lune", matiere: "lien", texte_capte: "", image: false, espace: LISTE.espace, projet: LISTE.projet,
+    source: { plateforme: "instagram", lien: "https://www.instagram.com/reel/A/" }, lien: { acces: "jeton", besoin_capture: true, soustitres: { etat: "non_ouvert" } } };
+  const m = monde({ routes: base({
+    "POST /api/inspiration/lien": () => rep(200, RECL),
+    "GET /api/inspiration/recettes": () => rep(200, { recettes: [{ id: "c".repeat(32), lu_le: "2026-11-25T10:00:00", plateforme: "instagram", libelle: "", tableaux: 17, mots_par_minute: 174.6 }] }),
+  }) });
+  m.I.ouvrir();
+  await ticks();
+  const c = m.corps();
+  ok("2.18 mes recettes listées à l'ouverture", marque(c, "ma-recette") && marque(c, "ma-recette").textContent === FR("inspiration.recettes.ligne",
+    { date: "2026-11-25", source: "Instagram", n: "17", mpm: "175" }), marque(c, "ma-recette") && marque(c, "ma-recette").textContent);
+  marque(c, "lien").value = "https://www.instagram.com/reel/A/";
+  marque(c, "lire").click();
+  await ticks();
+  const p = m.appels.find((a) => a.url === "/api/inspiration/lien");
+  ok("2.19 lien seul : POST /lien en JSON, jamais /capter", p && JSON.parse(p.corps).url === "https://www.instagram.com/reel/A/"
+    && !m.appels.some((a) => a.url === "/api/inspiration/capter"));
+  ok("2.20 Instagram : jeton requis dit, enregistrement d'écran demandé", !!marque(c, "lien-jeton")
+    && marque(c, "lien-capture").textContent === FR("inspiration.lien.capture") && !visible(marque(c, "section-analyse")));
+}
+
+// ---- t514 (RV4) : fiche d'offre, script, porte 1 ----------------------------------------------------------------------
+{
+  const RECETTE = { rythme: {}, structure: [{ debut: 0, fin: 2, role: "accroche", regle: "q", visuel: "texte" }], soustitres: {}, appel: {} };
+  const RECV = { id: ID, espace_id: "lune", matiere: "video", image: false, source: {}, espace: LISTE.espace, projet: LISTE.projet, recette: RECETTE,
+    video: { planches: [], purgee: false, fiche: { format: { son: true }, rythme: {} } } };
+  let devis = 0;
+  const SCRIPT = { statut: "a_valider", briques: [{ texte: "Tu paies encore ?", ecran: "encore ?" }],
+    controle: { bloquant: true, controles: { accroche: { ok: true }, verite: { ok: false } } } };
+  const m = monde({ routes: base({
+    "POST /api/inspiration/video": () => rep(200, RECV),
+    ["GET /api/inspiration/" + ID + "/devis-script?langue=fr"]: () => (++devis === 1 ? rep(409, { detail: { code: "sans_offre" } }) : rep(200, { usd: 0.01, disponible: true })),
+    "PUT /api/inspiration/offre": () => rep(200, { complete: true, offre: {} }),
+    ["POST /api/inspiration/" + ID + "/script"]: () => rep(200, SCRIPT),
+  }) });
+  m.I.ouvrir();
+  await ticks();
+  const c = m.corps();
+  marque(c, "depot").fire("drop", { dataTransfer: { files: [new File(["x"], "ref.mp4", { type: "video/mp4" })] } });
+  marque(c, "lire").click();
+  await ticks();
+  ok("2.21 sans offre : le formulaire de la fiche d'offre s'ouvre", !!marque(c, "offre") && !!marque(c, "offre-promesse"));
+  marque(c, "offre-produit").value = "VideoGen"; marque(c, "offre-promesse").value = "à vie"; marque(c, "offre-preuves").value = "mises à jour\n";
+  marque(c, "offre-chiffres").value = "45 € | prix | page d'achat";
+  ok("2.21b t504 (R6) : case « commentez un mot » présente et décochée", !!marque(c, "offre-commentaire") && marque(c, "offre-commentaire").checked === false);
+  marque(c, "offre-commentaire").checked = true;
+  marque(c, "offre-enregistrer").click();
+  await ticks();
+  const put = m.appels.find((a) => a.url === "/api/inspiration/offre");
+  const corps = put && JSON.parse(put.corps);
+  ok("2.22 PUT offre : preuves en liste, chiffres découpés", corps && corps.preuves.length === 1 && corps.chiffres[0].source === "page d'achat", corps);
+  ok("2.22b t504 (R6) : case cochée -> appels lien et commentaire", corps && JSON.stringify(corps.appels) === '["lien","commentaire"]', corps && corps.appels);
+  ok("2.23 devis du script redemandé, montant sur le bouton", marque(c, "ecrire-script").textContent === FR("inspiration.script.bouton", { usd: "0,01 $" }));
+  marque(c, "ecrire-script").click();
+  await ticks();
+  ok("2.24 script montré, contrôle vérité en alerte, validation grisée (porte 1)", marques(c, "script-briques")[0].children.length === 1
+    && !!marque(c, "controle-verite") && marque(c, "valider-script").attrs.disabled !== undefined, marque(c, "script") && marque(c, "script").textContent);
+}
+
+// ---- t515 (RV5) : Reel en tableaux, rendu local, brouillon assisté, mention publique décochée ------------------------
+{
+  const RECETTE = { rythme: {}, structure: [{ debut: 0, fin: 2, role: "accroche", regle: "q", visuel: "texte" }], soustitres: {}, appel: {} };
+  const SCRIPTV = { statut: "valide", briques: [{ texte: "Payé une fois.", ecran: "une fois" }], controle: { bloquant: false, controles: {} } };
+  const RECV = { id: ID, espace_id: "lune", matiere: "video", image: false, source: {}, espace: LISTE.espace, projet: LISTE.projet,
+    recette: RECETTE, script: SCRIPTV, video: { planches: [], purgee: false, fiche: { format: { son: true }, rythme: {} } } };
+  const REP = { tableaux: [{ n: 1 }, { n: 2 }], duree_s: 9.4, temps: "estimes", mention_illustration: true };
+  const m = monde({ routes: base({
+    "POST /api/inspiration/video": () => rep(200, RECV),
+    ["POST /api/inspiration/" + ID + "/reel/reperes"]: () => rep(200, REP),
+    ["POST /api/inspiration/" + ID + "/reel/rendu"]: () => rep(200, { job_id: "abcdef12-0000", usd: 0 }),
+    ["GET /api/inspiration/" + ID + "/reel"]: () => rep(200, { reperes: REP, proposition: { mention_publique: { texte: "Format inspiré d'un Reel de @voisin.", coche: false } } }),
+    ["POST /api/inspiration/" + ID + "/reel/brouillon"]: () => rep(200, { post: { id: "p1", status: "draft", mode: "assisted" } }),
+  }) });
+  m.I.ouvrir();
+  await ticks();
+  const c = m.corps();
+  marque(c, "depot").fire("drop", { dataTransfer: { files: [new File(["x"], "ref.mp4", { type: "video/mp4" })] } });
+  marque(c, "lire").click();
+  await ticks();
+  ok("2.31 script validé : le bloc Reel en tableaux et « Préparer les repères »", !!marque(c, "reel") && !!marque(c, "reel-preparer")
+    && !marque(c, "reel-rendre"), marque(c, "reel") && marque(c, "reel").textContent);
+  marque(c, "reel-preparer").click();
+  await ticks();
+  ok("2.32 repères : tableaux, durée, temps estimés dits, alerte d'illustration (R8)", marque(c, "reel-reperes").textContent === FR("inspiration.reel.reperes", { n: 2, s: "9.4" })
+    && marque(c, "reel-temps").textContent === FR("inspiration.reel.temps_estimes") && !!marque(c, "reel-illustration"), marque(c, "reel-reperes") && marque(c, "reel-reperes").textContent);
+  ok("2.33 rendu proposé gratuit (aucune confirmation de dépense)", marque(c, "reel-rendre").textContent === FR("inspiration.reel.rendre") && m.dialogues.length === 0);
+  marque(c, "reel-rendre").click();
+  await ticks();
+  ok("2.34 rendu lancé : job montré, case de mention publique DÉCOCHÉE (R12 c)", !!marque(c, "reel-rendu") && marque(c, "reel-mention").checked === false
+    && marque(c, "reel-mention-texte").textContent === FR("inspiration.reel.mention", { texte: "Format inspiré d'un Reel de @voisin." }),
+    marque(c, "reel-mention-texte") && marque(c, "reel-mention-texte").textContent);
+  marque(c, "reel-brouillon").click();
+  await ticks();
+  let br = m.appels.filter((a) => a.url.endsWith("/reel/brouillon"));
+  ok("2.35 brouillon sans mention par défaut, mode jamais demandé par l'écran", br.length === 1 && JSON.parse(br[0].corps).mention_publique === false
+    && !("mode" in JSON.parse(br[0].corps)) && m.evenements.includes("deepotus:schedule-recharger"), br[0] && br[0].corps);
+  ok("2.36 succès dit : mode assisté", c.textContent.includes(FR("inspiration.reel.brouillon_ok")));
+  marque(c, "reel-mention").checked = true;
+  marque(c, "reel-brouillon").click();
+  await ticks();
+  br = m.appels.filter((a) => a.url.endsWith("/reel/brouillon"));
+  ok("2.37 case cochée par l'utilisateur : mention_publique vraie", br.length === 2 && JSON.parse(br[1].corps).mention_publique === true);
+}
+
 // ---- analyse ----------------------------------------------------------------------------------------------------------
 {
   const { m, c } = await jusquAuxAngles();

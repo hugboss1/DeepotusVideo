@@ -7778,6 +7778,8 @@ _ALLOWED_ENV_KEYS = {
     "YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET",
     "YOUTUBE_REFRESH_TOKEN", "YOUTUBE_CHANNEL_ID",
     "IG_ACCESS_TOKEN", "IG_BUSINESS_ID",
+    # t493 (26/11/2026) : « Relier par Instagram » — application Instagram (ID, secret au coffre), adresse de retour
+    "IG_APP_ID", "IG_APP_SECRET", "IG_OAUTH_REDIRECT",
     # P1 #2 (28/09) : l'import Figma de la Bibliothèque le réclame (409 sans lui)
     "FIGMA_TOKEN",
     # plan scheduler T6 (tâche #28, 30/09) : TikTok Direct Post — client (Login Kit « Desktop »), refresh token écrit par
@@ -10003,13 +10005,17 @@ def _brief_dict(p) -> dict:
 
 
 @router.get("/schedule/{post_id}/instagram")
-async def get_post_instagram(post_id: str):
-    from app.services import instagram_publisher as _ig
+async def get_post_instagram(post_id: str, request: Request):
+    from app.services import instagram_publisher as _ig, whatsapp_suivi as _ws
+    from app import i18n as _i18n
     async with async_session_factory() as session:
         p = await _post_ou_404(session, post_id)
     f = _ig.format_post(_brief_dict(p).get("instagram"))
     a_video = bool(p.job_id)
-    return {**f, "exige_depot": _ig.exige_depot(f["forme"], a_video), "a_video": a_video, "statut": p.status}
+    # t504 (clôture G7) : la note avant publication (`brief.note_rendu`, « estimation ») et ses trois premières remarques,
+    # dans la langue de la requête, pour l'inspecteur du Planificateur (panneau Instagram) ; None sans note
+    return {**f, "exige_depot": _ig.exige_depot(f["forme"], a_video), "a_video": a_video, "statut": p.status,
+            "note_rendu": _ws.bloc_note(p.brief, _i18n.langue_requete(request))}
 
 
 @router.put("/schedule/{post_id}/instagram")
@@ -10086,6 +10092,83 @@ async def post_scheduled_post_validation_whatsapp(post_id: str, request: Request
         if isinstance(e, PermissionError) and not isinstance(e, _wa.WhatsappRefus):
             raise HTTPException(409, str(e))
         raise _wa_erreur(e)
+
+
+@router.post("/schedule/{post_id}/lien-whatsapp")
+async def post_scheduled_post_lien_whatsapp(post_id: str, request: Request):
+    """t502 (G12) : le lien wa.me SUIVI d'un post (appel à l'action « écris-nous sur WhatsApp ») : {numero, texte?,
+    langue?} -> {lien, code, message}. Gratuit, aucun envoi. L'entrant qui renvoie le code devient un prospect rattaché
+    au post (prospects_sources.whatsapp_entrants : origine_post). 400 numéro, 404 post ou espace."""
+    _require_localhost(request)
+    from app.services import whatsapp_suivi as WS
+    try:
+        corps = await request.json()
+    except Exception:  # noqa: BLE001
+        corps = {}
+    corps = corps if isinstance(corps, dict) else {}
+    async with async_session_factory() as session:
+        p = await session.get(ScheduledPost, post_id)
+    if not p:
+        raise HTTPException(404, "post inconnu")
+    from app.services import espaces as _es
+    try:
+        return WS.lien(p.espace_id or _es.espace_courant(), corps.get("numero") or "", p.id, corps.get("texte") or "",
+                       "en" if corps.get("langue") == "en" else "fr")
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/schedule/croissance/alertes")
+async def get_alertes_croissance(request: Request, espace_id: str = "", numero: str = ""):
+    """t502 (G12) : l'état du bilan et de l'alerte WhatsApp de l'espace et, avec `numero`, le DEVIS d'un message
+    utilitaire (gratuit). Rien ne part sans l'accord (PUT)."""
+    _require_localhost(request)
+    from app.services import espaces as _es, whatsapp_suivi as WS
+    eid = espace_id or _es.espace_courant()
+    try:
+        etat = WS.lire_alertes(eid)
+        devis = WS.devis_alertes(eid, numero) if numero else None
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    from app.services import whatsapp_validation as _wv
+    relie = _wv._compte_relie(eid)   # t504 : l'écran d'accord lit les modèles de CE compte (GET /api/whatsapp/{cid}/modeles)
+    return {"espace_id": eid, "alertes": etat, "devis": devis, "compte": relie[0] if relie else None}
+
+
+@router.put("/schedule/croissance/alertes")
+async def put_alertes_croissance(request: Request):
+    """t502 (G12) : l'ACCORD de l'utilisateur {espace_id?, numero, modele: {nom, langue}, usd_accepte, bilan, alerte}.
+    400 modèle non utilitaire ou prix changé ; 404 espace."""
+    _require_localhost(request)
+    from app.services import espaces as _es, whatsapp_suivi as WS
+    try:
+        c = await request.json()
+    except Exception:  # noqa: BLE001
+        c = {}
+    c = c if isinstance(c, dict) else {}
+    eid = c.get("espace_id") or _es.espace_courant()
+    try:
+        return await WS.accorder(eid, numero=c.get("numero") or "", modele=c.get("modele") or {},
+                                 usd_accepte=c.get("usd_accepte"), bilan=c.get("bilan") is not False,
+                                 alerte=c.get("alerte") is not False)
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.delete("/schedule/croissance/alertes")
+async def delete_alertes_croissance(request: Request, espace_id: str = ""):
+    _require_localhost(request)
+    from app.services import espaces as _es, whatsapp_suivi as WS
+    try:
+        return WS.revoquer(espace_id or _es.espace_courant())
+    except KeyError:
+        raise HTTPException(404, "espace inconnu")
 
 
 # ---- t328 tâche 4 (27/10/2026) : la DIFFUSION WhatsApp d'un post (services/whatsapp_diffusions.py) ------------------
@@ -20479,6 +20562,17 @@ async def sync_whatsapp_post(request: Request, body: dict | None = None):
         raise HTTPException(413, str(e)) from None
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
+
+
+# ── t322 (Compagnon M5, 26/11/2026) : un contenu neuf rédigé sur le téléphone, remis en brouillon (gardes REJOUÉES ici) ─
+@router.post("/sync/post")
+async def sync_post_post(request: Request, body: dict | None = None):
+    from app.services import sync_post as _sp
+    appareil = await _appareil_requis(request)
+    try:
+        return await _sp.deposer(appareil, body)
+    except _sp.RefusPost as e:
+        raise HTTPException(e.statut, {"message": str(e), "code": e.code, "garde": e.garde}) from None
 
 
 @router.post("/sync/depenses")
