@@ -39,3 +39,46 @@
 		}
 	}
 }
+
+# Site deepotus.tech (26/11/2026) : API (liste d'attente, demandes, webhook Stripe, téléchargements) et mesure d'audience.
+# Le site lui-même reste sur l'hébergement web Hostinger. Enregistrements A « api » et « stats » vers l'IP du VPS.
+api.deepotus.tech {
+	request_body {
+		max_size 1MB
+	}
+	reverse_proxy 127.0.0.1:8787 {
+		# L'API limite le débit par adresse : elle lit la première valeur de X-Forwarded-For (DERRIERE_PROXY=1).
+		header_up X-Forwarded-For {remote_host}
+		transport http {
+			read_timeout 30m
+			write_timeout 30m
+		}
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	log {
+		output file /data/api.log {
+			roll_size 20MiB
+			roll_keep 5
+		}
+		format filter {
+			request>uri query {
+				replace jeton REDACTED
+				replace ticket REDACTED
+				replace cle REDACTED
+			}
+			request>remote_ip ip_mask 16 32
+		}
+	}
+}
+
+stats.deepotus.tech {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8081
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+}

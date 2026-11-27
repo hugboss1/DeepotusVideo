@@ -121,3 +121,31 @@ cd /opt/deepotus && git pull && cd deploiement/vps && docker compose up -d --bui
 
 Chaque nuit, `restic` vers un bucket B2 ou R2 : `/srv/deepotus/data` et `/srv/deepotus/depot` (jamais `secrets`),
 30 jours gardés, et une restauration à blanc testée une fois. Détail fourni au moment de la mise en service.
+
+## 12. Site deepotus.tech : API, e-mails, téléchargements, mesure d'audience (26/11/2026)
+
+Le site reste sur l'hébergement web Hostinger ; le VPS sert ce qui est dynamique, dans le même Compose et le même Caddy :
+
+```
+deepotus.tech (Hostinger) ──fetch──▶ api.deepotus.tech ──▶ Caddy ──▶ 127.0.0.1:8787 api (node, site-fusion/server/attente.mjs)
+Stripe ──webhook signé──▶ api.deepotus.tech/api/stripe/webhook          └─▶ Brevo (e-mails)   /srv/deepotus/api (SQLite)
+toutes les pages ──pixel──▶ stats.deepotus.tech ──▶ Caddy ──▶ 127.0.0.1:8081 goatcounter      /srv/deepotus/stats (SQLite)
+```
+
+1. DNS : enregistrements **A** `api` et `stats` → IP du VPS.
+2. Sur le PC (Git Bash), une seule connexion SSH : `bash deploiement/vps/publier-api.sh ~/DeepotusVideo/site-vitrine`.
+   Le script envoie le code commité du site (`git archive`) dans `/opt/deepotus-site` (le VPS n'a aucun accès au dépôt
+   privé), crée les dossiers et `/srv/deepotus/secrets/api.env` depuis `api.env.exemple` (clés `ATTENTE_*` générées),
+   ajoute les blocs `api` et `stats` au `Caddyfile`, puis démarre `goatcounter` et `api`.
+3. Compléter `/srv/deepotus/secrets/api.env` (Brevo, Stripe), puis relancer le même script.
+4. Mettre à jour l'API après un commit du site : relancer le même script.
+5. Compte GoatCounter (une fois) : `docker compose run --rm goatcounter db create site -vhost stats.deepotus.tech -user.email TOI@… -db sqlite+/data/goatcounter.sqlite3`
+   (le mot de passe est demandé). Réglages › Données : conservation 395 jours.
+6. Stripe › Développeurs › Webhooks : point de terminaison `https://api.deepotus.tech/api/stripe/webhook`, événements
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `charge.refunded` ; son secret `whsec_…` dans
+   `STRIPE_WEBHOOK_SECRET` (et celui du mode test dans `STRIPE_WEBHOOK_SECRET_TEST`).
+7. Rendez-vous : `RDV_ICAL_GOOGLE` (adresse iCal secrète de ton agenda) dans `api.env`, puis
+   `docker compose run --rm api node server/attente.mjs --flux-rdv` donne l'adresse du flux des réservations, à ajouter
+   dans Google Agenda (« Autres agendas › À partir de l'URL »). Rappels la veille, annulation et déplacement : automatiques.
+8. Installeur : `scp VideoGen-Setup.exe deepotus-vps:/srv/deepotus/telechargements/` (nom = `TELECHARGEMENT_FICHIER`).
+

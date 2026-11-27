@@ -44,6 +44,49 @@ services:
     # « depot » sans mot de passe (champ vide) : la clé SSH du PC est la seule entrée ; uid 1000 = deepotus.
     command: depot::1000
 
+  # Site deepotus.tech (26/11/2026) : API de la liste d'attente, des demandes et de la vente (webhook Stripe, livraison,
+  # téléchargement signé), servie par Caddy sous api.deepotus.tech. Code : dépôt privé du site cloné en lecture seule dans
+  # /opt/deepotus-site (server/attente.mjs, sans dépendance). Secrets : /srv/deepotus/secrets/api.env (api.env.exemple).
+  api:
+    image: node:24-alpine
+    network_mode: host
+    restart: unless-stopped
+    user: "1000:1000"
+    working_dir: /app/site-fusion
+    command: ["node", "server/attente.mjs"]
+    env_file: /srv/deepotus/secrets/api.env
+    environment:
+      NODE_ENV: production
+      HOST: 127.0.0.1
+      PORT: "8787"
+      API_URL: https://api.deepotus.tech
+      SITE_URL: https://deepotus.tech
+      ORIGINES_SUPPLEMENTAIRES: https://www.deepotus.tech
+      DERRIERE_PROXY: "1"
+      ATTENTE_BASE: /donnees/attente.sqlite
+      EMAILS_DOSSIER: /app/emails
+    volumes:
+      - /opt/deepotus-site:/app:ro
+      - /srv/deepotus/api:/donnees
+      - /srv/deepotus/telechargements:/telechargements:ro
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+  # Mesure d'audience sans cookie (GoatCounter, SQLite) sous stats.deepotus.tech ; écoute 127.0.0.1:8081.
+  goatcounter:
+    build: ./goatcounter
+    image: deepotus-goatcounter:local
+    network_mode: host
+    restart: unless-stopped
+    user: "1000:1000"
+    command: ["serve", "-listen", "127.0.0.1:8081", "-tls", "proxy", "-db", "sqlite+/data/goatcounter.sqlite3", "-automigrate"]
+    volumes:
+      - /srv/deepotus/stats:/data
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
 volumes:
   caddy_data: {}
   caddy_config: {}
