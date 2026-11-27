@@ -15242,5 +15242,9 @@
  "Les styles de reel ne sont accessibles que depuis ce PC.": {
   "fr": "Les styles de reel ne sont accessibles que depuis ce PC.",
   "en": "Reel styles are only accessible from this PC."
+ },
+ "Élément inconnu : carrousel, accroches, fil_x ou branche.": {
+  "fr": "Élément inconnu : carrousel, accroches, fil_x ou branche.",
+  "en": "Unknown element: carrousel, accroches, fil_x or branche."
  }
 }
